@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Portal del Coordinador de Área — URP</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --brand:#0f8f5e;
+  --brand-oscuro:#0b6e48;
+  --brand-suave:#e6f4ee;
+  --tinta:#15201b;
+  --tinta-media:#5a6660;
+  --tinta-tenue:#8c948f;
+  --linea:#dfe4e1;
+  --fondo:#f6f8f7;
+  --papel:#ffffff;
+  --ok:#0f8f5e;
+  --parcial:#b8860b;
+  --falla:#c0392b;
+  --neutro:#8c948f;
+  --radio:8px;
+}
+*{box-sizing:border-box}
+html{zoom:1.22}
+body{
+  margin:0;background:var(--fondo);color:var(--tinta);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.5;
+}
+.mono{font-family:'IBM Plex Mono',monospace}
+button{font-family:inherit;font-size:inherit;cursor:pointer}
+h1,h2,h3{margin:0;font-weight:600;letter-spacing:-.01em}
+
+/* ---------------------------------------------------------------- cabecera */
+header{
+  background:var(--papel);border-bottom:1px solid var(--linea);
+  padding:10px 20px;display:flex;align-items:center;gap:14px;
+  position:sticky;top:0;z-index:20;
+}
+.marca{display:flex;flex-direction:column;line-height:1.2}
+.marca b{font-size:14px;font-weight:600}
+.marca span{font-size:11px;color:var(--tinta-media)}
+.sello{
+  width:30px;height:30px;border-radius:6px;background:var(--brand);
+  color:#fff;display:grid;place-items:center;font-weight:700;font-size:13px;flex:none;
+}
+.espacio{flex:1}
+.usuario{text-align:right;line-height:1.25}
+.usuario b{display:block;font-size:12px;font-weight:600}
+.usuario span{font-size:11px;color:var(--tinta-media)}
+
+/* ------------------------------------------------------------------ layout */
+main{max-width:1180px;margin:0 auto;padding:20px}
+.oculto{display:none !important}
+
+.btn{
+  border:1px solid var(--brand);background:var(--brand);color:#fff;
+  padding:7px 14px;border-radius:var(--radio);font-weight:500;
+}
+.btn:hover{background:var(--brand-oscuro);border-color:var(--brand-oscuro)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn.fantasma{background:transparent;color:var(--brand)}
+.btn.fantasma:hover{background:var(--brand-suave)}
+.btn.gris{background:transparent;color:var(--tinta-media);border-color:var(--linea)}
+.btn.gris:hover{background:var(--fondo);color:var(--tinta)}
+:focus-visible{outline:2px solid var(--brand);outline-offset:2px}
+
+/* ------------------------------------------------------------------ ingreso */
+#ingreso{
+  min-height:70vh;display:grid;place-items:center;text-align:center;
+}
+#ingreso .caja{
+  background:var(--papel);border:1px solid var(--linea);border-radius:12px;
+  padding:36px 40px;max-width:400px;
+}
+#ingreso h1{font-size:19px;margin-bottom:6px}
+#ingreso p{color:var(--tinta-media);font-size:13px;margin:0 0 22px}
+#botonGoogle{display:flex;justify-content:center}
+#ingreso .nota{margin-top:20px;font-size:11px;color:var(--tinta-tenue)}
+
+/* ------------------------------------------------------------------ tablero */
+.barra{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px;flex-wrap:wrap}
+.barra h2{font-size:17px}
+.barra .sub{font-size:12px;color:var(--tinta-media)}
+.filtro{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--tinta-media)}
+select,input[type=text],input[type=date],input[type=url],textarea{
+  font-family:inherit;font-size:13px;color:var(--tinta);
+  border:1px solid var(--linea);border-radius:6px;padding:5px 8px;background:var(--papel);
+}
+textarea{width:100%;resize:vertical;min-height:64px;line-height:1.5}
+select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
+
+.tabla{
+  background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
+}
+table{width:100%;border-collapse:collapse}
+th{
+  text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--tinta-media);font-weight:600;padding:9px 12px;
+  border-bottom:1px solid var(--linea);background:var(--fondo);
+  position:sticky;top:52px;
+}
+td{padding:10px 12px;border-bottom:1px solid var(--linea);vertical-align:top}
+tbody tr:last-child td{border-bottom:none}
+tbody tr:hover{background:#fafcfb}
+.curso b{display:block;font-weight:600}
+.curso small{color:var(--tinta-media);font-size:11.5px}
+.codigo{font-size:11.5px;color:var(--tinta-media)}
+
+.chips{display:flex;gap:4px;flex-wrap:wrap}
+.chip{
+  border:1px solid var(--linea);background:var(--papel);color:var(--tinta-media);
+  border-radius:20px;padding:3px 10px;font-size:11px;font-weight:500;
+}
+.chip.activo{border-color:var(--brand);color:var(--brand)}
+.chip.activo:hover{background:var(--brand-suave)}
+.chip.hecho{background:var(--brand);border-color:var(--brand);color:#fff}
+.chip.observado{background:#fdf4e3;border-color:#e6c86a;color:#8a6400}
+.chip:disabled{opacity:.45;cursor:not-allowed}
+
+.alerta{
+  background:#fdf1ef;border:1px solid #f0c4bd;color:#8c2f22;
+  border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:14px;
+}
+.alerta b{font-weight:600}
+.vacio{padding:44px 20px;text-align:center;color:var(--tinta-media);font-size:13px}
+.vacio b{display:block;color:var(--tinta);font-size:14px;margin-bottom:4px;font-weight:600}
+
+.pendiente{color:var(--falla);font-size:11px;font-weight:500}
+
+/* -------------------------------------------------------------------- ficha */
+.migas{font-size:12px;color:var(--tinta-media);margin-bottom:12px}
+.migas button{
+  background:none;border:none;color:var(--brand);padding:0;font-size:12px;
+  text-decoration:underline;text-underline-offset:2px;
+}
+.ficha{background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden}
+.ficha-cab{padding:16px 18px;border-bottom:1px solid var(--linea);background:var(--fondo)}
+.ficha-cab h2{font-size:17px}
+.ficha-cab .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--tinta-media)}
+.ficha-cab .meta span b{color:var(--tinta);font-weight:600}
+.llave{
+  display:inline-block;margin-top:10px;padding:3px 8px;border-radius:5px;
+  background:var(--brand-suave);color:var(--brand-oscuro);font-size:11px;
+}
+.ficha-cuerpo{padding:18px}
+.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+label{display:block;font-size:11px;font-weight:600;color:var(--tinta-media);margin-bottom:4px}
+label .req{color:var(--falla)}
+.rejilla select,.rejilla input{width:100%}
+
+.items{border:1px solid var(--linea);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.item{display:grid;grid-template-columns:34px 1fr 132px;gap:12px;padding:10px 12px;align-items:center;border-bottom:1px solid var(--linea)}
+.item:last-child{border-bottom:none}
+.item:nth-child(odd){background:#fbfcfc}
+.item .n{font-size:11px;color:var(--tinta-tenue);font-weight:500}
+.item .txt{font-size:13px}
+.item .obs{grid-column:2 / -1;margin-top:6px}
+.item .obs input{width:100%;font-size:12px}
+.item select{width:100%}
+.item[data-estado="Cumple"]{box-shadow:inset 3px 0 0 var(--ok)}
+.item[data-estado="Parcial"]{box-shadow:inset 3px 0 0 var(--parcial)}
+.item[data-estado="No cumple"]{box-shadow:inset 3px 0 0 var(--falla)}
+.item[data-estado="No aplica"]{box-shadow:inset 3px 0 0 var(--neutro)}
+
+.resumen{
+  display:flex;align-items:center;gap:20px;flex-wrap:wrap;
+  background:var(--fondo);border:1px solid var(--linea);border-radius:8px;
+  padding:12px 16px;margin-bottom:20px;
+}
+.resumen .cifra{font-size:26px;font-weight:700;letter-spacing:-.02em;line-height:1}
+.resumen .cifra small{font-size:12px;font-weight:500;color:var(--tinta-media);margin-left:2px}
+.resumen .det{font-size:12px;color:var(--tinta-media)}
+.resumen .espacio{flex:1}
+
+.pie{display:flex;gap:10px;align-items:center;padding-top:4px}
+.aviso{font-size:12px}
+.aviso.ok{color:var(--brand)}
+.aviso.error{color:var(--falla)}
+
+@media (max-width:760px){
+  html{zoom:1}
+  .item{grid-template-columns:28px 1fr}
+  .item select{grid-column:2}
+  th{position:static}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="sello">URP</div>
+  <div class="marca">
+    <b>Portal del Coordinador de Área</b>
+    <span>Facultad de Ingeniería</span>
+  </div>
+  <div class="espacio"></div>
+  <div class="usuario oculto" id="usuarioCaja">
+    <b id="usuarioNombre"></b>
+    <span id="usuarioArea"></span>
+  </div>
+  <button class="btn gris oculto" id="btnSalir">Salir</button>
+</header>
+
+<main>
+
+  <!-- ============================================================ ingreso -->
+  <section id="ingreso">
+    <div class="caja">
+      <h1>Ingresa con tu cuenta URP</h1>
+      <p>El portal reconoce tu área y te muestra los cursos que te toca supervisar este ciclo.</p>
+      <div id="botonGoogle"></div>
+      <div class="aviso error" id="ingresoError" style="margin-top:14px"></div>
+      <div class="nota">Solo cuentas del dominio urp.edu.pe registradas como coordinador de área.</div>
+    </div>
+  </section>
+
+  <!-- ============================================================ tablero -->
+  <section id="tablero" class="oculto">
+    <div class="barra">
+      <div>
+        <h2>Mis cursos</h2>
+        <div class="sub" id="tableroSub"></div>
+      </div>
+      <div class="espacio"></div>
+      <div class="filtro">
+        <label for="filtroCiclo" style="margin:0">Ciclo</label>
+        <select id="filtroCiclo"></select>
+      </div>
+    </div>
+    <div id="tableroAlertas"></div>
+    <div class="tabla" id="tableroTabla"></div>
+  </section>
+
+  <!-- ====================================================== ficha sílabo -->
+  <section id="ficha" class="oculto">
+    <div class="migas"><button id="volver">Mis cursos</button> / Lista de verificación de sílabo</div>
+    <div class="ficha">
+      <div class="ficha-cab">
+        <h2 id="fichaCurso"></h2>
+        <div class="meta" id="fichaMeta"></div>
+        <div class="llave mono" id="fichaLlave"></div>
+      </div>
+      <div class="ficha-cuerpo">
+
+        <div class="rejilla">
+          <div>
+            <label for="fPlan">Plan de estudio</label>
+            <input type="text" id="fPlan" readonly>
+          </div>
+          <div>
+            <label for="fRevisor">Revisor <span class="req">*</span></label>
+            <input type="text" id="fRevisor" placeholder="Apellidos y nombres">
+          </div>
+          <div>
+            <label for="fFecha">Fecha de revisión <span class="req">*</span></label>
+            <input type="date" id="fFecha">
+          </div>
+        </div>
+
+        <div class="items" id="listaItems"></div>
+
+        <div class="resumen">
+          <div>
+            <div class="cifra" id="rPorcentaje">0<small>%</small></div>
+            <div class="det">cumplimiento</div>
+          </div>
+          <div class="det" id="rDetalle">Sin evaluar</div>
+          <div class="espacio"></div>
+          <div>
+            <label for="fEstado">Estado del sílabo</label>
+            <select id="fEstado"></select>
+          </div>
+          <div>
+            <label for="fLevantamiento">Fecha de levantamiento</label>
+            <input type="date" id="fLevantamiento">
+          </div>
+        </div>
+
+        <div style="margin-bottom:16px">
+          <label for="fObs">Observaciones generales</label>
+          <textarea id="fObs" placeholder="Lo que se comunicó al docente y con qué plazo."></textarea>
+        </div>
+
+        <div style="margin-bottom:18px">
+          <label for="fEnlace">Enlace de evidencia</label>
+          <input type="url" id="fEnlace" style="width:100%" placeholder="https://drive.google.com/...">
+        </div>
+
+        <div class="pie">
+          <button class="btn" id="btnGuardar">Guardar revisión</button>
+          <button class="btn gris" id="btnCancelar">Cancelar</button>
+          <span class="aviso" id="fichaAviso"></span>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+  'use strict';
+  const CFG = window.PCA_CONFIG;
+  const $ = (id) => document.getElementById(id);
+
+  const estado = {
+    credential: null,
+    correo: '', nombre: '', areas: [],
+    asignaciones: [],
+    actual: null,
+    registro: null
+  };
+
+  /* ------------------------------------------------------------- utilidades */
+
+  function api(ruta, opciones = {}) {
+    const cfg = Object.assign({ headers: {} }, opciones);
+    cfg.headers['Authorization'] = 'Bearer ' + estado.credential;
+    if (cfg.body) cfg.headers['Content-Type'] = 'application/json';
+    return fetch(CFG.PROXY + ruta, cfg).then(async r => {
+      const data = await r.json().catch(() => ({ error: 'El proxy devolvió una respuesta ilegible' }));
+      if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
+      return data;
+    });
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+      ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+  }
+
+  function hoy() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  function mostrar(seccion) {
+    ['ingreso','tablero','ficha'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
+    window.scrollTo(0, 0);
+  }
+
+  /* ---------------------------------------------------------------- ingreso */
+
+  window.onGoogleReady = function() {
+    if (!window.google || !google.accounts) return;
+    google.accounts.id.initialize({
+      client_id: CFG.GOOGLE_CLIENT_ID,
+      hd: CFG.DOMINIO,
+      callback: alIngresar
+    });
+    google.accounts.id.renderButton($('botonGoogle'), {
+      theme: 'outline', size: 'large', text: 'signin_with', locale: 'es', width: 280
+    });
+  };
+
+  function alIngresar(respuesta) {
+    estado.credential = respuesta.credential;
+    $('ingresoError').textContent = '';
+    api('/sesion')
+      .then(datos => {
+        estado.correo = datos.correo;
+        estado.nombre = datos.nombre;
+        estado.areas = datos.areas;
+        $('usuarioNombre').textContent = datos.nombre;
+        $('usuarioArea').textContent = datos.areas.join(' · ');
+        $('usuarioCaja').classList.remove('oculto');
+        $('btnSalir').classList.remove('oculto');
+        prepararCiclos();
+        cargarAsignaciones();
+      })
+      .catch(e => { $('ingresoError').textContent = e.message; });
+  }
+
+  $('btnSalir').addEventListener('click', () => {
+    if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
+    estado.credential = null;
+    $('usuarioCaja').classList.add('oculto');
+    $('btnSalir').classList.add('oculto');
+    mostrar('ingreso');
+  });
+
+  /* ---------------------------------------------------------------- tablero */
+
+  function prepararCiclos() {
+    const sel = $('filtroCiclo');
+    sel.innerHTML = '';
+    [CFG.CICLO_ACTIVO, ''].forEach(c => {
+      const o = document.createElement('option');
+      o.value = c; o.textContent = c || 'Todos los ciclos';
+      sel.appendChild(o);
+    });
+    sel.onchange = cargarAsignaciones;
+  }
+
+  function cargarAsignaciones() {
+    $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
+    mostrar('tablero');
+    api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+      .then(datos => { estado.asignaciones = datos.asignaciones; pintarTablero(); })
+      .catch(e => {
+        $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
+      });
+  }
+
+  function pintarTablero() {
+    const lista = estado.asignaciones;
+    $('tableroSub').textContent = estado.areas.join(' · ') +
+      ' — ' + lista.length + (lista.length === 1 ? ' asignación' : ' asignaciones');
+
+    const incompletas = lista.filter(a => a.faltantes.length);
+    $('tableroAlertas').innerHTML = incompletas.length
+      ? '<div class="alerta"><b>' + incompletas.length + ' asignación(es) sin datos completos.</b> ' +
+        'No se les puede generar el ID ni registrar supervisiones hasta que se complete lo que falta en Docentes DAI.</div>'
+      : '';
+
+    if (!lista.length) {
+      $('tableroTabla').innerHTML = '<div class="vacio"><b>Todavía no hay cursos en tu área</b>' +
+        'Cuando se cargue la carga lectiva del ciclo, aparecerán aquí.</div>';
+      return;
+    }
+
+    const filas = lista.map((a, i) => {
+      const bloqueada = a.faltantes.length > 0;
+      const chips = Object.entries(CFG.MODULOS).map(([clave, m]) => {
+        const usable = m.activo && !bloqueada;
+        return '<button class="chip' + (usable ? ' activo' : '') + '" ' +
+          (usable ? 'data-abrir="' + clave + '" data-fila="' + i + '"' : 'disabled') +
+          '>' + esc(m.corto) + '</button>';
+      }).join('');
+
+      return '<tr>' +
+        '<td class="curso"><b>' + esc(a.asignatura) + '</b>' +
+          '<small class="codigo">' + esc(a.codigo || 'sin código') + ' · grupo ' + esc(a.grupo || '—') +
+          ' · ' + esc(a.semestre || '—') + ' · ' + esc(a.planEstudio || '—') + '</small>' +
+          (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
+        '</td>' +
+        '<td>' + esc(a.docente) + '</td>' +
+        '<td><div class="chips">' + chips + '</div></td>' +
+      '</tr>';
+    }).join('');
+
+    $('tableroTabla').innerHTML =
+      '<table><thead><tr><th>Asignatura</th><th>Docente</th><th>Módulos</th></tr></thead>' +
+      '<tbody>' + filas + '</tbody></table>';
+
+    $('tableroTabla').querySelectorAll('[data-abrir]').forEach(b => {
+      b.addEventListener('click', () => {
+        const a = estado.asignaciones[Number(b.dataset.fila)];
+        if (b.dataset.abrir === 'silabo') abrirSilabo(a);
+      });
+    });
+  }
+
+  /* ----------------------------------------------------------------- sílabo */
+
+  function abrirSilabo(a) {
+    estado.actual = a;
+    estado.registro = null;
+    mostrar('ficha');
+    $('fichaCurso').textContent = a.asignatura;
+    $('fichaMeta').innerHTML =
+      '<span>Docente <b>' + esc(a.docente) + '</b></span>' +
+      '<span>Código <b>' + esc(a.codigo) + '</b></span>' +
+      '<span>Grupo <b>' + esc(a.grupo) + '</b></span>' +
+      '<span>Semestre <b>' + esc(a.semestre) + '</b></span>' +
+      '<span>Ciclo <b>' + esc(a.ciclo) + '</b></span>';
+    $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
+    $('fPlan').value = a.planEstudio || '';
+    $('fRevisor').value = estado.nombre || '';
+    $('fFecha').value = hoy();
+    $('fLevantamiento').value = '';
+    $('fObs').value = '';
+    $('fEnlace').value = '';
+    $('fichaAviso').textContent = '';
+    $('fichaAviso').className = 'aviso';
+
+    const selEstado = $('fEstado');
+    selEstado.innerHTML = '<option value="">Seleccione</option>' +
+      CFG.ESTADOS_SILABO.map(e => '<option>' + esc(e) + '</option>').join('');
+
+    pintarItems();
+    asegurarID(a).then(() => cargarRevision(a));
+  }
+
+  // Si la asignación todavía no tiene ID guardado en Docentes DAI, el portal
+  // lo escribe la primera vez que se abre el curso.
+  function asegurarID(a) {
+    if (a.idGuardado || !a.idGenerado) return Promise.resolve();
+    return api('/id-asignacion', {
+      method: 'POST',
+      body: JSON.stringify({ recordId: a.recordId, idAsignacion: a.idGenerado, ciclo: $('filtroCiclo').value })
+    }).then(r => {
+      a.idGuardado = r.idAsignacion;
+      a.idAsignacion = r.idAsignacion;
+      $('fichaLlave').textContent = r.idAsignacion;
+    }).catch(() => { /* no bloquea la revisión */ });
+  }
+
+  function pintarItems() {
+    const opciones = '<option value="">Seleccione</option>' +
+      CFG.ESCALA.map(v => '<option>' + esc(v) + '</option>').join('');
+
+    $('listaItems').innerHTML = CFG.MODULOS.silabo.items.map((it, i) =>
+      '<div class="item" data-i="' + i + '">' +
+        '<div class="n mono">' + it.n + '</div>' +
+        '<div class="txt">' + esc(it.etiqueta) + '</div>' +
+        '<div><select data-estado="' + i + '">' + opciones + '</select></div>' +
+        '<div class="obs oculto"><input type="text" data-obs="' + i + '" placeholder="Qué falta o qué corregir"></div>' +
+      '</div>'
+    ).join('');
+
+    $('listaItems').querySelectorAll('[data-estado]').forEach(sel => {
+      sel.addEventListener('change', () => {
+        const fila = sel.closest('.item');
+        fila.dataset.estado = sel.value;
+        const obs = fila.querySelector('.obs');
+        const requiere = sel.value === 'Parcial' || sel.value === 'No cumple';
+        obs.classList.toggle('oculto', !requiere);
+        recalcular();
+      });
+    });
+  }
+
+  function recalcular() {
+    const selects = [...$('listaItems').querySelectorAll('[data-estado]')];
+    const valores = selects.map(s => s.value);
+    const aplicables = valores.filter(v => v && v !== 'No aplica').length;
+    const conformes = valores.filter(v => v === 'Cumple').length;
+    const evaluados = valores.filter(v => v).length;
+    const pct = aplicables ? Math.round((conformes / aplicables) * 1000) / 10 : 0;
+
+    $('rPorcentaje').innerHTML = pct + '<small>%</small>';
+    $('rDetalle').textContent = evaluados
+      ? conformes + ' de ' + aplicables + ' ítems aplicables conformes · ' + evaluados + '/11 evaluados'
+      : 'Sin evaluar';
+
+    if (evaluados === 11 && !$('fEstado').value) {
+      $('fEstado').value = (conformes === aplicables) ? 'Conforme' : 'Observado';
+    }
+    return { conformes, aplicables, pct, evaluados };
+  }
+
+  function cargarRevision(a) {
+    api('/silabo?idAsignacion=' + encodeURIComponent(a.idAsignacion))
+      .then(datos => {
+        if (!datos.registro) return;
+        estado.registro = datos.registro;
+        const v = datos.registro.valores;
+        $('fRevisor').value = v['Revisor'] || '';
+        $('fFecha').value = (v['Fecha de revision'] || '').slice(0, 10) || hoy();
+        $('fEstado').value = v['Estado del silabo'] || '';
+        $('fLevantamiento').value = (v['Fecha de levantamiento'] || '').slice(0, 10);
+        $('fObs').value = v['Observaciones generales'] || '';
+        $('fEnlace').value = v['Enlace de evidencia'] || '';
+
+        CFG.MODULOS.silabo.items.forEach((it, i) => {
+          const guardado = buscarPorPrefijo(v, it.n + ' ');
+          const sel = $('listaItems').querySelector('[data-estado="' + i + '"]');
+          if (guardado && sel) {
+            sel.value = guardado;
+            sel.dispatchEvent(new Event('change'));
+          }
+          const obs = v['Obs ' + it.n];
+          if (obs) {
+            const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
+            if (campo) { campo.value = obs; campo.closest('.obs').classList.remove('oculto'); }
+          }
+        });
+        recalcular();
+        aviso('Revisión existente cargada. Al guardar se actualiza.', 'ok');
+      })
+      .catch(e => aviso(e.message, 'error'));
+  }
+
+  function buscarPorPrefijo(valores, prefijo) {
+    const clave = Object.keys(valores).find(k => k.indexOf(prefijo) === 0);
+    return clave ? valores[clave] : '';
+  }
+
+  function aviso(texto, tipo) {
+    const el = $('fichaAviso');
+    el.textContent = texto;
+    el.className = 'aviso ' + (tipo || '');
+  }
+
+  $('volver').addEventListener('click', () => mostrar('tablero'));
+  $('btnCancelar').addEventListener('click', () => mostrar('tablero'));
+
+  $('btnGuardar').addEventListener('click', () => {
+    const a = estado.actual;
+    const M = CFG.MODULOS.silabo;
+
+    if (!$('fRevisor').value.trim()) return aviso('Falta el nombre del revisor.', 'error');
+    if (!$('fFecha').value) return aviso('Falta la fecha de revisión.', 'error');
+
+    const selects = [...$('listaItems').querySelectorAll('[data-estado]')];
+    const sinEvaluar = selects.findIndex(s => !s.value);
+    if (sinEvaluar >= 0) return aviso('Falta evaluar el ítem ' + M.items[sinEvaluar].n + '.', 'error');
+
+    const faltaObs = M.items.findIndex((it, i) => {
+      const v = selects[i].value;
+      const o = $('listaItems').querySelector('[data-obs="' + i + '"]').value.trim();
+      return (v === 'Parcial' || v === 'No cumple') && !o;
+    });
+    if (faltaObs >= 0) return aviso('El ítem ' + M.items[faltaObs].n + ' está observado y necesita una observación.', 'error');
+
+    const r = recalcular();
+    const valores = {};
+    valores[M.comun.ciclo]       = a.ciclo;
+    valores[M.comun.programa]    = a.programa;
+    valores[M.comun.area]        = a.area;
+    valores[M.comun.codigo]      = a.codigo;
+    valores[M.comun.asignatura]  = a.asignatura;
+    valores[M.comun.docente]     = a.docente;
+    valores[M.comun.grupo]       = a.grupo;
+    valores[M.comun.coordinador] = estado.nombre;
+
+    valores[M.campos.planEstudio]   = a.planEstudio;
+    valores[M.campos.revisor]       = $('fRevisor').value.trim();
+    valores[M.campos.fechaRevision] = $('fFecha').value;
+    valores[M.campos.itemsConformes]= r.conformes;
+    valores[M.campos.porcentaje]    = r.pct;
+    valores[M.campos.estado]        = $('fEstado').value;
+    valores[M.campos.fechaLevantamiento] = $('fLevantamiento').value;
+    valores[M.campos.observaciones] = $('fObs').value.trim();
+    valores[M.campos.enlace]        = $('fEnlace').value.trim();
+
+    M.items.forEach((it, i) => {
+      valores[it.estado] = selects[i].value;
+      valores[it.obs] = $('listaItems').querySelector('[data-obs="' + i + '"]').value.trim();
+    });
+
+    $('btnGuardar').disabled = true;
+    aviso('Guardando…', '');
+    api('/silabo', {
+      method: 'POST',
+      body: JSON.stringify({
+        idAsignacion: a.idAsignacion,
+        recordId: estado.registro ? estado.registro.recordId : null,
+        valores
+      })
+    })
+      .then(() => { aviso('Revisión guardada.', 'ok'); $('btnGuardar').disabled = false; })
+      .catch(e => { aviso(e.message, 'error'); $('btnGuardar').disabled = false; });
+  });
+
+  /* --------------------------------------------------------------- arranque */
+
+  let intentos = 0;
+  (function esperarGoogle() {
+    if (window.google && window.google.accounts) return window.onGoogleReady();
+    if (++intentos > 40) {
+      $('ingresoError').textContent = 'No se pudo cargar el acceso de Google. Revisa tu conexión y recarga la página.';
+      return;
+    }
+    setTimeout(esperarGoogle, 150);
+  })();
+
+})();
+</script>
+</body>
+</html>
