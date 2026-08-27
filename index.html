@@ -553,12 +553,12 @@ label .req{color:var(--falla)}
         if (!datos.registro) return;
         estado.registro = datos.registro;
         const v = datos.registro.valores;
-        $('fRevisor').value = v['Revisor'] || '';
-        $('fFecha').value = (v['Fecha de revision'] || '').slice(0, 10) || hoy();
-        $('fEstado').value = v['Estado del silabo'] || '';
-        $('fLevantamiento').value = (v['Fecha de levantamiento'] || '').slice(0, 10);
-        $('fObs').value = v['Observaciones generales'] || '';
-        $('fEnlace').value = v['Enlace de evidencia'] || '';
+        $('fRevisor').value = limpio(v, 'Revisor');
+        $('fFecha').value = limpio(v, 'Fecha de revision').slice(0, 10) || hoy();
+        $('fEstado').value = limpio(v, 'Estado del silabo');
+        $('fLevantamiento').value = limpio(v, 'Fecha de levantamiento').slice(0, 10);
+        $('fObs').value = limpio(v, 'Observaciones generales');
+        $('fEnlace').value = limpio(v, 'Enlace de evidencia');
 
         CFG.MODULOS.silabo.items.forEach((it, i) => {
           const guardado = buscarPorPrefijo(v, it.n + ' ');
@@ -567,7 +567,7 @@ label .req{color:var(--falla)}
             sel.value = guardado;
             sel.dispatchEvent(new Event('change'));
           }
-          const obs = v['Obs ' + it.n];
+          const obs = limpio(v, 'Obs ' + it.n);
           if (obs) {
             const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
             if (campo) { campo.value = obs; campo.closest('.obs').classList.remove('oculto'); }
@@ -579,9 +579,16 @@ label .req{color:var(--falla)}
       .catch(e => aviso(e.message, 'error'));
   }
 
+  // QuintaDB a veces devuelve el nombre de la columna como si fuera el valor.
+  function limpio(valores, clave) {
+    const t = String(valores[clave] == null ? '' : valores[clave]).trim();
+    if (!t || t === clave || /^[a-zA-Z0-9_-]{22}$/.test(t)) return '';
+    return t;
+  }
+
   function buscarPorPrefijo(valores, prefijo) {
     const clave = Object.keys(valores).find(k => k.indexOf(prefijo) === 0);
-    return clave ? valores[clave] : '';
+    return clave ? limpio(valores, clave) : '';
   }
 
   function aviso(texto, tipo) {
