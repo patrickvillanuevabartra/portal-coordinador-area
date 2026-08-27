@@ -487,22 +487,12 @@ label .req{color:var(--falla)}
       CFG.ESTADOS_SILABO.map(e => '<option>' + esc(e) + '</option>').join('');
 
     pintarItems();
-    asegurarID(a).then(() => cargarRevision(a));
+    asegurarID().then(() => cargarRevision(a));
   }
 
-  // Si la asignación todavía no tiene ID guardado en Docentes DAI, el portal
-  // lo escribe la primera vez que se abre el curso.
-  function asegurarID(a) {
-    if (a.idGuardado || !a.idGenerado) return Promise.resolve();
-    return api('/id-asignacion', {
-      method: 'POST',
-      body: JSON.stringify({ recordId: a.recordId, idAsignacion: a.idGenerado, ciclo: $('filtroCiclo').value })
-    }).then(r => {
-      a.idGuardado = r.idAsignacion;
-      a.idAsignacion = r.idAsignacion;
-      $('fichaLlave').textContent = r.idAsignacion;
-    }).catch(() => { /* no bloquea la revisión */ });
-  }
+  // El ID no se guarda en Docentes DAI: escribir ahi por REST vacia los campos de
+  // relacion del registro y la asignacion se pierde. Se calcula al vuelo en cada lectura.
+  function asegurarID() { return Promise.resolve(); }
 
   function pintarItems() {
     const opciones = '<option value="">Seleccione</option>' +
