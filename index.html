@@ -97,11 +97,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
 }
 table{width:100%;border-collapse:collapse}
+/* Sin position:sticky a proposito: el zoom del documento descuadra las
+   coordenadas del sticky y el encabezado termina montado sobre la primera fila. */
 th{
   text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
   color:var(--tinta-media);font-weight:600;padding:9px 12px;
   border-bottom:1px solid var(--linea);background:var(--fondo);
-  position:sticky;top:52px;
 }
 td{padding:10px 12px;border-bottom:1px solid var(--linea);vertical-align:top}
 tbody tr:last-child td{border-bottom:none}
@@ -185,7 +186,6 @@ label .req{color:var(--falla)}
   html{zoom:1}
   .item{grid-template-columns:28px 1fr}
   .item select{grid-column:2}
-  th{position:static}
 }
 </style>
 </head>
