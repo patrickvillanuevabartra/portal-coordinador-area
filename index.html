@@ -248,10 +248,6 @@ label .req{color:var(--falla)}
 
         <div class="rejilla">
           <div>
-            <label for="fPlan">Plan de estudio</label>
-            <input type="text" id="fPlan" readonly>
-          </div>
-          <div>
             <label for="fRevisor">Revisor <span class="req">*</span></label>
             <input type="text" id="fRevisor" placeholder="Apellidos y nombres">
           </div>
@@ -438,7 +434,8 @@ label .req{color:var(--falla)}
       return '<tr>' +
         '<td class="curso"><b>' + esc(a.asignatura) + '</b>' +
           '<small class="codigo">' + esc(a.codigo || 'sin código') + ' · grupo ' + esc(a.grupo || '—') +
-          ' · ' + esc(a.semestre || '—') + ' · ' + esc(a.planEstudio || '—') + '</small>' +
+          ' · sem. ' + esc(a.semestre || '—') + ' · plan ' + esc(a.planEstudio || '—') + '</small>' +
+          '<small class="codigo">' + esc(a.programa || '—') + ' · ' + esc(a.area || '—') + '</small>' +
           (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
         '</td>' +
         '<td>' + esc(a.docente) + '</td>' +
@@ -465,14 +462,18 @@ label .req{color:var(--falla)}
     estado.registro = null;
     mostrar('ficha');
     $('fichaCurso').textContent = a.asignatura;
+    const dato = (etq, v) => v ? '<span>' + etq + ' <b>' + esc(v) + '</b></span>' : '';
     $('fichaMeta').innerHTML =
-      '<span>Docente <b>' + esc(a.docente) + '</b></span>' +
-      '<span>Código <b>' + esc(a.codigo) + '</b></span>' +
-      '<span>Grupo <b>' + esc(a.grupo) + '</b></span>' +
-      '<span>Semestre <b>' + esc(a.semestre) + '</b></span>' +
-      '<span>Ciclo <b>' + esc(a.ciclo) + '</b></span>';
+      dato('Docente', a.docente) +
+      dato('Correo', a.correoDocente) +
+      dato('Carrera', a.programa) +
+      dato('Área', a.area) +
+      dato('Código', a.codigo) +
+      dato('Grupo', a.grupo) +
+      dato('Semestre', a.semestre) +
+      dato('Plan de estudio', a.planEstudio) +
+      dato('Ciclo', a.ciclo);
     $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
-    $('fPlan').value = a.planEstudio || '';
     $('fRevisor').value = estado.nombre || '';
     $('fFecha').value = hoy();
     $('fLevantamiento').value = '';
