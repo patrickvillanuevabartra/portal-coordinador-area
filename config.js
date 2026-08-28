@@ -121,7 +121,7 @@ window.PCA_CONFIG = {
       nombre: 'Entrevistas con delegados',
       corto: 'Entrevistas',
       entity: 'cXWR7cP8niWPZcKmovW4Pw',
-      activo: false,
+      activo: true,
       comun: {
         idAsignacion: 'cWqSoxW4nlWRCGWRTDjSkm',
         ciclo:        'cxW55LvmjiwioDsSkawc1G',
@@ -158,7 +158,7 @@ window.PCA_CONFIG = {
       nombre: 'Cumplimiento F1, F2 y F3',
       corto: 'F1-F3',
       entity: 'ddN8k2u8jiW502WR7cSeeY',
-      activo: false,
+      activo: true,
       comun: {
         idAsignacion: 'ddHXeDeCnaW55kWQNdP8kC',
         ciclo:        'cPW6aWrCjjaPldGJBcLSoz',
@@ -187,7 +187,7 @@ window.PCA_CONFIG = {
       nombre: 'Supervisión de aula virtual',
       corto: 'Aula virtual',
       entity: 'aQEMpcL8jhW5FcH2NcHfjd',
-      activo: false,
+      activo: true,
       comun: {
         idAsignacion: 'cIWPNcHCngwju8WPpdLmov',
         ciclo:        'dcR8oVW5vdOjpcGmoYWPHs',
@@ -223,7 +223,7 @@ window.PCA_CONFIG = {
       nombre: 'Supervisión de portafolios digitales',
       corto: 'Portafolios',
       entity: 'csymoIuanmW6jQW47dTYGp',
-      activo: false,
+      activo: true,
       comun: {
         idAsignacion: 'bAW6joyKjcx5nsWQNcQCkF',
         ciclo:        'ddVCo0WOTdK4o7WQ7cICo2',
@@ -258,7 +258,7 @@ window.PCA_CONFIG = {
       nombre: 'Datos de delegados',
       corto: 'Delegados',
       entity: 'cgW4VdL3jcSikyW7VcVmk_',
-      activo: false,
+      activo: true,
       comun: {
         idAsignacion: 'ddMSoNf8nlF7q1rSkjaCoe',
         ciclo:        'c3o1G1tNDdJlPrWO0XW59x',
