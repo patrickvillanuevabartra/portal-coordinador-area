@@ -36,6 +36,7 @@ window.PCA_CONFIG = {
         docente:      'bIjSk0W7LiuilcQ8ksjSkd',
         correo:       'ddLblcTv1cLyobmb50WRup',
         celular:      'cRW63dMSnlW6bSW6RdGSou',
+        tipo:         'dcJs5aWOzbt5ldNSkeeJzH',  // Teo / Tal / Prá / Lab
         idAsignacion: 'c1tWFcG35nAOz6yCo4pZq2'   // texto, escribible por REST
       }
     },
@@ -89,7 +90,9 @@ window.PCA_CONFIG = {
         asignatura:   'a3WO3dGSjjoOlcP2zMWPuK',
         docente:      'c6hSodWOzozioLlmoRumoq',
         grupo:        'czWQu4WOzdHioNW7xdGg9O',
-        coordinador:  'cgWQZdOIXcLykPW57cOISY'
+        coordinador:  'cgWQZdOIXcLykPW57cOISY',
+        subGrupo:     'bWgmojoSjlWO5CWPZdHSkw',
+        tipo:         'biW7ddMSnoW6qKqmkzo8kX'
       },
       campos: {
         planEstudio:      'a_WR1FhH5fe6qSkSoFWRap',
@@ -131,7 +134,9 @@ window.PCA_CONFIG = {
         asignatura:   'ddJSorvSndWRCpW7hdNXaj',
         docente:      'ddU8kCWOTbelP2W4rRyGn-',
         grupo:        'bRWRBdPLXdO4k8gmkzWQ0y',
-        coordinador:  'cse8kAr8jaWRC7umk8W4Cg'
+        coordinador:  'cse8kAr8jaWRC7umk8W4Cg',
+        subGrupo:     'cvvtxdQJbiWPugpZqHqSo-',
+        tipo:         'cpW6lcJ1jcVODNW53cN8kA'
       },
       campos: {
         fechaHora:    'aOWQKRtCnoW6xcQCkmBZ91',
@@ -168,7 +173,9 @@ window.PCA_CONFIG = {
         asignatura:   'ddHfNdK1znEjJdSaddJSoz',
         docente:      'bzW5DJvebpaiVdOYldH8kd',
         grupo:        'aPEZfCpSjhW57cUmk9duCy',
-        coordinador:  'ddSq3cNNTdTyoirKyrsSkH'
+        coordinador:  'ddSq3cNNTdTyoirKyrsSkH',
+        subGrupo:     'cLWOlcQ8nijiJcT8o8w1yC',
+        tipo:         'bnkvKQWQDdHik-jhNdICk9'
       },
       campos: {
         fechaRevision:'ckWQmkdbPhWRJdUCktxr5r',
@@ -197,7 +204,9 @@ window.PCA_CONFIG = {
         asignatura:   'aXpSkTW49kWPOaguCytbKS',
         docente:      'ctf8kOW4jcNykex8kIsCo0',
         grupo:        'ddT8kKyCjhWPZdSmkkW418',
-        coordinador:  'dcMCk5emnmc5DvwWHzihzx'
+        coordinador:  'dcMCk5emnmc5DvwWHzihzx',
+        subGrupo:     'aeaMVcNmjijioCW5qDlCo-',
+        tipo:         'dcOCokcCndiOo1W5xdN8kQ'
       },
       campos: {
         fechaSupervision:'cYW61UjSjeC4oxsqNdMSk_',
@@ -233,7 +242,9 @@ window.PCA_CONFIG = {
         asignatura:   'buWO0Fih1dIzhcLSkoDmoL',
         docente:      'cQus3dTdzaW5xdK8o9W59e',
         grupo:        'dcOsxdNwvgW6VcM8oSW6uZ',
-        coordinador:  'abCJFcGefmCj7dThiJWOrS'
+        coordinador:  'abCJFcGefmCj7dThiJWOrS',
+        subGrupo:     'ddH21iF8johikAscZcTGq8',
+        tipo:         'ddQmotWRLamli3W4rzA2eE'
       },
       campos: {
         fechaSupervision:'c-WQZcISjhFiJdGCo9ymor',
@@ -268,7 +279,9 @@ window.PCA_CONFIG = {
         asignatura:   'ddHZ8WW41dUOoMW4W1rN9I',
         docente:      'aKWPNdSCjjWPZdQIldOfn5',
         grupo:        'a5aIFcHujdJykFW4tdK8o4',
-        coordinador:  'ddH8o_WP1dEyoeo8oRE3er'
+        coordinador:  'ddH8o_WP1dEyoeo8oRE3er',
+        subGrupo:     'ddHGtcIYTaf4oOW5xdQYj0',
+        tipo:         'cTWP7cMgvhB4kicSkQW4ej'
       },
       campos: {
         codigoDelegado:      'c9vSkxxmnnW49sW5aGW4qH',
