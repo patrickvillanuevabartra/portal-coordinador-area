@@ -71,29 +71,39 @@ main{max-width:1180px;margin:0 auto;padding:20px}
 
 /* ------------------------------------------------------------------ ingreso */
 #ingreso{
-  min-height:70vh;display:flex;align-items:center;justify-content:center;
-  gap:32px;flex-wrap:wrap;text-align:center;padding:20px 0;
+  min-height:calc(100vh - 140px);
+  display:flex;align-items:center;justify-content:center;padding:24px 0;
 }
-.portada{width:min(380px,100%);order:1}
-.lienzo{position:relative;width:100%;padding-top:141.43%;overflow:hidden;
-  border-radius:10px;box-shadow:0 2px 10px rgba(21,32,27,.14);background:var(--papel)}
-.lienzo iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
-.credito{margin:8px 0 0;font-size:11px;color:var(--tinta-tenue)}
-.credito a{color:var(--tinta-media)}
-#ingreso .caja{order:2}
-@media (max-width:820px){
-  #ingreso{flex-direction:column}
-  #ingreso .caja{order:1}
-  .portada{order:2;width:min(340px,100%)}
+
+/* Una sola pieza: el afiche da contexto, el ingreso es la acción. Misma altura
+   los dos lados para que se lean como una composición y no como dos objetos. */
+.acceso{
+  display:flex;align-items:stretch;
+  width:100%;max-width:760px;
+  background:var(--papel);border:1px solid var(--linea);border-radius:14px;
+  box-shadow:0 2px 14px rgba(21,32,27,.07);overflow:hidden;
 }
-#ingreso .caja{
-  background:var(--papel);border:1px solid var(--linea);border-radius:12px;
-  padding:36px 40px;max-width:400px;
+.portada{width:300px;flex:none;background:var(--fondo)}
+.portada img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+
+.acceso .caja{
+  flex:1;display:flex;flex-direction:column;justify-content:center;
+  padding:40px 36px;text-align:center;
 }
-#ingreso h1{font-size:19px;margin-bottom:6px}
-#ingreso p{color:var(--tinta-media);font-size:13px;margin:0 0 22px}
+#ingreso h1{font-size:19px;margin-bottom:8px}
+#ingreso p{color:var(--tinta-media);font-size:13px;margin:0 0 22px;line-height:1.55}
 #botonGoogle{display:flex;justify-content:center}
-#ingreso .nota{margin-top:20px;font-size:11px;color:var(--tinta-tenue)}
+#ingreso .nota{margin-top:22px;font-size:11px;color:var(--tinta-tenue);line-height:1.5}
+#ingresoError{margin-top:14px}
+
+@media (max-width:760px){
+  html{zoom:1}
+  #ingreso{min-height:0;padding:16px 0}
+  .acceso{flex-direction:column;max-width:420px}
+  .portada{order:2;width:100%}
+  .portada img{height:auto}
+  .acceso .caja{order:1;padding:32px 24px}
+}
 
 /* ------------------------------------------------------------------ tablero */
 .barra{display:flex;align-items:flex-end;gap:16px;margin-bottom:16px;flex-wrap:wrap}
@@ -235,22 +245,17 @@ label .req{color:var(--falla)}
 
   <!-- ============================================================ ingreso -->
   <section id="ingreso">
-    <div class="portada">
-      <div class="lienzo">
-        <iframe loading="lazy" src="https://www.canva.com/design/DAGuTncOwU4/ZZyhVWo8bS_OsdrdxPU6kg/view?embed"
-          title="Presentación del portal" allowfullscreen allow="fullscreen"></iframe>
+    <div class="acceso">
+      <div class="portada">
+        <img src="portada.jpg" alt="Portal del Coordinador de Área — Facultad de Ingeniería, SGOE ISO 21001">
       </div>
-      <p class="credito">
-        <a href="https://www.canva.com/design/DAGuTncOwU4/ZZyhVWo8bS_OsdrdxPU6kg/view"
-           target="_blank" rel="noopener">SISECOM EPII</a> · Patrick Villanueva
-      </p>
-    </div>
-    <div class="caja">
-      <h1>Ingresa con tu cuenta URP</h1>
-      <p>El portal reconoce tu área y te muestra los cursos que te toca supervisar este ciclo.</p>
-      <div id="botonGoogle"></div>
-      <div class="aviso error" id="ingresoError" style="margin-top:14px"></div>
-      <div class="nota">Solo cuentas del dominio urp.edu.pe registradas como coordinador de área.</div>
+      <div class="caja">
+        <h1>Ingresa con tu cuenta URP</h1>
+        <p>El portal reconoce tu área y te muestra los cursos que te toca supervisar este ciclo.</p>
+        <div id="botonGoogle"></div>
+        <div class="aviso error" id="ingresoError"></div>
+        <div class="nota">Solo cuentas del dominio urp.edu.pe registradas como coordinador de área.</div>
+      </div>
     </div>
   </section>
 
