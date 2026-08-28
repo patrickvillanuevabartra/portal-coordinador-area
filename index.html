@@ -109,7 +109,11 @@ tbody tr:last-child td{border-bottom:none}
 tbody tr:hover{background:#fafcfb}
 .curso b{display:block;font-weight:600}
 .curso small{color:var(--tinta-media);font-size:11.5px}
-.codigo{font-size:11.5px;color:var(--tinta-media)}
+.codigo{font-size:11.5px;color:var(--tinta-media);display:block}
+.subtitulo{font-size:11px;font-weight:600;color:var(--tinta-media);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px}
+.rejilla .full{grid-column:1 / -1}
+.temas{display:grid;gap:12px;margin-bottom:20px}
+.temas textarea{min-height:56px}
 
 .chips{display:flex;gap:4px;flex-wrap:wrap}
 .chip{
@@ -235,9 +239,9 @@ label .req{color:var(--falla)}
     <div class="tabla" id="tableroTabla"></div>
   </section>
 
-  <!-- ====================================================== ficha sílabo -->
+  <!-- ============================================== ficha (módulo activo) -->
   <section id="ficha" class="oculto">
-    <div class="migas"><button id="volver">Mis cursos</button> / Lista de verificación de sílabo</div>
+    <div class="migas"><button id="volver">Mis cursos</button> / <span id="fichaModulo"></span></div>
     <div class="ficha">
       <div class="ficha-cab">
         <h2 id="fichaCurso"></h2>
@@ -245,53 +249,12 @@ label .req{color:var(--falla)}
         <div class="llave mono" id="fichaLlave"></div>
       </div>
       <div class="ficha-cuerpo">
-
-        <div class="rejilla">
-          <div>
-            <label for="fRevisor">Revisor <span class="req">*</span></label>
-            <input type="text" id="fRevisor" placeholder="Apellidos y nombres">
-          </div>
-          <div>
-            <label for="fFecha">Fecha de revisión <span class="req">*</span></label>
-            <input type="date" id="fFecha">
-          </div>
-        </div>
-
-        <div class="items" id="listaItems"></div>
-
-        <div class="resumen">
-          <div>
-            <div class="cifra" id="rPorcentaje">0<small>%</small></div>
-            <div class="det">cumplimiento</div>
-          </div>
-          <div class="det" id="rDetalle">Sin evaluar</div>
-          <div class="espacio"></div>
-          <div>
-            <label for="fEstado">Estado del sílabo</label>
-            <select id="fEstado"></select>
-          </div>
-          <div>
-            <label for="fLevantamiento">Fecha de levantamiento</label>
-            <input type="date" id="fLevantamiento">
-          </div>
-        </div>
-
-        <div style="margin-bottom:16px">
-          <label for="fObs">Observaciones generales</label>
-          <textarea id="fObs" placeholder="Lo que se comunicó al docente y con qué plazo."></textarea>
-        </div>
-
-        <div style="margin-bottom:18px">
-          <label for="fEnlace">Enlace de evidencia</label>
-          <input type="url" id="fEnlace" style="width:100%" placeholder="https://drive.google.com/...">
-        </div>
-
+        <div id="fichaForm"></div>
         <div class="pie">
-          <button class="btn" id="btnGuardar">Guardar revisión</button>
+          <button class="btn" id="btnGuardar">Guardar</button>
           <button class="btn gris" id="btnCancelar">Cancelar</button>
           <span class="aviso" id="fichaAviso"></span>
         </div>
-
       </div>
     </div>
   </section>
@@ -310,8 +273,9 @@ label .req{color:var(--falla)}
     credential: null,
     correo: '', nombre: '', areas: [],
     asignaciones: [],
-    actual: null,
-    registro: null
+    actual: null,      // asignación abierta
+    modulo: null,      // clave del módulo abierto
+    registro: null     // registro existente en QuintaDB, si lo hay
   };
 
   /* ------------------------------------------------------------- utilidades */
@@ -340,6 +304,28 @@ label .req{color:var(--falla)}
   function mostrar(seccion) {
     ['ingreso','tablero','ficha'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
     window.scrollTo(0, 0);
+  }
+
+  // QuintaDB devuelve los valores por nombre de columna, y a veces el propio
+  // nombre en lugar del valor. Además los nombres pueden diferir en tildes, así
+  // que la búsqueda ignora acentos y mayúsculas.
+  function sinTildes(s) {
+    return String(s == null ? '' : s).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+  }
+
+  function leer(valores, nombre) {
+    if (!valores) return '';
+    const buscado = sinTildes(nombre);
+    const clave = Object.keys(valores).find(k => sinTildes(k) === buscado);
+    if (!clave) return '';
+    const t = String(valores[clave] == null ? '' : valores[clave]).trim();
+    if (!t || sinTildes(t) === sinTildes(clave) || /^[a-zA-Z0-9_-]{22}$/.test(t)) return '';
+    return t;
+  }
+
+  function leerPrefijo(valores, prefijo) {
+    const clave = Object.keys(valores || {}).find(k => k.indexOf(prefijo) === 0);
+    return clave ? leer(valores, clave) : '';
   }
 
   /* ---------------------------------------------------------------- ingreso */
@@ -425,7 +411,7 @@ label .req{color:var(--falla)}
     const filas = lista.map((a, i) => {
       const bloqueada = a.faltantes.length > 0;
       const chips = Object.entries(CFG.MODULOS).map(([clave, m]) => {
-        const usable = m.activo && !bloqueada;
+        const usable = !bloqueada;
         return '<button class="chip' + (usable ? ' activo' : '') + '" ' +
           (usable ? 'data-abrir="' + clave + '" data-fila="' + i + '"' : 'disabled') +
           '>' + esc(m.corto) + '</button>';
@@ -449,19 +435,158 @@ label .req{color:var(--falla)}
 
     $('tableroTabla').querySelectorAll('[data-abrir]').forEach(b => {
       b.addEventListener('click', () => {
-        const a = estado.asignaciones[Number(b.dataset.fila)];
-        if (b.dataset.abrir === 'silabo') abrirSilabo(a);
+        abrirModulo(estado.asignaciones[Number(b.dataset.fila)], b.dataset.abrir);
       });
     });
   }
 
-  /* ----------------------------------------------------------------- sílabo */
+  /* ================================================ descripción de módulos ==
+     Cada módulo se declara con bloques. El motor de abajo pinta el formulario,
+     lo rellena al releer y arma los valores al guardar. Agregar un módulo nuevo
+     es agregar una entrada aquí, sin tocar el motor.
+     ------------------------------------------------------------------------ */
 
-  function abrirSilabo(a) {
+  const ESCALA = CFG.ESCALA;
+
+  const FORMULARIOS = {
+
+    silabo: {
+      guardar: 'Guardar revisión',
+      bloques: [
+        { tipo:'grid', campos:[
+          { k:'revisor', etq:'Revisor', tipo:'texto', req:true, auto:'nombre' },
+          { k:'fechaRevision', etq:'Fecha de revisión', tipo:'fecha', req:true, auto:'hoy' }
+        ]},
+        { tipo:'escala', fuente:'items', obs:true, opciones:ESCALA,
+          cuenta:'Cumple', excluye:'No aplica',
+          campoCuenta:'itemsConformes', campoPct:'porcentaje', rotulo:'cumplimiento' },
+        { tipo:'grid', campos:[
+          { k:'estado', etq:'Estado del sílabo', tipo:'select', opciones:CFG.ESTADOS_SILABO },
+          { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha' }
+        ]},
+        { tipo:'grid', ancho:true, campos:[
+          { k:'observaciones', etq:'Observaciones generales', tipo:'textarea',
+            ayuda:'Lo que se comunicó al docente y con qué plazo.' },
+          { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
+        ]}
+      ]
+    },
+
+    entrevistas: {
+      guardar: 'Guardar entrevista',
+      bloques: [
+        { tipo:'grid', campos:[
+          { k:'fechaHora', etq:'Fecha y hora de reunión', tipo:'fechahora', req:true },
+          { k:'modalidad', etq:'Modalidad', tipo:'select', opciones:['Presencial','Virtual','Mixta'], req:true },
+          { k:'delegado', etq:'Delegado', tipo:'texto', req:true },
+          { k:'subdelegado', etq:'Subdelegado', tipo:'texto' }
+        ]},
+        { tipo:'textos', fuente:'temas', titulo:'Temas tratados' },
+        { tipo:'grid', ancho:true, campos:[
+          { k:'compromisos', etq:'Compromisos acordados', tipo:'textarea',
+            ayuda:'Qué se acordó y con qué plazo.' },
+          { k:'alerta', etq:'¿Requiere atención de la Escuela?', col:'Alerta', tipo:'select', opciones:['Si','No'], req:true },
+          { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
+        ]}
+      ]
+    },
+
+    formularios: {
+      guardar: 'Guardar cumplimiento',
+      bloques: [
+        { tipo:'grid', campos:[
+          { k:'fechaRevision', etq:'Fecha de revisión', tipo:'fecha', req:true, auto:'hoy' }
+        ]},
+        { tipo:'grid', titulo:'Formularios', campos:[
+          { k:'f1', etq:'F1', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
+          { k:'fechaF1', etq:'Fecha F1', tipo:'fecha' },
+          { k:'f2', etq:'F2', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
+          { k:'fechaF2', etq:'Fecha F2', tipo:'fecha' },
+          { k:'f3', etq:'F3', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
+          { k:'fechaF3', etq:'Fecha F3', tipo:'fecha' }
+        ], contar:{ desde:['f1','f2','f3'], valor:'Presentado', campo:'presentados', rotulo:'formularios presentados' } },
+        { tipo:'grid', ancho:true, campos:[
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
+        ]}
+      ]
+    },
+
+    aulaVirtual: {
+      guardar: 'Guardar supervisión',
+      bloques: [
+        { tipo:'grid', campos:[
+          { k:'fechaSupervision', etq:'Fecha de supervisión', tipo:'fecha', req:true, auto:'hoy' },
+          { k:'responsable', etq:'Responsable de la supervisión', tipo:'texto', req:true, auto:'nombre' }
+        ]},
+        { tipo:'escala', fuente:'criterios', obs:false, opciones:ESCALA,
+          cuenta:'Cumple', excluye:'No aplica',
+          campoCuenta:'cumplidos', campoPct:'porcentaje', rotulo:'cumplimiento' },
+        { tipo:'grid', ancho:true, campos:[
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea' },
+          { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
+        ]}
+      ]
+    },
+
+    portafolios: {
+      guardar: 'Guardar supervisión',
+      bloques: [
+        { tipo:'grid', campos:[
+          { k:'fechaSupervision', etq:'Fecha de supervisión', tipo:'fecha', req:true, auto:'hoy' },
+          { k:'responsable', etq:'Responsable de la supervisión', tipo:'texto', req:true, auto:'nombre' }
+        ]},
+        { tipo:'escala', fuente:'criterios', obs:false, opciones:ESCALA,
+          cuenta:'Cumple', excluye:'No aplica',
+          campoCuenta:'cumplidas', campoPct:'porcentaje', rotulo:'cumplimiento' },
+        { tipo:'grid', ancho:true, campos:[
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea' },
+          { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
+        ]}
+      ]
+    },
+
+    delegados: {
+      guardar: 'Guardar delegados',
+      bloques: [
+        { tipo:'grid', titulo:'Delegado', campos:[
+          { k:'codigoDelegado', etq:'Código', col:'Codigo del delegado', tipo:'texto', req:true },
+          { k:'delegado', etq:'Apellidos y nombres', col:'Delegado (apellidos y nombres)', tipo:'texto', req:true },
+          { k:'correoDelegado', etq:'Correo', col:'Correo del delegado', tipo:'correo', req:true },
+          { k:'celularDelegado', etq:'Celular', col:'Celular del delegado', tipo:'texto' },
+          { k:'fijoDelegado', etq:'Teléfono fijo', col:'Telefono fijo del delegado', tipo:'texto' }
+        ]},
+        { tipo:'grid', titulo:'Subdelegado', campos:[
+          { k:'codigoSubdelegado', etq:'Código', col:'Codigo del subdelegado', tipo:'texto' },
+          { k:'subdelegado', etq:'Apellidos y nombres', col:'Subdelegado (apellidos y nombres)', tipo:'texto' },
+          { k:'correoSubdelegado', etq:'Correo', col:'Correo del subdelegado', tipo:'correo' },
+          { k:'celularSubdelegado', etq:'Celular', col:'Celular del subdelegado', tipo:'texto' },
+          { k:'fijoSubdelegado', etq:'Teléfono fijo', col:'Telefono fijo del subdelegado', tipo:'texto' }
+        ]},
+        { tipo:'grid', ancho:true, campos:[
+          { k:'estado', etq:'Estado', tipo:'select', opciones:['Vigente','Reemplazado'], req:true },
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
+        ]}
+      ]
+    }
+  };
+
+  /* ==================================================== motor de la ficha == */
+
+  function abrirModulo(a, clave) {
+    const M = CFG.MODULOS[clave];
+    const F = FORMULARIOS[clave];
+    if (!M || !F) return;
+
     estado.actual = a;
+    estado.modulo = clave;
     estado.registro = null;
+
     mostrar('ficha');
+    $('fichaModulo').textContent = M.nombre;
+    $('btnGuardar').textContent = F.guardar;
+    $('btnGuardar').disabled = false;
     $('fichaCurso').textContent = a.asignatura;
+
     const dato = (etq, v) => v ? '<span>' + etq + ' <b>' + esc(v) + '</b></span>' : '';
     $('fichaMeta').innerHTML =
       dato('Docente', a.docente) +
@@ -474,112 +599,186 @@ label .req{color:var(--falla)}
       dato('Plan de estudio', a.planEstudio) +
       dato('Ciclo', a.ciclo);
     $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
-    $('fRevisor').value = estado.nombre || '';
-    $('fFecha').value = hoy();
-    $('fLevantamiento').value = '';
-    $('fObs').value = '';
-    $('fEnlace').value = '';
-    $('fichaAviso').textContent = '';
-    $('fichaAviso').className = 'aviso';
+    aviso('', '');
 
-    const selEstado = $('fEstado');
-    selEstado.innerHTML = '<option value="">Seleccione</option>' +
-      CFG.ESTADOS_SILABO.map(e => '<option>' + esc(e) + '</option>').join('');
-
-    pintarItems();
-    asegurarID().then(() => cargarRevision(a));
+    pintarFormulario(M, F);
+    cargarRegistro(a, clave);
   }
 
-  // El ID no se guarda en Docentes DAI: escribir ahi por REST vacia los campos de
-  // relacion del registro y la asignacion se pierde. Se calcula al vuelo en cada lectura.
-  function asegurarID() { return Promise.resolve(); }
+  function campoHTML(c, idx) {
+    const id = 'f_' + c.k;
+    const req = c.req ? ' <span class="req">*</span>' : '';
+    let control;
+    if (c.tipo === 'select') {
+      control = '<select id="' + id + '"><option value="">Seleccione</option>' +
+        c.opciones.map(o => '<option>' + esc(o) + '</option>').join('') + '</select>';
+    } else if (c.tipo === 'textarea') {
+      control = '<textarea id="' + id + '"' +
+        (c.ayuda ? ' placeholder="' + esc(c.ayuda) + '"' : '') + '></textarea>';
+    } else {
+      const tipos = { fecha:'date', fechahora:'datetime-local', url:'url', correo:'email' };
+      control = '<input type="' + (tipos[c.tipo] || 'text') + '" id="' + id + '"' +
+        (c.tipo === 'url' ? ' placeholder="https://drive.google.com/..."' : '') + '>';
+    }
+    const ancho = (c.tipo === 'textarea' || c.tipo === 'url') ? ' class="full"' : '';
+    return '<div' + ancho + '><label for="' + id + '">' + esc(c.etq) + req + '</label>' + control + '</div>';
+  }
 
-  function pintarItems() {
-    const opciones = '<option value="">Seleccione</option>' +
-      CFG.ESCALA.map(v => '<option>' + esc(v) + '</option>').join('');
+  function pintarFormulario(M, F) {
+    const partes = F.bloques.map((b, bi) => {
+      if (b.tipo === 'grid') {
+        const titulo = b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '';
+        const cuerpo = '<div class="rejilla">' + b.campos.map(campoHTML).join('') + '</div>';
+        const cont = b.contar
+          ? '<div class="resumen"><div><div class="cifra" id="b' + bi + '_cifra">0</div>' +
+            '<div class="det">' + esc(b.contar.rotulo) + '</div></div></div>'
+          : '';
+        return titulo + cuerpo + cont;
+      }
 
-    $('listaItems').innerHTML = CFG.MODULOS.silabo.items.map((it, i) =>
-      '<div class="item" data-i="' + i + '">' +
-        '<div class="n mono">' + it.n + '</div>' +
-        '<div class="txt">' + esc(it.etiqueta) + '</div>' +
-        '<div><select data-estado="' + i + '">' + opciones + '</select></div>' +
-        '<div class="obs oculto"><input type="text" data-obs="' + i + '" placeholder="Qué falta o qué corregir"></div>' +
-      '</div>'
-    ).join('');
+      if (b.tipo === 'escala') {
+        const lista = M[b.fuente] || [];
+        const opciones = '<option value="">Seleccione</option>' +
+          b.opciones.map(v => '<option>' + esc(v) + '</option>').join('');
+        const filas = lista.map((it, i) => {
+          const n = it.n || String(i + 1).padStart(2, '0');
+          const obs = b.obs
+            ? '<div class="obs oculto"><input type="text" data-obs="' + i + '" placeholder="Qué falta o qué corregir"></div>'
+            : '';
+          return '<div class="item" data-i="' + i + '">' +
+            '<div class="n mono">' + esc(n) + '</div>' +
+            '<div class="txt">' + esc(it.etiqueta) + '</div>' +
+            '<div><select data-estado="' + i + '">' + opciones + '</select></div>' +
+            obs + '</div>';
+        }).join('');
+        return '<div class="items" id="listaItems">' + filas + '</div>' +
+          '<div class="resumen">' +
+            '<div><div class="cifra" id="rPorcentaje">0<small>%</small></div>' +
+            '<div class="det">' + esc(b.rotulo) + '</div></div>' +
+            '<div class="det" id="rDetalle">Sin evaluar</div>' +
+          '</div>';
+      }
 
-    $('listaItems').querySelectorAll('[data-estado]').forEach(sel => {
-      sel.addEventListener('change', () => {
-        const fila = sel.closest('.item');
-        fila.dataset.estado = sel.value;
-        const obs = fila.querySelector('.obs');
-        const requiere = sel.value === 'Parcial' || sel.value === 'No cumple';
-        obs.classList.toggle('oculto', !requiere);
-        recalcular();
+      if (b.tipo === 'textos') {
+        const lista = M[b.fuente] || [];
+        const titulo = b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '';
+        return titulo + '<div class="temas">' + lista.map((t, i) =>
+          '<div><label for="t_' + i + '">' + esc(t.etiqueta) + '</label>' +
+          '<textarea id="t_' + i + '" data-tema="' + i + '"></textarea></div>'
+        ).join('') + '</div>';
+      }
+      return '';
+    });
+
+    $('fichaForm').innerHTML = partes.join('');
+
+    // Valores automáticos
+    F.bloques.forEach(b => {
+      (b.campos || []).forEach(c => {
+        const el = $('f_' + c.k);
+        if (!el) return;
+        if (c.auto === 'hoy') el.value = hoy();
+        if (c.auto === 'nombre') el.value = estado.nombre || '';
+        if (b.contar) el.addEventListener('change', () => recalcularConteo(F));
       });
     });
+
+    // Escala: mostrar la observación cuando el ítem no está conforme
+    const cont = $('listaItems');
+    if (cont) {
+      cont.querySelectorAll('[data-estado]').forEach(sel => {
+        sel.addEventListener('change', () => {
+          const fila = sel.closest('.item');
+          fila.dataset.estado = sel.value;
+          const obs = fila.querySelector('.obs');
+          if (obs) obs.classList.toggle('oculto', !(sel.value === 'Parcial' || sel.value === 'No cumple'));
+          recalcularEscala(F);
+        });
+      });
+    }
+    recalcularEscala(F);
+    recalcularConteo(F);
   }
 
-  function recalcular() {
-    const selects = [...$('listaItems').querySelectorAll('[data-estado]')];
-    const valores = selects.map(s => s.value);
-    const aplicables = valores.filter(v => v && v !== 'No aplica').length;
-    const conformes = valores.filter(v => v === 'Cumple').length;
+  function bloqueEscala(F) { return F.bloques.find(b => b.tipo === 'escala'); }
+
+  function recalcularEscala(F) {
+    const b = bloqueEscala(F);
+    if (!b || !$('listaItems')) return null;
+    const valores = [...$('listaItems').querySelectorAll('[data-estado]')].map(s => s.value);
+    const aplicables = valores.filter(v => v && v !== b.excluye).length;
+    const conformes = valores.filter(v => v === b.cuenta).length;
     const evaluados = valores.filter(v => v).length;
     const pct = aplicables ? Math.round((conformes / aplicables) * 1000) / 10 : 0;
 
     $('rPorcentaje').innerHTML = pct + '<small>%</small>';
     $('rDetalle').textContent = evaluados
-      ? conformes + ' de ' + aplicables + ' ítems aplicables conformes · ' + evaluados + '/11 evaluados'
+      ? conformes + ' de ' + aplicables + ' aplicables conformes · ' + evaluados + '/' + valores.length + ' evaluados'
       : 'Sin evaluar';
-
-    if (evaluados === 11 && !$('fEstado').value) {
-      $('fEstado').value = (conformes === aplicables) ? 'Conforme' : 'Observado';
-    }
-    return { conformes, aplicables, pct, evaluados };
+    return { conformes, aplicables, pct, evaluados, total: valores.length };
   }
 
-  function cargarRevision(a) {
-    api('/silabo?idAsignacion=' + encodeURIComponent(a.idAsignacion))
+  function recalcularConteo(F) {
+    F.bloques.forEach((b, bi) => {
+      if (!b.contar) return;
+      const n = b.contar.desde.filter(k => {
+        const el = $('f_' + k);
+        return el && el.value === b.contar.valor;
+      }).length;
+      const c = $('b' + bi + '_cifra');
+      if (c) c.textContent = n;
+    });
+  }
+
+  /* ------------------------------------------------------ leer lo guardado */
+
+  function cargarRegistro(a, clave) {
+    api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(a.idAsignacion))
       .then(datos => {
         if (!datos.registro) return;
         estado.registro = datos.registro;
         const v = datos.registro.valores;
-        $('fRevisor').value = limpio(v, 'Revisor');
-        $('fFecha').value = limpio(v, 'Fecha de revision').slice(0, 10) || hoy();
-        $('fEstado').value = limpio(v, 'Estado del silabo');
-        $('fLevantamiento').value = limpio(v, 'Fecha de levantamiento').slice(0, 10);
-        $('fObs').value = limpio(v, 'Observaciones generales');
-        $('fEnlace').value = limpio(v, 'Enlace de evidencia');
+        const M = CFG.MODULOS[clave];
+        const F = FORMULARIOS[clave];
 
-        CFG.MODULOS.silabo.items.forEach((it, i) => {
-          const guardado = buscarPorPrefijo(v, it.n + ' ');
-          const sel = $('listaItems').querySelector('[data-estado="' + i + '"]');
-          if (guardado && sel) {
-            sel.value = guardado;
-            sel.dispatchEvent(new Event('change'));
+        F.bloques.forEach(b => {
+          (b.campos || []).forEach(c => {
+            const el = $('f_' + c.k);
+            if (!el) return;
+            let val = leer(v, c.col || c.etq);
+            if (!val && c.k === 'fechaRevision') val = leer(v, 'Fecha de revision');
+            if (c.tipo === 'fecha') val = val.slice(0, 10);
+            if (c.tipo === 'fechahora') val = val.replace(' ', 'T').slice(0, 16);
+            if (val) el.value = val;
+          });
+
+          if (b.tipo === 'escala') {
+            (M[b.fuente] || []).forEach((it, i) => {
+              const guardado = it.n ? leerPrefijo(v, it.n + ' ') : leer(v, it.etiqueta);
+              const sel = $('listaItems').querySelector('[data-estado="' + i + '"]');
+              if (guardado && sel) { sel.value = guardado; sel.dispatchEvent(new Event('change')); }
+              if (b.obs && it.n) {
+                const obs = leer(v, 'Obs ' + it.n);
+                const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
+                if (obs && campo) { campo.value = obs; campo.closest('.obs').classList.remove('oculto'); }
+              }
+            });
           }
-          const obs = limpio(v, 'Obs ' + it.n);
-          if (obs) {
-            const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
-            if (campo) { campo.value = obs; campo.closest('.obs').classList.remove('oculto'); }
+
+          if (b.tipo === 'textos') {
+            (M[b.fuente] || []).forEach((t, i) => {
+              const campo = document.querySelector('[data-tema="' + i + '"]');
+              const val = leer(v, t.etiqueta);
+              if (campo && val) campo.value = val;
+            });
           }
         });
-        recalcular();
-        aviso('Revisión existente cargada. Al guardar se actualiza.', 'ok');
+
+        recalcularEscala(F);
+        recalcularConteo(F);
+        aviso('Registro existente cargado. Al guardar se actualiza.', 'ok');
       })
       .catch(e => aviso(e.message, 'error'));
-  }
-
-  // QuintaDB a veces devuelve el nombre de la columna como si fuera el valor.
-  function limpio(valores, clave) {
-    const t = String(valores[clave] == null ? '' : valores[clave]).trim();
-    if (!t || t === clave || /^[a-zA-Z0-9_-]{22}$/.test(t)) return '';
-    return t;
-  }
-
-  function buscarPorPrefijo(valores, prefijo) {
-    const clave = Object.keys(valores).find(k => k.indexOf(prefijo) === 0);
-    return clave ? limpio(valores, clave) : '';
   }
 
   function aviso(texto, tipo) {
@@ -591,26 +790,16 @@ label .req{color:var(--falla)}
   $('volver').addEventListener('click', () => mostrar('tablero'));
   $('btnCancelar').addEventListener('click', () => mostrar('tablero'));
 
+  /* --------------------------------------------------------------- guardar */
+
   $('btnGuardar').addEventListener('click', () => {
     const a = estado.actual;
-    const M = CFG.MODULOS.silabo;
-
-    if (!$('fRevisor').value.trim()) return aviso('Falta el nombre del revisor.', 'error');
-    if (!$('fFecha').value) return aviso('Falta la fecha de revisión.', 'error');
-
-    const selects = [...$('listaItems').querySelectorAll('[data-estado]')];
-    const sinEvaluar = selects.findIndex(s => !s.value);
-    if (sinEvaluar >= 0) return aviso('Falta evaluar el ítem ' + M.items[sinEvaluar].n + '.', 'error');
-
-    const faltaObs = M.items.findIndex((it, i) => {
-      const v = selects[i].value;
-      const o = $('listaItems').querySelector('[data-obs="' + i + '"]').value.trim();
-      return (v === 'Parcial' || v === 'No cumple') && !o;
-    });
-    if (faltaObs >= 0) return aviso('El ítem ' + M.items[faltaObs].n + ' está observado y necesita una observación.', 'error');
-
-    const r = recalcular();
+    const clave = estado.modulo;
+    const M = CFG.MODULOS[clave];
+    const F = FORMULARIOS[clave];
     const valores = {};
+
+    // Bloque común: los mismos nueve campos en las seis tablas
     valores[M.comun.ciclo]       = a.ciclo;
     valores[M.comun.programa]    = a.programa;
     valores[M.comun.area]        = a.area;
@@ -620,32 +809,78 @@ label .req{color:var(--falla)}
     valores[M.comun.grupo]       = a.grupo;
     valores[M.comun.coordinador] = estado.nombre;
 
-    valores[M.campos.planEstudio]   = a.planEstudio;
-    valores[M.campos.revisor]       = $('fRevisor').value.trim();
-    valores[M.campos.fechaRevision] = $('fFecha').value;
-    valores[M.campos.itemsConformes]= r.conformes;
-    valores[M.campos.porcentaje]    = r.pct;
-    valores[M.campos.estado]        = $('fEstado').value;
-    valores[M.campos.fechaLevantamiento] = $('fLevantamiento').value;
-    valores[M.campos.observaciones] = $('fObs').value.trim();
-    valores[M.campos.enlace]        = $('fEnlace').value.trim();
+    // Campos propios del módulo
+    for (const b of F.bloques) {
+      for (const c of (b.campos || [])) {
+        const el = $('f_' + c.k);
+        if (!el) continue;
+        const val = String(el.value || '').trim();
+        if (c.req && !val) { return aviso('Falta completar: ' + c.etq + '.', 'error'); }
+        if (M.campos[c.k]) valores[M.campos[c.k]] = val;
+      }
+      if (b.contar) {
+        const n = b.contar.desde.filter(k => $('f_' + k) && $('f_' + k).value === b.contar.valor).length;
+        if (M.campos[b.contar.campo]) valores[M.campos[b.contar.campo]] = n;
+      }
+    }
 
-    M.items.forEach((it, i) => {
-      valores[it.estado] = selects[i].value;
-      valores[it.obs] = $('listaItems').querySelector('[data-obs="' + i + '"]').value.trim();
-    });
+    // Escala de criterios o ítems
+    const be = bloqueEscala(F);
+    if (be) {
+      const lista = M[be.fuente] || [];
+      const selects = [...$('listaItems').querySelectorAll('[data-estado]')];
+      const sinEvaluar = selects.findIndex(s => !s.value);
+      if (sinEvaluar >= 0) {
+        const it = lista[sinEvaluar];
+        return aviso('Falta evaluar: ' + (it.n ? 'ítem ' + it.n : it.etiqueta) + '.', 'error');
+      }
+      if (be.obs) {
+        const falta = lista.findIndex((it, i) => {
+          const v = selects[i].value;
+          const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
+          return (v === 'Parcial' || v === 'No cumple') && campo && !campo.value.trim();
+        });
+        if (falta >= 0) {
+          return aviso('El ítem ' + lista[falta].n + ' está observado y necesita una observación.', 'error');
+        }
+      }
+      const r = recalcularEscala(F);
+      lista.forEach((it, i) => {
+        valores[it.estado || it.id] = selects[i].value;
+        if (be.obs && it.obs) {
+          const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
+          valores[it.obs] = campo ? campo.value.trim() : '';
+        }
+      });
+      if (M.campos[be.campoCuenta]) valores[M.campos[be.campoCuenta]] = r.conformes;
+      if (M.campos[be.campoPct]) valores[M.campos[be.campoPct]] = r.pct;
+    }
+
+    // Temas de texto libre
+    const bt = F.bloques.find(b => b.tipo === 'textos');
+    if (bt) {
+      (M[bt.fuente] || []).forEach((t, i) => {
+        const campo = document.querySelector('[data-tema="' + i + '"]');
+        valores[t.id] = campo ? campo.value.trim() : '';
+      });
+    }
 
     $('btnGuardar').disabled = true;
     aviso('Guardando…', '');
-    api('/silabo', {
+    api('/modulo', {
       method: 'POST',
       body: JSON.stringify({
+        clave,
         idAsignacion: a.idAsignacion,
         recordId: estado.registro ? estado.registro.recordId : null,
         valores
       })
     })
-      .then(() => { aviso('Revisión guardada.', 'ok'); $('btnGuardar').disabled = false; })
+      .then(r => {
+        if (r.recordId && !estado.registro) estado.registro = { recordId: r.recordId, valores: {} };
+        aviso('Guardado.', 'ok');
+        $('btnGuardar').disabled = false;
+      })
       .catch(e => { aviso(e.message, 'error'); $('btnGuardar').disabled = false; });
   });
 
