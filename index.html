@@ -487,9 +487,9 @@ label .req{color:var(--falla)}
           (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-fila="' + i + '"') +
           '>' + esc(m.corto) + '</button>').join('');
 
-        const etiqueta = (a.tipo || 'sin tipo') +
-          (a.subGrupo ? ' · subgrupo ' + a.subGrupo : '') +
-          ' · grupo ' + (a.grupo || '—');
+        // El tipo ya va en la etiqueta verde de al lado: aqui solo el detalle.
+        const etiqueta = 'grupo ' + (a.grupo || '—') +
+          (a.subGrupo ? ' · subgrupo ' + a.subGrupo : '');
 
         return '<tr>' +
           '<td class="carga"><span class="tipo">' + esc(a.tipo || '?') + '</span>' +
