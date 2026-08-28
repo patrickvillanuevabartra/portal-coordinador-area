@@ -135,6 +135,11 @@ tbody tr:hover{background:#fafcfb}
 .vacio b{display:block;color:var(--tinta);font-size:14px;margin-bottom:4px;font-weight:600}
 
 .pendiente{color:var(--falla);font-size:11px;font-weight:500}
+.curso-cab td{background:var(--brand-suave);padding:10px 12px}
+.curso-cab b{font-size:13.5px;color:var(--brand-oscuro)}
+.carga{padding-left:20px}
+.tipo{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;
+  border:1px solid var(--linea);border-radius:5px;padding:1px 7px;color:var(--tinta-media);background:var(--papel)}
 
 /* -------------------------------------------------------------------- ficha */
 .migas{font-size:12px;color:var(--tinta-media);margin-bottom:12px}
@@ -144,7 +149,10 @@ tbody tr:hover{background:#fafcfb}
 }
 .ficha{background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden}
 .ficha-cab{padding:16px 18px;border-bottom:1px solid var(--linea);background:var(--fondo)}
-.ficha-cab h2{font-size:17px}
+.ficha-cab{position:relative}
+.ficha-cab h2{font-size:17px;padding-right:170px}
+.volver-panel{position:absolute;top:14px;right:16px}
+@media (max-width:760px){.ficha-cab h2{padding-right:0}.volver-panel{position:static;margin-bottom:10px}}
 .ficha-cab .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--tinta-media)}
 .ficha-cab .meta span b{color:var(--tinta);font-weight:600}
 .llave{
@@ -244,6 +252,7 @@ label .req{color:var(--falla)}
     <div class="migas"><button id="volver">Mis cursos</button> / <span id="fichaModulo"></span></div>
     <div class="ficha">
       <div class="ficha-cab">
+        <button class="btn fantasma volver-panel" id="volverArriba">‹ Volver a mis cursos</button>
         <h2 id="fichaCurso"></h2>
         <div class="meta" id="fichaMeta"></div>
         <div class="llave mono" id="fichaLlave"></div>
@@ -408,29 +417,57 @@ label .req{color:var(--falla)}
       return;
     }
 
-    const filas = lista.map((a, i) => {
-      const bloqueada = a.faltantes.length > 0;
-      const chips = Object.entries(CFG.MODULOS).map(([clave, m]) => {
-        const usable = !bloqueada;
-        return '<button class="chip' + (usable ? ' activo' : '') + '" ' +
-          (usable ? 'data-abrir="' + clave + '" data-fila="' + i + '"' : 'disabled') +
-          '>' + esc(m.corto) + '</button>';
+    // Un curso puede tener varias cargas: teoría y uno o más laboratorios, con
+    // docentes distintos. Se agrupa por curso y cada carga es una fila.
+    const cursos = [];
+    lista.forEach((a, i) => {
+      const clave = (a.codigo || '') + '¦' + a.asignatura;
+      let g = cursos.find(x => x.clave === clave);
+      if (!g) { g = { clave, a, cargas: [] }; cursos.push(g); }
+      g.cargas.push({ a, i });
+    });
+
+    const orden = { 'Teo':0, 'Tal':1, 'Prá':2, 'Pra':2, 'Lab':3 };
+    cursos.forEach(g => g.cargas.sort((x, y) =>
+      (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9) ||
+      String(x.a.subGrupo).localeCompare(String(y.a.subGrupo))));
+
+    const filas = cursos.map(g => {
+      const c = g.a;
+      const cabecera = '<tr class="curso-cab"><td colspan="3">' +
+        '<b>' + esc(c.asignatura) + '</b>' +
+        '<small class="codigo">' + esc(c.codigo || 'sin código') +
+          ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
+          ' · ' + esc(c.programa || '—') + ' · ' + esc(c.area || '—') +
+          ' · ' + g.cargas.length + (g.cargas.length === 1 ? ' carga' : ' cargas') +
+        '</small></td></tr>';
+
+      const cargas = g.cargas.map(({ a, i }) => {
+        const bloqueada = a.faltantes.length > 0;
+        const chips = Object.entries(CFG.MODULOS).map(([clave, m]) =>
+          '<button class="chip' + (bloqueada ? '' : ' activo') + '" ' +
+          (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-fila="' + i + '"') +
+          '>' + esc(m.corto) + '</button>').join('');
+
+        const etiqueta = (a.tipo || 'sin tipo') +
+          (a.subGrupo ? ' · subgrupo ' + a.subGrupo : '') +
+          ' · grupo ' + (a.grupo || '—');
+
+        return '<tr>' +
+          '<td class="carga"><span class="tipo">' + esc(a.tipo || '?') + '</span>' +
+            '<small class="codigo">' + esc(etiqueta) + '</small>' +
+            (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
+          '</td>' +
+          '<td>' + esc(a.docente) + '</td>' +
+          '<td><div class="chips">' + chips + '</div></td>' +
+        '</tr>';
       }).join('');
 
-      return '<tr>' +
-        '<td class="curso"><b>' + esc(a.asignatura) + '</b>' +
-          '<small class="codigo">' + esc(a.codigo || 'sin código') + ' · grupo ' + esc(a.grupo || '—') +
-          ' · sem. ' + esc(a.semestre || '—') + ' · plan ' + esc(a.planEstudio || '—') + '</small>' +
-          '<small class="codigo">' + esc(a.programa || '—') + ' · ' + esc(a.area || '—') + '</small>' +
-          (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
-        '</td>' +
-        '<td>' + esc(a.docente) + '</td>' +
-        '<td><div class="chips">' + chips + '</div></td>' +
-      '</tr>';
+      return cabecera + cargas;
     }).join('');
 
     $('tableroTabla').innerHTML =
-      '<table><thead><tr><th>Asignatura</th><th>Docente</th><th>Módulos</th></tr></thead>' +
+      '<table><thead><tr><th>Carga</th><th>Docente</th><th>Módulos</th></tr></thead>' +
       '<tbody>' + filas + '</tbody></table>';
 
     $('tableroTabla').querySelectorAll('[data-abrir]').forEach(b => {
@@ -595,6 +632,8 @@ label .req{color:var(--falla)}
       dato('Área', a.area) +
       dato('Código', a.codigo) +
       dato('Grupo', a.grupo) +
+      dato('Subgrupo', a.subGrupo) +
+      dato('Tipo', a.tipo) +
       dato('Semestre', a.semestre) +
       dato('Plan de estudio', a.planEstudio) +
       dato('Ciclo', a.ciclo);
@@ -788,6 +827,7 @@ label .req{color:var(--falla)}
   }
 
   $('volver').addEventListener('click', () => mostrar('tablero'));
+  $('volverArriba').addEventListener('click', () => mostrar('tablero'));
   $('btnCancelar').addEventListener('click', () => mostrar('tablero'));
 
   /* --------------------------------------------------------------- guardar */
@@ -808,6 +848,8 @@ label .req{color:var(--falla)}
     valores[M.comun.docente]     = a.docente;
     valores[M.comun.grupo]       = a.grupo;
     valores[M.comun.coordinador] = estado.nombre;
+    valores[M.comun.subGrupo]    = a.subGrupo || '';
+    valores[M.comun.tipo]        = a.tipo || '';
 
     // Campos propios del módulo
     for (const b of F.bloques) {
