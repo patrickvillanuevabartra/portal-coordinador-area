@@ -315,6 +315,7 @@ label .req{color:var(--falla)}
     credential: null,
     correo: '', nombre: '', areas: [],
     asignaciones: [],
+    admin: false,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -392,8 +393,11 @@ label .req{color:var(--falla)}
         estado.correo = datos.correo;
         estado.nombre = datos.nombre;
         estado.areas = datos.areas;
+        estado.admin = !!datos.admin;
         $('usuarioNombre').textContent = datos.nombre;
-        $('usuarioArea').textContent = datos.areas.join(' · ');
+        $('usuarioArea').textContent = estado.admin
+          ? 'Administrador' + (datos.areas.length ? ' · ' + datos.areas.join(' · ') : '')
+          : datos.areas.join(' · ');
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
@@ -438,7 +442,8 @@ label .req{color:var(--falla)}
 
   function pintarTablero() {
     const lista = estado.asignaciones;
-    $('tableroSub').textContent = estado.areas.join(' · ') +
+    const ambito = estado.admin ? 'Toda la Facultad' : estado.areas.join(' · ');
+    $('tableroSub').textContent = ambito +
       ' — ' + lista.length + (lista.length === 1 ? ' asignación' : ' asignaciones');
 
     const incompletas = lista.filter(a => a.faltantes.length);
