@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mantenimiento del catálogo — PCA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#0f8f5e;--tinta:#15201b;--tinta-media:#5a6660;--linea:#dfe4e1;--fondo:#f6f8f7;--papel:#fff;--falla:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.55}
+main{max-width:760px;margin:0 auto;padding:32px 20px}
+h1{font-size:20px;margin:0 0 6px}
+p.sub{color:var(--tinta-media);margin:0 0 24px;font-size:13px}
+.caja{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:24px;margin-bottom:16px}
+.btn{border:1px solid var(--brand);background:var(--brand);color:#fff;padding:9px 18px;border-radius:8px;font:inherit;font-weight:500;cursor:pointer}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.resumen{display:flex;gap:26px;margin-bottom:18px;flex-wrap:wrap}
+.resumen div span{display:block;font-size:11px;color:var(--tinta-media);text-transform:uppercase;letter-spacing:.05em}
+.resumen div b{font-size:22px;font-weight:700}
+#log{font-family:'IBM Plex Mono',monospace;font-size:12px;background:#0f1613;color:#c8e6d8;border-radius:8px;padding:14px;max-height:320px;overflow:auto;white-space:pre-wrap;display:none;margin-top:16px}
+.aviso{font-size:13px;margin-top:12px}
+.aviso.error{color:var(--falla)}
+.aviso.ok{color:var(--brand)}
+.nota{font-size:12px;color:var(--tinta-media);border-left:3px solid var(--linea);padding-left:12px;margin-top:18px}
+</style></head><body>
+<main>
+  <h1>Restaurar el campo Programa</h1>
+  <p class="sub">Devuelve el programa a los 147 cursos que lo perdieron. Prueba primero con uno.</p>
+
+  <div class="caja">
+    <div class="resumen">
+      <div><span>Registros</span><b id="nTotal">0</b></div>
+      <div><span>Industrial</span><b id="nInd">0</b></div>
+      <div><span>Mecatrónica</span><b id="nMec">0</b></div>
+    </div>
+    <div id="botonGoogle"></div>
+    <div id="zonaAccion" style="display:none">
+      <button class="btn" id="btnProbar">1. Probar con un registro</button>
+      <button class="btn" id="btnAplicar" disabled style="margin-left:8px">2. Aplicar a los 147</button>
+      <span class="aviso" id="aviso"></span>
+    </div>
+    <div class="aviso error" id="error"></div>
+    <div id="log"></div>
+    <div class="nota">El área no se toca aquí: es un campo de relación y no se puede escribir por REST. Se asigna desde QuintaDB.</div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+  'use strict';
+  const CFG = window.PCA_CONFIG;
+  const $ = (id) => document.getElementById(id);
+  const CAMBIOS = [{"plan": "2015-II", "curso": "Sensores y Acondicionamiento de Señales (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Señales y Sistemas (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Sistemas de Control Inteligente (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Termodinámica (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Mecánica del Cuerpo Rígido (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Microprocesadores y Microcontroladores (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Electrónica de Potencia (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Formulación y Evaluación de Proyectos (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Máquinas Eléctricas (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Diseño, Manufactura e Ingeniería Asistida por Computadora CAD/CAM/CAE (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Procesamiento Digital de Imágenes (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Programación de Computadoras (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Proyecto Integrador Mecatrónico (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Teoría y Metodología de la Investigación en Ingeniería (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Redes de Comunicación de Datos I (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Resistencia de Materiales y Cálculo por Elementos Finitos (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Ingeniería de Materiales (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Controladores Lógicos Programables (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Ingeniería Ambiental (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Circuitos Eléctricos I (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Circuitos Eléctricos II (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Circuitos Electrónicos (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Electrohidráulica y Electroneumática (Mecatrónica 2015-II)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2015-II", "curso": "Ingeniería de Métodos II (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería de Procesos Empresariales (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería Económica (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería Financiera (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Software Integrado de Manufactura (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería Ambiental (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería de Costos y Presupuestos (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería de Procesos Industriales (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Ingeniería de Materiales (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Diseño Asistido por Computadora (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Diseño de Experimentos (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Automatización Industrial (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Control Estadístico de la Calidad (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Programación de Computadoras (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Resistencia de Materiales (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Inteligencia de Negocios (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Introducción a la Ingeniería Industrial (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Manufactura Asistida por Computadora (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Modelamiento y Simulación de Procesos (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Planeamiento y Control de Operaciones (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Fundamentos de Economía (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Diseño y Evaluación de Proyectos de Ingeniería (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Administración Industrial (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2015-II", "curso": "Tecnología Básica de Fabricación (Industrial 2015-II)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "CONTROLADORES LÓGICOS PROGRAMABLES (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "ORGANIZACIÓN Y ADMINISTRACIÓN DE EMPRESAS DE INGENIERÍA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "DEONTOLOGÍA PARA LA INGENIERÍA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MECÁNICA DEL CUERPO RÍGIDO (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "ESTADÍSTICA Y PROBABILIDADES (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "FÍSICA III (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "DIBUJO EN INGENIERÍA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MATEMÁTICA III (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MATEMÁTICA II (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "FÍSICA II (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "GLOBALIZACIÓN E INTEGRACIÓN (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "REALIDAD NACIONAL (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "RECURSOS NATURALES Y MEDIO AMBIENTE (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "FÍSICA I (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MATEMÁTICA I (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "INGLÉS II (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "FORMACIÓN HISTÓRICA DEL PERÚ (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "PSICOLOGÍA GENERAL (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "FILOSOFÍA Y ÉTICA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TALLER DE INTERPRETACIÓN Y REDACCIÓN DE TEXTOS (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "FUNDAMENTOS DE INGENIERÍA MECATRÓNICA", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "QUÍMICA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "INTELIGENCIA ARTIFICIAL (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "ELECTROHIDRÁULICA Y ELECTRONEUMÁTICA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MÁQUINAS ELÉCTRICAS (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "CIRCUITOS ELECTRÓNICOS (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "DISEÑO, MANUFACTURA E INGENIERÍA ASISTIDA POR COMPUTADORA CAD/CAM/CAE (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "SISTEMAS DE CONTROL ANALÓGICO", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "SISTEMAS EMBEBIDOS", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "PROCESAMIENTO DE SEÑALES E IMÁGENES", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MECÁNICA DE FLUIDOS Y TRANSFERENCIA DE CALOR APLICADA", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "CÁLCULO DE ELEMENTOS DE MÁQUINAS Y MECANISMOS", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MATERIALES INDUSTRIALES Y PROCESOS DE MANUFACTURA", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "DIBUJO PARA SISTEMAS MECATRÓNICOS", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MATEMÁTICA APLICADA A LA INGENIERIA MECATRÓNICA", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TERMODINÁMICA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "RESISTENCIA DE MATERIALES Y CÁLCULO POR ELEMENTOS FINITOS (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "CIRCUITOS ELÉCTRICOS", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "CIRCUITOS Y SISTEMAS DIGITALES (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "PROYECTO INTEGRADOR MECATRÓNICO (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TALLER DE INVESTIGACIÓN I (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TEORIA Y METODOLOGÍA DE LA INVESTIGACIÓN (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TALLER DE INVESTIGACIÓN II (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "INGLÉS I (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "ACTIVIDADES ARTÍSTICAS Y DEPORTIVAS (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TALLER DE ARGUMENTACIÓN ORAL Y ESCRITA (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "TALLER DE MÉTODOS DEL ESTUDIO UNIVERSITARIO (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "MATEMÁTICAS (Mecatrónica 2024-I)", "programa": "Ingeniería Mecatrónica"}, {"plan": "2024-I", "curso": "Ingeniería Financiera (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Diseño de Experimentos (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería de Métodos II (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería de Materiales (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Diseño Asistido por Computadora (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Estadística Inferencial", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Lenguajes de Programación", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería de Métodos", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería de Costos y Presupuestos (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería Mecánica Eléctrica", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería de Procesos Industriales (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Mineria de Datos", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Estadística y Probabilidades (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Dibujo en Ingeniería (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Fundamentos de Economía (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Física II (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Administración Industrial (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Globalización e Integración (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Matemática II (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Algoritmos Computacionales", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Realidad Nacional (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Recursos Naturales y Medio Ambiente (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Física I (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Inglés II (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Química Industrial", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Matemática I (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Taller de Investigación II (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Automatización Industrial (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Taller de Investigación I (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería de Procesos Empresariales (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Manufactura Asistida por Computadora (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Teoría y Metodología de la Investigación (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Planeamiento y Control de Operaciones (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Diseño y Evaluación de Proyectos de Ingeniería (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Control Estadístico de la Calidad (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Modelamiento y Simulación de Procesos (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingeniería Económica (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Investigación de Operaciones (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Tecnología Básica de Fabricación (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Ingenieria de Procesos Agroindustriales", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Software Integrado de Manufactura (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Formación Histórica del Perú (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Actividades Artísticas y Deportivas (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Filosofía y Ética (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Taller de Interpretación y Redacción de Textos (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Inglés I (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Química (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Matemáticas (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Introducción a la Ingeniería Industrial (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Taller de Argumentación Oral y Escrita (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Taller de Métodos del Estudio Universitario (Industrial 2024-I)", "programa": "Ingeniería Industrial"}, {"plan": "2024-I", "curso": "Psicología General (Industrial 2024-I)", "programa": "Ingeniería Industrial"}];
+  let credential = null;
+
+  $('nTotal').textContent = CAMBIOS.length;
+  $('nInd').textContent = CAMBIOS.filter(c => c.programa.includes('Industrial')).length;
+  $('nMec').textContent = CAMBIOS.filter(c => c.programa.includes('Mecatr')).length;
+
+  function escribir(t){ const l=$('log'); l.style.display='block'; l.textContent += t + '\n'; l.scrollTop = l.scrollHeight; }
+
+  window.onGoogleReady = function(){
+    google.accounts.id.initialize({ client_id: CFG.GOOGLE_CLIENT_ID, hd: CFG.DOMINIO, callback: alIngresar });
+    google.accounts.id.renderButton($('botonGoogle'), { theme:'outline', size:'large', text:'signin_with', locale:'es', width:280 });
+  };
+
+  function alIngresar(r){
+    credential = r.credential;
+    fetch(CFG.PROXY + '/sesion', { headers:{ Authorization:'Bearer '+credential } })
+      .then(x => x.json())
+      .then(d => {
+        if (d.error) throw new Error(d.error);
+        $('botonGoogle').style.display='none';
+        $('zonaAccion').style.display='block';
+        $('aviso').textContent = 'Sesión iniciada como ' + d.correo;
+        $('aviso').className = 'aviso ok';
+      })
+      .catch(e => { $('error').textContent = e.message; });
+  }
+
+  async function llamar(cuerpo){
+    const r = await fetch(CFG.PROXY + '/lote-programa', {
+      method:'POST',
+      headers:{ 'Authorization':'Bearer '+credential, 'Content-Type':'application/json' },
+      body: JSON.stringify(cuerpo)
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    return d;
+  }
+
+  $('btnProbar').addEventListener('click', async () => {
+    $('btnProbar').disabled = true; $('error').textContent = '';
+    escribir('Probando con: ' + CAMBIOS[0].curso);
+    try {
+      const d = await llamar({ cambios: CAMBIOS, probar: true });
+      escribir('Programas que existen en la tabla: ' + (d.programasDisponibles||[]).join(', '));
+      escribir('Valor que quedo en el registro: "' + d.quedoGuardado + '"');
+      if ((d.fallidos||[]).length) d.fallidos.forEach(f => escribir('  problema: ' + f.motivo));
+      if (d.quedoGuardado && d.quedoGuardado !== '(no se pudo releer)') {
+        escribir('');
+        escribir('FUNCIONA. Ya puedes aplicar a los 147.');
+        $('btnAplicar').disabled = false;
+      } else {
+        escribir('');
+        escribir('NO quedo guardado. La relacion no se puede escribir por REST.');
+      }
+    } catch(e) { escribir('ERROR: ' + e.message); }
+    $('btnProbar').disabled = false;
+  });
+
+  $('btnAplicar').addEventListener('click', async () => {
+    $('btnAplicar').disabled = true;
+    escribir('Aplicando ' + CAMBIOS.length + ' en tandas de 25...');
+    let ok = 0; const fallos = [];
+    for (let i = 0; i < CAMBIOS.length; i += 25) {
+      try {
+        const d = await llamar({ cambios: CAMBIOS.slice(i, i+25) });
+        ok += d.actualizados;
+        (d.fallidos||[]).forEach(f => fallos.push(f));
+        escribir('  tanda ' + (i/25+1) + ': ' + d.actualizados + ' listos');
+      } catch(e){ escribir('  tanda ' + (i/25+1) + ' fallo: ' + e.message); }
+    }
+    escribir(''); escribir('Terminado. ' + ok + ' registros restaurados.');
+    fallos.forEach(f => escribir('  - ' + f.curso + ': ' + f.motivo));
+    $('btnAplicar').disabled = false;
+  });
+
+  let n = 0;
+  (function esperar(){
+    if (window.google && window.google.accounts) return window.onGoogleReady();
+    if (++n > 40) { $('error').textContent = 'No se pudo cargar el acceso de Google.'; return; }
+    setTimeout(esperar, 150);
+  })();
+})();
+</script>
+</body></html>
