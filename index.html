@@ -469,9 +469,25 @@ label .req{color:var(--falla)}
     });
 
     const orden = { 'Teo':0, 'Tal':1, 'Prá':2, 'Pra':2, 'Lab':3 };
-    cursos.forEach(g => g.cargas.sort((x, y) =>
-      (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9) ||
-      String(x.a.subGrupo).localeCompare(String(y.a.subGrupo))));
+
+    // Teoría y laboratorio del mismo grupo y el mismo docente son una sola
+    // supervisión: mismo curso, mismo sílabo, mismos alumnos. Solo se separan
+    // cuando el laboratorio está a cargo de otro docente.
+    cursos.forEach(g => {
+      const fusion = [];
+      g.cargas.forEach(c => {
+        const clave = (c.a.docente || '') + '¦' + (c.a.grupo || '');
+        const ya = fusion.find(f => f.clave === clave);
+        if (ya) ya.partes.push(c); else fusion.push({ clave, partes: [c] });
+      });
+      g.filas = fusion.map(f => {
+        f.partes.sort((x, y) => (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9));
+        return { ancla: f.partes[0], partes: f.partes };
+      });
+      g.filas.sort((x, y) =>
+        (orden[x.ancla.a.tipo] ?? 9) - (orden[y.ancla.a.tipo] ?? 9) ||
+        String(x.ancla.a.grupo).localeCompare(String(y.ancla.a.grupo), 'es', { numeric: true }));
+    });
 
     const filas = cursos.map(g => {
       const c = g.a;
@@ -480,24 +496,24 @@ label .req{color:var(--falla)}
         '<small class="codigo">' + esc(c.codigo || 'sin código') +
           ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
           ' · ' + esc(c.programa || '—') + ' · ' + esc(c.area || '—') +
-          ' · ' + g.cargas.length + (g.cargas.length === 1 ? ' carga' : ' cargas') +
+          ' · ' + g.filas.length + (g.filas.length === 1 ? ' carga' : ' cargas') +
         '</small></td></tr>';
 
-      const cargas = g.cargas.map(({ a, i }) => {
+      const cargas = g.filas.map(({ ancla, partes }) => {
+        const a = ancla.a, i = ancla.i;
         const bloqueada = a.faltantes.length > 0;
-        // Orden de trabajo: los delegados se registran antes que la entrevista,
-        // porque de ahi sale a quien se entrevista.
         const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) =>
           '<button class="chip' + (bloqueada ? '' : ' activo') + '" ' +
           (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-fila="' + i + '"') +
           '>' + esc(m.corto) + '</button>').join('');
 
-        // El tipo ya va en la etiqueta verde de al lado: aqui solo el detalle.
+        const tipos = [...new Set(partes.map(p => p.a.tipo || '?'))].join(' + ');
+        const subs = [...new Set(partes.map(p => p.a.subGrupo).filter(x => x !== ''))];
         const etiqueta = 'grupo ' + (a.grupo || '—') +
-          (a.subGrupo ? ' · subgrupo ' + a.subGrupo : '');
+          (subs.length ? ' · subgrupo' + (subs.length > 1 ? 's ' : ' ') + subs.join(', ') : '');
 
         return '<tr>' +
-          '<td class="carga"><span class="tipo">' + esc(a.tipo || '?') + '</span>' +
+          '<td class="carga"><span class="tipo">' + esc(tipos) + '</span>' +
             '<small class="codigo">' + esc(etiqueta) + '</small>' +
             (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
           '</td>' +
