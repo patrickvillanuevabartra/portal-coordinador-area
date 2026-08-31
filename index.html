@@ -121,6 +121,16 @@ select,input[type=text],input[type=date],input[type=url],textarea{
 textarea{width:100%;resize:vertical;min-height:64px;line-height:1.5}
 select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
+.buscador{
+  display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+  background:var(--papel);border:1px solid var(--linea);border-radius:10px;
+  padding:10px 12px;margin-bottom:12px;
+}
+.buscador input[type=search]{flex:1;min-width:230px;font-size:13px;padding:7px 10px}
+.buscador select{font-size:12.5px;max-width:230px}
+.buscador .btn{padding:6px 12px;font-size:12.5px}
+.conteo{font-size:12px;color:var(--tinta-media);margin-left:auto}
+
 .tabla{
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
 }
@@ -275,6 +285,14 @@ label .req{color:var(--falla)}
         <label for="filtroCiclo" style="margin:0">Ciclo</label>
         <select id="filtroCiclo"></select>
       </div>
+    </div>
+
+    <div class="buscador">
+      <input type="search" id="buscar" placeholder="Buscar por curso, código, docente, área…" autocomplete="off">
+      <select id="fPrograma"><option value="">Todas las carreras</option></select>
+      <select id="fArea"><option value="">Todas las áreas</option></select>
+      <select id="fTipo"><option value="">Teoría y laboratorio</option></select>
+      <button class="btn gris" id="limpiar">Limpiar</button>
     </div>
     <div id="tableroAlertas"></div>
     <div class="tabla" id="tableroTabla"></div>
@@ -434,17 +452,60 @@ label .req{color:var(--falla)}
     $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
     mostrar('tablero');
     api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
-      .then(datos => { estado.asignaciones = datos.asignaciones; pintarTablero(); })
+      .then(datos => { estado.asignaciones = datos.asignaciones; prepararFiltros(); pintarTablero(); })
       .catch(e => {
         $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
       });
   }
 
+  function sinAcentos(t) {
+    return String(t == null ? '' : t).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+  }
+
+  function prepararFiltros() {
+    const llenar = (id, valores, etiquetaTodos) => {
+      const sel = $(id), actual = sel.value;
+      sel.innerHTML = '<option value="">' + etiquetaTodos + '</option>' +
+        [...new Set(valores)].filter(Boolean).sort((a,b) => a.localeCompare(b,'es'))
+          .map(v => '<option>' + esc(v) + '</option>').join('');
+      sel.value = actual;
+    };
+    const l = estado.asignaciones;
+    llenar('fPrograma', l.map(a => a.programa), 'Todas las carreras');
+    llenar('fArea', l.map(a => a.area), 'Todas las áreas');
+    llenar('fTipo', l.map(a => a.tipo), 'Teoría y laboratorio');
+  }
+
+  function filtrar(lista) {
+    const q = sinAcentos($('buscar').value.trim());
+    const prog = $('fPrograma').value, area = $('fArea').value, tipo = $('fTipo').value;
+    return lista.filter(a => {
+      if (prog && a.programa !== prog) return false;
+      if (area && a.area !== area) return false;
+      if (tipo && a.tipo !== tipo) return false;
+      if (!q) return true;
+      // Cada palabra debe aparecer en algun campo: permite "logistica bendezu".
+      const texto = sinAcentos([a.asignatura,a.codigo,a.docente,a.area,a.programa,
+        a.planEstudio,a.semestre,a.grupo,a.subGrupo,a.tipo,a.idAsignacion].join(' '));
+      return q.split(/\s+/).every(p => texto.includes(p));
+    });
+  }
+
+  ['buscar','fPrograma','fArea','fTipo'].forEach(id =>
+    $(id).addEventListener('input', () => pintarTablero()));
+  $('limpiar').addEventListener('click', () => {
+    $('buscar').value=''; $('fPrograma').value=''; $('fArea').value=''; $('fTipo').value='';
+    pintarTablero();
+  });
+
   function pintarTablero() {
-    const lista = estado.asignaciones;
+    const todas = estado.asignaciones;
+    const lista = filtrar(todas);
     const ambito = estado.admin ? 'Toda la Facultad' : estado.areas.join(' · ');
-    $('tableroSub').textContent = ambito +
-      ' — ' + lista.length + (lista.length === 1 ? ' asignación' : ' asignaciones');
+    const filtrando = lista.length !== todas.length;
+    $('tableroSub').textContent = ambito + ' — ' +
+      (filtrando ? lista.length + ' de ' + todas.length : lista.length) +
+      (todas.length === 1 ? ' asignación' : ' asignaciones');
 
     const incompletas = lista.filter(a => a.faltantes.length);
     $('tableroAlertas').innerHTML = incompletas.length
@@ -453,8 +514,9 @@ label .req{color:var(--falla)}
       : '';
 
     if (!lista.length) {
-      $('tableroTabla').innerHTML = '<div class="vacio"><b>Todavía no hay cursos en tu área</b>' +
-        'Cuando se cargue la carga lectiva del ciclo, aparecerán aquí.</div>';
+      $('tableroTabla').innerHTML = todas.length
+        ? '<div class="vacio"><b>Ningún curso coincide con la búsqueda</b>Prueba con otros términos o limpia los filtros.</div>'
+        : '<div class="vacio"><b>Todavía no hay cursos en tu área</b>Cuando se cargue la carga lectiva del ciclo, aparecerán aquí.</div>';
       return;
     }
 
