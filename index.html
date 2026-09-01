@@ -173,7 +173,14 @@ tbody tr:hover{background:#fafcfb}
 .vacio b{display:block;color:var(--tinta);font-size:14px;margin-bottom:4px;font-weight:600}
 
 .pendiente{color:var(--falla);font-size:11px;font-weight:500}
+.carrera-cab td{background:var(--brand);color:#fff;padding:8px 12px;font-weight:600;font-size:12.5px;
+  letter-spacing:.02em;text-transform:uppercase}
+.carrera-cab .cuenta{float:right;font-weight:400;opacity:.85;text-transform:none;letter-spacing:0}
 .curso-cab td{background:var(--brand-suave);padding:10px 12px}
+.avance{display:flex;align-items:center;gap:7px;margin-top:6px}
+.avance .barra{flex:0 0 84px;height:5px;border-radius:3px;background:var(--linea);overflow:hidden}
+.avance .barra i{display:block;height:100%;background:var(--brand);transition:width .3s}
+.avance span{font-size:10.5px;color:var(--tinta-media);font-family:'IBM Plex Mono',monospace}
 .curso-cab b{font-size:13.5px;color:var(--brand-oscuro)}
 .carga{padding-left:20px}
 .tipo{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;
@@ -334,6 +341,7 @@ label .req{color:var(--falla)}
     correo: '', nombre: '', areas: [],
     asignaciones: [],
     admin: false,
+    avance: {},
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -452,7 +460,13 @@ label .req{color:var(--falla)}
     $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
     mostrar('tablero');
     api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
-      .then(datos => { estado.asignaciones = datos.asignaciones; prepararFiltros(); pintarTablero(); })
+      .then(datos => {
+        estado.asignaciones = datos.asignaciones; prepararFiltros(); pintarTablero();
+        // El avance llega despues para no demorar la tabla.
+        api('/avance?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+          .then(d => { estado.avance = d.avance || {}; pintarTablero(); })
+          .catch(() => {});
+      })
       .catch(e => {
         $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
       });
@@ -524,7 +538,7 @@ label .req{color:var(--falla)}
     // docentes distintos. Se agrupa por curso y cada carga es una fila.
     const cursos = [];
     lista.forEach((a, i) => {
-      const clave = (a.codigo || '') + '¦' + a.asignatura;
+      const clave = (a.programa || '') + '¦' + (a.codigo || '') + '¦' + a.asignatura;
       let g = cursos.find(x => x.clave === clave);
       if (!g) { g = { clave, a, cargas: [] }; cursos.push(g); }
       g.cargas.push({ a, i });
@@ -551,40 +565,74 @@ label .req{color:var(--falla)}
         String(x.ancla.a.grupo).localeCompare(String(y.ancla.a.grupo), 'es', { numeric: true }));
     });
 
-    const filas = cursos.map(g => {
-      const c = g.a;
-      const cabecera = '<tr class="curso-cab"><td colspan="3">' +
-        '<b>' + esc(c.asignatura) + '</b>' +
-        '<small class="codigo">' + esc(c.codigo || 'sin código') +
-          ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
-          ' · ' + esc(c.programa || '—') + ' · ' + esc(c.area || '—') +
-          ' · ' + g.filas.length + (g.filas.length === 1 ? ' carga' : ' cargas') +
-        '</small></td></tr>';
+    // Se agrupa por carrera y, dentro de cada carrera, por curso.
+    const carreras = [];
+    cursos.forEach(g => {
+      const p = g.a.programa || 'Sin carrera';
+      let c = carreras.find(x => x.programa === p);
+      if (!c) { c = { programa: p, cursos: [] }; carreras.push(c); }
+      c.cursos.push(g);
+    });
+    carreras.sort((a, b) => a.programa.localeCompare(b.programa, 'es'));
+    carreras.forEach(c => c.cursos.sort((x, y) =>
+      (x.a.codigo || '').localeCompare(y.a.codigo || '', 'es')));
 
-      const cargas = g.filas.map(({ ancla, partes }) => {
-        const a = ancla.a, i = ancla.i;
-        const bloqueada = a.faltantes.length > 0;
-        const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) =>
-          '<button class="chip' + (bloqueada ? '' : ' activo') + '" ' +
-          (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-fila="' + i + '"') +
-          '>' + esc(m.corto) + '</button>').join('');
+    const totalMod = ORDEN_MODULOS.length;
 
-        const tipos = [...new Set(partes.map(p => p.a.tipo || '?'))].join(' + ');
-        const subs = [...new Set(partes.map(p => p.a.subGrupo).filter(x => x !== ''))];
-        const etiqueta = 'grupo ' + (a.grupo || '—') +
-          (subs.length ? ' · subgrupo' + (subs.length > 1 ? 's ' : ' ') + subs.join(', ') : '');
+    const filas = carreras.map(car => {
+      const nCargas = car.cursos.reduce((t, g) => t + g.filas.length, 0);
+      const banda = '<tr class="carrera-cab"><td colspan="3">' + esc(car.programa) +
+        '<span class="cuenta">' + car.cursos.length + ' cursos · ' + nCargas + ' cargas</span></td></tr>';
 
-        return '<tr>' +
-          '<td class="carga"><span class="tipo">' + esc(tipos) + '</span>' +
-            '<small class="codigo">' + esc(etiqueta) + '</small>' +
-            (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
-          '</td>' +
-          '<td>' + esc(a.docente) + '</td>' +
-          '<td><div class="chips">' + chips + '</div></td>' +
-        '</tr>';
+      const bloques = car.cursos.map(g => {
+        const c = g.a;
+        const cabecera = '<tr class="curso-cab"><td colspan="3">' +
+          '<b>' + esc(c.asignatura) + '</b>' +
+          '<small class="codigo">' + esc(c.codigo || 'sin código') +
+            ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
+            ' · ' + esc(c.area || '—') +
+            (c.coordinador ? ' · coordina ' + esc(c.coordinador) : '') +
+          '</small></td></tr>';
+
+        const cargas = g.filas.map(({ ancla, partes }) => {
+          const a = ancla.a, i = ancla.i;
+          const bloqueada = a.faltantes.length > 0;
+          const hechos = new Set();
+          partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
+
+          const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) => {
+            const ok = hechos.has(clave);
+            const cls = 'chip' + (ok ? ' hecho' : (bloqueada ? '' : ' activo'));
+            return '<button class="' + cls + '" ' +
+              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-fila="' + i + '"') +
+              ' title="' + esc(m.nombre) + (ok ? ' — registrado' : ' — pendiente') + '">' +
+              esc(m.corto) + '</button>';
+          }).join('');
+
+          const pct = Math.round((hechos.size / totalMod) * 100);
+          const barra = '<div class="avance" title="' + hechos.size + ' de ' + totalMod + ' módulos">' +
+            '<div class="barra"><i style="width:' + pct + '%"></i></div>' +
+            '<span>' + hechos.size + '/' + totalMod + '</span></div>';
+
+          const tipos = [...new Set(partes.map(p => p.a.tipo || '?'))].join(' + ');
+          const subs = [...new Set(partes.map(p => p.a.subGrupo).filter(x => x !== ''))];
+          const etiqueta = 'grupo ' + (a.grupo || '—') +
+            (subs.length ? ' · subgrupo' + (subs.length > 1 ? 's ' : ' ') + subs.join(', ') : '');
+
+          return '<tr>' +
+            '<td class="carga"><span class="tipo">' + esc(tipos) + '</span>' +
+              '<small class="codigo">' + esc(etiqueta) + '</small>' +
+              (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
+            '</td>' +
+            '<td>' + esc(a.docente) + barra + '</td>' +
+            '<td><div class="chips">' + chips + '</div></td>' +
+          '</tr>';
+        }).join('');
+
+        return cabecera + cargas;
       }).join('');
 
-      return cabecera + cargas;
+      return banda + bloques;
     }).join('');
 
     $('tableroTabla').innerHTML =
