@@ -709,10 +709,18 @@ label .req{color:var(--falla)}
     api('/coordinadores')
       .then(d => {
         estado.coordinadores = d.coordinadores || [];
-        const sel = $('cicloOrigen'), actual = sel.value;
-        sel.innerHTML = (d.ciclos || []).sort().reverse()
-          .map(c => '<option>' + esc(c) + '</option>').join('');
-        if (actual) sel.value = actual;
+        // Si alguna fila no tiene ciclo, se ofrece igual para poder clonarla.
+        const ciclos = d.ciclos && d.ciclos.length ? d.ciclos.slice() : [];
+        const sinCiclo = estado.coordinadores.some(c => !c.ciclo);
+        const sel = $('cicloOrigen');
+        sel.innerHTML = ciclos.map(c => '<option value="' + esc(c) + '">' + esc(c) + '</option>').join('') +
+          (sinCiclo ? '<option value="__sin__">Sin ciclo registrado</option>' : '');
+        if (!sel.options.length) {
+          $('tablaCoord').innerHTML = '<div class="vacio"><b>No hay coordinadores registrados</b>' +
+            'Cárgalos en la tabla Área y coordinador de área.</div>';
+          return;
+        }
+        sel.selectedIndex = 0;
         sel.onchange = pintarCoordinadores;
         pintarCoordinadores();
       })
@@ -721,7 +729,7 @@ label .req{color:var(--falla)}
 
   function pintarCoordinadores() {
     const ciclo = $('cicloOrigen').value;
-    const lista = estado.coordinadores.filter(c => c.ciclo === ciclo);
+    const lista = estado.coordinadores.filter(c => ciclo === '__sin__' ? !c.ciclo : c.ciclo === ciclo);
     if (!lista.length) {
       $('tablaCoord').innerHTML = '<div class="vacio">No hay coordinadores registrados en ese ciclo.</div>';
       return;
@@ -745,11 +753,12 @@ label .req{color:var(--falla)}
     const destino = $('cicloDestino').value.trim();
     if (!destino) return avisoCoord('Escribe el ciclo destino, por ejemplo 2027 I.', 'error');
     const ciclo = $('tablaCoord').dataset.ciclo;
-    const lista = estado.coordinadores.filter(c => c.ciclo === ciclo);
+    const lista = estado.coordinadores.filter(c => ciclo === '__sin__' ? !c.ciclo : c.ciclo === ciclo);
     const sel = [...$('tablaCoord').querySelectorAll('[data-c]')]
       .filter(x => x.checked).map(x => lista[Number(x.dataset.c)]);
     if (!sel.length) return avisoCoord('No hay ninguna fila marcada.', 'error');
     if (destino === ciclo) return avisoCoord('El ciclo destino debe ser distinto del de origen.', 'error');
+    if (ciclo === '__sin__') avisoCoord('Se clonarán las filas que no tenían ciclo.', '');
 
     $('btnClonar').disabled = true;
     avisoCoord('Clonando ' + sel.length + '…', '');
