@@ -484,8 +484,9 @@ label .req{color:var(--falla)}
   $('btnSalir').addEventListener('click', () => {
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
     estado.credential = null;
-    $('usuarioCaja').classList.add('oculto');
-    $('btnSalir').classList.add('oculto');
+    estado.admin = false; estado.general = false;
+    estado.areas = []; estado.programas = []; estado.asignaciones = []; estado.avance = {};
+    ['usuarioCaja','btnSalir','btnCoord'].forEach(id => $(id).classList.add('oculto'));
     mostrar('ingreso');
   });
 
