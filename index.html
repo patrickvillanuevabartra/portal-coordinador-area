@@ -328,11 +328,11 @@ label .req{color:var(--falla)}
       <div class="ficha-cuerpo">
         <div class="rejilla">
           <div>
-            <label for="cicloOrigen">Ciclo de origen</label>
+            <label for="cicloOrigen">Ciclo que estás viendo</label>
             <select id="cicloOrigen"></select>
           </div>
           <div>
-            <label for="cicloDestino">Ciclo destino <span class="req">*</span></label>
+            <label for="cicloDestino">Clonar hacia el ciclo <span class="req">*</span></label>
             <input type="text" id="cicloDestino" placeholder="2027 I">
           </div>
         </div>
@@ -780,9 +780,14 @@ label .req{color:var(--falla)}
     }
     const filas = lista.map((c, i) =>
       '<tr><td style="width:34px"><input type="checkbox" data-c="' + i + '" checked></td>' +
-      '<td><b>' + esc(c.area) + '</b><small class="codigo">' + esc(c.programa || '—') + ' · ' + esc(c.rol) + '</small></td>' +
+      '<td><b>' + esc(c.area || (/general/i.test(c.rol) ? 'Toda la carrera' : '—')) + '</b>' +
+      '<small class="codigo">' + esc(c.programa || '—') + ' · ' + esc(c.rol) + '</small></td>' +
       '<td>' + esc(c.nombre) + '<small class="codigo">' + esc(c.correo || 'sin correo') + '</small></td></tr>').join('');
-    $('tablaCoord').innerHTML =
+    const nGen = lista.filter(c => /general/i.test(c.rol)).length;
+    const resumen = '<div class="resumen" style="margin:0 0 12px">' +
+      '<div><div class="cifra">' + lista.length + '</div><div class="det">registros en ' + esc(ciclo === '__sin__' ? 'sin ciclo' : ciclo) + '</div></div>' +
+      '<div class="det">' + (lista.length - nGen) + ' de área · ' + nGen + ' general(es)</div></div>';
+    $('tablaCoord').innerHTML = resumen +
       '<table><thead><tr><th></th><th>Área</th><th>Coordinador</th></tr></thead><tbody>' + filas + '</tbody></table>';
     $('tablaCoord').dataset.ciclo = ciclo;
   }
