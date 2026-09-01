@@ -334,10 +334,10 @@ label .req{color:var(--falla)}
           </div>
         </div>
         <div class="tabla" id="tablaCoord"></div>
-        <pre id="diagCoord" class="oculto diag"></pre>
 
         <div class="subtitulo" style="margin-top:22px">Registrar un coordinador nuevo</div>
         <div class="rejilla">
+          <div><label for="nvPrograma">Carrera</label><select id="nvPrograma"></select></div>
           <div><label for="nvArea">Área</label><select id="nvArea"></select></div>
           <div><label for="nvNombre">Apellidos y nombres</label><input type="text" id="nvNombre"></div>
           <div><label for="nvCorreo">Correo institucional</label><input type="email" id="nvCorreo"></div>
@@ -725,11 +725,7 @@ label .req{color:var(--falla)}
     api('/coordinadores')
       .then(d => {
         estado.coordinadores = d.coordinadores || [];
-        if (d.muestra) {
-          $('diagCoord').classList.remove('oculto');
-          $('diagCoord').textContent = 'Lo que devuelve QuintaDB en el primer registro: ' +
-            JSON.stringify(d.muestra, null, 1).slice(0, 900);
-        }
+
         // Si alguna fila no tiene ciclo, se ofrece igual para poder clonarla.
         const ciclos = d.ciclos && d.ciclos.length ? d.ciclos.slice() : [];
         const sinCiclo = estado.coordinadores.some(c => !c.ciclo);
@@ -743,8 +739,10 @@ label .req{color:var(--falla)}
         }
         sel.selectedIndex = 0;
         sel.onchange = pintarCoordinadores;
-        const areas = [...new Set(estado.coordinadores.map(c => c.area).filter(Boolean))].sort();
-        $('nvArea').innerHTML = areas.map(a => '<option>' + esc(a) + '</option>').join('');
+        const progs = [...new Set(estado.coordinadores.map(c => c.programa).filter(Boolean))].sort();
+        $('nvPrograma').innerHTML = progs.map(p => '<option>' + esc(p) + '</option>').join('');
+        $('nvPrograma').onchange = areasDelPrograma;
+        areasDelPrograma();
         pintarCoordinadores();
       })
       .catch(e => { $('tablaCoord').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
@@ -797,6 +795,14 @@ label .req{color:var(--falla)}
       .catch(e => { avisoCoord(e.message, 'error'); $('btnClonar').disabled = false; });
   });
 
+  // Las areas dependen de la carrera elegida.
+  function areasDelPrograma() {
+    const p = $('nvPrograma').value;
+    const areas = [...new Set(estado.coordinadores
+      .filter(c => c.programa === p).map(c => c.area).filter(Boolean))].sort();
+    $('nvArea').innerHTML = areas.map(a => '<option>' + esc(a) + '</option>').join('');
+  }
+
   $('btnNuevo').addEventListener('click', () => {
     const c = {
       ciclo: $('nvCiclo').value.trim() || $('cicloDestino').value.trim(),
@@ -805,7 +811,7 @@ label .req{color:var(--falla)}
       correo: $('nvCorreo').value.trim(),
       celular: $('nvCelular').value.trim(),
       rol: $('nvRol').value,
-      programa: (estado.coordinadores.find(x => x.area === $('nvArea').value) || {}).programa || ''
+      programa: $('nvPrograma').value
     };
     if (!c.ciclo || !c.area || !c.nombre || !c.correo)
       return avisoCoord('Completa ciclo, área, nombre y correo.', 'error');
