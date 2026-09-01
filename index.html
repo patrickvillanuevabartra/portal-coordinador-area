@@ -129,6 +129,14 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .buscador input[type=search]{flex:1;min-width:230px;font-size:13px;padding:7px 10px}
 .buscador select{font-size:12.5px;max-width:230px}
 .buscador .btn{padding:6px 12px;font-size:12.5px}
+.capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;place-items:center;z-index:40;padding:20px}
+.dialogo{background:var(--papel);border-radius:12px;padding:26px 28px;width:min(480px,100%);
+  box-shadow:0 10px 40px rgba(21,32,27,.25)}
+.dialogo h3{font-size:17px;margin-bottom:6px}
+.dialogo select{width:100%;margin-top:4px}
+.nota-dialogo{font-size:12px;color:var(--tinta-media);margin:12px 0 16px;line-height:1.5}
+.chip.mover{border-color:var(--tinta-tenue);color:var(--tinta-media)}
+.chip.mover:hover{border-color:var(--brand);color:var(--brand)}
 .areas-check{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:6px}
 .areas-check label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:400;
   color:var(--tinta);text-transform:none;letter-spacing:0;margin:0;cursor:pointer}
@@ -317,6 +325,23 @@ label .req{color:var(--falla)}
     <div class="tabla" id="tableroTabla"></div>
   </section>
 
+  <!-- ============================================ cambiar el área -->
+  <div id="capaMover" class="capa oculto">
+    <div class="dialogo">
+      <h3>Cambiar el área de la carga</h3>
+      <p class="det" id="moverCurso"></p>
+      <label for="moverArea">Área</label>
+      <select id="moverArea"></select>
+      <p class="nota-dialogo">Se cambia solo para esta carga. El coordinador del área nueva
+        pasará a verla en su tablero.</p>
+      <div class="pie">
+        <button class="btn" id="btnMover">Cambiar</button>
+        <button class="btn gris" id="btnMoverCancel">Cancelar</button>
+        <span class="aviso" id="avisoMover"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================================== coordinadores y clonado -->
   <section id="coordinadores" class="oculto">
     <div class="migas"><button id="volverCoord">Mis cursos</button> / Coordinadores por ciclo</div>
@@ -425,7 +450,7 @@ label .req{color:var(--falla)}
     asignaciones: [],
     admin: false, general: false, programas: [],
     avance: {},
-    coordinadores: [], areas: [],
+    coordinadores: [], areas: [], moviendo: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -524,6 +549,7 @@ label .req{color:var(--falla)}
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
         cargarAsignaciones();
+        if (estado.admin || estado.general) cargarAreas();
       })
       .catch(e => { $('ingresoError').textContent = e.message; });
   }
@@ -714,6 +740,10 @@ label .req{color:var(--falla)}
             '<div class="barra"><i style="width:' + pct + '%"></i></div>' +
             '<span>' + hechos.size + '/' + totalMod + '</span></div>';
 
+          const puedeMover = estado.admin || estado.general;
+          const mover = puedeMover
+            ? '<button class="chip mover" data-mover="' + i + '" title="Cambiar el área de esta carga">Área ⇄</button>'
+            : '';
           const tipos = [...new Set(partes.map(p => p.a.tipo || '?'))].join(' + ');
           const subs = [...new Set(partes.map(p => p.a.subGrupo).filter(x => x !== ''))];
           const etiqueta = 'grupo ' + (a.grupo || '—') +
@@ -726,7 +756,7 @@ label .req{color:var(--falla)}
               (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
             '</td>' +
             '<td>' + esc(a.docente) + barra + '</td>' +
-            '<td><div class="chips">' + chips + '</div></td>' +
+            '<td><div class="chips">' + chips + mover + '</div></td>' +
           '</tr>';
         }).join('');
 
@@ -740,12 +770,56 @@ label .req{color:var(--falla)}
       '<table><thead><tr><th>Carga</th><th>Docente</th><th>Módulos</th></tr></thead>' +
       '<tbody>' + filas + '</tbody></table>';
 
+    $('tableroTabla').querySelectorAll('[data-mover]').forEach(b => {
+      b.addEventListener('click', () => abrirMover(estado.asignaciones[Number(b.dataset.mover)]));
+    });
+
     $('tableroTabla').querySelectorAll('[data-abrir]').forEach(b => {
       b.addEventListener('click', () => {
         abrirModulo(estado.asignaciones[Number(b.dataset.fila)], b.dataset.abrir);
       });
     });
   }
+
+  /* ---------------------------------------------- cambiar el área */
+
+  function abrirMover(a) {
+    estado.moviendo = a;
+    $('moverCurso').textContent = nombreCurso(a.asignatura) + ' · grupo ' + a.grupo +
+      ' · ' + a.docente + ' — hoy en ' + (a.area || 'sin área');
+    const mismas = (estado.areas || []).filter(x => x.programa === a.programa && x.estado === 'Vigente');
+    const opciones = mismas.length ? mismas.map(x => x.nombre)
+      : [...new Set(estado.asignaciones.map(x => x.area).filter(Boolean))];
+    $('moverArea').innerHTML = opciones.sort()
+      .map(n => '<option' + (n === a.area ? ' selected' : '') + '>' + esc(n) + '</option>').join('');
+    $('avisoMover').textContent = '';
+    $('capaMover').classList.remove('oculto');
+  }
+
+  $('btnMoverCancel').addEventListener('click', () => $('capaMover').classList.add('oculto'));
+  $('capaMover').addEventListener('click', e => {
+    if (e.target === $('capaMover')) $('capaMover').classList.add('oculto');
+  });
+
+  $('btnMover').addEventListener('click', () => {
+    const a = estado.moviendo, area = $('moverArea').value;
+    if (!a || !area) return;
+    if (area === a.area) return $('capaMover').classList.add('oculto');
+    $('btnMover').disabled = true;
+    $('avisoMover').textContent = 'Cambiando…';
+    $('avisoMover').className = 'aviso';
+    api('/reasignar-area', { method:'POST', body: JSON.stringify({ idAsignacion: a.idAsignacion, area }) })
+      .then(() => {
+        $('capaMover').classList.add('oculto');
+        $('btnMover').disabled = false;
+        cargarAsignaciones();
+      })
+      .catch(e => {
+        $('avisoMover').textContent = e.message;
+        $('avisoMover').className = 'aviso error';
+        $('btnMover').disabled = false;
+      });
+  });
 
   /* ------------------------------------------- coordinadores y clonado */
 
