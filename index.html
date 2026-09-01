@@ -182,7 +182,13 @@ tbody tr:hover{background:#fafcfb}
 .avance .barra i{display:block;height:100%;background:var(--brand);transition:width .3s}
 .avance span{font-size:10.5px;color:var(--tinta-media);font-family:'IBM Plex Mono',monospace}
 .curso-cab b{font-size:13.5px;color:var(--brand-oscuro)}
-.carga{padding-left:20px}
+.carga{padding-left:20px;position:relative}
+.num-carga{position:absolute;left:14px;top:11px;font-size:10.5px;color:var(--tinta-tenue);
+  font-family:'IBM Plex Mono',monospace;min-width:22px}
+.carga .tipo,.carga .codigo{margin-left:26px}
+.num-curso{display:inline-block;min-width:24px;font-size:11px;color:var(--brand-oscuro);
+  font-family:'IBM Plex Mono',monospace;opacity:.75}
+.curso-cab .codigo{margin-left:24px}
 .tipo{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;
   border:1px solid var(--linea);border-radius:5px;padding:1px 7px;color:var(--tinta-media);background:var(--papel)}
 
@@ -590,9 +596,11 @@ label .req{color:var(--falla)}
       const banda = '<tr class="carrera-cab"><td colspan="3">' + esc(car.programa) +
         '<span class="cuenta">' + car.cursos.length + ' cursos · ' + nCargas + ' cargas</span></td></tr>';
 
-      const bloques = car.cursos.map(g => {
+      let nCarga = 0;
+      const bloques = car.cursos.map((g, iCurso) => {
         const c = g.a;
         const cabecera = '<tr class="curso-cab"><td colspan="3">' +
+          '<span class="num-curso">' + (iCurso + 1) + '</span>' +
           '<b>' + esc(nombreCurso(c.asignatura)) + '</b>' +
           '<small class="codigo">' + esc(c.codigo || 'sin código') +
             ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
@@ -602,6 +610,7 @@ label .req{color:var(--falla)}
 
         const cargas = g.filas.map(({ ancla, partes }) => {
           const a = ancla.a, i = ancla.i;
+          nCarga++;
           const bloqueada = a.faltantes.length > 0;
           const hechos = new Set();
           partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
@@ -626,7 +635,8 @@ label .req{color:var(--falla)}
             (subs.length ? ' · subgrupo' + (subs.length > 1 ? 's ' : ' ') + subs.join(', ') : '');
 
           return '<tr>' +
-            '<td class="carga"><span class="tipo">' + esc(tipos) + '</span>' +
+            '<td class="carga"><span class="num-carga">' + nCarga + '</span>' +
+              '<span class="tipo">' + esc(tipos) + '</span>' +
               '<small class="codigo">' + esc(etiqueta) + '</small>' +
               (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
             '</td>' +
