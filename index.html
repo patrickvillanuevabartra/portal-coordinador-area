@@ -392,6 +392,12 @@ label .req{color:var(--falla)}
     return t;
   }
 
+  // El sufijo "(Industrial 2015-II)" existe solo para que QuintaDB distinga cursos
+  // homonimos entre planes. En pantalla sobra: la carrera y el plan ya se muestran.
+  function nombreCurso(t) {
+    return String(t || '').replace(/\s*\((Industrial|Mecatrónica|Civil|Electrónica|Informática)\s+20\d\d-I{1,2}\)\s*$/, '').trim();
+  }
+
   function leerPrefijo(valores, prefijo) {
     const clave = Object.keys(valores || {}).find(k => k.indexOf(prefijo) === 0);
     return clave ? leer(valores, clave) : '';
@@ -587,7 +593,7 @@ label .req{color:var(--falla)}
       const bloques = car.cursos.map(g => {
         const c = g.a;
         const cabecera = '<tr class="curso-cab"><td colspan="3">' +
-          '<b>' + esc(c.asignatura) + '</b>' +
+          '<b>' + esc(nombreCurso(c.asignatura)) + '</b>' +
           '<small class="codigo">' + esc(c.codigo || 'sin código') +
             ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
             ' · ' + esc(c.area || '—') +
@@ -791,7 +797,7 @@ label .req{color:var(--falla)}
     $('fichaModulo').textContent = M.nombre;
     $('btnGuardar').textContent = F.guardar;
     $('btnGuardar').disabled = false;
-    $('fichaCurso').textContent = a.asignatura;
+    $('fichaCurso').textContent = nombreCurso(a.asignatura);
 
     const dato = (etq, v) => v ? '<span>' + etq + ' <b>' + esc(v) + '</b></span>' : '';
     $('fichaMeta').innerHTML =
