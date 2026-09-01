@@ -129,6 +129,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .buscador input[type=search]{flex:1;min-width:230px;font-size:13px;padding:7px 10px}
 .buscador select{font-size:12.5px;max-width:230px}
 .buscador .btn{padding:6px 12px;font-size:12.5px}
+.areas-check{display:flex;flex-wrap:wrap;gap:8px 20px;margin-bottom:6px}
+.areas-check label{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:400;
+  color:var(--tinta);text-transform:none;letter-spacing:0;margin:0;cursor:pointer}
 .diag{background:#0f1613;color:#c8e6d8;font-size:11px;padding:12px;border-radius:8px;
   white-space:pre-wrap;margin-top:12px;font-family:'IBM Plex Mono',monospace;max-height:220px;overflow:auto}
 .conteo{font-size:12px;color:var(--tinta-media);margin-left:auto}
@@ -335,18 +338,37 @@ label .req{color:var(--falla)}
         </div>
         <div class="tabla" id="tablaCoord"></div>
 
-        <div class="subtitulo" style="margin-top:22px">Registrar un coordinador nuevo</div>
+        <div class="subtitulo" style="margin-top:24px">Registrar un coordinador nuevo</div>
         <div class="rejilla">
-          <div><label for="nvPrograma">Carrera</label><select id="nvPrograma"></select></div>
-          <div><label for="nvArea">Área</label><select id="nvArea"></select></div>
-          <div><label for="nvNombre">Apellidos y nombres</label><input type="text" id="nvNombre"></div>
-          <div><label for="nvCorreo">Correo institucional</label><input type="email" id="nvCorreo"></div>
-          <div><label for="nvCelular">Celular</label><input type="text" id="nvCelular"></div>
-          <div><label for="nvRol">Rol</label><select id="nvRol">
-            <option>Coordinador de área</option><option>Coordinador general</option></select></div>
-          <div><label for="nvCiclo">Ciclo</label><input type="text" id="nvCiclo" placeholder="2027 I"></div>
+          <div>
+            <label for="nvRol">Rol <span class="req">*</span></label>
+            <select id="nvRol">
+              <option>Coordinador de área</option>
+              <option>Coordinador general</option>
+            </select>
+          </div>
+          <div>
+            <label for="nvPrograma">Carrera <span class="req">*</span></label>
+            <select id="nvPrograma"></select>
+          </div>
+          <div>
+            <label for="nvCiclo">Ciclo <span class="req">*</span></label>
+            <input type="text" id="nvCiclo" placeholder="2027 I">
+          </div>
         </div>
-        <button class="btn fantasma" id="btnNuevo">Agregar coordinador</button>
+        <div id="bloqueAreas">
+          <label>Áreas a su cargo <span class="req">*</span></label>
+          <div class="areas-check" id="nvAreas"></div>
+        </div>
+        <div class="rejilla" style="margin-top:14px">
+          <div><label for="nvNombre">Apellidos y nombres <span class="req">*</span></label>
+            <input type="text" id="nvNombre"></div>
+          <div><label for="nvCorreo">Correo institucional <span class="req">*</span></label>
+            <input type="email" id="nvCorreo"></div>
+          <div><label for="nvCelular">Celular</label><input type="text" id="nvCelular"></div>
+        </div>
+        <button class="btn fantasma" id="btnNuevo" style="margin-top:6px">Agregar coordinador</button>
+
         <div class="pie" style="margin-top:16px">
           <button class="btn" id="btnClonar">Clonar seleccionados</button>
           <button class="btn gris" id="btnTodos">Marcar todos</button>
@@ -741,8 +763,9 @@ label .req{color:var(--falla)}
         sel.onchange = pintarCoordinadores;
         const progs = [...new Set(estado.coordinadores.map(c => c.programa).filter(Boolean))].sort();
         $('nvPrograma').innerHTML = progs.map(p => '<option>' + esc(p) + '</option>').join('');
-        $('nvPrograma').onchange = areasDelPrograma;
-        areasDelPrograma();
+        $('nvPrograma').onchange = refrescarAlta;
+        $('nvRol').onchange = refrescarAlta;
+        refrescarAlta();
         pintarCoordinadores();
       })
       .catch(e => { $('tablaCoord').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
@@ -795,30 +818,49 @@ label .req{color:var(--falla)}
       .catch(e => { avisoCoord(e.message, 'error'); $('btnClonar').disabled = false; });
   });
 
-  // Las areas dependen de la carrera elegida.
-  function areasDelPrograma() {
+  // La carrera manda: las areas se filtran por ella. El coordinador general no
+  // lleva areas, porque su ambito es la carrera entera.
+  function refrescarAlta() {
+    const general = $('nvRol').value === 'Coordinador general';
+    $('bloqueAreas').classList.toggle('oculto', general);
+    if (general) return;
     const p = $('nvPrograma').value;
     const areas = [...new Set(estado.coordinadores
-      .filter(c => c.programa === p).map(c => c.area).filter(Boolean))].sort();
-    $('nvArea').innerHTML = areas.map(a => '<option>' + esc(a) + '</option>').join('');
+      .filter(c => c.programa === p && c.area).map(c => c.area))].sort();
+    $('nvAreas').innerHTML = areas.length
+      ? areas.map((a, i) => '<label><input type="checkbox" value="' + esc(a) + '"> ' + esc(a) + '</label>').join('')
+      : '<span class="det">No hay áreas registradas en esta carrera.</span>';
   }
 
   $('btnNuevo').addEventListener('click', () => {
-    const c = {
+    const general = $('nvRol').value === 'Coordinador general';
+    const base = {
       ciclo: $('nvCiclo').value.trim() || $('cicloDestino').value.trim(),
-      area: $('nvArea').value,
+      programa: $('nvPrograma').value,
       nombre: $('nvNombre').value.trim(),
       correo: $('nvCorreo').value.trim(),
       celular: $('nvCelular').value.trim(),
-      rol: $('nvRol').value,
-      programa: $('nvPrograma').value
+      rol: $('nvRol').value
     };
-    if (!c.ciclo || !c.area || !c.nombre || !c.correo)
-      return avisoCoord('Completa ciclo, área, nombre y correo.', 'error');
+    if (!base.ciclo || !base.programa || !base.nombre || !base.correo)
+      return avisoCoord('Completa rol, carrera, ciclo, nombre y correo.', 'error');
+
+    // Una fila por area: asi un coordinador con dos areas queda con dos filas,
+    // que es como lo lee el portal.
+    const areas = general ? [''] :
+      [...$('nvAreas').querySelectorAll('input:checked')].map(x => x.value);
+    if (!general && !areas.length)
+      return avisoCoord('Marca al menos un área.', 'error');
+
     $('btnNuevo').disabled = true;
-    api('/nuevo-coordinador', { method:'POST', body: JSON.stringify(c) })
+    avisoCoord('Registrando…', '');
+    Promise.all(areas.map(a => api('/nuevo-coordinador', {
+      method: 'POST', body: JSON.stringify({ ...base, area: a })
+    })))
       .then(() => {
-        avisoCoord('Coordinador registrado en ' + c.ciclo + '.', 'ok');
+        avisoCoord(general
+          ? 'Coordinador general registrado en ' + base.ciclo + '.'
+          : areas.length + ' área(s) registradas para ' + base.nombre + ' en ' + base.ciclo + '.', 'ok');
         ['nvNombre','nvCorreo','nvCelular'].forEach(id => $(id).value = '');
         $('btnNuevo').disabled = false;
         cargarCoordinadores();
