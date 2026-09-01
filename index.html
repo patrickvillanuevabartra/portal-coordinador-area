@@ -338,7 +338,17 @@ label .req{color:var(--falla)}
         </div>
         <div class="tabla" id="tablaCoord"></div>
 
-        <div class="subtitulo" style="margin-top:24px">Registrar un coordinador nuevo</div>
+        <div class="subtitulo" style="margin-top:26px">Áreas de la Facultad</div>
+        <div class="tabla" id="tablaAreas" style="margin-bottom:14px"></div>
+        <div class="rejilla">
+          <div><label for="arPrograma">Carrera</label><select id="arPrograma"></select></div>
+          <div><label for="arNombre">Nombre del área</label>
+            <input type="text" id="arNombre" placeholder="Logística"></div>
+        </div>
+        <button class="btn fantasma" id="btnArea">Crear área</button>
+        <span class="aviso" id="avisoArea"></span>
+
+        <div class="subtitulo" style="margin-top:26px">Registrar un coordinador nuevo</div>
         <div class="rejilla">
           <div>
             <label for="nvRol">Rol <span class="req">*</span></label>
@@ -415,7 +425,7 @@ label .req{color:var(--falla)}
     asignaciones: [],
     admin: false, general: false, programas: [],
     avance: {},
-    coordinadores: [],
+    coordinadores: [], areas: [],
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -739,7 +749,7 @@ label .req{color:var(--falla)}
 
   /* ------------------------------------------- coordinadores y clonado */
 
-  $('btnCoord').addEventListener('click', () => { mostrar('coordinadores'); cargarCoordinadores(); });
+  $('btnCoord').addEventListener('click', () => { mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); });
   $('volverCoord').addEventListener('click', () => mostrar('tablero'));
 
   function cargarCoordinadores() {
@@ -843,8 +853,9 @@ label .req{color:var(--falla)}
     $('bloqueAreas').classList.toggle('oculto', general);
     if (general) return;
     const p = $('nvPrograma').value;
-    const areas = [...new Set(estado.coordinadores
-      .filter(c => c.programa === p && c.area).map(c => c.area))].sort();
+    const areas = (estado.areas || [])
+      .filter(a => a.programa === p && a.estado === 'Vigente')
+      .map(a => a.nombre).sort();
     $('nvAreas').innerHTML = areas.length
       ? areas.map((a, i) => '<label><input type="checkbox" value="' + esc(a) + '"> ' + esc(a) + '</label>').join('')
       : '<span class="det">No hay áreas registradas en esta carrera.</span>';
@@ -891,6 +902,55 @@ label .req{color:var(--falla)}
         cargarCoordinadores();
       })
       .catch(e => { avisoCoord(e.message, 'error'); $('btnNuevo').disabled = false; });
+  });
+
+  function pintarAreas() {
+    const lista = estado.areas || [];
+    if (!lista.length) { $('tablaAreas').innerHTML = '<div class="vacio">Sin áreas registradas.</div>'; return; }
+    const porPrograma = [];
+    lista.forEach(a => {
+      let g = porPrograma.find(x => x.p === a.programa);
+      if (!g) { g = { p: a.programa, areas: [] }; porPrograma.push(g); }
+      g.areas.push(a);
+    });
+    $('tablaAreas').innerHTML = '<table><tbody>' + porPrograma.map(g =>
+      '<tr class="curso-cab"><td><b>' + esc(g.p || 'Sin carrera') + '</b>' +
+      '<small class="codigo">' + g.areas.length + ' áreas</small></td></tr>' +
+      g.areas.map(a => '<tr><td class="carga">' + esc(a.nombre) +
+        (a.estado !== 'Vigente' ? ' <span class="pendiente">' + esc(a.estado) + '</span>' : '') +
+      '</td></tr>').join('')
+    ).join('') + '</tbody></table>';
+  }
+
+  function cargarAreas() {
+    api('/areas')
+      .then(d => {
+        estado.areas = d.areas || [];
+        const progs = [...new Set(estado.areas.map(a => a.programa).filter(Boolean))].sort();
+        $('arPrograma').innerHTML = progs.map(p => '<option>' + esc(p) + '</option>').join('');
+        pintarAreas();
+      })
+      .catch(e => { $('tablaAreas').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+  }
+
+  $('btnArea').addEventListener('click', () => {
+    const programa = $('arPrograma').value, area = $('arNombre').value.trim();
+    if (!programa || !area) {
+      $('avisoArea').textContent = 'Escribe el nombre del área.';
+      $('avisoArea').className = 'aviso error'; return;
+    }
+    $('btnArea').disabled = true;
+    api('/areas', { method:'POST', body: JSON.stringify({ programa, area }) })
+      .then(d => {
+        $('avisoArea').textContent = 'Área creada: ' + d.nombre;
+        $('avisoArea').className = 'aviso ok';
+        $('arNombre').value = ''; $('btnArea').disabled = false;
+        cargarAreas(); cargarCoordinadores();
+      })
+      .catch(e => {
+        $('avisoArea').textContent = e.message;
+        $('avisoArea').className = 'aviso error'; $('btnArea').disabled = false;
+      });
   });
 
   function avisoCoord(t, tipo) {
