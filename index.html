@@ -765,6 +765,12 @@ label .req{color:var(--falla)}
         $('nvPrograma').innerHTML = progs.map(p => '<option>' + esc(p) + '</option>').join('');
         $('nvPrograma').onchange = refrescarAlta;
         $('nvRol').onchange = refrescarAlta;
+        // El ciclo del alta se propone solo: normalmente se registra en el
+        // ciclo hacia el que se esta clonando.
+        if (!$('nvCiclo').value) {
+          const v = $('cicloDestino').value.trim();
+          $('nvCiclo').value = v || (sel.value !== '__sin__' ? sel.value : '');
+        }
         refrescarAlta();
         pintarCoordinadores();
       })
@@ -781,16 +787,23 @@ label .req{color:var(--falla)}
     const filas = lista.map((c, i) =>
       '<tr><td style="width:34px"><input type="checkbox" data-c="' + i + '" checked></td>' +
       '<td><b>' + esc(c.area || (/general/i.test(c.rol) ? 'Toda la carrera' : '—')) + '</b>' +
-      '<small class="codigo">' + esc(c.programa || '—') + ' · ' + esc(c.rol) + '</small></td>' +
-      '<td>' + esc(c.nombre) + '<small class="codigo">' + esc(c.correo || 'sin correo') + '</small></td></tr>').join('');
+      '<small class="codigo">' + esc(c.programa || '—') + '</small></td>' +
+      '<td><b>' + esc(c.nombre) + '</b>' +
+      '<small class="codigo">' + esc(c.correo || 'sin correo') + '</small>' +
+      '<small class="codigo"><span class="tipo">' + esc(c.rol) + '</span></small></td></tr>').join('');
     const nGen = lista.filter(c => /general/i.test(c.rol)).length;
     const resumen = '<div class="resumen" style="margin:0 0 12px">' +
       '<div><div class="cifra">' + lista.length + '</div><div class="det">registros en ' + esc(ciclo === '__sin__' ? 'sin ciclo' : ciclo) + '</div></div>' +
       '<div class="det">' + (lista.length - nGen) + ' de área · ' + nGen + ' general(es)</div></div>';
     $('tablaCoord').innerHTML = resumen +
-      '<table><thead><tr><th></th><th>Área</th><th>Coordinador</th></tr></thead><tbody>' + filas + '</tbody></table>';
+      '<table><thead><tr><th></th><th>Ámbito</th><th>Coordinador y rol</th></tr></thead><tbody>' + filas + '</tbody></table>';
     $('tablaCoord').dataset.ciclo = ciclo;
   }
+
+  $('cicloDestino').addEventListener('input', () => {
+    const v = $('cicloDestino').value.trim();
+    if (v) $('nvCiclo').value = v;
+  });
 
   $('btnTodos').addEventListener('click', () => {
     const cajas = [...$('tablaCoord').querySelectorAll('[data-c]')];
@@ -847,8 +860,15 @@ label .req{color:var(--falla)}
       celular: $('nvCelular').value.trim(),
       rol: $('nvRol').value
     };
-    if (!base.ciclo || !base.programa || !base.nombre || !base.correo)
-      return avisoCoord('Completa rol, carrera, ciclo, nombre y correo.', 'error');
+    const falta = [];
+    if (!base.ciclo) falta.push('ciclo');
+    if (!base.programa) falta.push('carrera');
+    if (!base.nombre) falta.push('apellidos y nombres');
+    if (!base.correo) falta.push('correo');
+    if (falta.length) {
+      if (!base.ciclo) $('nvCiclo').focus();
+      return avisoCoord('Falta escribir: ' + falta.join(', ') + '.', 'error');
+    }
 
     // Una fila por area: asi un coordinador con dos areas queda con dos filas,
     // que es como lo lee el portal.
