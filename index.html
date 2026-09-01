@@ -265,6 +265,7 @@ label .req{color:var(--falla)}
     <b id="usuarioNombre"></b>
     <span id="usuarioArea"></span>
   </div>
+  <button class="btn fantasma oculto" id="btnCoord">Coordinadores</button>
   <button class="btn gris oculto" id="btnSalir">Salir</button>
 </header>
 
@@ -311,6 +312,35 @@ label .req{color:var(--falla)}
     <div class="tabla" id="tableroTabla"></div>
   </section>
 
+  <!-- ======================================== coordinadores y clonado -->
+  <section id="coordinadores" class="oculto">
+    <div class="migas"><button id="volverCoord">Mis cursos</button> / Coordinadores por ciclo</div>
+    <div class="ficha">
+      <div class="ficha-cab">
+        <h2>Coordinadores por área</h2>
+        <div class="meta"><span>Clona la distribución de un ciclo al siguiente y corrige solo lo que cambió.</span></div>
+      </div>
+      <div class="ficha-cuerpo">
+        <div class="rejilla">
+          <div>
+            <label for="cicloOrigen">Ciclo de origen</label>
+            <select id="cicloOrigen"></select>
+          </div>
+          <div>
+            <label for="cicloDestino">Ciclo destino <span class="req">*</span></label>
+            <input type="text" id="cicloDestino" placeholder="2027 I">
+          </div>
+        </div>
+        <div class="tabla" id="tablaCoord"></div>
+        <div class="pie" style="margin-top:16px">
+          <button class="btn" id="btnClonar">Clonar seleccionados</button>
+          <button class="btn gris" id="btnTodos">Marcar todos</button>
+          <span class="aviso" id="avisoCoord"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- ============================================== ficha (módulo activo) -->
   <section id="ficha" class="oculto">
     <div class="migas"><button id="volver">Mis cursos</button> / <span id="fichaModulo"></span></div>
@@ -346,8 +376,9 @@ label .req{color:var(--falla)}
     credential: null,
     correo: '', nombre: '', areas: [],
     asignaciones: [],
-    admin: false,
+    admin: false, general: false, programas: [],
     avance: {},
+    coordinadores: [],
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -377,7 +408,7 @@ label .req{color:var(--falla)}
   }
 
   function mostrar(seccion) {
-    ['ingreso','tablero','ficha'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
+    ['ingreso','tablero','ficha','coordinadores'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
     window.scrollTo(0, 0);
   }
 
@@ -432,10 +463,16 @@ label .req{color:var(--falla)}
         estado.nombre = datos.nombre;
         estado.areas = datos.areas;
         estado.admin = !!datos.admin;
+        estado.general = !!datos.general;
+        estado.programas = datos.programas || [];
         $('usuarioNombre').textContent = datos.nombre;
-        $('usuarioArea').textContent = estado.admin
-          ? 'Administrador' + (datos.areas.length ? ' · ' + datos.areas.join(' · ') : '')
+        const roles = [];
+        if (estado.admin) roles.push('Administrador');
+        if (estado.general) roles.push('Coordinador general · ' + estado.programas.join(', '));
+        $('usuarioArea').textContent = roles.length
+          ? roles.join(' · ')
           : datos.areas.join(' · ');
+        $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
@@ -660,6 +697,76 @@ label .req{color:var(--falla)}
         abrirModulo(estado.asignaciones[Number(b.dataset.fila)], b.dataset.abrir);
       });
     });
+  }
+
+  /* ------------------------------------------- coordinadores y clonado */
+
+  $('btnCoord').addEventListener('click', () => { mostrar('coordinadores'); cargarCoordinadores(); });
+  $('volverCoord').addEventListener('click', () => mostrar('tablero'));
+
+  function cargarCoordinadores() {
+    $('tablaCoord').innerHTML = '<div class="vacio">Cargando…</div>';
+    api('/coordinadores')
+      .then(d => {
+        estado.coordinadores = d.coordinadores || [];
+        const sel = $('cicloOrigen'), actual = sel.value;
+        sel.innerHTML = (d.ciclos || []).sort().reverse()
+          .map(c => '<option>' + esc(c) + '</option>').join('');
+        if (actual) sel.value = actual;
+        sel.onchange = pintarCoordinadores;
+        pintarCoordinadores();
+      })
+      .catch(e => { $('tablaCoord').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+  }
+
+  function pintarCoordinadores() {
+    const ciclo = $('cicloOrigen').value;
+    const lista = estado.coordinadores.filter(c => c.ciclo === ciclo);
+    if (!lista.length) {
+      $('tablaCoord').innerHTML = '<div class="vacio">No hay coordinadores registrados en ese ciclo.</div>';
+      return;
+    }
+    const filas = lista.map((c, i) =>
+      '<tr><td style="width:34px"><input type="checkbox" data-c="' + i + '" checked></td>' +
+      '<td><b>' + esc(c.area) + '</b><small class="codigo">' + esc(c.programa || '—') + ' · ' + esc(c.rol) + '</small></td>' +
+      '<td>' + esc(c.nombre) + '<small class="codigo">' + esc(c.correo || 'sin correo') + '</small></td></tr>').join('');
+    $('tablaCoord').innerHTML =
+      '<table><thead><tr><th></th><th>Área</th><th>Coordinador</th></tr></thead><tbody>' + filas + '</tbody></table>';
+    $('tablaCoord').dataset.ciclo = ciclo;
+  }
+
+  $('btnTodos').addEventListener('click', () => {
+    const cajas = [...$('tablaCoord').querySelectorAll('[data-c]')];
+    const todas = cajas.every(c => c.checked);
+    cajas.forEach(c => c.checked = !todas);
+  });
+
+  $('btnClonar').addEventListener('click', () => {
+    const destino = $('cicloDestino').value.trim();
+    if (!destino) return avisoCoord('Escribe el ciclo destino, por ejemplo 2027 I.', 'error');
+    const ciclo = $('tablaCoord').dataset.ciclo;
+    const lista = estado.coordinadores.filter(c => c.ciclo === ciclo);
+    const sel = [...$('tablaCoord').querySelectorAll('[data-c]')]
+      .filter(x => x.checked).map(x => lista[Number(x.dataset.c)]);
+    if (!sel.length) return avisoCoord('No hay ninguna fila marcada.', 'error');
+    if (destino === ciclo) return avisoCoord('El ciclo destino debe ser distinto del de origen.', 'error');
+
+    $('btnClonar').disabled = true;
+    avisoCoord('Clonando ' + sel.length + '…', '');
+    api('/clonar-coordinadores', { method:'POST', body: JSON.stringify({ destino, filas: sel }) })
+      .then(d => {
+        let t = d.creados + ' creados en ' + destino + '.';
+        if ((d.omitidos || []).length) t += ' ' + d.omitidos.length + ' omitidos: ' +
+          d.omitidos.map(o => o.area + ' (' + o.motivo + ')').join('; ');
+        avisoCoord(t, d.creados ? 'ok' : 'error');
+        $('btnClonar').disabled = false;
+        cargarCoordinadores();
+      })
+      .catch(e => { avisoCoord(e.message, 'error'); $('btnClonar').disabled = false; });
+  });
+
+  function avisoCoord(t, tipo) {
+    const el = $('avisoCoord'); el.textContent = t; el.className = 'aviso ' + (tipo || '');
   }
 
   /* ================================================ descripción de módulos ==
