@@ -758,6 +758,18 @@ label .req{color:var(--falla)}
         String(x.ancla.a.subGrupo).localeCompare(String(y.ancla.a.subGrupo), 'es', { numeric: true }));
     });
 
+    // Se agrupa por carrera y, dentro de cada carrera, por curso.
+    const carreras = [];
+    cursos.forEach(g => {
+      const p = g.a.programa || 'Sin carrera';
+      let c = carreras.find(x => x.programa === p);
+      if (!c) { c = { programa: p, cursos: [] }; carreras.push(c); }
+      c.cursos.push(g);
+    });
+    carreras.sort((a, b) => a.programa.localeCompare(b.programa, 'es'));
+    carreras.forEach(c => c.cursos.sort((x, y) =>
+      (x.a.codigo || '').localeCompare(y.a.codigo || '', 'es')));
+
     const totalMod = ORDEN_MODULOS.length;
 
     const filas = carreras.map(car => {
