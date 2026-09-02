@@ -489,6 +489,7 @@ label .req{color:var(--falla)}
         <button class="btn fantasma volver-panel" id="volverArriba">‹ Volver a mis cursos</button>
         <h2 id="fichaCurso"></h2>
         <p class="ayuda" id="fichaNota" style="margin:6px 0 0"></p>
+        <p class="solo-consulta oculto" id="fichaAlcance" style="display:inline-block;margin:8px 0 0"></p>
         <div class="meta" id="fichaMeta"></div>
         <div class="llave mono" id="fichaLlave"></div>
       </div>
@@ -808,7 +809,8 @@ label .req{color:var(--falla)}
             const ok = hechos.has(clave);
             const cls = 'chip' + (ok ? ' hecho' : (bloqueada ? '' : ' activo'));
             return '<button class="' + cls + '" ' +
-              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) + '"') +
+              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) +
+              '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
               ' title="' + esc(m.nombre) + (ok ? ' — registrado' : ' — pendiente') + '">' +
               esc(m.corto) + '</button>';
           }).join('');
@@ -864,7 +866,7 @@ label .req{color:var(--falla)}
           alert('Hay ' + iguales.length + ' cargas con el mismo ID ' + id +
                 '. Corrige el ID asignacion en Docentes DAI antes de registrar.');
         }
-        abrirModulo(iguales[0], b.dataset.abrir);
+        abrirModulo(iguales[0], b.dataset.abrir, b.dataset.partes || '');
       });
     });
   }
@@ -1494,7 +1496,7 @@ label .req{color:var(--falla)}
 
   /* ==================================================== motor de la ficha == */
 
-  function abrirModulo(a, clave) {
+  function abrirModulo(a, clave, partes) {
     const M = CFG.MODULOS[clave];
     const F = FORMULARIOS[clave];
     if (!M || !F) return;
@@ -1506,6 +1508,12 @@ label .req{color:var(--falla)}
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
     $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
+    // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
+    // aqui cuales, para que la ficha no parezca cubrir solo una.
+    $('fichaAlcance').textContent = (partes && partes.indexOf(',') > -1)
+      ? 'Este registro cubre las cargas: ' + partes.replace(/:/g, ' subgrupo ') + '.'
+      : '';
+    $('fichaAlcance').classList.toggle('oculto', !(partes && partes.indexOf(',') > -1));
     $('btnGuardar').textContent = F.guardar;
     $('btnGuardar').disabled = false;
     $('fichaCurso').textContent = nombreCurso(a.asignatura);
@@ -1517,6 +1525,7 @@ label .req{color:var(--falla)}
       dato('Carrera', a.programa) +
       (a.area ? '<span>Área <b class="marca-area">' + esc(a.area) + '</b></span>' : '') +
       dato('Código', a.codigo) +
+      dato('Grupo', a.grupo) +
       dato('Grupo', a.grupo) +
       dato('Subgrupo', a.subGrupo) +
       dato('Tipo', a.tipo) +
