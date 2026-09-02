@@ -129,6 +129,17 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .buscador input[type=search]{flex:1;min-width:230px;font-size:13px;padding:7px 10px}
 .buscador select{font-size:12.5px;max-width:230px}
 .buscador .btn{padding:6px 12px;font-size:12.5px}
+.tarjeta{background:var(--papel);border:1px solid var(--linea);border-radius:12px;
+  overflow:hidden;margin-bottom:18px}
+.tarjeta-cab{padding:16px 20px;border-bottom:1px solid var(--linea);background:var(--fondo);
+  display:flex;align-items:flex-start;gap:12px}
+.tarjeta-cab h2{font-size:16px;display:inline}
+.tarjeta-cab p{margin:4px 0 0;font-size:12.5px;color:var(--tinta-media)}
+.paso{display:inline-grid;place-items:center;width:22px;height:22px;border-radius:50%;
+  background:var(--brand);color:#fff;font-size:11.5px;font-weight:700;margin-right:9px;
+  vertical-align:2px}
+.tarjeta-cuerpo{padding:18px 20px}
+.marcas{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand-oscuro)}
 .capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;place-items:center;z-index:40;padding:20px}
 .dialogo{background:var(--papel);border-radius:12px;padding:26px 28px;width:min(480px,100%);
   box-shadow:0 10px 40px rgba(21,32,27,.25)}
@@ -271,7 +282,7 @@ label .req{color:var(--falla)}
   <div class="sello">PCA</div>
   <div class="marca">
     <b>Portal del Coordinador de Área</b>
-    <span>Facultad de Ingeniería</span>
+    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v14</b></span>
   </div>
   <div class="espacio"></div>
   <div class="usuario oculto" id="usuarioCaja">
@@ -344,54 +355,48 @@ label .req{color:var(--falla)}
 
   <!-- ======================================== coordinadores y clonado -->
   <section id="coordinadores" class="oculto">
-    <div class="migas"><button id="volverCoord">Mis cursos</button> / Coordinadores por ciclo</div>
-    <div class="ficha">
-      <div class="ficha-cab">
-        <h2>Coordinadores por área</h2>
-        <div class="meta"><span>Clona la distribución de un ciclo al siguiente y corrige solo lo que cambió.</span></div>
-      </div>
-      <div class="ficha-cuerpo">
+    <div class="migas"><button id="volverCoord">Mis cursos</button> / Gestión del ciclo</div>
+
+    <!-- A. Coordinadores del ciclo -->
+    <section class="tarjeta">
+      <header class="tarjeta-cab">
+        <div><span class="paso">1</span><h2>Coordinadores del ciclo</h2>
+          <p>Mira quién coordina cada área y clona la distribución al ciclo siguiente.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo">
         <div class="rejilla">
-          <div>
-            <label for="cicloOrigen">Ciclo que estás viendo</label>
-            <select id="cicloOrigen"></select>
-          </div>
-          <div>
-            <label for="cicloDestino">Clonar hacia el ciclo <span class="req">*</span></label>
-            <input type="text" id="cicloDestino" placeholder="2027 I">
-          </div>
+          <div><label for="cicloOrigen">Ciclo que estás viendo</label><select id="cicloOrigen"></select></div>
+          <div><label for="cicloDestino">Clonar hacia el ciclo <span class="req">*</span></label>
+            <input type="text" id="cicloDestino" placeholder="2027 I"></div>
         </div>
         <div class="tabla" id="tablaCoord"></div>
-
-        <div class="subtitulo" style="margin-top:26px">Áreas de la Facultad</div>
-        <div class="tabla" id="tablaAreas" style="margin-bottom:14px"></div>
-        <div class="rejilla">
-          <div><label for="arPrograma">Carrera</label><select id="arPrograma"></select></div>
-          <div><label for="arNombre">Nombre del área</label>
-            <input type="text" id="arNombre" placeholder="Logística"></div>
+        <div class="pie" style="margin-top:14px">
+          <button class="btn" id="btnClonar">Clonar seleccionados</button>
+          <button class="btn gris" id="btnTodos">Marcar todos</button>
+          <span class="aviso" id="avisoCoord"></span>
         </div>
-        <button class="btn fantasma" id="btnArea">Crear área</button>
-        <span class="aviso" id="avisoArea"></span>
+      </div>
+    </section>
 
-        <div class="subtitulo" style="margin-top:26px">Registrar un coordinador nuevo</div>
+    <!-- B. Registrar coordinador -->
+    <section class="tarjeta">
+      <header class="tarjeta-cab">
+        <div><span class="paso">2</span><h2>Registrar un coordinador</h2>
+          <p>Para las áreas que cambian de responsable, o para dar de alta a un coordinador general.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo">
         <div class="rejilla">
-          <div>
-            <label for="nvRol">Rol <span class="req">*</span></label>
+          <div><label for="nvRol">Rol <span class="req">*</span></label>
             <select id="nvRol">
               <option value="">Seleccione</option>
               <option>Coordinador de área</option>
               <option>Coordinador general</option>
-            </select>
-          </div>
-          <div>
-            <label for="nvPrograma">Carrera <span class="req">*</span></label>
-            <select id="nvPrograma"></select>
-          </div>
-          <div>
-            <label for="nvCiclo">Ciclo <span class="req">*</span></label>
+            </select></div>
+          <div><label for="nvPrograma">Carrera <span class="req">*</span></label>
+            <select id="nvPrograma"></select></div>
+          <div><label for="nvCiclo">Ciclo <span class="req">*</span></label>
             <select id="nvCiclo"></select>
-            <input type="text" id="nvCicloOtro" class="oculto" placeholder="2027 I" style="margin-top:6px">
-          </div>
+            <input type="text" id="nvCicloOtro" class="oculto" placeholder="2027 I" style="margin-top:6px"></div>
         </div>
         <div id="bloqueAreas">
           <label>Áreas a su cargo <span class="req">*</span></label>
@@ -404,15 +409,55 @@ label .req{color:var(--falla)}
             <input type="email" id="nvCorreo"></div>
           <div><label for="nvCelular">Celular</label><input type="text" id="nvCelular"></div>
         </div>
-        <button class="btn fantasma" id="btnNuevo" style="margin-top:6px">Agregar coordinador</button>
-
-        <div class="pie" style="margin-top:16px">
-          <button class="btn" id="btnClonar">Clonar seleccionados</button>
-          <button class="btn gris" id="btnTodos">Marcar todos</button>
-          <span class="aviso" id="avisoCoord"></span>
+        <div class="pie" style="margin-top:14px">
+          <button class="btn fantasma" id="btnNuevo">Agregar coordinador</button>
         </div>
       </div>
-    </div>
+    </section>
+
+    <!-- C. Áreas -->
+    <section class="tarjeta">
+      <header class="tarjeta-cab">
+        <div><span class="paso">3</span><h2>Áreas de la Facultad</h2>
+          <p>El catálogo de áreas por carrera. De aquí salen las opciones de todo lo demás.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo">
+        <div class="tabla" id="tablaAreas" style="margin-bottom:14px"></div>
+        <div class="rejilla">
+          <div><label for="arPrograma">Carrera</label><select id="arPrograma"></select></div>
+          <div><label for="arNombre">Nombre del área</label>
+            <input type="text" id="arNombre" placeholder="Logística"></div>
+        </div>
+        <div class="pie" style="margin-top:14px">
+          <button class="btn fantasma" id="btnArea">Crear área</button>
+          <span class="aviso" id="avisoArea"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- D. Plantillas -->
+    <section class="tarjeta">
+      <header class="tarjeta-cab">
+        <div><span class="paso">4</span><h2>Plantillas de notificación</h2>
+          <p>El texto que se envía al docente por correo o WhatsApp desde cada módulo.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo">
+        <div class="rejilla">
+          <div><label for="plModulo">Módulo</label><select id="plModulo"></select></div>
+          <div><label for="plAsunto">Asunto del correo</label><input type="text" id="plAsunto"></div>
+        </div>
+        <label for="plMensaje">Mensaje</label>
+        <textarea id="plMensaje" rows="9" style="font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea>
+        <p class="nota-dialogo">Marcadores disponibles:
+          <span class="marcas">{docente} {curso} {codigo} {grupo} {ciclo} {area} {coordinador} {estado} {porcentaje} {observados} {fecha}</span>
+        </p>
+        <div class="pie">
+          <button class="btn fantasma" id="btnPlantilla">Guardar plantilla</button>
+          <button class="btn gris" id="btnPlantillaBase">Restaurar el texto base</button>
+          <span class="aviso" id="avisoPlantilla"></span>
+        </div>
+      </div>
+    </section>
   </section>
 
   <!-- ============================================== ficha (módulo activo) -->
@@ -430,6 +475,8 @@ label .req{color:var(--falla)}
         <div class="pie">
           <button class="btn" id="btnGuardar">Guardar</button>
           <button class="btn gris" id="btnCancelar">Cancelar</button>
+          <button class="btn fantasma oculto" id="btnCorreo" title="Abrir el correo con el mensaje escrito">Notificar por correo</button>
+          <button class="btn fantasma oculto" id="btnWasap" title="Abrir WhatsApp con el mensaje escrito">WhatsApp</button>
           <span class="aviso" id="fichaAviso"></span>
         </div>
       </div>
@@ -452,7 +499,8 @@ label .req{color:var(--falla)}
     asignaciones: [],
     admin: false, general: false, programas: [],
     avance: {},
-    coordinadores: [], areas: [], moviendo: null,
+    visibles: [],
+    coordinadores: [], areas: [], moviendo: null, plantillas: [],
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -552,6 +600,7 @@ label .req{color:var(--falla)}
         prepararCiclos();
         cargarAsignaciones();
         if (estado.admin || estado.general) cargarAreas();
+        api('/plantillas').then(d => { estado.plantillas = d.plantillas || []; }).catch(() => {});
       })
       .catch(e => { $('ingresoError').textContent = e.message; });
   }
@@ -640,6 +689,9 @@ label .req{color:var(--falla)}
   function pintarTablero() {
     const todas = estado.asignaciones;
     const lista = filtrar(todas);
+    // Los indices de los botones apuntan a ESTA lista, no a la completa: si se
+    // resuelven contra la otra, al filtrar se abre la carga equivocada.
+    estado.visibles = lista;
     const ambito = estado.admin ? 'Toda la Facultad' : estado.areas.join(' · ');
     const filtrando = lista.length !== todas.length;
     $('tableroSub').textContent = ambito + ' — ' +
@@ -722,7 +774,7 @@ label .req{color:var(--falla)}
           '</small></td></tr>';
 
         const cargas = g.filas.map(({ ancla, partes }) => {
-          const a = ancla.a, i = ancla.i;
+          const a = ancla.a;
           nCarga++;
           const bloqueada = a.faltantes.length > 0;
           const hechos = new Set();
@@ -732,7 +784,7 @@ label .req{color:var(--falla)}
             const ok = hechos.has(clave);
             const cls = 'chip' + (ok ? ' hecho' : (bloqueada ? '' : ' activo'));
             return '<button class="' + cls + '" ' +
-              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-fila="' + i + '"') +
+              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) + '"') +
               ' title="' + esc(m.nombre) + (ok ? ' — registrado' : ' — pendiente') + '">' +
               esc(m.corto) + '</button>';
           }).join('');
@@ -744,7 +796,7 @@ label .req{color:var(--falla)}
 
           const puedeMover = estado.admin || estado.general;
           const mover = puedeMover
-            ? '<button class="chip mover" data-mover="' + i + '" title="Cambiar el área de esta carga">Área ⇄</button>'
+            ? '<button class="chip mover" data-mover="' + esc(a.idAsignacion) + '" title="Cambiar el área de esta carga">Área ⇄</button>'
             : '';
           const tipos = [...new Set(partes.map(p => p.a.tipo || '?'))].join(' + ');
           const subs = [...new Set(partes.map(p => p.a.subGrupo).filter(x => x !== ''))];
@@ -773,12 +825,23 @@ label .req{color:var(--falla)}
       '<tbody>' + filas + '</tbody></table>';
 
     $('tableroTabla').querySelectorAll('[data-mover]').forEach(b => {
-      b.addEventListener('click', () => abrirMover(estado.asignaciones[Number(b.dataset.mover)]));
+      b.addEventListener('click', () => {
+        const a = estado.asignaciones.find(x => x.idAsignacion === b.dataset.mover);
+        if (a) abrirMover(a);
+      });
     });
 
-    $('tableroTabla').querySelectorAll('[data-abrir]').forEach(b => {
+    $('tableroTabla').querySelectorAll('[data-abrir][data-id]').forEach(b => {
       b.addEventListener('click', () => {
-        abrirModulo(estado.asignaciones[Number(b.dataset.fila)], b.dataset.abrir);
+        // Se busca por ID, no por posicion: al filtrar, las posiciones cambian.
+        const id = b.dataset.id;
+        const iguales = estado.asignaciones.filter(x => x.idAsignacion === id);
+        if (!iguales.length) { alert('No se encontró la carga ' + id); return; }
+        if (iguales.length > 1) {
+          alert('Hay ' + iguales.length + ' cargas con el mismo ID ' + id +
+                '. Corrige el ID asignacion en Docentes DAI antes de registrar.');
+        }
+        abrirModulo(iguales[0], b.dataset.abrir);
       });
     });
   }
@@ -825,7 +888,9 @@ label .req{color:var(--falla)}
 
   /* ------------------------------------------- coordinadores y clonado */
 
-  $('btnCoord').addEventListener('click', () => { mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); });
+  $('btnCoord').addEventListener('click', () => {
+    mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas();
+  });
   $('volverCoord').addEventListener('click', () => mostrar('tablero'));
 
   function cargarCoordinadores() {
@@ -1041,6 +1106,48 @@ label .req{color:var(--falla)}
       });
   });
 
+  function avisoPl(t, tipo) {
+    const el = $('avisoPlantilla'); el.textContent = t; el.className = 'aviso ' + (tipo || '');
+  }
+
+  function prepararPlantillas() {
+    $('plModulo').innerHTML = ORDEN_MODULOS
+      .map(k => '<option value="' + k + '">' + esc(CFG.MODULOS[k].nombre) + '</option>').join('');
+    $('plModulo').onchange = mostrarPlantilla;
+    mostrarPlantilla();
+  }
+
+  function mostrarPlantilla() {
+    const k = $('plModulo').value;
+    const guardada = (estado.plantillas || []).find(p => p.modulo === k);
+    const base = PLANTILLAS_BASE[k] || {};
+    $('plAsunto').value = (guardada && guardada.asunto) || base.asunto || '';
+    $('plMensaje').value = (guardada && guardada.mensaje) || base.mensaje || '';
+    avisoPl(guardada ? 'Plantilla propia.' : 'Texto base del portal.', '');
+  }
+
+  $('btnPlantillaBase').addEventListener('click', () => {
+    const b = PLANTILLAS_BASE[$('plModulo').value] || {};
+    $('plAsunto').value = b.asunto || '';
+    $('plMensaje').value = b.mensaje || '';
+    avisoPl('Texto base restaurado. Guarda para aplicarlo.', '');
+  });
+
+  $('btnPlantilla').addEventListener('click', () => {
+    const k = $('plModulo').value;
+    const mensaje = $('plMensaje').value.trim();
+    if (!mensaje) return avisoPl('El mensaje no puede quedar vacío.', 'error');
+    const ya = (estado.plantillas || []).find(p => p.modulo === k);
+    $('btnPlantilla').disabled = true;
+    api('/plantillas', { method:'POST', body: JSON.stringify({
+      recordId: ya ? ya.recordId : null, modulo: k, nombre: CFG.MODULOS[k].nombre,
+      canal: 'Ambos', asunto: $('plAsunto').value.trim(), mensaje
+    })})
+      .then(() => api('/plantillas'))
+      .then(d => { estado.plantillas = d.plantillas || []; avisoPl('Plantilla guardada.', 'ok'); $('btnPlantilla').disabled = false; })
+      .catch(e => { avisoPl(e.message, 'error'); $('btnPlantilla').disabled = false; });
+  });
+
   function avisoCoord(t, tipo) {
     const el = $('avisoCoord'); el.textContent = t; el.className = 'aviso ' + (tipo || '');
   }
@@ -1052,6 +1159,61 @@ label .req{color:var(--falla)}
      ------------------------------------------------------------------------ */
 
   const ESCALA = CFG.ESCALA;
+
+  // Mensajes de arranque. Si existe una plantilla en QuintaDB para el modulo,
+  // esa manda; estos son el punto de partida y el respaldo.
+  const FIRMA_BASE = '\n\nSistema de Gestión para Organizaciones Educativas (SGOE)\n' +
+                     'ISO 21001 — Facultad de Ingeniería URP';
+
+  const PLANTILLAS_BASE = {
+    silabo: {
+      asunto: 'Revisión del sílabo — {curso} (grupo {grupo})',
+      mensaje: 'Estimado(a) {docente}:\n\n' +
+        'Como coordinador(a) del área de {area}, he revisado el sílabo de {curso} ({codigo}), ' +
+        'grupo {grupo}, del ciclo {ciclo}.\n\n' +
+        'Resultado: {estado}. Cumplimiento: {porcentaje}%.\n' +
+        '{observados}\n' +
+        'Agradeceré levantar las observaciones y remitir la versión corregida.\n\n' +
+        'Cordialmente,\n{coordinador}\nCoordinación del área de {area}' + FIRMA_BASE
+    },
+    formularios: {
+      asunto: 'Formularios F1, F2 y F3 — {curso} (grupo {grupo})',
+      mensaje: 'Estimado(a) {docente}:\n\n' +
+        'En la revisión del {fecha} del curso {curso} ({codigo}), grupo {grupo}, se registró lo siguiente:\n' +
+        '{observados}\n' +
+        'Agradeceré regularizar lo pendiente a la brevedad.\n\n' +
+        'Cordialmente,\n{coordinador}' + FIRMA_BASE_BASE
+    },
+    aulaVirtual: {
+      asunto: 'Supervisión del aula virtual — {curso} (grupo {grupo})',
+      mensaje: 'Estimado(a) {docente}:\n\n' +
+        'Se supervisó el aula virtual de {curso} ({codigo}), grupo {grupo}, el {fecha}. ' +
+        'Cumplimiento: {porcentaje}%.\n' +
+        '{observados}\n' +
+        'Agradeceré completar lo señalado.\n\nCordialmente,\n{coordinador}' + FIRMA_BASE
+    },
+    portafolios: {
+      asunto: 'Supervisión del portafolio digital — {curso} (grupo {grupo})',
+      mensaje: 'Estimado(a) {docente}:\n\n' +
+        'Se revisó el portafolio digital de {curso} ({codigo}), grupo {grupo}, el {fecha}. ' +
+        'Cumplimiento: {porcentaje}%.\n' +
+        '{observados}\n' +
+        'Agradeceré cargar las evidencias faltantes.\n\nCordialmente,\n{coordinador}' + FIRMA_BASE
+    },
+    delegados: {
+      asunto: 'Delegados del curso — {curso} (grupo {grupo})',
+      mensaje: 'Estimado(a) {docente}:\n\n' +
+        'Quedan registrados los delegados de {curso} ({codigo}), grupo {grupo}, del ciclo {ciclo}.\n\n' +
+        'Cordialmente,\n{coordinador}' + FIRMA_BASE_BASE
+    },
+    entrevistas: {
+      asunto: 'Entrevista con delegados — {curso} (grupo {grupo})',
+      mensaje: 'Estimado(a) {docente}:\n\n' +
+        'El {fecha} se realizó la entrevista con los delegados de {curso} ({codigo}), grupo {grupo}. ' +
+        'Le comparto lo tratado para su conocimiento y atención:\n' +
+        '{observados}\n\nCordialmente,\n{coordinador}' + FIRMA_BASE
+    }
+  };
 
   const FORMULARIOS = {
 
@@ -1207,6 +1369,9 @@ label .req{color:var(--falla)}
       dato('Ciclo', a.ciclo);
     $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
     aviso('', '');
+
+    $('btnCorreo').classList.toggle('oculto', !a.correoDocente);
+    $('btnWasap').classList.toggle('oculto', !a.celularDocente);
 
     pintarFormulario(M, F);
     cargarRegistro(a, clave);
@@ -1387,6 +1552,82 @@ label .req{color:var(--falla)}
       })
       .catch(e => aviso(e.message, 'error'));
   }
+
+  // Arma el mensaje reemplazando los marcadores con los datos del registro.
+  function armarMensaje(clave) {
+    const a = estado.actual, M = CFG.MODULOS[clave], F = FORMULARIOS[clave];
+    const pl = (estado.plantillas || []).find(p => p.modulo === clave) || PLANTILLAS_BASE[clave] || {};
+    const r = recalcularEscala(F) || {};
+    const be = bloqueEscala(F);
+
+    // Lo observado: items no conformes con su observacion, o temas escritos.
+    let obs = '';
+    if (be && $('listaItems')) {
+      const lista = M[be.fuente] || [];
+      const sel = [...$('listaItems').querySelectorAll('[data-estado]')];
+      const malos = lista.map((it, i) => ({ it, v: sel[i] ? sel[i].value : '', i }))
+        .filter(x => x.v === 'Parcial' || x.v === 'No cumple');
+      obs = malos.map(x => {
+        const campo = $('listaItems').querySelector('[data-obs="' + x.i + '"]');
+        const texto = campo && campo.value.trim() ? ': ' + campo.value.trim() : '';
+        return '• ' + (x.it.n ? x.it.n + ' ' : '') + x.it.etiqueta + ' — ' + x.v + texto;
+      }).join('\n');
+    }
+    if (!obs) {
+      const t = F.bloques.find(b => b.tipo === 'textos');
+      if (t) obs = (M[t.fuente] || []).map((x, i) => {
+        const c = document.querySelector('[data-tema="' + i + '"]');
+        return c && c.value.trim() ? '• ' + x.etiqueta + ': ' + c.value.trim() : '';
+      }).filter(Boolean).join('\n');
+    }
+    if (!obs && clave === 'formularios') {
+      obs = ['f1','f2','f3'].map(k => {
+        const el = $('f_' + k);
+        return el && el.value ? '• ' + k.toUpperCase() + ': ' + el.value : '';
+      }).filter(Boolean).join('\n');
+    }
+    if (!obs) obs = 'Sin observaciones.';
+
+    const fecha = ['fechaRevision','fechaSupervision','fechaHora']
+      .map(k => $('f_' + k) && $('f_' + k).value).find(Boolean) || hoy();
+
+    const datos = {
+      docente: a.docente, curso: nombreCurso(a.asignatura), codigo: a.codigo,
+      grupo: a.grupo, ciclo: a.ciclo, area: a.area, coordinador: estado.nombre,
+      modulo: M.nombre, estado: ($('f_estado') && $('f_estado').value) || '',
+      porcentaje: r.pct !== undefined ? r.pct : '', observados: obs,
+      fecha: String(fecha).slice(0, 10)
+    };
+    const sustituir = (t) => String(t || '').replace(/\{(\w+)\}/g,
+      (m, k) => datos[k] !== undefined && datos[k] !== '' ? datos[k] : '');
+    return { asunto: sustituir(pl.asunto), cuerpo: sustituir(pl.mensaje) };
+  }
+
+  $('btnCorreo').addEventListener('click', () => {
+    const a = estado.actual;
+    if (!a.correoDocente) return aviso('Este docente no tiene correo registrado en Docentes DAI.', 'error');
+    // La ventana se abre con el clic; si se abriera despues, el navegador la bloquea.
+    const win = window.open('about:blank', '_blank');
+    const m = armarMensaje(estado.modulo);
+    const gmail = 'https://mail.google.com/mail/?view=cm&fs=1' +
+      '&to=' + encodeURIComponent(a.correoDocente) +
+      '&su=' + encodeURIComponent(m.asunto) +
+      '&body=' + encodeURIComponent(m.cuerpo);
+    if (win) win.location.href = gmail;
+    else window.location.href = 'mailto:' + encodeURIComponent(a.correoDocente) +
+      '?subject=' + encodeURIComponent(m.asunto) + '&body=' + encodeURIComponent(m.cuerpo);
+  });
+
+  $('btnWasap').addEventListener('click', () => {
+    const a = estado.actual;
+    let tel = String(a.celularDocente || '').replace(/\D/g, '');
+    if (!tel) return aviso('Este docente no tiene celular registrado en Docentes DAI.', 'error');
+    if (tel.length === 9) tel = '51' + tel;
+    const win = window.open('about:blank', '_blank');
+    const m = armarMensaje(estado.modulo);
+    const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(m.cuerpo);
+    if (win) win.location.href = url; else window.location.href = url;
+  });
 
   function aviso(texto, tipo) {
     const el = $('fichaAviso');
