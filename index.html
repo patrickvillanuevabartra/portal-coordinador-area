@@ -288,7 +288,7 @@ label .req{color:var(--falla)}
   <div class="sello">PCA</div>
   <div class="marca">
     <b>Portal del Coordinador de Área</b>
-    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v22</b></span>
+    <span>Facultad de Ingeniería</span>
   </div>
   <div class="espacio"></div>
   <div class="usuario oculto" id="usuarioCaja">
@@ -323,6 +323,8 @@ label .req{color:var(--falla)}
       <div>
         <h2>Mis cursos</h2>
         <div class="sub" id="tableroSub"></div>
+        <p class="ayuda" style="max-width:62ch">Cada fila es una carga: un docente en un curso
+          y grupo. Los seis botones son los formatos de supervisión; en verde los ya registrados.</p>
       </div>
       <div class="espacio"></div>
       <div class="filtro">
@@ -337,6 +339,8 @@ label .req{color:var(--falla)}
       <select id="fArea"><option value="">Todas las áreas</option></select>
       <select id="fTipo"><option value="">Teoría y laboratorio</option></select>
       <button class="btn gris" id="limpiar">Limpiar</button>
+      <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
+      <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
     </div>
     <div id="tableroAlertas"></div>
     <div class="tabla" id="tableroTabla"></div>
@@ -379,6 +383,7 @@ label .req{color:var(--falla)}
         <div class="pie" style="margin-top:14px">
           <button class="btn" id="btnClonar">Clonar seleccionados</button>
           <button class="btn gris" id="btnTodos">Marcar todos</button>
+          <button class="btn fantasma" id="btnExpCoord">Descargar padrón</button>
           <span class="aviso" id="avisoCoord"></span>
         </div>
       </div>
@@ -483,6 +488,7 @@ label .req{color:var(--falla)}
       <div class="ficha-cab">
         <button class="btn fantasma volver-panel" id="volverArriba">‹ Volver a mis cursos</button>
         <h2 id="fichaCurso"></h2>
+        <p class="ayuda" id="fichaNota" style="margin:6px 0 0"></p>
         <div class="meta" id="fichaMeta"></div>
         <div class="llave mono" id="fichaLlave"></div>
       </div>
@@ -863,6 +869,125 @@ label .req{color:var(--falla)}
     });
   }
 
+  /* ------------------------------------ descargas para el expediente */
+
+  // Se genera un .xls como tabla con cabecera institucional: se abre en Excel
+  // con el formato puesto y sirve para adjuntar tal cual al expediente.
+  function descargarXls(nombre, titulo, cols, filas, notas) {
+    const hoyTxt = new Date().toLocaleDateString('es-PE',
+      { day:'2-digit', month:'long', year:'numeric' });
+    const c = (t) => String(t == null ? '' : t)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const ancho = cols.length;
+    let h = '<table border="1" cellspacing="0" cellpadding="4">';
+    h += '<tr><td colspan="' + ancho + '" style="background:#0f8f5e;color:#fff;font-size:14pt;font-weight:bold;padding:8px">' +
+         'UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA</td></tr>';
+    h += '<tr><td colspan="' + ancho + '" style="background:#e6f4ee;font-weight:bold">' +
+         'Sistema de Gestión para Organizaciones Educativas · ISO 21001</td></tr>';
+    h += '<tr><td colspan="' + ancho + '" style="font-size:12pt;font-weight:bold">' + c(titulo) + '</td></tr>';
+    (notas || []).forEach(n2 => {
+      h += '<tr><td colspan="' + ancho + '" style="color:#5a6660">' + c(n2) + '</td></tr>';
+    });
+    h += '<tr><td colspan="' + ancho + '" style="color:#5a6660">Emitido el ' + c(hoyTxt) +
+         ' por ' + c(estado.nombre || estado.correo) + '</td></tr>';
+    h += '<tr><td colspan="' + ancho + '"></td></tr>';
+    h += '<tr>' + cols.map(x =>
+      '<th style="background:#0b3b2e;color:#fff;font-weight:bold">' + c(x) + '</th>').join('') + '</tr>';
+    filas.forEach(f => {
+      h += '<tr>' + f.map(x => '<td style="vertical-align:top">' + c(x) + '</td>').join('') + '</tr>';
+    });
+    h += '</table>';
+
+    const blob = new Blob(['\ufeff<html><head><meta charset="utf-8"></head><body>' + h + '</body></html>'],
+      { type: 'application/vnd.ms-excel;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre + '.xls';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  }
+
+  function ambitoTexto() {
+    return estado.admin ? 'Toda la Facultad'
+      : (estado.general ? estado.programas.join(', ') : estado.areas.join(' · '));
+  }
+
+  // 1) Estado de cumplimiento: lo que se está viendo en el tablero.
+  $('btnExpTablero').addEventListener('click', () => {
+    const lista = estado.visibles || [];
+    if (!lista.length) return;
+    const cols = ['N°','Carrera','Área','Coordinador del área','Código','Curso','Plan',
+      'Semestre','Grupo','Subgrupo','Tipo','Docente','Módulos registrados','Avance']
+      .concat(ORDEN_MODULOS.map(k => CFG.MODULOS[k].corto));
+    const filas = lista.map((a, i) => {
+      const hechos = estado.avance[a.idAsignacion] || [];
+      return [i + 1, a.programa, a.area, a.coordinador, a.codigo, nombreCurso(a.asignatura),
+        a.planEstudio, a.semestre, a.grupo, a.subGrupo, a.tipo, a.docente,
+        hechos.length + ' de 6', Math.round(hechos.length / 6 * 100) + '%']
+        .concat(ORDEN_MODULOS.map(k => hechos.includes(k) ? 'Registrado' : 'Pendiente'));
+    });
+    descargarXls('Estado_de_cumplimiento_' + $('filtroCiclo').value.replace(/\s/g,''),
+      'Estado de cumplimiento de la supervisión docente',
+      cols, filas,
+      ['Ciclo académico: ' + ($('filtroCiclo').value || 'todos'),
+       'Ámbito: ' + ambitoTexto(),
+       'Asignaciones incluidas: ' + lista.length +
+         ($('buscar').value.trim() ? ' (filtradas por «' + $('buscar').value.trim() + '»)' : '')]);
+  });
+
+  // 2) Registro de supervisiones: la evidencia de lo efectivamente revisado.
+  $('btnExpRegistro').addEventListener('click', () => {
+    const b = $('btnExpRegistro');
+    b.disabled = true; b.textContent = 'Preparando…';
+    api('/registro?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+      .then(d => {
+        const regs = d.registros || [];
+        if (!regs.length) { alert('Todavía no hay supervisiones registradas.'); return; }
+        const cols = ['N°','Módulo','Carrera','Área','Coordinador del área','Código','Curso',
+          'Grupo','Subgrupo','Tipo','Docente','Revisor','Fecha','Resultado','Cumplimiento',
+          'Observaciones','ID asignación'];
+        const filas = regs.map((r, i) => {
+          const v = r.valores;
+          const buscar = (...nombres) => {
+            for (const n2 of nombres) { const x = limpio(v, n2); if (x) return x; }
+            return '';
+          };
+          return [i + 1, CFG.MODULOS[r.modulo].nombre, r.programa, r.area, r.coordinador,
+            r.codigo, nombreCurso(r.curso), r.grupo, r.subGrupo, r.tipo, r.docente,
+            buscar('Revisor','Responsable de la supervision','Coordinador de area'),
+            buscar('Fecha de revision','Fecha de supervision','Fecha y hora de reunion').slice(0,10),
+            buscar('Estado del silabo','Alerta'),
+            buscar('Porcentaje de cumplimiento'),
+            buscar('Observaciones generales','Observaciones','Compromisos acordados'),
+            r.idAsignacion];
+        });
+        descargarXls('Registro_de_supervisiones_' + $('filtroCiclo').value.replace(/\s/g,''),
+          'Registro de supervisiones realizadas',
+          cols, filas,
+          ['Ciclo académico: ' + ($('filtroCiclo').value || 'todos'),
+           'Ámbito: ' + ambitoTexto(),
+           'Registros incluidos: ' + regs.length]);
+      })
+      .catch(e => alert(e.message))
+      .then(() => { b.disabled = false; b.textContent = 'Registro de supervisiones'; });
+  });
+
+  // 3) Padrón de coordinadores del ciclo.
+  $('btnExpCoord').addEventListener('click', () => {
+    const ciclo = $('cicloOrigen').value;
+    const lista = estado.coordinadores.filter(c =>
+      ciclo === '__sin__' ? !c.ciclo : c.ciclo === ciclo);
+    if (!lista.length) return;
+    descargarXls('Coordinadores_' + String(ciclo).replace(/\s/g,''),
+      'Padrón de coordinadores por área',
+      ['N°','Ciclo','Carrera','Ámbito','Rol','Coordinador','Correo','Celular','Estado'],
+      lista.map((c, i) => [i + 1, c.ciclo, c.programa,
+        c.area || (/general/i.test(c.rol) ? 'Toda la carrera' : ''),
+        c.rol, c.nombre, c.correo, c.celular, c.estado]),
+      ['Ciclo académico: ' + ciclo, 'Ámbito: ' + ambitoTexto(),
+       'Registros: ' + lista.length]);
+  });
+
   /* ---------------------------------------------- cambiar el área */
 
   function abrirMover(a) {
@@ -1178,6 +1303,15 @@ label .req{color:var(--falla)}
 
   const ESCALA = CFG.ESCALA;
 
+  const NOTAS_MODULO = {
+    silabo: 'Verifica que el sílabo cumpla los once requisitos del formato. Los ítems marcados como Parcial o No cumple exigen una observación.',
+    formularios: 'Deja constancia de la entrega de los formularios F1, F2 y F3, con la fecha de cada uno.',
+    aulaVirtual: 'Revisa que el aula virtual tenga los ocho elementos exigidos y anota lo que falte.',
+    portafolios: 'Comprueba que el portafolio digital contenga las evidencias de cada tipo de evaluación.',
+    delegados: 'Registra a los delegados del curso. Este dato es el que después se usa en la entrevista.',
+    entrevistas: 'Deja constancia de lo tratado con los delegados en cada uno de los ocho temas y de los compromisos acordados.'
+  };
+
   // Mensajes de arranque. Si existe una plantilla en QuintaDB para el modulo,
   // esa manda; estos son el punto de partida y el respaldo.
   const FIRMA_BASE = '\n\nSistema de Gestión para Organizaciones Educativas (SGOE)\n' +
@@ -1371,6 +1505,7 @@ label .req{color:var(--falla)}
 
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
+    $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
     $('btnGuardar').textContent = F.guardar;
     $('btnGuardar').disabled = false;
     $('fichaCurso').textContent = nombreCurso(a.asignatura);
