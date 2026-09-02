@@ -282,7 +282,7 @@ label .req{color:var(--falla)}
   <div class="sello">PCA</div>
   <div class="marca">
     <b>Portal del Coordinador de Área</b>
-    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v17</b></span>
+    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v18</b></span>
   </div>
   <div class="espacio"></div>
   <div class="usuario oculto" id="usuarioCaja">
@@ -1600,7 +1600,11 @@ label .req{color:var(--falla)}
 
     const datos = {
       docente: a.docente, curso: nombreCurso(a.asignatura), codigo: a.codigo,
-      grupo: a.grupo, ciclo: a.ciclo, area: a.area, coordinador: estado.nombre,
+      grupo: a.grupo, ciclo: a.ciclo, area: a.area,
+      // Quien firma es el coordinador del area, no quien esta usando el portal.
+      coordinador: ($('f_revisor') && $('f_revisor').value.trim()) ||
+                   ($('f_responsable') && $('f_responsable').value.trim()) ||
+                   a.coordinador || estado.nombre,
       modulo: M.nombre, estado: ($('f_estado') && $('f_estado').value) || '',
       porcentaje: r.pct !== undefined ? r.pct : '', observados: obs,
       fecha: String(fecha).slice(0, 10)
