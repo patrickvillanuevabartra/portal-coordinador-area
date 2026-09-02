@@ -748,36 +748,15 @@ label .req{color:var(--falla)}
 
     const orden = { 'Teo':0, 'Tal':1, 'Prá':2, 'Pra':2, 'Lab':3 };
 
-    // Teoría y laboratorio del mismo grupo y el mismo docente son una sola
-    // supervisión: mismo curso, mismo sílabo, mismos alumnos. Solo se separan
-    // cuando el laboratorio está a cargo de otro docente.
+    // Cada carga es su propia fila: lo que se ve coincide exactamente con lo que
+    // se guarda y con el reporte del Departamento.
     cursos.forEach(g => {
-      const fusion = [];
-      g.cargas.forEach(c => {
-        const clave = (c.a.docente || '') + '¦' + (c.a.grupo || '');
-        const ya = fusion.find(f => f.clave === clave);
-        if (ya) ya.partes.push(c); else fusion.push({ clave, partes: [c] });
-      });
-      g.filas = fusion.map(f => {
-        f.partes.sort((x, y) => (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9));
-        return { ancla: f.partes[0], partes: f.partes };
-      });
+      g.filas = g.cargas.map(c => ({ ancla: c, partes: [c] }));
       g.filas.sort((x, y) =>
         (orden[x.ancla.a.tipo] ?? 9) - (orden[y.ancla.a.tipo] ?? 9) ||
-        String(x.ancla.a.grupo).localeCompare(String(y.ancla.a.grupo), 'es', { numeric: true }));
+        String(x.ancla.a.grupo).localeCompare(String(y.ancla.a.grupo), 'es', { numeric: true }) ||
+        String(x.ancla.a.subGrupo).localeCompare(String(y.ancla.a.subGrupo), 'es', { numeric: true }));
     });
-
-    // Se agrupa por carrera y, dentro de cada carrera, por curso.
-    const carreras = [];
-    cursos.forEach(g => {
-      const p = g.a.programa || 'Sin carrera';
-      let c = carreras.find(x => x.programa === p);
-      if (!c) { c = { programa: p, cursos: [] }; carreras.push(c); }
-      c.cursos.push(g);
-    });
-    carreras.sort((a, b) => a.programa.localeCompare(b.programa, 'es'));
-    carreras.forEach(c => c.cursos.sort((x, y) =>
-      (x.a.codigo || '').localeCompare(y.a.codigo || '', 'es')));
 
     const totalMod = ORDEN_MODULOS.length;
 
@@ -823,10 +802,9 @@ label .req{color:var(--falla)}
           // Sin boton de reasignacion: escribir en Docentes DAI por REST borra
           // los campos de relacion de la fila. El area se cambia desde QuintaDB.
           const mover = '';
-          const tipos = [...new Set(partes.map(p => p.a.tipo || '?'))].join(' + ');
-          const subs = [...new Set(partes.map(p => p.a.subGrupo).filter(x => x !== ''))];
+          const tipos = a.tipo || '?';
           const etiqueta = 'grupo ' + (a.grupo || '—') +
-            (subs.length ? ' · subgrupo' + (subs.length > 1 ? 's ' : ' ') + subs.join(', ') : '');
+            (a.subGrupo !== '' ? ' · subgrupo ' + a.subGrupo : '');
 
           return '<tr>' +
             '<td class="carga"><span class="num-carga">' + nCarga + '</span>' +
@@ -1510,10 +1488,7 @@ label .req{color:var(--falla)}
     $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
     // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
     // aqui cuales, para que la ficha no parezca cubrir solo una.
-    $('fichaAlcance').textContent = (partes && partes.indexOf(',') > -1)
-      ? 'Este registro cubre las cargas: ' + partes.replace(/:/g, ' subgrupo ') + '.'
-      : '';
-    $('fichaAlcance').classList.toggle('oculto', !(partes && partes.indexOf(',') > -1));
+    $('fichaAlcance').classList.add('oculto');
     $('btnGuardar').textContent = F.guardar;
     $('btnGuardar').disabled = false;
     $('fichaCurso').textContent = nombreCurso(a.asignatura);
