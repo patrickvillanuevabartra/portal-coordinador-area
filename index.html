@@ -212,7 +212,11 @@ tbody tr:hover{background:#fafcfb}
 .carga{padding-left:20px;position:relative}
 .num-carga{position:absolute;left:14px;top:11px;font-size:10.5px;color:var(--tinta-tenue);
   font-family:'IBM Plex Mono',monospace;min-width:22px}
-.carga .tipo,.carga .codigo{margin-left:26px}
+.carga .codigo{margin-left:26px}
+.detalle-carga{margin-left:26px;display:flex;flex-direction:column;gap:3px}
+.linea-carga{display:flex;align-items:center;gap:8px}
+.linea-carga .tipo{min-width:34px;text-align:center}
+.linea-carga .dato{font-size:11.5px;color:var(--tinta-media)}
 .marca-area{display:inline-block;background:#e8f1fb;color:#1c5a94;border:1px solid #c3ddf3;
   border-radius:4px;padding:0 6px;font-weight:600;font-size:11px}
 .curso-cab .marca-area{background:#fff;border-color:#bcd9f0}
@@ -337,7 +341,7 @@ label .req{color:var(--falla)}
       <input type="search" id="buscar" placeholder="Buscar por curso, código, docente, área…" autocomplete="off">
       <select id="fPrograma"><option value="">Todas las carreras</option></select>
       <select id="fArea"><option value="">Todas las áreas</option></select>
-      <select id="fTipo"><option value="">Teoría y laboratorio</option></select>
+      <select id="fTipo"><option value="">Todos los tipos</option></select>
       <button class="btn gris" id="limpiar">Limpiar</button>
       <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
       <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
@@ -686,7 +690,7 @@ label .req{color:var(--falla)}
     const l = estado.asignaciones;
     llenar('fPrograma', l.map(a => a.programa), 'Todas las carreras');
     llenar('fArea', l.map(a => a.area), 'Todas las áreas');
-    llenar('fTipo', l.map(a => a.tipo), 'Teoría y laboratorio');
+    llenar('fTipo', l.map(a => a.tipo), 'Todos los tipos');
   }
 
   function filtrar(lista) {
@@ -748,14 +752,23 @@ label .req{color:var(--falla)}
 
     const orden = { 'Teo':0, 'Tal':1, 'Prá':2, 'Pra':2, 'Lab':3 };
 
-    // Cada carga es su propia fila: lo que se ve coincide exactamente con lo que
-    // se guarda y con el reporte del Departamento.
+    // La unidad de supervisión es el docente en un grupo: el portafolio y los
+    // delegados son del grupo, no del subgrupo. Las cargas del mismo docente y
+    // grupo comparten registro, y por eso se muestran juntas.
     cursos.forEach(g => {
-      g.filas = g.cargas.map(c => ({ ancla: c, partes: [c] }));
+      const fusion = [];
+      g.cargas.forEach(c => {
+        const k = (c.a.docente || '') + '¦' + (c.a.grupo || '');
+        const ya = fusion.find(f => f.k === k);
+        if (ya) ya.partes.push(c); else fusion.push({ k, partes: [c] });
+      });
+      g.filas = fusion.map(f => {
+        f.partes.sort((x, y) => (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9));
+        return { ancla: f.partes[0], partes: f.partes };
+      });
       g.filas.sort((x, y) =>
-        (orden[x.ancla.a.tipo] ?? 9) - (orden[y.ancla.a.tipo] ?? 9) ||
         String(x.ancla.a.grupo).localeCompare(String(y.ancla.a.grupo), 'es', { numeric: true }) ||
-        String(x.ancla.a.subGrupo).localeCompare(String(y.ancla.a.subGrupo), 'es', { numeric: true }));
+        (orden[x.ancla.a.tipo] ?? 9) - (orden[y.ancla.a.tipo] ?? 9));
     });
 
     // Se agrupa por carrera y, dentro de cada carrera, por curso.
@@ -814,14 +827,15 @@ label .req{color:var(--falla)}
           // Sin boton de reasignacion: escribir en Docentes DAI por REST borra
           // los campos de relacion de la fila. El area se cambia desde QuintaDB.
           const mover = '';
-          const tipos = a.tipo || '?';
-          const etiqueta = 'grupo ' + (a.grupo || '—') +
-            (a.subGrupo !== '' ? ' · subgrupo ' + a.subGrupo : '');
+          const detalle = partes.map(p =>
+            '<span class="linea-carga"><span class="tipo">' + esc(p.a.tipo || '?') + '</span>' +
+            '<span class="dato">grupo ' + esc(p.a.grupo || '—') + '</span>' +
+            '<span class="dato">subgrupo ' + esc(p.a.subGrupo !== '' ? p.a.subGrupo : '—') + '</span></span>'
+          ).join('');
 
           return '<tr>' +
             '<td class="carga"><span class="num-carga">' + nCarga + '</span>' +
-              '<span class="tipo">' + esc(tipos) + '</span>' +
-              '<small class="codigo">' + esc(etiqueta) + '</small>' +
+              '<div class="detalle-carga">' + detalle + '</div>' +
               (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
             '</td>' +
             '<td>' + esc(a.docente) + barra + '</td>' +
@@ -1500,7 +1514,11 @@ label .req{color:var(--falla)}
     $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
     // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
     // aqui cuales, para que la ficha no parezca cubrir solo una.
-    $('fichaAlcance').classList.add('oculto');
+    const varias = (partes || '').indexOf(',') > -1;
+    $('fichaAlcance').textContent = varias
+      ? 'Este registro cubre las cargas: ' + partes.replace(/:/g, ' subgrupo ') + '.'
+      : '';
+    $('fichaAlcance').classList.toggle('oculto', !varias);
     $('btnGuardar').textContent = F.guardar;
     $('btnGuardar').disabled = false;
     $('fichaCurso').textContent = nombreCurso(a.asignatura);
