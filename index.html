@@ -139,6 +139,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   background:var(--brand);color:#fff;font-size:11.5px;font-weight:700;margin-right:9px;
   vertical-align:2px}
 .tarjeta-cuerpo{padding:18px 20px}
+.solo-consulta{font-size:12.5px;color:#8a6400;background:#fdf4e3;border:1px solid #e6c86a;
+  border-radius:6px;padding:6px 12px}
 .ayuda{margin:6px 0 0;font-size:11.5px;color:var(--tinta-media);line-height:1.45}
 .marcas{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand-oscuro)}
 .capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;place-items:center;z-index:40;padding:20px}
@@ -286,7 +288,7 @@ label .req{color:var(--falla)}
   <div class="sello">PCA</div>
   <div class="marca">
     <b>Portal del Coordinador de Área</b>
-    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v21</b></span>
+    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v22</b></span>
   </div>
   <div class="espacio"></div>
   <div class="usuario oculto" id="usuarioCaja">
@@ -488,6 +490,7 @@ label .req{color:var(--falla)}
         <div id="fichaForm"></div>
         <div class="pie">
           <button class="btn" id="btnGuardar">Guardar</button>
+          <span class="solo-consulta oculto" id="soloConsulta"></span>
           <button class="btn gris" id="btnCancelar">Cancelar</button>
           <button class="btn fantasma oculto" id="btnCorreo" title="Abrir el correo con el mensaje escrito">Notificar por correo</button>
           <button class="btn fantasma oculto" id="btnWasap" title="Abrir WhatsApp con el mensaje escrito">WhatsApp</button>
@@ -511,7 +514,7 @@ label .req{color:var(--falla)}
     credential: null,
     correo: '', nombre: '', areas: [],
     asignaciones: [],
-    admin: false, general: false, programas: [],
+    admin: false, general: false, programas: [], propiasArea: [],
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
@@ -601,6 +604,7 @@ label .req{color:var(--falla)}
         estado.admin = !!datos.admin;
         estado.general = !!datos.general;
         estado.programas = datos.programas || [];
+        estado.propiasArea = datos.propiasArea || [];
         $('usuarioNombre').textContent = datos.nombre;
         const roles = [];
         if (estado.admin) roles.push('Administrador');
@@ -1386,6 +1390,14 @@ label .req{color:var(--falla)}
       dato('Ciclo', a.ciclo);
     $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
     aviso('', '');
+
+    // Si el area no es suya, la ficha queda en consulta.
+    const puede = estado.admin || (estado.propiasArea || []).includes(a.area);
+    $('btnGuardar').classList.toggle('oculto', !puede);
+    $('soloConsulta').classList.toggle('oculto', puede);
+    if (!puede) $('soloConsulta').textContent =
+      'Solo consulta: esta carga pertenece al área ' + a.area +
+      (a.coordinador ? ', a cargo de ' + a.coordinador : '') + '.';
 
     $('btnCorreo').classList.toggle('oculto', !a.correoDocente);
     $('btnWasap').classList.toggle('oculto', !a.celularDocente);
