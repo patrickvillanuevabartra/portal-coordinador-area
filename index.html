@@ -378,6 +378,7 @@ label .req{color:var(--falla)}
           <div>
             <label for="nvRol">Rol <span class="req">*</span></label>
             <select id="nvRol">
+              <option value="">Seleccione</option>
               <option>Coordinador de área</option>
               <option>Coordinador general</option>
             </select>
@@ -388,7 +389,8 @@ label .req{color:var(--falla)}
           </div>
           <div>
             <label for="nvCiclo">Ciclo <span class="req">*</span></label>
-            <input type="text" id="nvCiclo" placeholder="2027 I">
+            <select id="nvCiclo"></select>
+            <input type="text" id="nvCicloOtro" class="oculto" placeholder="2027 I" style="margin-top:6px">
           </div>
         </div>
         <div id="bloqueAreas">
@@ -846,15 +848,21 @@ label .req{color:var(--falla)}
         sel.selectedIndex = 0;
         sel.onchange = pintarCoordinadores;
         const progs = [...new Set(estado.coordinadores.map(c => c.programa).filter(Boolean))].sort();
-        $('nvPrograma').innerHTML = progs.map(p => '<option>' + esc(p) + '</option>').join('');
+        $('nvPrograma').innerHTML = '<option value="">Seleccione</option>' +
+          progs.map(p => '<option>' + esc(p) + '</option>').join('');
+
+        // El ciclo se elige de los que existen, o se escribe uno nuevo.
+        const cics = [...new Set(estado.coordinadores.map(c => c.ciclo).filter(Boolean))].sort().reverse();
+        const dest = $('cicloDestino').value.trim();
+        const todos = [...new Set(dest ? [dest, ...cics] : cics)];
+        $('nvCiclo').innerHTML = '<option value="">Seleccione</option>' +
+          todos.map(c => '<option>' + esc(c) + '</option>').join('') +
+          '<option value="__otro__">Otro ciclo…</option>';
         $('nvPrograma').onchange = refrescarAlta;
         $('nvRol').onchange = refrescarAlta;
         // El ciclo del alta se propone solo: normalmente se registra en el
         // ciclo hacia el que se esta clonando.
-        if (!$('nvCiclo').value) {
-          const v = $('cicloDestino').value.trim();
-          $('nvCiclo').value = v || (sel.value !== '__sin__' ? sel.value : '');
-        }
+
         refrescarAlta();
         pintarCoordinadores();
       })
@@ -884,9 +892,11 @@ label .req{color:var(--falla)}
     $('tablaCoord').dataset.ciclo = ciclo;
   }
 
-  $('cicloDestino').addEventListener('input', () => {
-    const v = $('cicloDestino').value.trim();
-    if (v) $('nvCiclo').value = v;
+  // "Otro ciclo" abre un campo de texto para escribirlo.
+  $('nvCiclo').addEventListener('change', () => {
+    const otro = $('nvCiclo').value === '__otro__';
+    $('nvCicloOtro').classList.toggle('oculto', !otro);
+    if (otro) $('nvCicloOtro').focus();
   });
 
   $('btnTodos').addEventListener('click', () => {
@@ -923,9 +933,10 @@ label .req{color:var(--falla)}
   // La carrera manda: las areas se filtran por ella. El coordinador general no
   // lleva areas, porque su ambito es la carrera entera.
   function refrescarAlta() {
-    const general = $('nvRol').value === 'Coordinador general';
-    $('bloqueAreas').classList.toggle('oculto', general);
-    if (general) return;
+    const rol = $('nvRol').value;
+    const general = rol === 'Coordinador general';
+    $('bloqueAreas').classList.toggle('oculto', general || !rol);
+    if (general || !rol) return;
     const p = $('nvPrograma').value;
     const areas = (estado.areas || [])
       .filter(a => a.programa === p && a.estado === 'Vigente')
@@ -938,7 +949,9 @@ label .req{color:var(--falla)}
   $('btnNuevo').addEventListener('click', () => {
     const general = $('nvRol').value === 'Coordinador general';
     const base = {
-      ciclo: $('nvCiclo').value.trim() || $('cicloDestino').value.trim(),
+      ciclo: $('nvCiclo').value === '__otro__'
+        ? $('nvCicloOtro').value.trim()
+        : $('nvCiclo').value,
       programa: $('nvPrograma').value,
       nombre: $('nvNombre').value.trim(),
       correo: $('nvCorreo').value.trim(),
@@ -948,6 +961,7 @@ label .req{color:var(--falla)}
     const falta = [];
     if (!base.ciclo) falta.push('ciclo');
     if (!base.programa) falta.push('carrera');
+    if (!base.rol) falta.push('rol');
     if (!base.nombre) falta.push('apellidos y nombres');
     if (!base.correo) falta.push('correo');
     if (falta.length) {
