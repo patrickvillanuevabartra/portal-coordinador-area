@@ -282,7 +282,7 @@ label .req{color:var(--falla)}
   <div class="sello">PCA</div>
   <div class="marca">
     <b>Portal del Coordinador de Área</b>
-    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v15</b></span>
+    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v16</b></span>
   </div>
   <div class="espacio"></div>
   <div class="usuario oculto" id="usuarioCaja">
@@ -1450,7 +1450,11 @@ label .req{color:var(--falla)}
         const el = $('f_' + c.k);
         if (!el) return;
         if (c.auto === 'hoy') el.value = hoy();
-        if (c.auto === 'nombre') el.value = estado.nombre || '';
+        // El revisor es el coordinador del área, no quien está mirando. Un
+        // administrador puede abrir cualquier curso y no por eso lo revisa él.
+        if (c.auto === 'nombre') {
+          el.value = (estado.actual && estado.actual.coordinador) || estado.nombre || '';
+        }
         if (b.contar) el.addEventListener('change', () => recalcularConteo(F));
       });
     });
@@ -1656,7 +1660,7 @@ label .req{color:var(--falla)}
     valores[M.comun.asignatura]  = a.asignatura;
     valores[M.comun.docente]     = a.docente;
     valores[M.comun.grupo]       = a.grupo;
-    valores[M.comun.coordinador] = estado.nombre;
+    valores[M.comun.coordinador] = (a.coordinador || estado.nombre);
     valores[M.comun.subGrupo]    = a.subGrupo || '';
     valores[M.comun.tipo]        = a.tipo || '';
 
