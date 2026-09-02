@@ -282,7 +282,7 @@ label .req{color:var(--falla)}
   <div class="sello">PCA</div>
   <div class="marca">
     <b>Portal del Coordinador de Área</b>
-    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v16</b></span>
+    <span>Facultad de Ingeniería · <b id="version" style="font-weight:600">v17</b></span>
   </div>
   <div class="espacio"></div>
   <div class="usuario oculto" id="usuarioCaja">
@@ -1221,7 +1221,7 @@ label .req{color:var(--falla)}
       guardar: 'Guardar revisión',
       bloques: [
         { tipo:'grid', campos:[
-          { k:'revisor', etq:'Revisor', tipo:'texto', req:true, auto:'nombre' },
+          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre' },
           { k:'fechaRevision', etq:'Fecha de revisión', tipo:'fecha', req:true, auto:'hoy' }
         ]},
         { tipo:'escala', fuente:'items', obs:true, opciones:ESCALA,
@@ -1243,6 +1243,7 @@ label .req{color:var(--falla)}
       guardar: 'Guardar entrevista',
       bloques: [
         { tipo:'grid', campos:[
+          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
           { k:'fechaHora', etq:'Fecha y hora de reunión', tipo:'fechahora', req:true },
           { k:'modalidad', etq:'Modalidad', tipo:'select', opciones:['Presencial','Virtual','Mixta'], req:true },
           { k:'delegado', etq:'Delegado', tipo:'texto', req:true },
@@ -1262,6 +1263,7 @@ label .req{color:var(--falla)}
       guardar: 'Guardar cumplimiento',
       bloques: [
         { tipo:'grid', campos:[
+          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
           { k:'fechaRevision', etq:'Fecha de revisión', tipo:'fecha', req:true, auto:'hoy' }
         ]},
         { tipo:'grid', titulo:'Formularios', campos:[
@@ -1283,7 +1285,7 @@ label .req{color:var(--falla)}
       bloques: [
         { tipo:'grid', campos:[
           { k:'fechaSupervision', etq:'Fecha de supervisión', tipo:'fecha', req:true, auto:'hoy' },
-          { k:'responsable', etq:'Responsable de la supervisión', tipo:'texto', req:true, auto:'nombre' }
+          { k:'responsable', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre' }
         ]},
         { tipo:'escala', fuente:'criterios', obs:false, opciones:ESCALA,
           cuenta:'Cumple', excluye:'No aplica',
@@ -1300,7 +1302,7 @@ label .req{color:var(--falla)}
       bloques: [
         { tipo:'grid', campos:[
           { k:'fechaSupervision', etq:'Fecha de supervisión', tipo:'fecha', req:true, auto:'hoy' },
-          { k:'responsable', etq:'Responsable de la supervisión', tipo:'texto', req:true, auto:'nombre' }
+          { k:'responsable', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre' }
         ]},
         { tipo:'escala', fuente:'criterios', obs:false, opciones:ESCALA,
           cuenta:'Cumple', excluye:'No aplica',
@@ -1316,6 +1318,7 @@ label .req{color:var(--falla)}
       guardar: 'Guardar delegados',
       bloques: [
         { tipo:'grid', titulo:'Delegado', campos:[
+          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
           { k:'codigoDelegado', etq:'Código', col:'Codigo del delegado', tipo:'texto', req:true },
           { k:'delegado', etq:'Apellidos y nombres', col:'Delegado (apellidos y nombres)', tipo:'texto', req:true },
           { k:'correoDelegado', etq:'Correo', col:'Correo del delegado', tipo:'correo', req:true },
@@ -1672,6 +1675,8 @@ label .req{color:var(--falla)}
         const val = String(el.value || '').trim();
         if (c.req && !val) { return aviso('Falta completar: ' + c.etq + '.', 'error'); }
         if (M.campos[c.k]) valores[M.campos[c.k]] = val;
+        // Los modulos sin campo propio de revisor lo guardan en Coordinador de area.
+        else if (c.k === 'revisor' && M.comun.coordinador) valores[M.comun.coordinador] = val;
       }
       if (b.contar) {
         const n = b.contar.desde.filter(k => $('f_' + k) && $('f_' + k).value === b.contar.valor).length;
