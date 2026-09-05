@@ -542,9 +542,25 @@ label .req{color:var(--falla)}
     if (cfg.body) cfg.headers['Content-Type'] = 'application/json';
     return fetch(CFG.PROXY + ruta, cfg).then(async r => {
       const data = await r.json().catch(() => ({ error: 'El proxy devolvió una respuesta ilegible' }));
-      if (!r.ok) throw new Error(data.error || ('Error ' + r.status));
+      if (!r.ok) {
+        // El identificador de Google vence al cabo de una hora. En vez de un
+        // error críptico, se pide la sesión otra vez.
+        if (/token/i.test(data.error || '')) {
+          sesionVencida();
+          throw new Error('Tu sesión venció. Vuelve a entrar con tu cuenta URP.');
+        }
+        throw new Error(data.error || ('Error ' + r.status));
+      }
       return data;
     });
+  }
+
+  function sesionVencida() {
+    estado.credential = null;
+    if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
+    ['usuarioCaja','btnSalir','btnCoord'].forEach(id => $(id).classList.add('oculto'));
+    mostrar('ingreso');
+    $('ingresoError').textContent = 'Tu sesión venció. Vuelve a entrar con tu cuenta URP.';
   }
 
   function esc(s) {
