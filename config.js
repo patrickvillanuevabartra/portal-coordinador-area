@@ -106,17 +106,17 @@ window.PCA_CONFIG = {
         enlace:           'avvWvsW71gyzRdNbm9eMvY'
       },
       items: [
-        { n:'01', etiqueta:'Nombre, código, horas y créditos',      estado:'ddTCoEW75jWP8HWR0MW4SI', obs:'any1BdICnaqy57vZldH8o1' },
-        { n:'02', etiqueta:'Sumilla según plan de estudios',        estado:'b0emkZW5zdBP_cHvW2W4C8', obs:'b9W4VdP0zdSQ7dPmomFSkV' },
-        { n:'03', etiqueta:'Competencias genéricas',                estado:'bRW4OvCSjojjNcR1lcSeDn', obs:'a8cmo6W6bkBOo_W656rmku' },
-        { n:'04', etiqueta:'Competencias específicas',              estado:'ahBSoDW5PaW5RcLJFcL8o5', obs:'cpWRrUW41dUioqwSkrWPOp' },
-        { n:'05', etiqueta:'Componentes (investigación formativa)', estado:'cTlW5cjSnbh4oVW6ZcR8oc', obs:'bXW5mpW6PcQOq9W6jUASoB' },
-        { n:'06', etiqueta:'Logro de la asignatura',                estado:'cPW5CfW5niW6NdPb5bESo3', obs:'afFmkLtmjgWP5HBrpdTmo9' },
-        { n:'07', etiqueta:'Unidades (4, según formato)',           estado:'bArmk9W6vdKOoDdx7cGSk7', obs:'ddVWxcK8nfW6pcHCkZpLmA' },
-        { n:'08', etiqueta:'Estrategias didácticas',                estado:'ddJmkOAmjjf4kWw8keah4d', obs:'ceWQNcIsDcAOkrErpdU8kz' },
-        { n:'09', etiqueta:'Recursos',                              estado:'dcKvpdVdvbfA9OoghdICkF', obs:'ansvLtm05cRzdcRSoAp8o-' },
-        { n:'10', etiqueta:'Fórmula de evaluación',                 estado:'ddUbubWQXcH5T6f8otiCoX', obs:'aii8kjtNfcTQS1v8kgW6a7' },
-        { n:'11', etiqueta:'Referencias bibliográficas APA',        estado:'cTW7pdSCjhw7_dISkKWOGI', obs:'ahWQaHCmnpWQ7cKJVdQ8kq' }
+        { n:'01', etiqueta:'Nombre, código, horas y créditos', nota: 'Nombre, código, condición de obligatoria o electiva, requisitos, créditos, horas de teoría y práctica, semestre, docente y correo institucional, todos completos y correctos.',      estado:'ddTCoEW75jWP8HWR0MW4SI', obs:'any1BdICnaqy57vZldH8o1' },
+        { n:'02', etiqueta:'Sumilla según plan de estudios', nota: 'La sumilla debe coincidir exactamente con la del plan curricular vigente, e indicar naturaleza, propósito y contenidos a desarrollar.',        estado:'b0emkZW5zdBP_cHvW2W4C8', obs:'b9W4VdP0zdSQ7dPmomFSkV' },
+        { n:'03', etiqueta:'Competencias genéricas', nota: 'Las competencias genéricas están definidas y alineadas con el plan de estudios y el autoestudio ICACIT.',                estado:'bRW4OvCSjojjNcR1lcSeDn', obs:'a8cmo6W6bkBOo_W656rmku' },
+        { n:'04', etiqueta:'Competencias específicas', nota: 'Las competencias específicas a las que contribuye la asignatura están definidas y alineadas con el plan de estudios.',              estado:'ahBSoDW5PaW5RcLJFcL8o5', obs:'cpWRrUW41dUioqwSkrWPOp' },
+        { n:'05', etiqueta:'Componentes (investigación formativa)', nota: 'El sílabo consigna los componentes de investigación formativa previstos para la asignatura.', estado:'cTlW5cjSnbh4oVW6ZcR8oc', obs:'bXW5mpW6PcQOq9W6jUASoB' },
+        { n:'06', etiqueta:'Logro de la asignatura', nota: 'El logro de la asignatura está redactado con sujeto, acción, criterios y resultado esperado.',                estado:'cPW5CfW5niW6NdPb5bESo3', obs:'afFmkLtmjgWP5HBrpdTmo9' },
+        { n:'07', etiqueta:'Unidades (4, según formato)', nota: 'Cada unidad describe su logro de aprendizaje y su programación de contenidos, planificados para las 16 semanas.',           estado:'bArmk9W6vdKOoDdx7cGSk7', obs:'ddVWxcK8nfW6pcHCkZpLmA' },
+        { n:'08', etiqueta:'Estrategias didácticas', nota: 'El sílabo describe las estrategias didácticas que se emplearán en el curso.',                estado:'ddJmkOAmjjf4kWw8keah4d', obs:'ceWQNcIsDcAOkrErpdU8kz' },
+        { n:'09', etiqueta:'Recursos', nota: 'El sílabo describe los recursos didácticos que se emplearán en el curso.',                              estado:'dcKvpdVdvbfA9OoghdICkF', obs:'ansvLtm05cRzdcRSoAp8o-' },
+        { n:'10', etiqueta:'Fórmula de evaluación', nota: 'Los criterios de evaluación y su ponderación están descritos, con los instrumentos o rúbricas a utilizar. La fórmula debe ser idéntica a la configurada en el Sistema de Evaluación.',                 estado:'ddUbubWQXcH5T6f8otiCoX', obs:'aii8kjtNfcTQS1v8kgW6a7' },
+        { n:'11', etiqueta:'Referencias bibliográficas APA', nota: 'Referencias básicas y complementarias no mayores a cinco años, en orden alfabético y con estilo APA, promoviendo el uso de bases de datos bibliográficas.',        estado:'cTW7pdSCjhw7_dISkKWOGI', obs:'ahWQaHCmnpWQ7cKJVdQ8kq' }
       ]
     },
 
@@ -148,14 +148,14 @@ window.PCA_CONFIG = {
         enlace:       'cGcCksW4fcNOoyW4pdSCov'
       },
       temas: [
-        { etiqueta:'Prerrequisitos',                 id:'ddJHBdHCjdW5FdUCkmW7Ot' },
-        { etiqueta:'Cumplimiento del sílabo',        id:'ddLmobW6rnu4NcPtH_WRmz' },
-        { etiqueta:'Horas asignadas al curso',       id:'bhyCkfWOPnW4FcJdy6aCoO' },
-        { etiqueta:'Experiencias de laboratorio',    id:'ddNYbwzf1cGlldQh3dOCoq' },
-        { etiqueta:'Puntualidad',                    id:'cciJTry3roWO_cIsFcGJXU' },
-        { etiqueta:'Retroalimentación al estudiante',id:'dcUtBdVSngWPldQSkKWOa0' },
-        { etiqueta:'Bibliografía',                   id:'byWQydbSjjWRtcJmkDE8o_' },
-        { etiqueta:'Comentarios de los estudiantes', id:'aarCoNAmjooOWPD8kZWQTt' }
+        { etiqueta:'Prerrequisitos', nota: 'Si los estudiantes cuentan con los conocimientos previos que el curso supone.',                 id:'ddJHBdHCjdW5FdUCkmW7Ot' },
+        { etiqueta:'Cumplimiento del sílabo', nota: 'Si el desarrollo del curso avanza conforme a la programación del sílabo.',        id:'ddLmobW6rnu4NcPtH_WRmz' },
+        { etiqueta:'Horas asignadas al curso', nota: 'Si las sesiones se dictan completas y en el horario previsto.',       id:'bhyCkfWOPnW4FcJdy6aCoO' },
+        { etiqueta:'Experiencias de laboratorio', nota: 'Si las prácticas de laboratorio se realizan según lo programado y con los recursos necesarios.',    id:'ddNYbwzf1cGlldQh3dOCoq' },
+        { etiqueta:'Puntualidad', nota: 'Si el docente inicia y termina las sesiones en el horario establecido.',                    id:'cciJTry3roWO_cIsFcGJXU' },
+        { etiqueta:'Retroalimentación al estudiante', nota: 'Si el docente devuelve las evaluaciones y responde consultas en un plazo razonable, no mayor a dos semanas.',id:'dcUtBdVSngWPldQSkKWOa0' },
+        { etiqueta:'Bibliografía', nota: 'Si la bibliografía indicada en el sílabo está disponible y es accesible para los estudiantes.',                   id:'byWQydbSjjWRtcJmkDE8o_' },
+        { etiqueta:'Comentarios de los estudiantes', nota: 'Cualquier otro asunto que los delegados planteen sobre el desarrollo del curso.', id:'aarCoNAmjooOWPD8kZWQTt' }
       ]
     },
 
@@ -217,14 +217,14 @@ window.PCA_CONFIG = {
         enlace:          'cgW77dTmjax7KKB2jmv8ko'
       },
       criterios: [
-        { etiqueta:'Sílabo',                          id:'cNW7pdHHriW7NcSCkJWO0-' },
-        { etiqueta:'Mensaje de sensibilización',      id:'amWPzIpevgvPpcSSkkWRW2' },
-        { etiqueta:'Sesión de aprendizaje',           id:'cGWOlcRCjbW57cImkAFmod' },
-        { etiqueta:'Rúbrica',                         id:'dcRMpcVHjdOyoEfmkHESk0' },
-        { etiqueta:'Materiales',                      id:'aOWPbklLrcJ4kFlCoCcmku' },
-        { etiqueta:'Actividades y tareas',            id:'cgActcJIDcQyorhCk9x8od' },
-        { etiqueta:'Materiales adicionales',          id:'b8jmoGW75cKikCw3ldQmkf' },
-        { etiqueta:'Links y grabaciones de sesiones', id:'ddOmoAedLmWRJcJSolg8k_' }
+        { etiqueta:'Sílabo', nota: 'El sílabo publicado en el aula virtual corresponde a la versión vigente del semestre y está accesible desde el inicio de clases.',                          id:'cNW7pdHHriW7NcSCkJWO0-' },
+        { etiqueta:'Mensaje de sensibilización', nota: 'El mensaje de sensibilización está publicado en el aula virtual del curso.',      id:'amWPzIpevgvPpcSSkkWRW2' },
+        { etiqueta:'Sesión de aprendizaje', nota: 'Los planes de sesión siguen el modelo pedagógico URP y las directrices de la Escuela. Cada presentación abre con una diapositiva que indica la unidad y los contenidos de la semana.',           id:'cGWOlcRCjbW57cImkAFmod' },
+        { etiqueta:'Rúbrica', nota: 'Las rúbricas están publicadas en el aula virtual antes de la evaluación, con al menos dos días de anticipación.',                         id:'dcRMpcVHjdOyoEfmkHESk0' },
+        { etiqueta:'Materiales', nota: 'Los materiales cargados corresponden a los temas y contenidos que el sílabo indica para esa semana, y se publican con una semana de anticipación.',                      id:'aOWPbklLrcJ4kFlCoCcmku' },
+        { etiqueta:'Actividades y tareas', nota: 'Los foros, talleres, tareas y cuestionarios son coherentes con los objetivos y contenidos del curso.',            id:'cgActcJIDcQyorhCk9x8od' },
+        { etiqueta:'Materiales adicionales', nota: 'Los recursos complementarios están disponibles y guardan relación con el desarrollo del curso.',          id:'b8jmoGW75cKikCw3ldQmkf' },
+        { etiqueta:'Links y grabaciones de sesiones', nota: 'Los enlaces y grabaciones de las sesiones están publicados y accesibles para los estudiantes.', id:'ddOmoAedLmWRJcJSolg8k_' }
       ]
     },
 
@@ -255,13 +255,13 @@ window.PCA_CONFIG = {
         enlace:          'b6Amo2WQTjWOBdIe7dVrT8'
       },
       criterios: [
-        { etiqueta:'Prueba de entrada',      id:'aCW5PhhmnkW4XNW4JcK1Ox' },
-        { etiqueta:'Prácticas',              id:'ddLCkKW41lWQGVW6lcKSoe' },
-        { etiqueta:'Laboratorio y talleres', id:'aPWQxcHmnmWReXxJRdJ8ok' },
-        { etiqueta:'Investigación',          id:'cDySkpW4bcUOkqfCkBW78w' },
-        { etiqueta:'Proyectos',              id:'dcVeGZwCnnyjtdTmk0WOGn' },
-        { etiqueta:'Trabajos y tareas',      id:'dcKCkTvvfoc6tdK8o_t8kr' },
-        { etiqueta:'Exámenes',               id:'dcO8oJWPrcWRlcMLFcU8on' }
+        { etiqueta:'Prueba de entrada', nota: 'Se conserva la evidencia de la prueba de entrada aplicada al inicio del semestre.',      id:'aCW5PhhmnkW4XNW4JcK1Ox' },
+        { etiqueta:'Prácticas', nota: 'Se conserva la evidencia de las prácticas calificadas, con su rúbrica aplicada y la retroalimentación al estudiante.',              id:'ddLCkKW41lWQGVW6lcKSoe' },
+        { etiqueta:'Laboratorio y talleres', nota: 'Se conserva la evidencia de las experiencias de laboratorio y talleres desarrollados.', id:'aPWQxcHmnmWReXxJRdJ8ok' },
+        { etiqueta:'Investigación', nota: 'Se conserva la evidencia de los trabajos de investigación asignados en el curso.',          id:'cDySkpW4bcUOkqfCkBW78w' },
+        { etiqueta:'Proyectos', nota: 'Se conserva la evidencia de los proyectos desarrollados, con los criterios con que fueron calificados.',              id:'dcVeGZwCnnyjtdTmk0WOGn' },
+        { etiqueta:'Trabajos y tareas', nota: 'Se conserva la evidencia de los trabajos y tareas, de forma accesible y segura.',      id:'dcKCkTvvfoc6tdK8o_t8kr' },
+        { etiqueta:'Exámenes', nota: 'Se conserva la evidencia de los exámenes aplicados. Cada pregunta indica la unidad del sílabo y su puntaje.',               id:'dcO8oJWPrcWRlcMLFcU8on' }
       ]
     },
 
@@ -296,6 +296,38 @@ window.PCA_CONFIG = {
         fijoSubdelegado:     'aWzuZdTmnhW7VcTH0RzXa2',
         estado:              'dcJs01W7XdIktdS8khiSoi',
         observaciones:       'byW40WW4bfW40dW7bOArzY'
+      }
+    },
+
+    // Verificación del ingreso de la fórmula de evaluación (guía FI-GCA-GUI-001)
+    formula: {
+      nombre: 'Verificación de fórmula de evaluación',
+      corto: 'Fórmula',
+      activo: true,
+      entity: 'aSn8oAaSjfWRZcGILCaSkr',
+      comun: {
+        ciclo:        'bcd8kGWRLcI4ouW57cHGOu',
+        programa:     'a2WQRdRmjkW7HLCSoEW6ri',
+        area:         'ddIComW4rly4o_F8oXWOeD',
+        codigo:       'a4FSoJmgbftipdV8oXgGXK',
+        asignatura:   'cFWQnvkSjlaikak8kPdSkM',
+        docente:      'bZW74PWRXaWO7cLd3cHCkW',
+        grupo:        'cmAmkWx8niWOpdGrO-imkF',
+        coordinador:  'akW4mAWOPicioEoSkvjmkM',
+        subGrupo:     'bkcKadWRHcSikVW5qPW65C',
+        tipo:         'cgWOTFWQ5dIB3dRmkzvG9l'
+      },
+      campos: {
+        fechaVerificacion:  'cwESo1W4HgDO9sCSkXWQyq',
+        registroSistema:    'cmdSodW7DdTyoUW53dH8oL',
+        coincide:           'bdWQ1AWPTdUOtcRCkcWROK',
+        formulaSilabo:      'babNb9ASnmWONcMmofuXbj',
+        formulaSistema:     'asWOBcLWzaWRL0rSojWRCb',
+        estado:             'dcNgNcJCjbWQ7dOSowp8ou',
+        fechaComunicacion:  'bJpWeGjwffm4obpCoVWOnb',
+        fechaLevantamiento: 'cYW6v9W6DpWPFdUqJcUCoN',
+        observaciones:      'auWPu5WPLipyo0C8o_t3WA',
+        enlace:             'c8zSk6W4DdTyoPWPhdG8kc'
       }
     }
   },
