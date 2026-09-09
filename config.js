@@ -106,17 +106,17 @@ window.PCA_CONFIG = {
         enlace:           'avvWvsW71gyzRdNbm9eMvY'
       },
       items: [
-        { n:'01', etiqueta:'Nombre, código, horas y créditos', nota: 'Nombre, código, condición de obligatoria o electiva, requisitos, créditos, horas de teoría y práctica, semestre, docente y correo institucional, todos completos y correctos.',      estado:'ddTCoEW75jWP8HWR0MW4SI', obs:'any1BdICnaqy57vZldH8o1' },
-        { n:'02', etiqueta:'Sumilla según plan de estudios', nota: 'La sumilla debe coincidir exactamente con la del plan curricular vigente, e indicar naturaleza, propósito y contenidos a desarrollar.',        estado:'b0emkZW5zdBP_cHvW2W4C8', obs:'b9W4VdP0zdSQ7dPmomFSkV' },
-        { n:'03', etiqueta:'Competencias genéricas', nota: 'Las competencias genéricas están definidas y alineadas con el plan de estudios y el autoestudio ICACIT.',                estado:'bRW4OvCSjojjNcR1lcSeDn', obs:'a8cmo6W6bkBOo_W656rmku' },
-        { n:'04', etiqueta:'Competencias específicas', nota: 'Las competencias específicas a las que contribuye la asignatura están definidas y alineadas con el plan de estudios.',              estado:'ahBSoDW5PaW5RcLJFcL8o5', obs:'cpWRrUW41dUioqwSkrWPOp' },
+        { n:'01', etiqueta:'Datos administrativos del curso', nota: 'Nombre, código, condición de obligatoria o electiva, requisitos, créditos, horas de teoría y práctica, semestre, docente y correo institucional, todos completos y correctos.',      estado:'ddTCoEW75jWP8HWR0MW4SI', obs:'any1BdICnaqy57vZldH8o1' },
+        { n:'02', etiqueta:'Sumilla según plan de estudios', nota: 'La sumilla debe coincidir exactamente con la del plan de estudios al que corresponde la asignatura, e indicar naturaleza, propósito y contenidos a desarrollar.',        estado:'b0emkZW5zdBP_cHvW2W4C8', obs:'b9W4VdP0zdSQ7dPmomFSkV' },
+        { n:'03', etiqueta:'Competencias genéricas', nota: 'Las competencias genéricas están definidas y alineadas con el plan de estudios de la asignatura y el autoestudio ICACIT.',                estado:'bRW4OvCSjojjNcR1lcSeDn', obs:'a8cmo6W6bkBOo_W656rmku' },
+        { n:'04', etiqueta:'Competencias específicas', nota: 'Las competencias específicas a las que contribuye la asignatura están definidas y alineadas con su plan de estudios.',              estado:'ahBSoDW5PaW5RcLJFcL8o5', obs:'cpWRrUW41dUioqwSkrWPOp' },
         { n:'05', etiqueta:'Componentes (investigación formativa)', nota: 'El sílabo consigna los componentes de investigación formativa previstos para la asignatura.', estado:'cTlW5cjSnbh4oVW6ZcR8oc', obs:'bXW5mpW6PcQOq9W6jUASoB' },
         { n:'06', etiqueta:'Logro de la asignatura', nota: 'El logro de la asignatura está redactado con sujeto, acción, criterios y resultado esperado.',                estado:'cPW5CfW5niW6NdPb5bESo3', obs:'afFmkLtmjgWP5HBrpdTmo9' },
         { n:'07', etiqueta:'Unidades (4, según formato)', nota: 'Cada unidad describe su logro de aprendizaje y su programación de contenidos, planificados para las 16 semanas.',           estado:'bArmk9W6vdKOoDdx7cGSk7', obs:'ddVWxcK8nfW6pcHCkZpLmA' },
         { n:'08', etiqueta:'Estrategias didácticas', nota: 'El sílabo describe las estrategias didácticas que se emplearán en el curso.',                estado:'ddJmkOAmjjf4kWw8keah4d', obs:'ceWQNcIsDcAOkrErpdU8kz' },
         { n:'09', etiqueta:'Recursos', nota: 'El sílabo describe los recursos didácticos que se emplearán en el curso.',                              estado:'dcKvpdVdvbfA9OoghdICkF', obs:'ansvLtm05cRzdcRSoAp8o-' },
         { n:'10', etiqueta:'Fórmula de evaluación', nota: 'Los criterios de evaluación y su ponderación están descritos, con los instrumentos o rúbricas a utilizar. La fórmula debe ser idéntica a la configurada en el Sistema de Evaluación.',                 estado:'ddUbubWQXcH5T6f8otiCoX', obs:'aii8kjtNfcTQS1v8kgW6a7' },
-        { n:'11', etiqueta:'Referencias bibliográficas APA', nota: 'Referencias básicas y complementarias no mayores a cinco años, en orden alfabético y con estilo APA, promoviendo el uso de bases de datos bibliográficas.',        estado:'cTW7pdSCjhw7_dISkKWOGI', obs:'ahWQaHCmnpWQ7cKJVdQ8kq' }
+        { n:'11', etiqueta:'Referencias bibliográficas', nota: 'Referencias básicas y complementarias no mayores a cinco años, en orden alfabético y con estilo APA, promoviendo el uso de bases de datos bibliográficas.',        estado:'cTW7pdSCjhw7_dISkKWOGI', obs:'ahWQaHCmnpWQ7cKJVdQ8kq' }
       ]
     },
 
