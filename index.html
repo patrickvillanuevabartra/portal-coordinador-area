@@ -153,6 +153,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .tarjeta-cuerpo{padding:18px 20px}
 .solo-consulta{font-size:12.5px;color:#8a6400;background:#fdf4e3;border:1px solid #e6c86a;
   border-radius:6px;padding:6px 12px}
+.nota-item{display:block;font-size:11.5px;color:var(--tinta-media);font-weight:400;
+  line-height:1.45;margin-top:4px;max-width:70ch}
 .ayuda{margin:6px 0 0;font-size:11.5px;color:var(--tinta-media);line-height:1.45}
 .marcas{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand-oscuro)}
 .capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;place-items:center;z-index:40;padding:20px}
@@ -680,7 +682,7 @@ label .req{color:var(--falla)}
   });
 
   // Secuencia en que el coordinador hace el trabajo, no el orden del config.
-  const ORDEN_MODULOS = ['silabo','formularios','aulaVirtual','portafolios','delegados','entrevistas'];
+  const ORDEN_MODULOS = ['silabo','formularios','aulaVirtual','portafolios','formula','delegados','entrevistas'];
 
   /* ---------------------------------------------------------------- tablero */
 
@@ -1470,7 +1472,8 @@ label .req{color:var(--falla)}
     aulaVirtual: 'Revisa que el aula virtual tenga los ocho elementos exigidos y anota lo que falte.',
     portafolios: 'Comprueba que el portafolio digital contenga las evidencias de cada tipo de evaluación.',
     delegados: 'Registra a los delegados del curso. Este dato es el que después se usa en la entrevista.',
-    entrevistas: 'Deja constancia de lo tratado con los delegados en cada uno de los ocho temas y de los compromisos acordados.'
+    entrevistas: 'Deja constancia de lo tratado con los delegados en cada uno de los ocho temas y de los compromisos acordados.',
+    formula: 'Verifica que la fórmula de evaluación esté ingresada en el Sistema de Evaluación y que sea idéntica a la del sílabo aprobado. Cualquier diferencia se comunica al docente y a la Escuela para su regularización.'
   };
 
   // Mensajes de arranque. Si existe una plantilla en QuintaDB para el modulo,
@@ -1627,6 +1630,42 @@ label .req{color:var(--falla)}
       ]
     },
 
+    formula: {
+      guardar: 'Guardar verificación',
+      bloques: [
+        { tipo:'grid', campos:[
+          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre' },
+          { k:'fechaVerificacion', etq:'Fecha de verificación', tipo:'fecha', req:true, auto:'hoy' }
+        ]},
+        { tipo:'grid', titulo:'Verificación', campos:[
+          { k:'registroSistema', etq:'¿La fórmula está registrada en el sistema?',
+            col:'Registro en el sistema', tipo:'select', req:true,
+            opciones:['Registrada','No registrada','Registrada parcialmente'],
+            ayuda:'Según la información oficial de la Unidad de Registros y Matrícula.' },
+          { k:'coincide', etq:'¿Coincide con la del sílabo?', col:'Coincide con el silabo',
+            tipo:'select', req:true, opciones:['Si','No','No aplica'] }
+        ]},
+        { tipo:'grid', ancho:true, campos:[
+          { k:'formulaSilabo', etq:'Fórmula del sílabo', col:'Formula del silabo', tipo:'textarea',
+            ayuda:'Tal como figura en el sílabo aprobado y publicado en el aula virtual.' },
+          { k:'formulaSistema', etq:'Fórmula en el sistema', col:'Formula en el sistema', tipo:'textarea',
+            ayuda:'Tal como está configurada en el Sistema de Evaluación.' }
+        ]},
+        { tipo:'grid', campos:[
+          { k:'estado', etq:'Estado de la verificación', col:'Estado de la verificacion',
+            tipo:'select', req:true, opciones:['Conforme','Observado','Levantado'] },
+          { k:'fechaComunicacion', etq:'Fecha de comunicación al docente',
+            col:'Fecha de comunicacion al docente', tipo:'fecha' },
+          { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha' }
+        ]},
+        { tipo:'grid', ancho:true, campos:[
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea',
+            ayuda:'Qué diferencia se detectó y qué se comunicó para su regularización.' },
+          { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
+        ]}
+      ]
+    },
+
     delegados: {
       guardar: 'Guardar delegados',
       bloques: [
@@ -1752,7 +1791,8 @@ label .req{color:var(--falla)}
             : '';
           return '<div class="item" data-i="' + i + '">' +
             '<div class="n mono">' + esc(n) + '</div>' +
-            '<div class="txt">' + esc(it.etiqueta) + '</div>' +
+            '<div class="txt">' + esc(it.etiqueta) +
+              (it.nota ? '<small class="nota-item">' + esc(it.nota) + '</small>' : '') + '</div>' +
             '<div><select data-estado="' + i + '">' + opciones + '</select></div>' +
             obs + '</div>';
         }).join('');
@@ -1769,6 +1809,7 @@ label .req{color:var(--falla)}
         const titulo = b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '';
         return titulo + '<div class="temas">' + lista.map((t, i) =>
           '<div><label for="t_' + i + '">' + esc(t.etiqueta) + '</label>' +
+          (t.nota ? '<p class="nota-item">' + esc(t.nota) + '</p>' : '') +
           '<textarea id="t_' + i + '" data-tema="' + i + '"></textarea></div>'
         ).join('') + '</div>';
       }
