@@ -129,6 +129,18 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .buscador input[type=search]{flex:1;min-width:230px;font-size:13px;padding:7px 10px}
 .buscador select{font-size:12.5px;max-width:230px}
 .buscador .btn{padding:6px 12px;font-size:12.5px}
+.kpi{display:flex;gap:14px;flex-wrap:wrap;margin-bottom:18px}
+.kpi>div{flex:1;min-width:150px;background:var(--papel);border:1px solid var(--linea);
+  border-radius:12px;padding:16px 18px}
+.kpi .n{font-size:28px;font-weight:700;line-height:1.1;color:var(--brand-oscuro)}
+.kpi .t{font-size:11.5px;color:var(--tinta-media);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.barrota{height:8px;border-radius:4px;background:var(--linea);overflow:hidden;margin-top:6px}
+.barrota i{display:block;height:100%;background:var(--brand)}
+.barrota.baja i{background:#d68910}
+.barrota.critica i{background:var(--falla)}
+.fila-mod{display:grid;grid-template-columns:130px 1fr 76px;gap:12px;align-items:center;
+  padding:7px 0;font-size:13px}
+.fila-mod .val{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tinta-media)}
 .tarjeta{background:var(--papel);border:1px solid var(--linea);border-radius:12px;
   overflow:hidden;margin-bottom:18px}
 .tarjeta-cab{padding:16px 20px;border-bottom:1px solid var(--linea);background:var(--fondo);
@@ -299,6 +311,7 @@ label .req{color:var(--falla)}
     <b id="usuarioNombre"></b>
     <span id="usuarioArea"></span>
   </div>
+  <button class="btn fantasma oculto" id="btnTablero">Indicadores</button>
   <button class="btn fantasma oculto" id="btnCoord">Coordinadores</button>
   <button class="btn gris oculto" id="btnSalir">Salir</button>
 </header>
@@ -348,6 +361,12 @@ label .req{color:var(--falla)}
     </div>
     <div id="tableroAlertas"></div>
     <div class="tabla" id="tableroTabla"></div>
+  </section>
+
+  <!-- =================================================== indicadores -->
+  <section id="indicadores" class="oculto">
+    <div class="migas"><button id="volverInd">Mis cursos</button> / Indicadores de supervisión</div>
+    <div id="indCuerpo"><div class="vacio">Calculando…</div></div>
   </section>
 
   <!-- ============================================ cambiar el área -->
@@ -558,7 +577,7 @@ label .req{color:var(--falla)}
   function sesionVencida() {
     estado.credential = null;
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
-    ['usuarioCaja','btnSalir','btnCoord'].forEach(id => $(id).classList.add('oculto'));
+    ['usuarioCaja','btnSalir','btnCoord','btnTablero'].forEach(id => $(id).classList.add('oculto'));
     mostrar('ingreso');
     $('ingresoError').textContent = 'Tu sesión venció. Vuelve a entrar con tu cuenta URP.';
   }
@@ -574,7 +593,7 @@ label .req{color:var(--falla)}
   }
 
   function mostrar(seccion) {
-    ['ingreso','tablero','ficha','coordinadores'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
+    ['ingreso','tablero','ficha','coordinadores','indicadores'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
     window.scrollTo(0, 0);
   }
 
@@ -640,6 +659,7 @@ label .req{color:var(--falla)}
           ? roles.join(' · ')
           : datos.areas.join(' · ');
         $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
+        $('btnTablero').classList.remove('oculto');
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
@@ -1009,6 +1029,125 @@ label .req{color:var(--falla)}
       ['Ciclo académico: ' + ciclo, 'Ámbito: ' + ambitoTexto(),
        'Registros: ' + lista.length]);
   });
+
+  /* ------------------------------------------------- indicadores */
+
+  $('btnTablero').addEventListener('click', () => { mostrar('indicadores'); cargarIndicadores(); });
+  $('volverInd').addEventListener('click', () => mostrar('tablero'));
+
+  function cargarIndicadores() {
+    $('indCuerpo').innerHTML = '<div class="vacio">Calculando…</div>';
+    api('/indicadores?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+      .then(pintarIndicadores)
+      .catch(e => { $('indCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+  }
+
+  function clasePorc(p) { return p >= 70 ? '' : (p >= 40 ? ' baja' : ' critica'); }
+
+  function pintarIndicadores(d) {
+    const posibles = d.totalCargas * d.totalModulos;
+    const pct = posibles ? Math.round(d.registrados / posibles * 1000) / 10 : 0;
+    const ambito = estado.admin ? 'Toda la Facultad'
+      : (estado.general ? estado.programas.join(', ') : estado.areas.join(' · '));
+
+    let h = '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
+      '<h2>Avance de la supervisión</h2>' +
+      '<p>' + esc(ambito) + ' · ciclo ' + esc(d.ciclo || 'todos') +
+      '. Se cuentan los seis formatos de cada carga.</p></div></header>' +
+      '<div class="tarjeta-cuerpo">' +
+      '<div class="kpi">' +
+        '<div><div class="n">' + pct + '%</div><div class="t">avance general</div>' +
+          '<div class="barrota' + clasePorc(pct) + '"><i style="width:' + pct + '%"></i></div></div>' +
+        '<div><div class="n">' + d.totalCargas + '</div><div class="t">cargas a supervisar</div></div>' +
+        '<div><div class="n">' + d.registrados + '</div><div class="t">de ' + posibles + ' registros</div></div>' +
+        '<div><div class="n">' + d.atencionTotal + '</div><div class="t">requieren atención</div></div>' +
+      '</div>';
+
+    h += '<div class="subtitulo">Por formato</div>';
+    ORDEN_MODULOS.forEach(k => {
+      const n = d.porModulo[k] || 0;
+      const p = d.totalCargas ? Math.round(n / d.totalCargas * 1000) / 10 : 0;
+      h += '<div class="fila-mod"><span>' + esc(CFG.MODULOS[k].nombre.split(' ').slice(0,3).join(' ')) + '</span>' +
+        '<span class="barrota' + clasePorc(p) + '"><i style="width:' + p + '%"></i></span>' +
+        '<span class="val">' + n + ' / ' + d.totalCargas + '</span></div>';
+    });
+    h += '</div></section>';
+
+    // Por área: lo que mira el coordinador general y la auditoría.
+    if ((d.areas || []).length > 1 || estado.admin || estado.general) {
+      h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
+        '<h2>Avance por área</h2><p>De menor a mayor, para ver primero lo que está atrasado.</p>' +
+        '</div></header><div class="tarjeta-cuerpo"><div class="tabla"><table>' +
+        '<thead><tr><th>Área</th><th>Coordinador</th><th>Cargas</th><th>Avance</th></tr></thead><tbody>';
+      d.areas.forEach(a => {
+        h += '<tr><td><b>' + esc(a.area) + '</b><small class="codigo">' + esc(a.programa || '') + '</small></td>' +
+          '<td>' + esc(a.coordinador || '—') + '</td>' +
+          '<td>' + a.cargas + '</td>' +
+          '<td style="min-width:150px"><span class="barrota' + clasePorc(a.porcentaje) + '">' +
+          '<i style="width:' + a.porcentaje + '%"></i></span>' +
+          '<small class="codigo">' + a.porcentaje + '% · ' + a.registrados + ' de ' + a.posibles + '</small></td></tr>';
+      });
+      h += '</tbody></table></div></div></section>';
+    }
+
+    // Lo que exige acción.
+    h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
+      '<h2>Requieren atención</h2><p>Sílabos observados sin levantar, entrevistas con alerta ' +
+      'y cumplimientos por debajo del 70%.</p></div></header><div class="tarjeta-cuerpo">';
+    if (!(d.atencion || []).length) {
+      h += '<div class="vacio">Nada pendiente de atención.</div>';
+    } else {
+      h += '<div class="tabla"><table><thead><tr><th>Situación</th><th>Curso</th>' +
+        '<th>Docente</th><th>Área</th></tr></thead><tbody>';
+      d.atencion.forEach(a => {
+        h += '<tr><td><b>' + esc(a.tipo) + '</b><small class="codigo">' + esc(a.detalle || '') + '</small></td>' +
+          '<td>' + esc(nombreCurso(a.curso)) + '</td>' +
+          '<td>' + esc(a.docente) + '</td>' +
+          '<td>' + esc(a.area) + '<small class="codigo">' + esc(a.coordinador || '') + '</small></td></tr>';
+      });
+      h += '</tbody></table></div>';
+      if (d.atencionTotal > d.atencion.length) {
+        h += '<p class="ayuda">Se muestran los primeros ' + d.atencion.length + ' de ' + d.atencionTotal + '.</p>';
+      }
+    }
+    h += '<div class="pie" style="margin-top:14px">' +
+      '<button class="btn fantasma" id="btnExpInd">Descargar indicadores</button></div>';
+    h += '</div></section>';
+
+    $('indCuerpo').innerHTML = h;
+    estado.indicadores = d;
+    $('btnExpInd').addEventListener('click', () => descargarIndicadores(d));
+  }
+
+  function descargarIndicadores(d) {
+    const posibles = d.totalCargas * d.totalModulos;
+    const pct = posibles ? Math.round(d.registrados / posibles * 1000) / 10 : 0;
+    const filas = [];
+    filas.push(['RESUMEN', '', '', '']);
+    filas.push(['Avance general', pct + '%', d.registrados + ' de ' + posibles, '']);
+    filas.push(['Cargas a supervisar', d.totalCargas, '', '']);
+    filas.push(['Situaciones que requieren atención', d.atencionTotal, '', '']);
+    filas.push(['', '', '', '']);
+    filas.push(['POR FORMATO', 'Registrados', 'De un total de', 'Avance']);
+    ORDEN_MODULOS.forEach(k => {
+      const n = d.porModulo[k] || 0;
+      filas.push([CFG.MODULOS[k].nombre, n, d.totalCargas,
+        (d.totalCargas ? Math.round(n / d.totalCargas * 1000) / 10 : 0) + '%']);
+    });
+    filas.push(['', '', '', '']);
+    filas.push(['POR ÁREA', 'Coordinador', 'Cargas', 'Avance']);
+    d.areas.forEach(a => filas.push([a.area, a.coordinador || '—', a.cargas, a.porcentaje + '%']));
+    filas.push(['', '', '', '']);
+    filas.push(['REQUIEREN ATENCIÓN', 'Curso', 'Docente', 'Área']);
+    d.atencion.forEach(a => filas.push([a.tipo + (a.detalle ? ' — ' + a.detalle : ''),
+      nombreCurso(a.curso), a.docente, a.area]));
+    descargarXls('Indicadores_' + String(d.ciclo || '').replace(/\s/g, ''),
+      'Indicadores de la supervisión docente',
+      ['Concepto', '', '', ''], filas,
+      ['Ciclo académico: ' + (d.ciclo || 'todos'),
+       'Ámbito: ' + (estado.admin ? 'Toda la Facultad'
+         : (estado.general ? estado.programas.join(', ') : estado.areas.join(' · ')))]);
+  }
 
   /* ---------------------------------------------- cambiar el área */
 
