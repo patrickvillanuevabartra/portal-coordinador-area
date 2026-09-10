@@ -314,6 +314,7 @@ label .req{color:var(--falla)}
     <b id="usuarioNombre"></b>
     <span id="usuarioArea"></span>
   </div>
+  <button class="btn fantasma oculto" id="btnDatos">Validar datos</button>
   <button class="btn fantasma oculto" id="btnTablero">Indicadores</button>
   <button class="btn fantasma oculto" id="btnCoord">Coordinadores</button>
   <button class="btn gris oculto" id="btnSalir">Salir</button>
@@ -365,6 +366,65 @@ label .req{color:var(--falla)}
     <div id="tableroAlertas"></div>
     <div class="tabla" id="tableroTabla"></div>
   </section>
+
+  <!-- ============================================== validar datos -->
+  <section id="datos" class="oculto">
+    <div class="migas"><button id="volverDatos">Mis cursos</button> / Validar datos</div>
+    <section class="tarjeta">
+      <header class="tarjeta-cab"><div>
+        <h2>Validar la información base</h2>
+        <p>Revisa el catálogo de cursos y la carga lectiva de tu ámbito. No se editan aquí:
+           si algo está mal, se reporta desde la propia fila y queda registrado.</p>
+      </div></header>
+      <div class="tarjeta-cuerpo">
+        <div class="buscador">
+          <select id="dtTabla">
+            <option value="cursos">Catálogo de cursos</option>
+            <option value="cargas">Carga lectiva</option>
+          </select>
+          <input type="search" id="dtBuscar" placeholder="Buscar…" autocomplete="off">
+          <button class="btn fantasma" id="dtExportar">Descargar en Excel</button>
+          <span class="conteo" id="dtConteo"></span>
+        </div>
+        <div class="tabla" id="dtTablaCuerpo"></div>
+      </div>
+    </section>
+
+    <section class="tarjeta">
+      <header class="tarjeta-cab"><div>
+        <h2>Reportes registrados</h2>
+        <p>Lo que has señalado y en qué estado está.</p>
+      </div></header>
+      <div class="tarjeta-cuerpo"><div class="tabla" id="dtReportes"></div></div>
+    </section>
+  </section>
+
+  <div id="capaRep" class="capa oculto">
+    <div class="dialogo">
+      <h3>Reportar una inconsistencia</h3>
+      <p class="det" id="repRegistro"></p>
+      <label for="repTipo">¿Qué está mal?</label>
+      <select id="repTipo">
+        <option>Código equivocado</option>
+        <option>Curso que falta</option>
+        <option>Docente que no corresponde</option>
+        <option>Área mal asignada</option>
+        <option>Sumilla desactualizada</option>
+        <option>Grupo o subgrupo equivocado</option>
+        <option>Curso duplicado</option>
+        <option>Otro</option>
+      </select>
+      <label for="repDetalle" style="margin-top:10px">Detalle</label>
+      <textarea id="repDetalle" rows="4" placeholder="Explica qué encontraste y, si lo sabes, cuál sería lo correcto."></textarea>
+      <p class="nota-dialogo">El reporte queda a tu nombre y con la fecha. No modifica los datos:
+        lo revisa la Coordinación y, si corresponde, se eleva a la Escuela o al Departamento.</p>
+      <div class="pie">
+        <button class="btn" id="btnEnviarRep">Enviar reporte</button>
+        <button class="btn gris" id="btnRepCancel">Cancelar</button>
+        <span class="aviso" id="avisoRep"></span>
+      </div>
+    </div>
+  </div>
 
   <!-- =================================================== indicadores -->
   <section id="indicadores" class="oculto">
@@ -551,6 +611,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
+    datos: null, datosVisibles: [], reportando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -580,7 +641,7 @@ label .req{color:var(--falla)}
   function sesionVencida() {
     estado.credential = null;
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
-    ['usuarioCaja','btnSalir','btnCoord','btnTablero'].forEach(id => $(id).classList.add('oculto'));
+    ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos'].forEach(id => $(id).classList.add('oculto'));
     mostrar('ingreso');
     $('ingresoError').textContent = 'Tu sesión venció. Vuelve a entrar con tu cuenta URP.';
   }
@@ -596,7 +657,7 @@ label .req{color:var(--falla)}
   }
 
   function mostrar(seccion) {
-    ['ingreso','tablero','ficha','coordinadores','indicadores'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
+    ['ingreso','tablero','ficha','coordinadores','indicadores','datos'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
     window.scrollTo(0, 0);
   }
 
@@ -663,6 +724,7 @@ label .req{color:var(--falla)}
           : datos.areas.join(' · ');
         $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
         $('btnTablero').classList.remove('oculto');
+        $('btnDatos').classList.remove('oculto');
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
@@ -1030,6 +1092,141 @@ label .req{color:var(--falla)}
         c.area || (/general/i.test(c.rol) ? 'Toda la carrera' : ''),
         c.rol, c.nombre, c.correo, c.celular, c.estado]),
       ['Ciclo académico: ' + ciclo, 'Ámbito: ' + ambitoTexto(),
+       'Registros: ' + lista.length]);
+  });
+
+  /* ---------------------------------------------- validar datos */
+
+  $('btnDatos').addEventListener('click', () => { mostrar('datos'); cargarDatos(); cargarReportes(); });
+  $('volverDatos').addEventListener('click', () => mostrar('tablero'));
+  $('dtTabla').addEventListener('change', cargarDatos);
+  $('dtBuscar').addEventListener('input', pintarDatos);
+
+  function cargarDatos() {
+    $('dtTablaCuerpo').innerHTML = '<div class="vacio">Cargando…</div>';
+    api('/consultar?tabla=' + $('dtTabla').value +
+        '&ciclo=' + encodeURIComponent($('filtroCiclo').value))
+      .then(d => { estado.datos = d; pintarDatos(); })
+      .catch(e => { $('dtTablaCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+  }
+
+  function pintarDatos() {
+    const d = estado.datos;
+    if (!d) return;
+    const q = sinAcentos($('dtBuscar').value.trim());
+    const esCursos = $('dtTabla').value === 'cursos';
+    let lista = d.filas || [];
+    if (q) lista = lista.filter(f => q.split(/\s+/).every(p =>
+      sinAcentos(Object.values(f).join(' ')).includes(p)));
+    $('dtConteo').textContent = lista.length + ' de ' + (d.filas || []).length;
+
+    if (!lista.length) { $('dtTablaCuerpo').innerHTML = '<div class="vacio">Sin resultados.</div>'; return; }
+
+    const cab = esCursos
+      ? ['Código','Curso','Plan','Sem.','Área','']
+      : ['Código','Curso','Grupo','Tipo','Docente','Área',''];
+    let h = '<table><thead><tr>' + cab.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+    lista.forEach((f, i) => {
+      h += '<tr>';
+      if (esCursos) {
+        h += '<td>' + esc(f.codigo || '—') + '</td>' +
+             '<td><b>' + esc(nombreCurso(f.curso)) + '</b>' +
+             (f.sumilla ? '<small class="codigo">' + esc(f.sumilla.slice(0, 150)) + '…</small>' : '') + '</td>' +
+             '<td>' + esc(f.plan || '—') + '</td>' +
+             '<td>' + esc(f.semestre || '—') + '</td>' +
+             '<td>' + esc(f.area || 'sin área') + '</td>';
+      } else {
+        h += '<td>' + esc(f.codigo || '—') + '</td>' +
+             '<td><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
+             '<small class="codigo">' + esc(f.planEstudio || '') + '</small></td>' +
+             '<td>' + esc(f.grupo || '—') + (f.subGrupo !== '' ? ' · ' + esc(f.subGrupo) : '') + '</td>' +
+             '<td>' + esc(f.tipo || '—') + '</td>' +
+             '<td>' + esc(f.docente || '—') + '</td>' +
+             '<td>' + esc(f.area || 'sin área') + '</td>';
+      }
+      h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button></td></tr>';
+    });
+    h += '</tbody></table>';
+    $('dtTablaCuerpo').innerHTML = h;
+    estado.datosVisibles = lista;
+    $('dtTablaCuerpo').querySelectorAll('[data-rep]').forEach(b => {
+      b.addEventListener('click', () => abrirReporte(lista[Number(b.dataset.rep)], esCursos));
+    });
+  }
+
+  function abrirReporte(f, esCursos) {
+    estado.reportando = { fila: f, esCursos };
+    $('repRegistro').textContent = esCursos
+      ? (f.codigo || 'sin código') + ' · ' + nombreCurso(f.curso) + ' · plan ' + (f.plan || '—')
+      : (f.codigo || '') + ' · ' + nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
+    $('repDetalle').value = '';
+    $('avisoRep').textContent = '';
+    $('capaRep').classList.remove('oculto');
+  }
+
+  $('btnRepCancel').addEventListener('click', () => $('capaRep').classList.add('oculto'));
+  $('capaRep').addEventListener('click', e => {
+    if (e.target === $('capaRep')) $('capaRep').classList.add('oculto');
+  });
+
+  $('btnEnviarRep').addEventListener('click', () => {
+    const r = estado.reportando;
+    const detalle = $('repDetalle').value.trim();
+    if (!detalle) { $('avisoRep').textContent = 'Escribe el detalle.'; $('avisoRep').className = 'aviso error'; return; }
+    const f = r.fila;
+    const cuerpo = r.esCursos
+      ? { tabla:'Cursos-Sumillas', registro:(f.codigo || '') + ' · ' + f.curso,
+          programa:f.programa, area:f.area, codigoCurso:f.codigo, asignatura:f.curso }
+      : { tabla:'Docentes DAI', registro:f.idAsignacion,
+          programa:f.programa, area:f.area, codigoCurso:f.codigo, asignatura:f.asignatura,
+          docente:f.docente, grupo:f.grupo, subGrupo:f.subGrupo };
+    cuerpo.tipo = $('repTipo').value;
+    cuerpo.detalle = detalle;
+    $('btnEnviarRep').disabled = true;
+    api('/reportes', { method:'POST', body: JSON.stringify(cuerpo) })
+      .then(() => { $('capaRep').classList.add('oculto'); $('btnEnviarRep').disabled = false; cargarReportes(); })
+      .catch(e => { $('avisoRep').textContent = e.message; $('avisoRep').className = 'aviso error';
+                    $('btnEnviarRep').disabled = false; });
+  });
+
+  function cargarReportes() {
+    api('/reportes')
+      .then(d => {
+        const l = d.reportes || [];
+        if (!l.length) {
+          $('dtReportes').innerHTML = '<div class="vacio">' +
+            esc(d.aviso || 'Todavía no has reportado nada.') + '</div>';
+          return;
+        }
+        let h = '<table><thead><tr><th>Código</th><th>Qué se reportó</th>' +
+          '<th>Registro</th><th>Estado</th></tr></thead><tbody>';
+        l.forEach(r => {
+          h += '<tr><td>' + esc(r.codigo) + '<small class="codigo">' + esc(r.fecha) + '</small></td>' +
+            '<td><b>' + esc(r.tipo) + '</b><small class="codigo">' + esc(r.detalle || '') + '</small></td>' +
+            '<td>' + esc(r.registro) + '<small class="codigo">' + esc(r.tabla) + '</small></td>' +
+            '<td>' + esc(r.estado) +
+            (r.respuesta ? '<small class="codigo">' + esc(r.respuesta) + '</small>' : '') + '</td></tr>';
+        });
+        $('dtReportes').innerHTML = h + '</tbody></table>';
+      })
+      .catch(e => { $('dtReportes').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+  }
+
+  $('dtExportar').addEventListener('click', () => {
+    const lista = estado.datosVisibles || [];
+    if (!lista.length) return;
+    const esCursos = $('dtTabla').value === 'cursos';
+    const cols = esCursos
+      ? ['N°','Programa','Plan','Código','Curso','Semestre','Área','Sumilla']
+      : ['N°','Programa','Plan','Código','Curso','Semestre','Grupo','Subgrupo','Tipo','Docente','Área','ID asignación'];
+    const filas = lista.map((f, i) => esCursos
+      ? [i+1, f.programa, f.plan, f.codigo, nombreCurso(f.curso), f.semestre, f.area, f.sumilla]
+      : [i+1, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura), f.semestre,
+         f.grupo, f.subGrupo, f.tipo, f.docente, f.area, f.idAsignacion]);
+    descargarXls(esCursos ? 'Catalogo_de_cursos' : 'Carga_lectiva',
+      esCursos ? 'Catálogo de cursos y sumillas' : 'Carga lectiva del ciclo',
+      cols, filas,
+      ['Ciclo académico: ' + ($('filtroCiclo').value || 'todos'), 'Ámbito: ' + ambitoTexto(),
        'Registros: ' + lista.length]);
   });
 
