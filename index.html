@@ -121,6 +121,11 @@ select,input[type=text],input[type=date],input[type=url],textarea{
 textarea{width:100%;resize:vertical;min-height:64px;line-height:1.5}
 select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
+.filtros-av{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;
+  background:var(--fondo);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;
+  margin-bottom:12px}
+.filtros-av label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--tinta-media);margin-bottom:3px;display:block}
 .buscador{
   display:flex;gap:8px;flex-wrap:wrap;align-items:center;
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;
@@ -381,10 +386,30 @@ label .req{color:var(--falla)}
           <select id="dtTabla">
             <option value="cursos">Catálogo de cursos</option>
             <option value="cargas">Carga lectiva</option>
+            <option value="docentes">Directorio de docentes</option>
           </select>
           <input type="search" id="dtBuscar" placeholder="Buscar…" autocomplete="off">
+          <button class="btn gris" id="dtMasFiltros">Más filtros</button>
           <button class="btn fantasma" id="dtExportar">Descargar en Excel</button>
           <span class="conteo" id="dtConteo"></span>
+        </div>
+        <div class="filtros-av oculto" id="dtAvanzado">
+          <div><label for="fPrograma2">Carrera</label><select id="fPrograma2"></select></div>
+          <div><label for="fArea2">Área</label><select id="fArea2"></select></div>
+          <div><label for="fPlan2">Plan</label><select id="fPlan2"></select></div>
+          <div><label for="fSem2">Semestre</label><select id="fSem2"></select></div>
+          <div><label for="fTipo2">Tipo</label><select id="fTipo2"></select></div>
+          <div><label for="fFalta">Solo lo incompleto</label>
+            <select id="fFalta">
+              <option value="">Todo</option>
+              <option value="correo">Sin correo del docente</option>
+              <option value="celular">Sin celular del docente</option>
+              <option value="codigo">Sin código</option>
+              <option value="area">Sin área</option>
+              <option value="sumilla">Sin sumilla</option>
+              <option value="incompleta">Cargas incompletas</option>
+            </select></div>
+          <div style="align-self:end"><button class="btn gris" id="dtLimpiar">Limpiar filtros</button></div>
         </div>
         <div class="tabla" id="dtTablaCuerpo"></div>
       </div>
@@ -1110,47 +1135,119 @@ label .req{color:var(--falla)}
       .catch(e => { $('dtTablaCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
+  $('dtMasFiltros').addEventListener('click', () => {
+    $('dtAvanzado').classList.toggle('oculto');
+  });
+  ['fPrograma2','fArea2','fPlan2','fSem2','fTipo2','fFalta'].forEach(id =>
+    $(id).addEventListener('change', pintarDatos));
+  $('dtLimpiar').addEventListener('click', () => {
+    ['fPrograma2','fArea2','fPlan2','fSem2','fTipo2','fFalta'].forEach(id => $(id).value = '');
+    $('dtBuscar').value = '';
+    pintarDatos();
+  });
+
+  function llenarFiltros(lista, vista) {
+    const opciones = (id, valores, etiqueta) => {
+      const sel = $(id), previo = sel.value;
+      sel.innerHTML = '<option value="">' + etiqueta + '</option>' +
+        [...new Set(valores)].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'))
+          .map(v => '<option>' + esc(v) + '</option>').join('');
+      sel.value = previo;
+    };
+    opciones('fPrograma2', lista.map(f => f.programa), 'Todas');
+    opciones('fArea2', lista.map(f => f.area), 'Todas');
+    opciones('fPlan2', lista.map(f => f.plan || f.planEstudio), 'Todos');
+    opciones('fSem2', lista.map(f => f.semestre), 'Todos');
+    opciones('fTipo2', lista.map(f => f.tipo), 'Todos');
+    // El plan, el semestre y el tipo no aplican al directorio de docentes.
+    const irrelevantes = vista === 'docentes' ? ['fPlan2','fSem2','fTipo2'] : [];
+    ['fPlan2','fSem2','fTipo2'].forEach(id =>
+      $(id).parentElement.classList.toggle('oculto', irrelevantes.includes(id)));
+  }
+
   function pintarDatos() {
     const d = estado.datos;
     if (!d) return;
+    const vista = $('dtTabla').value;
     const q = sinAcentos($('dtBuscar').value.trim());
-    const esCursos = $('dtTabla').value === 'cursos';
     let lista = d.filas || [];
-    if (q) lista = lista.filter(f => q.split(/\s+/).every(p =>
-      sinAcentos(Object.values(f).join(' ')).includes(p)));
+    llenarFiltros(lista, vista);
+
+    const fp = $('fPrograma2').value, fa = $('fArea2').value, fpl = $('fPlan2').value;
+    const fs = $('fSem2').value, ft = $('fTipo2').value, ff = $('fFalta').value;
+    lista = lista.filter(f => {
+      if (fp && f.programa !== fp) return false;
+      if (fa && f.area !== fa) return false;
+      if (fpl && (f.plan || f.planEstudio) !== fpl) return false;
+      if (fs && f.semestre !== fs) return false;
+      if (ft && f.tipo !== ft) return false;
+      if (ff === 'correo'    && f.tieneCorreo  !== 'No') return false;
+      if (ff === 'celular'   && f.tieneCelular !== 'No') return false;
+      if (ff === 'codigo'    && f.tieneCodigo  !== 'No') return false;
+      if (ff === 'area'      && f.tieneArea    !== 'No' && f.area) return false;
+      if (ff === 'sumilla'   && f.tieneSumilla !== 'No') return false;
+      if (ff === 'incompleta'&& f.completa     !== 'No') return false;
+      if (!q) return true;
+      const txt = sinAcentos(Object.values(f).join(' '));
+      return q.split(/\s+/).every(p => txt.includes(p));
+    });
     $('dtConteo').textContent = lista.length + ' de ' + (d.filas || []).length;
 
     if (!lista.length) { $('dtTablaCuerpo').innerHTML = '<div class="vacio">Sin resultados.</div>'; return; }
 
-    const cab = esCursos
-      ? ['Código','Curso','Plan','Sem.','Área','']
-      : ['Código','Curso','Grupo','Tipo','Docente','Área',''];
-    let h = '<table><thead><tr>' + cab.map(c => '<th>' + c + '</th>').join('') + '</tr></thead><tbody>';
+    const falta = (v) => v === 'No' ? '<span class="pendiente">falta</span>' : '';
+    let h = '<table><thead><tr>';
+    if (vista === 'cursos') {
+      h += ['Código','Curso','Carrera','Plan','Sem.','Área','Sumilla',''].map(c => '<th>' + c + '</th>').join('');
+    } else if (vista === 'docentes') {
+      h += ['Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas'].map(c => '<th>' + c + '</th>').join('');
+    } else {
+      h += ['Código','Curso','Plan','Sem.','Grupo','Tipo','Docente','Correo','Celular','Área','']
+        .map(c => '<th>' + c + '</th>').join('');
+    }
+    h += '</tr></thead><tbody>';
+
     lista.forEach((f, i) => {
       h += '<tr>';
-      if (esCursos) {
-        h += '<td>' + esc(f.codigo || '—') + '</td>' +
-             '<td><b>' + esc(nombreCurso(f.curso)) + '</b>' +
-             (f.sumilla ? '<small class="codigo">' + esc(f.sumilla.slice(0, 150)) + '…</small>' : '') + '</td>' +
+      if (vista === 'cursos') {
+        h += '<td>' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
+             '<td><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
+             '<td>' + esc(f.programa || '—') + '</td>' +
              '<td>' + esc(f.plan || '—') + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
-             '<td>' + esc(f.area || 'sin área') + '</td>';
+             '<td>' + esc(f.area || '') + falta(f.tieneArea) + '</td>' +
+             '<td>' + (f.sumilla ? '<small class="codigo">' + esc(f.sumilla.slice(0,110)) + '…</small>'
+                                 : falta('No')) + '</td>';
+      } else if (vista === 'docentes') {
+        h += '<td><b>' + esc(f.docente) + '</b></td>' +
+             '<td>' + (f.correo ? esc(f.correo) : falta('No')) + '</td>' +
+             '<td>' + (f.celular ? esc(f.celular) : falta('No')) + '</td>' +
+             '<td>' + esc(f.programa || '—') + '</td>' +
+             '<td>' + esc(f.area || '—') + '</td>' +
+             '<td>' + esc(f.nCursos) + '<small class="codigo">' + esc(f.cursos.slice(0,120)) + '</small></td>' +
+             '<td>' + esc(f.cargas) + '</td>';
       } else {
-        h += '<td>' + esc(f.codigo || '—') + '</td>' +
+        h += '<td>' + esc(f.codigo || '') + '</td>' +
              '<td><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
-             '<small class="codigo">' + esc(f.planEstudio || '') + '</small></td>' +
+             (f.falta ? '<small class="pendiente">Falta ' + esc(f.falta) + '</small>' : '') + '</td>' +
+             '<td>' + esc(f.planEstudio || '—') + '</td>' +
+             '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.grupo || '—') + (f.subGrupo !== '' ? ' · ' + esc(f.subGrupo) : '') + '</td>' +
              '<td>' + esc(f.tipo || '—') + '</td>' +
              '<td>' + esc(f.docente || '—') + '</td>' +
-             '<td>' + esc(f.area || 'sin área') + '</td>';
+             '<td>' + (f.correoDocente ? esc(f.correoDocente) : falta('No')) + '</td>' +
+             '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
+             '<td>' + esc(f.area || '') + '</td>';
       }
-      h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button></td></tr>';
+      if (vista !== 'docentes') {
+        h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button></td>';
+      }
+      h += '</tr>';
     });
-    h += '</tbody></table>';
-    $('dtTablaCuerpo').innerHTML = h;
+    $('dtTablaCuerpo').innerHTML = h + '</tbody></table>';
     estado.datosVisibles = lista;
     $('dtTablaCuerpo').querySelectorAll('[data-rep]').forEach(b => {
-      b.addEventListener('click', () => abrirReporte(lista[Number(b.dataset.rep)], esCursos));
+      b.addEventListener('click', () => abrirReporte(lista[Number(b.dataset.rep)], vista === 'cursos'));
     });
   }
 
@@ -1215,19 +1312,29 @@ label .req{color:var(--falla)}
   $('dtExportar').addEventListener('click', () => {
     const lista = estado.datosVisibles || [];
     if (!lista.length) return;
-    const esCursos = $('dtTabla').value === 'cursos';
-    const cols = esCursos
-      ? ['N°','Programa','Plan','Código','Curso','Semestre','Área','Sumilla']
-      : ['N°','Programa','Plan','Código','Curso','Semestre','Grupo','Subgrupo','Tipo','Docente','Área','ID asignación'];
-    const filas = lista.map((f, i) => esCursos
-      ? [i+1, f.programa, f.plan, f.codigo, nombreCurso(f.curso), f.semestre, f.area, f.sumilla]
-      : [i+1, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura), f.semestre,
-         f.grupo, f.subGrupo, f.tipo, f.docente, f.area, f.idAsignacion]);
-    descargarXls(esCursos ? 'Catalogo_de_cursos' : 'Carga_lectiva',
-      esCursos ? 'Catálogo de cursos y sumillas' : 'Carga lectiva del ciclo',
-      cols, filas,
-      ['Ciclo académico: ' + ($('filtroCiclo').value || 'todos'), 'Ámbito: ' + ambitoTexto(),
-       'Registros: ' + lista.length]);
+    const vista = $('dtTabla').value;
+    let cols, filas, titulo, nombre;
+    if (vista === 'cursos') {
+      nombre = 'Catalogo_de_cursos'; titulo = 'Catálogo de cursos y sumillas';
+      cols = ['N°','Carrera','Plan','Código','Curso','Semestre','Área','¿Tiene código?','¿Tiene área?','¿Tiene sumilla?','Sumilla'];
+      filas = lista.map((f, i) => [i+1, f.programa, f.plan, f.codigo, nombreCurso(f.curso),
+        f.semestre, f.area, f.tieneCodigo, f.tieneArea, f.tieneSumilla, f.sumilla]);
+    } else if (vista === 'docentes') {
+      nombre = 'Directorio_de_docentes'; titulo = 'Directorio de docentes del ciclo';
+      cols = ['N°','Docente','Correo institucional','Celular','Carrera','Áreas','N° de cursos','N° de cargas','Cursos','¿Tiene correo?','¿Tiene celular?'];
+      filas = lista.map((f, i) => [i+1, f.docente, f.correo, f.celular, f.programa, f.area,
+        f.nCursos, f.cargas, f.cursos, f.tieneCorreo, f.tieneCelular]);
+    } else {
+      nombre = 'Carga_lectiva'; titulo = 'Carga lectiva del ciclo';
+      cols = ['N°','Carrera','Plan','Código','Curso','Semestre','Grupo','Subgrupo','Tipo',
+              'Docente','Correo','Celular','Área','Coordinador','ID asignación','¿Completa?','Qué falta'];
+      filas = lista.map((f, i) => [i+1, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura),
+        f.semestre, f.grupo, f.subGrupo, f.tipo, f.docente, f.correoDocente, f.celularDocente,
+        f.area, f.coordinador, f.idAsignacion, f.completa, f.falta]);
+    }
+    descargarXls(nombre, titulo, cols, filas,
+      ['Ciclo académico: ' + ($('filtroCiclo').value || 'todos'),
+       'Ámbito: ' + ambitoTexto(), 'Registros: ' + lista.length]);
   });
 
   /* ------------------------------------------------- indicadores */
