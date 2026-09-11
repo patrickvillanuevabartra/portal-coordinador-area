@@ -123,11 +123,28 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
 .celda-sumilla{max-width:420px}
 .celda-sumilla .codigo{white-space:normal;line-height:1.45;display:block;max-height:110px;overflow:auto}
-.filtros-av{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;
-  background:var(--fondo);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;
-  margin-bottom:12px}
-.filtros-av label{font-size:11px;text-transform:uppercase;letter-spacing:.05em;
-  color:var(--tinta-media);margin-bottom:3px;display:block}
+.acciones{white-space:nowrap}
+.acciones .chip{margin-right:5px}
+.vistas{display:flex;gap:4px;background:var(--fondo);border:1px solid var(--linea);
+  border-radius:10px;padding:4px;margin-bottom:14px;width:fit-content;max-width:100%;flex-wrap:wrap}
+.vista{border:0;background:transparent;color:var(--tinta-media);font:inherit;font-size:13px;
+  font-weight:500;padding:8px 16px;border-radius:7px;cursor:pointer;transition:.15s}
+.vista:hover{color:var(--tinta)}
+.vista.activa{background:var(--papel);color:var(--brand-oscuro);
+  box-shadow:0 1px 3px rgba(21,32,27,.12)}
+
+.barra{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.barra input[type=search]{flex:1;min-width:240px}
+
+.filtros-av{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+  gap:14px 16px;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
+  padding:16px 18px;margin-bottom:14px;align-items:end}
+.filtros-av .campo{min-width:0}
+.filtros-av label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
+  color:var(--tinta-media);margin:0 0 5px;display:block;font-weight:600}
+.filtros-av select{width:100%;max-width:100%}
+.filtros-av .pie-filtros{display:flex;align-items:flex-end}
+.filtros-av .pie-filtros .btn{width:100%}
 .buscador{
   display:flex;gap:8px;flex-wrap:wrap;align-items:center;
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;
@@ -387,24 +404,28 @@ label .req{color:var(--falla)}
            Si algo está mal, se reporta desde la propia fila y queda registrado.</p>
       </div></header>
       <div class="tarjeta-cuerpo">
-        <div class="buscador">
-          <select id="dtTabla">
-            <option value="cursos">Catálogo de cursos</option>
-            <option value="cargas">Carga lectiva</option>
-            <option value="docentes">Directorio de docentes</option>
-          </select>
-          <input type="search" id="dtBuscar" placeholder="Buscar…" autocomplete="off">
-          <button class="btn gris" id="dtMasFiltros">Más filtros</button>
-          <button class="btn fantasma" id="dtExportar">Descargar en Excel</button>
+        <div class="vistas" role="tablist">
+          <button class="vista activa" data-vista="cursos">Catálogo de cursos</button>
+          <button class="vista" data-vista="cargas">Carga lectiva</button>
+          <button class="vista" data-vista="docentes">Directorio de docentes</button>
+        </div>
+
+        <div class="barra">
+          <input type="search" id="dtBuscar" placeholder="Buscar por curso, código, docente…" autocomplete="off">
+          <button class="btn gris" id="dtMasFiltros">Filtros</button>
+          <button class="btn fantasma" id="dtExportar">Descargar</button>
           <span class="conteo" id="dtConteo"></span>
         </div>
+
         <div class="filtros-av oculto" id="dtAvanzado">
-          <div><label for="fPrograma2">Carrera</label><select id="fPrograma2"></select></div>
-          <div><label for="fArea2">Área</label><select id="fArea2"></select></div>
-          <div><label for="fPlan2">Plan</label><select id="fPlan2"></select></div>
-          <div><label for="fSem2">Semestre</label><select id="fSem2"></select></div>
-          <div><label for="fTipo2">Tipo</label><select id="fTipo2"></select></div>
-          <div><label for="fFalta">Solo lo incompleto</label>
+          <div class="campo"><label for="fCiclo2">Ciclo</label><select id="fCiclo2"></select></div>
+          <div class="campo"><label for="fPrograma2">Carrera</label><select id="fPrograma2"></select></div>
+          <div class="campo"><label for="fArea2">Área</label><select id="fArea2"></select></div>
+          <div class="campo"><label for="fPlan2">Plan</label><select id="fPlan2"></select></div>
+          <div class="campo"><label for="fSem2">Semestre</label><select id="fSem2"></select></div>
+          <div class="campo"><label for="fTipo2">Tipo</label><select id="fTipo2"></select></div>
+          <div class="campo"><label for="fDocente2">Docente</label><select id="fDocente2"></select></div>
+          <div class="campo"><label for="fFalta">Revisar</label>
             <select id="fFalta">
               <option value="">Todo</option>
               <option value="correo">Sin correo del docente</option>
@@ -414,8 +435,9 @@ label .req{color:var(--falla)}
               <option value="sumilla">Sin sumilla</option>
               <option value="incompleta">Cargas incompletas</option>
             </select></div>
-          <div style="align-self:end"><button class="btn gris" id="dtLimpiar">Limpiar filtros</button></div>
+          <div class="campo pie-filtros"><button class="btn gris" id="dtLimpiar">Limpiar</button></div>
         </div>
+
         <div class="tabla" id="dtTablaCuerpo"></div>
       </div>
     </section>
@@ -677,6 +699,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
+    vista: 'cursos',
     datos: null, datosVisibles: [], reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
@@ -1189,12 +1212,18 @@ label .req{color:var(--falla)}
     if (puedeEditar() && !(estado.areas || []).length) cargarAreas();
   });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
-  $('dtTabla').addEventListener('change', cargarDatos);
+  document.querySelectorAll('.vista').forEach(b => {
+    b.addEventListener('click', () => {
+      document.querySelectorAll('.vista').forEach(x => x.classList.toggle('activa', x === b));
+      estado.vista = b.dataset.vista;
+      cargarDatos();
+    });
+  });
   $('dtBuscar').addEventListener('input', pintarDatos);
 
   function cargarDatos() {
     $('dtTablaCuerpo').innerHTML = '<div class="vacio">Cargando…</div>';
-    api('/consultar?tabla=' + $('dtTabla').value +
+    api('/consultar?tabla=' + (estado.vista || 'cursos') +
         '&ciclo=' + encodeURIComponent($('filtroCiclo').value))
       .then(d => { estado.datos = d; pintarDatos(); })
       .catch(e => { $('dtTablaCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
@@ -1203,44 +1232,53 @@ label .req{color:var(--falla)}
   $('dtMasFiltros').addEventListener('click', () => {
     $('dtAvanzado').classList.toggle('oculto');
   });
-  ['fPrograma2','fArea2','fPlan2','fSem2','fTipo2','fFalta'].forEach(id =>
-    $(id).addEventListener('change', pintarDatos));
+  const FILTROS = ['fCiclo2','fPrograma2','fArea2','fPlan2','fSem2','fTipo2','fDocente2','fFalta'];
+  FILTROS.forEach(id => $(id).addEventListener('change', pintarDatos));
   $('dtLimpiar').addEventListener('click', () => {
-    ['fPrograma2','fArea2','fPlan2','fSem2','fTipo2','fFalta'].forEach(id => $(id).value = '');
+    FILTROS.forEach(id => $(id).value = '');
     $('dtBuscar').value = '';
     pintarDatos();
   });
 
+  // Cada filtro se llena con lo que realmente hay en la vista, y se oculta
+  // cuando no aplica: un filtro sin opciones solo estorba.
   function llenarFiltros(lista, vista) {
-    const opciones = (id, valores, etiqueta) => {
+    const poner = (id, valores, etiqueta) => {
       const sel = $(id), previo = sel.value;
+      const ops = [...new Set(valores.filter(v => v && String(v).trim()))]
+        .sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
       sel.innerHTML = '<option value="">' + etiqueta + '</option>' +
-        [...new Set(valores)].filter(Boolean).sort((a, b) => a.localeCompare(b, 'es'))
-          .map(v => '<option>' + esc(v) + '</option>').join('');
-      sel.value = previo;
+        ops.map(v => '<option>' + esc(v) + '</option>').join('');
+      sel.value = ops.includes(previo) ? previo : '';
+      sel.parentElement.classList.toggle('oculto', ops.length < 2);
+      return ops.length;
     };
-    opciones('fPrograma2', lista.map(f => f.programa), 'Todas');
-    opciones('fArea2', lista.map(f => f.area), 'Todas');
-    opciones('fPlan2', lista.map(f => f.plan || f.planEstudio), 'Todos');
-    opciones('fSem2', lista.map(f => f.semestre), 'Todos');
-    opciones('fTipo2', lista.map(f => f.tipo), 'Todos');
-    // El plan, el semestre y el tipo no aplican al directorio de docentes.
-    const irrelevantes = vista === 'docentes' ? ['fPlan2','fSem2','fTipo2'] : [];
-    ['fPlan2','fSem2','fTipo2'].forEach(id =>
-      $(id).parentElement.classList.toggle('oculto', irrelevantes.includes(id)));
+    poner('fCiclo2',    lista.map(f => f.ciclo), 'Todos');
+    poner('fPrograma2', lista.map(f => f.programa), 'Todas');
+    poner('fArea2',     lista.map(f => f.area), 'Todas');
+    poner('fPlan2',     lista.map(f => f.plan || f.planEstudio), 'Todos');
+    poner('fSem2',      lista.map(f => f.semestre), 'Todos');
+    poner('fTipo2',     lista.map(f => f.tipo), 'Todos');
+    poner('fDocente2',  lista.map(f => f.docente), 'Todos');
+    // En el catálogo no hay docente ni tipo; en el directorio no hay plan ni semestre.
+    if (vista === 'cursos') ['fTipo2','fDocente2'].forEach(id => $(id).parentElement.classList.add('oculto'));
+    if (vista === 'docentes') ['fPlan2','fSem2','fTipo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
   }
 
   function pintarDatos() {
     const d = estado.datos;
     if (!d) return;
-    const vista = $('dtTabla').value;
+    const vista = estado.vista || 'cursos';
     const q = sinAcentos($('dtBuscar').value.trim());
     let lista = d.filas || [];
     llenarFiltros(lista, vista);
 
+    const fc = $('fCiclo2').value, fd = $('fDocente2').value;
     const fp = $('fPrograma2').value, fa = $('fArea2').value, fpl = $('fPlan2').value;
     const fs = $('fSem2').value, ft = $('fTipo2').value, ff = $('fFalta').value;
     lista = lista.filter(f => {
+      if (fc && f.ciclo !== fc) return false;
+      if (fd && f.docente !== fd) return false;
       if (fp && f.programa !== fp) return false;
       if (fa && f.area !== fa) return false;
       if (fpl && (f.plan || f.planEstudio) !== fpl) return false;
@@ -1265,8 +1303,7 @@ label .req{color:var(--falla)}
     if (vista === 'cursos') {
       h += ['Código','Curso','Carrera','Plan','Sem.','Área','Sumilla',''].map(c => '<th>' + c + '</th>').join('');
     } else if (vista === 'docentes') {
-      h += ['Ciclo','Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas']
-        .concat(puedeEditar() ? [''] : []).map(c => '<th>' + c + '</th>').join('');
+      h += ['Ciclo','Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas',''].map(c => '<th>' + c + '</th>').join('');
     } else {
       h += ['Ciclo','Código','Curso','Plan','Sem.','Grupo','Tipo','Docente','Correo','Celular','Área','']
         .map(c => '<th>' + c + '</th>').join('');
@@ -1308,13 +1345,12 @@ label .req{color:var(--falla)}
              '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
              '<td>' + esc(f.area || '') + '</td>';
       }
-      if (vista === 'docentes') {
-        if (puedeEditar()) h += '<td><button class="chip activo" data-ed="' + i + '">Editar</button></td>';
-      } else {
-        h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button>' +
-          (puedeEditar() ? ' <button class="chip activo" data-ed="' + i + '">Editar</button>' : '') +
-          '</td>';
-      }
+      // Reportar está siempre: el coordinador de área no edita, y aun quien
+      // edita puede querer dejar constancia de algo que no le toca corregir.
+      h += '<td class="acciones">' +
+        (vista !== 'docentes' ? '<button class="chip activo" data-rep="' + i + '">Reportar</button>' : '') +
+        (puedeEditar() ? '<button class="chip activo" data-ed="' + i + '">Editar</button>' : '') +
+        '</td>';
       h += '</tr>';
     });
     $('dtTablaCuerpo').innerHTML = h + '</tbody></table>';
@@ -1538,7 +1574,7 @@ label .req{color:var(--falla)}
   $('dtExportar').addEventListener('click', () => {
     const lista = estado.datosVisibles || [];
     if (!lista.length) return;
-    const vista = $('dtTabla').value;
+    const vista = estado.vista || 'cursos';
     let cols, filas, titulo, nombre;
     if (vista === 'cursos') {
       nombre = 'Catalogo_de_cursos'; titulo = 'Catálogo de cursos y sumillas';
