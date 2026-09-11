@@ -122,7 +122,29 @@ textarea{width:100%;resize:vertical;min-height:64px;line-height:1.5}
 select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
 .celda-sumilla{max-width:420px}
-.celda-sumilla .codigo{white-space:normal;line-height:1.45;display:block;max-height:110px;overflow:auto}
+.celda-sumilla .codigo{white-space:pre-wrap;line-height:1.45;display:block;max-height:110px;overflow:auto}
+/* --------- Validar datos: tarjetas de resumen y tabla con más aire --------- */
+.resumen-datos{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px}
+.pastilla{display:flex;align-items:baseline;gap:8px;background:var(--fondo);
+  border:1px solid var(--linea);border-radius:999px;padding:7px 15px;font-size:12.5px}
+.pastilla b{font-size:16px;font-weight:700;color:var(--brand-oscuro)}
+.pastilla.alerta{background:#fdf4e3;border-color:#e6c86a}
+.pastilla.alerta b{color:#8a6400}
+.pastilla button{border:0;background:none;font:inherit;color:var(--brand);cursor:pointer;
+  text-decoration:underline;text-underline-offset:2px;padding:0}
+
+#datos table th{font-size:10.5px;letter-spacing:.06em;white-space:nowrap}
+#datos table td{padding:11px 12px;vertical-align:top}
+#datos table tbody tr:hover{background:var(--brand-suave)}
+#datos table tbody tr{transition:background .12s}
+#datos .codigo{display:block;margin-top:3px}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:12px}
+.etq-area{display:inline-block;background:#e8f1fb;color:#1c5a94;border:1px solid #c3ddf3;
+  border-radius:4px;padding:1px 7px;font-size:11px;font-weight:600;white-space:nowrap}
+.etq-plan{display:inline-block;background:var(--fondo);border:1px solid var(--linea);
+  border-radius:4px;padding:1px 7px;font-size:11px;color:var(--tinta-media);white-space:nowrap}
+.vacio-dato{color:#b06a00;font-size:11px;font-style:italic}
+
 .acciones{white-space:nowrap}
 .acciones .chip{margin-right:5px}
 .vistas{display:flex;gap:4px;background:var(--fondo);border:1px solid var(--linea);
@@ -191,7 +213,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .dialogo .cuerpo-dialogo{overflow:auto;flex:1;min-height:0;padding-right:4px}
 .dialogo .pie{flex:none;border-top:1px solid var(--linea);padding-top:14px;margin-top:14px}
 .dialogo h3{font-size:17px;margin-bottom:6px}
-.dialogo select{width:100%;margin-top:4px}
+.dialogo select,.dialogo input,.dialogo textarea{width:100%;margin-top:4px}
+.dialogo textarea{white-space:pre-wrap;line-height:1.5}
 .nota-dialogo{font-size:12px;color:var(--tinta-media);margin:12px 0 16px;line-height:1.5}
 .chip.mover{border-color:var(--tinta-tenue);color:var(--tinta-media)}
 .chip.mover:hover{border-color:var(--brand);color:var(--brand)}
@@ -205,6 +228,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .tabla{
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
 }
+/* En Validar datos las tablas son anchas: se desplazan en su propio marco. */
+#datos .tabla{overflow:auto;max-height:66vh}
+#datos .tabla table{min-width:max-content}
 table{width:100%;border-collapse:collapse}
 /* Sin position:sticky a proposito: el zoom del documento descuadra las
    coordenadas del sticky y el encabezado termina montado sobre la primera fila. */
@@ -401,11 +427,12 @@ label .req{color:var(--falla)}
     <div class="migas"><button id="volverDatos">Mis cursos</button> / Validar datos</div>
     <section class="tarjeta">
       <header class="tarjeta-cab"><div>
-        <h2>Validar la información base</h2>
+        <span class="paso">1</span><h2>Validar la información base</h2>
         <p id="dtNota">Revisa el catálogo de cursos y la carga lectiva de tu ámbito.
            Si algo está mal, se reporta desde la propia fila y queda registrado.</p>
       </div></header>
       <div class="tarjeta-cuerpo">
+        <div class="resumen-datos oculto" id="dtResumen"></div>
         <div class="vistas" role="tablist">
           <button class="vista activa" data-vista="cursos">Catálogo de cursos</button>
           <button class="vista" data-vista="cargas">Carga lectiva</button>
@@ -446,7 +473,7 @@ label .req{color:var(--falla)}
 
     <section class="tarjeta">
       <header class="tarjeta-cab"><div>
-        <h2 id="tituloReportes">Reportes registrados</h2>
+<span class="paso">2</span><h2 id="tituloReportes">Reportes registrados</h2>
         <p id="subReportes">Lo que has señalado y en qué estado está.</p>
       </div></header>
       <div class="tarjeta-cuerpo"><div class="tabla" id="dtReportes"></div></div>
@@ -742,7 +769,8 @@ label .req{color:var(--falla)}
   function textoPlano(t) {
     return String(t || '')
       .replace(/<br\s*\/?>/gi, '\n')
-      .replace(/<\/(p|div|li|tr)>/gi, '\n')
+      .replace(/<\/(p|div|li|tr|h\d)>/gi, '\n\n')
+      .replace(/<(p|div|h\d)[^>]*>/gi, '')
       .replace(/<li[^>]*>/gi, '• ')
       .replace(/<[^>]+>/g, '')
       .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
@@ -1305,14 +1333,23 @@ label .req{color:var(--falla)}
       if (ff === 'sumilla'   && f.tieneSumilla !== 'No') return false;
       if (ff === 'incompleta'&& f.completa     !== 'No') return false;
       if (!q) return true;
-      const txt = sinAcentos(Object.values(f).join(' '));
+      // Se busca en los campos que identifican, no en la sumilla: si no, un
+      // curso aparece porque su sumilla menciona palabras de otro.
+      const txt = sinAcentos([f.codigo, f.curso, f.asignatura, f.docente, f.area,
+        f.programa, f.plan, f.planEstudio, f.semestre, f.grupo, f.tipo,
+        f.correo, f.correoDocente, f.celular, f.celularDocente, f.idAsignacion]
+        .filter(Boolean).join(' '));
       return q.split(/\s+/).every(p => txt.includes(p));
     });
     $('dtConteo').textContent = lista.length + ' de ' + (d.filas || []).length;
 
     if (!lista.length) { $('dtTablaCuerpo').innerHTML = '<div class="vacio">Sin resultados.</div>'; return; }
 
-    const falta = (v) => v === 'No' ? '<span class="pendiente">falta</span>' : '';
+    const falta = (v) => v === 'No' ? '<span class="vacio-dato">falta</span>' : '';
+    const area = (a) => a ? '<span class="etq-area">' + esc(a) + '</span>'
+                          : '<span class="vacio-dato">sin área</span>';
+    const plan = (p) => p ? '<span class="etq-plan">' + esc(p) + '</span>' : '—';
+    pintarResumen(lista, vista);
     let h = '<table><thead><tr>';
     if (vista === 'cursos') {
       h += ['Código','Curso','Carrera','Plan','Sem.','Área','Sumilla',''].map(c => '<th>' + c + '</th>').join('');
@@ -1327,17 +1364,17 @@ label .req{color:var(--falla)}
     lista.forEach((f, i) => {
       h += '<tr>';
       if (vista === 'cursos') {
-        h += '<td>' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
+        h += '<td class="mono">' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
              '<td><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
-             '<td>' + esc(f.plan || '—') + '</td>' +
+             '<td>' + plan(f.plan) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
-             '<td>' + esc(f.area || '') + falta(f.tieneArea) + '</td>' +
+             '<td>' + area(f.area) + '</td>' +
              '<td class="celda-sumilla">' + (f.sumilla
                 ? '<small class="codigo">' + esc(textoPlano(f.sumilla)) + '</small>'
                 : falta('No')) + '</td>';
       } else if (vista === 'docentes') {
-        h += '<td>' + esc(f.ciclo || '—') + '</td>' +
+        h += '<td class="mono">' + esc(f.ciclo || '—') + '</td>' +
              '<td><b>' + esc(f.docente) + '</b></td>' +
              '<td>' + (f.correo ? esc(f.correo) : falta('No')) + '</td>' +
              '<td>' + (f.celular ? esc(f.celular) : falta('No')) + '</td>' +
@@ -1350,14 +1387,14 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.codigo || '') + '</td>' +
              '<td><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
              (f.falta ? '<small class="pendiente">Falta ' + esc(f.falta) + '</small>' : '') + '</td>' +
-             '<td>' + esc(f.planEstudio || '—') + '</td>' +
+             '<td>' + plan(f.planEstudio) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.grupo || '—') + (f.subGrupo !== '' ? ' · ' + esc(f.subGrupo) : '') + '</td>' +
              '<td>' + esc(f.tipo || '—') + '</td>' +
              '<td>' + esc(f.docente || '—') + '</td>' +
              '<td>' + (f.correoDocente ? esc(f.correoDocente) : falta('No')) + '</td>' +
              '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
-             '<td>' + esc(f.area || '') + '</td>';
+             '<td>' + area(f.area) + '</td>';
       }
       // Reportar está siempre: el coordinador de área no edita, y aun quien
       // edita puede querer dejar constancia de algo que no le toca corregir.
@@ -1427,6 +1464,38 @@ label .req{color:var(--falla)}
     const todas = (estado.areas || []).filter(a => a.estado === 'Vigente');
     const suyas = todas.filter(a => a.programa === programa).map(a => a.nombre);
     return suyas.length ? suyas : todas.map(a => a.nombre);
+  }
+
+  // Un resumen de lo que falta, con acceso directo: el coordinador entra y ve
+  // en qué tiene que trabajar, no una tabla más.
+  function pintarResumen(lista, vista) {
+    const n = (cond) => lista.filter(cond).length;
+    const p = [];
+    p.push(['', lista.length, vista === 'docentes' ? 'docentes' :
+      (vista === 'cursos' ? 'cursos' : 'cargas'), '']);
+    if (vista === 'docentes') {
+      p.push(['correo', n(f => !f.correo), 'sin correo', 'alerta']);
+      p.push(['celular', n(f => !f.celular), 'sin celular', 'alerta']);
+    } else if (vista === 'cursos') {
+      p.push(['codigo', n(f => !f.codigo), 'sin código', 'alerta']);
+      p.push(['area', n(f => !f.area), 'sin área', 'alerta']);
+      p.push(['sumilla', n(f => !f.sumilla), 'sin sumilla', 'alerta']);
+    } else {
+      p.push(['incompleta', n(f => f.completa === 'No'), 'incompletas', 'alerta']);
+      p.push(['correo', n(f => !f.correoDocente), 'sin correo', 'alerta']);
+    }
+    $('dtResumen').innerHTML = p.filter(x => x[1] > 0 || !x[0]).map(x =>
+      '<span class="pastilla' + (x[3] ? ' ' + x[3] : '') + '"><b>' + x[1] + '</b>' +
+      (x[0] ? '<button data-f="' + x[0] + '">' + esc(x[2]) + '</button>' : esc(x[2])) +
+      '</span>').join('');
+    $('dtResumen').classList.remove('oculto');
+    $('dtResumen').querySelectorAll('[data-f]').forEach(b => {
+      b.addEventListener('click', () => {
+        $('fFalta').value = b.dataset.f;
+        $('dtAvanzado').classList.remove('oculto');
+        pintarDatos();
+      });
+    });
   }
 
   function abrirEdicion(f, vista) {
