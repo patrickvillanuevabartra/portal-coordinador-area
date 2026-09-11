@@ -121,6 +121,8 @@ select,input[type=text],input[type=date],input[type=url],textarea{
 textarea{width:100%;resize:vertical;min-height:64px;line-height:1.5}
 select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
+.celda-sumilla{max-width:420px}
+.celda-sumilla .codigo{white-space:normal;line-height:1.45;display:block;max-height:110px;overflow:auto}
 .filtros-av{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;
   background:var(--fondo);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;
   margin-bottom:12px}
@@ -417,12 +419,32 @@ label .req{color:var(--falla)}
 
     <section class="tarjeta">
       <header class="tarjeta-cab"><div>
-        <h2>Reportes registrados</h2>
-        <p>Lo que has señalado y en qué estado está.</p>
+        <h2 id="tituloReportes">Reportes registrados</h2>
+        <p id="subReportes">Lo que has señalado y en qué estado está.</p>
       </div></header>
       <div class="tarjeta-cuerpo"><div class="tabla" id="dtReportes"></div></div>
     </section>
   </section>
+
+  <div id="capaAt" class="capa oculto">
+    <div class="dialogo">
+      <h3>Atender el reporte</h3>
+      <p class="det" id="atResumen"></p>
+      <label for="atEstado">Estado</label>
+      <select id="atEstado">
+        <option>En revisión</option>
+        <option>Resuelto</option>
+        <option>Descartado</option>
+      </select>
+      <label for="atRespuesta" style="margin-top:10px">Respuesta para quien lo reportó</label>
+      <textarea id="atRespuesta" rows="4" placeholder="Qué se hizo o qué se va a hacer."></textarea>
+      <div class="pie">
+        <button class="btn" id="btnAtender">Guardar</button>
+        <button class="btn gris" id="btnAtCancel">Cancelar</button>
+        <span class="aviso" id="avisoAt"></span>
+      </div>
+    </div>
+  </div>
 
   <div id="capaRep" class="capa oculto">
     <div class="dialogo">
@@ -636,7 +658,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
-    datos: null, datosVisibles: [], reportando: null,
+    datos: null, datosVisibles: [], reportando: null, reportes: [], atendiendo: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -1200,9 +1222,9 @@ label .req{color:var(--falla)}
     if (vista === 'cursos') {
       h += ['Código','Curso','Carrera','Plan','Sem.','Área','Sumilla',''].map(c => '<th>' + c + '</th>').join('');
     } else if (vista === 'docentes') {
-      h += ['Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas'].map(c => '<th>' + c + '</th>').join('');
+      h += ['Ciclo','Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas'].map(c => '<th>' + c + '</th>').join('');
     } else {
-      h += ['Código','Curso','Plan','Sem.','Grupo','Tipo','Docente','Correo','Celular','Área','']
+      h += ['Ciclo','Código','Curso','Plan','Sem.','Grupo','Tipo','Docente','Correo','Celular','Área','']
         .map(c => '<th>' + c + '</th>').join('');
     }
     h += '</tr></thead><tbody>';
@@ -1216,10 +1238,12 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.plan || '—') + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.area || '') + falta(f.tieneArea) + '</td>' +
-             '<td>' + (f.sumilla ? '<small class="codigo">' + esc(f.sumilla.slice(0,110)) + '…</small>'
-                                 : falta('No')) + '</td>';
+             '<td class="celda-sumilla">' + (f.sumilla
+                ? '<small class="codigo">' + esc(f.sumilla) + '</small>'
+                : falta('No')) + '</td>';
       } else if (vista === 'docentes') {
-        h += '<td><b>' + esc(f.docente) + '</b></td>' +
+        h += '<td>' + esc(f.ciclo || '—') + '</td>' +
+             '<td><b>' + esc(f.docente) + '</b></td>' +
              '<td>' + (f.correo ? esc(f.correo) : falta('No')) + '</td>' +
              '<td>' + (f.celular ? esc(f.celular) : falta('No')) + '</td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
@@ -1227,7 +1251,8 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.nCursos) + '<small class="codigo">' + esc(f.cursos.slice(0,120)) + '</small></td>' +
              '<td>' + esc(f.cargas) + '</td>';
       } else {
-        h += '<td>' + esc(f.codigo || '') + '</td>' +
+        h += '<td>' + esc(f.ciclo || '—') + '</td>' +
+             '<td>' + esc(f.codigo || '') + '</td>' +
              '<td><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
              (f.falta ? '<small class="pendiente">Falta ' + esc(f.falta) + '</small>' : '') + '</td>' +
              '<td>' + esc(f.planEstudio || '—') + '</td>' +
@@ -1287,9 +1312,15 @@ label .req{color:var(--falla)}
   });
 
   function cargarReportes() {
+    if (estado.admin) {
+      $('tituloReportes').textContent = 'Reportes de inconsistencia';
+      $('subReportes').textContent = 'Lo que han señalado los coordinadores. Atiende cada uno ' +
+        'indicando el estado y la respuesta que verán ellos.';
+    }
     api('/reportes')
       .then(d => {
         const l = d.reportes || [];
+        estado.reportes = l;
         if (!l.length) {
           $('dtReportes').innerHTML = '<div class="vacio">' +
             esc(d.aviso || 'Todavía no has reportado nada.') + '</div>';
@@ -1301,13 +1332,50 @@ label .req{color:var(--falla)}
           h += '<tr><td>' + esc(r.codigo) + '<small class="codigo">' + esc(r.fecha) + '</small></td>' +
             '<td><b>' + esc(r.tipo) + '</b><small class="codigo">' + esc(r.detalle || '') + '</small></td>' +
             '<td>' + esc(r.registro) + '<small class="codigo">' + esc(r.tabla) + '</small></td>' +
+            (estado.admin ? '<td>' + esc(r.quien || '') +
+              '<small class="codigo">' + esc(r.area || '') + '</small></td>' : '') +
             '<td>' + esc(r.estado) +
-            (r.respuesta ? '<small class="codigo">' + esc(r.respuesta) + '</small>' : '') + '</td></tr>';
+            (r.respuesta ? '<small class="codigo">' + esc(r.respuesta) + '</small>' : '') +
+            (estado.admin ? '<br><button class="chip activo" data-at="' + esc(r.recordId) +
+              '" style="margin-top:6px">Atender</button>' : '') + '</td></tr>';
         });
         $('dtReportes').innerHTML = h + '</tbody></table>';
+        $('dtReportes').querySelectorAll('[data-at]').forEach(b => {
+          b.addEventListener('click', () => abrirAtencion(
+            (estado.reportes || []).find(x => x.recordId === b.dataset.at)));
+        });
       })
       .catch(e => { $('dtReportes').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
+
+  function abrirAtencion(r) {
+    if (!r) return;
+    estado.atendiendo = r;
+    $('atResumen').textContent = r.codigo + ' · ' + r.tipo + ' · ' + r.registro +
+      ' — reportado por ' + (r.quien || '');
+    $('atEstado').value = (r.estado === 'Pendiente' ? 'En revisión' : r.estado);
+    $('atRespuesta').value = r.respuesta || '';
+    $('avisoAt').textContent = '';
+    $('capaAt').classList.remove('oculto');
+  }
+
+  $('btnAtCancel').addEventListener('click', () => $('capaAt').classList.add('oculto'));
+  $('capaAt').addEventListener('click', e => {
+    if (e.target === $('capaAt')) $('capaAt').classList.add('oculto');
+  });
+
+  $('btnAtender').addEventListener('click', () => {
+    const r = estado.atendiendo;
+    if (!r) return;
+    $('btnAtender').disabled = true;
+    api('/reportes', { method:'POST', body: JSON.stringify({
+      recordId: r.recordId, tabla: r.tabla, tipo: r.tipo, detalle: r.detalle,
+      estado: $('atEstado').value, respuesta: $('atRespuesta').value.trim()
+    })})
+      .then(() => { $('capaAt').classList.add('oculto'); $('btnAtender').disabled = false; cargarReportes(); })
+      .catch(e => { $('avisoAt').textContent = e.message; $('avisoAt').className = 'aviso error';
+                    $('btnAtender').disabled = false; });
+  });
 
   $('dtExportar').addEventListener('click', () => {
     const lista = estado.datosVisibles || [];
@@ -1321,14 +1389,14 @@ label .req{color:var(--falla)}
         f.semestre, f.area, f.tieneCodigo, f.tieneArea, f.tieneSumilla, f.sumilla]);
     } else if (vista === 'docentes') {
       nombre = 'Directorio_de_docentes'; titulo = 'Directorio de docentes del ciclo';
-      cols = ['N°','Docente','Correo institucional','Celular','Carrera','Áreas','N° de cursos','N° de cargas','Cursos','¿Tiene correo?','¿Tiene celular?'];
-      filas = lista.map((f, i) => [i+1, f.docente, f.correo, f.celular, f.programa, f.area,
+      cols = ['N°','Ciclo','Docente','Correo institucional','Celular','Carrera','Áreas','N° de cursos','N° de cargas','Cursos','¿Tiene correo?','¿Tiene celular?'];
+      filas = lista.map((f, i) => [i+1, f.ciclo, f.docente, f.correo, f.celular, f.programa, f.area,
         f.nCursos, f.cargas, f.cursos, f.tieneCorreo, f.tieneCelular]);
     } else {
       nombre = 'Carga_lectiva'; titulo = 'Carga lectiva del ciclo';
-      cols = ['N°','Carrera','Plan','Código','Curso','Semestre','Grupo','Subgrupo','Tipo',
+      cols = ['N°','Ciclo','Carrera','Plan','Código','Curso','Semestre','Grupo','Subgrupo','Tipo',
               'Docente','Correo','Celular','Área','Coordinador','ID asignación','¿Completa?','Qué falta'];
-      filas = lista.map((f, i) => [i+1, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura),
+      filas = lista.map((f, i) => [i+1, f.ciclo, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura),
         f.semestre, f.grupo, f.subGrupo, f.tipo, f.docente, f.correoDocente, f.celularDocente,
         f.area, f.coordinador, f.idAsignacion, f.completa, f.falta]);
     }
