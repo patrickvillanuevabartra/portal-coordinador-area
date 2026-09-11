@@ -139,7 +139,14 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 #datos td.col-curso{max-width:320px}
 #datos td.col-curso b{display:block;overflow-wrap:anywhere;line-height:1.35}
 #datos td.col-docente{max-width:220px;overflow-wrap:anywhere}
-#datos td.col-cursos{max-width:280px}
+#datos td.col-cursos{max-width:300px}
+#datos td.col-doc{max-width:210px;overflow-wrap:anywhere}
+#datos td.col-areas{max-width:200px}
+#datos td.col-areas .etq-area{margin:0 4px 4px 0}
+.detalle-cargas{margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--tinta-media)}
+.detalle-cargas li{padding:2px 0;line-height:1.4}
+.detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
+  background:var(--fondo);border-radius:3px;padding:0 4px;margin-right:5px}
 #datos .celda-sumilla{max-width:300px}
 #datos .celda-sumilla .codigo{max-height:88px}
 #datos table tbody tr:hover{background:var(--brand-suave)}
@@ -1286,42 +1293,63 @@ label .req{color:var(--falla)}
 
   // Cada filtro se llena con lo que realmente hay en la vista, y se oculta
   // cuando no aplica: un filtro sin opciones solo estorba.
+  // Criterios de filtrado, en un solo lugar para poder aplicarlos en cascada.
+  const CRITERIOS = {
+    fCiclo2:    (f, v) => f.ciclo === v,
+    fPrograma2: (f, v) => f.programa === v,
+    fArea2:     (f, v) => (f.area || '').split(' · ').includes(v),
+    fPlan2:     (f, v) => (f.plan || f.planEstudio) === v,
+    fSem2:      (f, v) => f.semestre === v,
+    fTipo2:     (f, v) => f.tipo === v,
+    fDocente2:  (f, v) => f.docente === v
+  };
+
+  const VALOR = {
+    fCiclo2:    f => [f.ciclo],
+    fPrograma2: f => (f.programa || '').split(' · '),
+    fArea2:     f => (f.area || '').split(' · '),
+    fPlan2:     f => [f.plan || f.planEstudio],
+    fSem2:      f => [f.semestre],
+    fTipo2:     f => [f.tipo],
+    fDocente2:  f => [f.docente]
+  };
+
+  // Cada desplegable se llena con lo que queda al aplicar los OTROS filtros:
+  // si eliges una carrera, solo ves los docentes de esa carrera.
+  function aplicar(lista, excepto) {
+    return lista.filter(f => Object.keys(CRITERIOS).every(id => {
+      if (id === excepto) return true;
+      const v = $(id).value;
+      return !v || CRITERIOS[id](f, v);
+    }));
+  }
+
   function llenarFiltros(lista, vista) {
-    const poner = (id, valores, etiqueta) => {
+    Object.keys(CRITERIOS).forEach(id => {
       const sel = $(id), previo = sel.value;
-      const ops = [...new Set(valores.filter(v => v && String(v).trim()))]
+      const base = aplicar(lista, id);
+      const ops = [...new Set(base.flatMap(VALOR[id]).filter(v => v && String(v).trim()))]
         .sort((a, b) => String(a).localeCompare(String(b), 'es', { numeric: true }));
+      const etiqueta = ['fPlan2','fSem2','fTipo2','fCiclo2','fDocente2'].includes(id) ? 'Todos' : 'Todas';
       sel.innerHTML = '<option value="">' + etiqueta + '</option>' +
         ops.map(v => '<option>' + esc(v) + '</option>').join('');
       sel.value = ops.includes(previo) ? previo : '';
-      // Ciclo, carrera y área se muestran siempre: que estén vacíos es en sí
-      // una señal de que faltan datos.
       const siempre = ['fCiclo2','fPrograma2','fArea2'].includes(id);
       sel.parentElement.classList.toggle('oculto', !siempre && ops.length === 0);
-      return ops.length;
-    };
-    poner('fCiclo2',    lista.map(f => f.ciclo), 'Todos');
-    poner('fPrograma2', lista.map(f => f.programa), 'Todas');
-    poner('fArea2',     lista.map(f => f.area), 'Todas');
-    poner('fPlan2',     lista.map(f => f.plan || f.planEstudio), 'Todos');
-    poner('fSem2',      lista.map(f => f.semestre), 'Todos');
-    poner('fTipo2',     lista.map(f => f.tipo), 'Todos');
-    poner('fDocente2',  lista.map(f => f.docente), 'Todos');
-    // En el catálogo no hay docente ni tipo; en el directorio no hay plan ni semestre.
+    });
     if (vista === 'cursos') ['fTipo2','fDocente2'].forEach(id => $(id).parentElement.classList.add('oculto'));
     if (vista === 'docentes') ['fPlan2','fSem2','fTipo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
 
-    // «Revisar» solo ofrece lo que existe en esta vista.
     const REV = {
       cursos:   [['codigo','Sin código'], ['area','Sin área'], ['sumilla','Sin sumilla']],
       cargas:   [['correo','Sin correo del docente'], ['celular','Sin celular del docente'],
                  ['codigo','Sin código'], ['area','Sin área'], ['incompleta','Cargas incompletas']],
       docentes: [['correo','Sin correo'], ['celular','Sin celular']]
     };
-    const sel = $('fFalta'), prev = sel.value;
-    sel.innerHTML = '<option value="">Todo</option>' +
+    const sel2 = $('fFalta'), prev2 = sel2.value;
+    sel2.innerHTML = '<option value="">Todo</option>' +
       (REV[vista] || []).map(o => '<option value="' + o[0] + '">' + esc(o[1]) + '</option>').join('');
-    sel.value = [...sel.options].some(o => o.value === prev) ? prev : '';
+    sel2.value = [...sel2.options].some(o => o.value === prev2) ? prev2 : '';
   }
 
   function pintarDatos() {
@@ -1332,17 +1360,8 @@ label .req{color:var(--falla)}
     let lista = d.filas || [];
     llenarFiltros(lista, vista);
 
-    const fc = $('fCiclo2').value, fd = $('fDocente2').value;
-    const fp = $('fPrograma2').value, fa = $('fArea2').value, fpl = $('fPlan2').value;
-    const fs = $('fSem2').value, ft = $('fTipo2').value, ff = $('fFalta').value;
-    lista = lista.filter(f => {
-      if (fc && f.ciclo !== fc) return false;
-      if (fd && f.docente !== fd) return false;
-      if (fp && f.programa !== fp) return false;
-      if (fa && f.area !== fa) return false;
-      if (fpl && (f.plan || f.planEstudio) !== fpl) return false;
-      if (fs && f.semestre !== fs) return false;
-      if (ft && f.tipo !== ft) return false;
+    const ff = $('fFalta').value;
+    lista = aplicar(lista, null).filter(f => {
       if (ff === 'correo'    && f.tieneCorreo  !== 'No') return false;
       if (ff === 'celular'   && f.tieneCelular !== 'No') return false;
       if (ff === 'codigo'    && f.tieneCodigo  !== 'No') return false;
@@ -1391,15 +1410,22 @@ label .req{color:var(--falla)}
                 ? '<small class="codigo">' + esc(textoPlano(f.sumilla)) + '</small>'
                 : falta('No')) + '</td>';
       } else if (vista === 'docentes') {
+        const areasDoc = (f.area || '').split(' · ').filter(Boolean)
+          .map(a => '<span class="etq-area">' + esc(a) + '</span>').join(' ') ||
+          '<span class="vacio-dato">sin área</span>';
+        const det = (f.detalle || []).map(x =>
+          '<li><span class="mini">' + esc(x.tipo || '?') + '</span>' +
+          esc(nombreCurso(x.curso)) + ' · grupo ' + esc(x.grupo) +
+          (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '') + '</li>').join('');
         h += '<td class="mono">' + esc(f.ciclo || '—') + '</td>' +
-             '<td><b>' + esc(f.docente) + '</b></td>' +
+             '<td class="col-doc"><b>' + esc(f.docente) + '</b></td>' +
              '<td>' + (f.correo ? esc(f.correo) : falta('No')) + '</td>' +
              '<td>' + (f.celular ? esc(f.celular) : falta('No')) + '</td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
-             '<td>' + esc(f.area || '—') + '</td>' +
-             '<td class="col-cursos">' + esc(f.nCursos) +
-             '<small class="codigo">' + esc(f.cursos) + '</small></td>' +
-             '<td>' + esc(f.cargas) + '</td>';
+             '<td class="col-areas">' + areasDoc + '</td>' +
+             '<td class="col-cursos">' + esc(f.nCursos) + '</td>' +
+             '<td><b>' + esc(f.cargas) + '</b>' +
+             (det ? '<ul class="detalle-cargas">' + det + '</ul>' : '') + '</td>';
       } else {
         h += '<td>' + esc(f.ciclo || '—') + '</td>' +
              '<td>' + esc(f.codigo || '') + '</td>' +
