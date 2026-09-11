@@ -135,6 +135,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
 #datos table th{font-size:10.5px;letter-spacing:.06em;white-space:nowrap}
 #datos table td{padding:11px 12px;vertical-align:top}
+#datos table{table-layout:auto}
+#datos td.col-curso{max-width:320px}
+#datos td.col-curso b{display:block;overflow-wrap:anywhere;line-height:1.35}
+#datos td.col-docente{max-width:220px;overflow-wrap:anywhere}
+#datos td.col-cursos{max-width:280px}
+#datos .celda-sumilla{max-width:300px}
+#datos .celda-sumilla .codigo{max-height:88px}
 #datos table tbody tr:hover{background:var(--brand-suave)}
 #datos table tbody tr{transition:background .12s}
 #datos .codigo{display:block;margin-top:3px}
@@ -229,7 +236,13 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
 }
 /* En Validar datos las tablas son anchas: se desplazan en su propio marco. */
-#datos .tabla{overflow:auto;max-height:66vh}
+#datos .tabla{overflow:auto;max-height:64vh;border-top-left-radius:0;border-top-right-radius:0}
+/* Una segunda barra arriba: con tablas anchas, tener que bajar hasta el final
+   para desplazarse a lo ancho es una mala experiencia. */
+.barra-sup{overflow-x:auto;overflow-y:hidden;background:var(--papel);
+  border:1px solid var(--linea);border-bottom:0;border-radius:10px 10px 0 0}
+.barra-sup>div{height:1px}
+#datos .tabla thead th{position:sticky;top:0;z-index:3;background:var(--fondo)}
 #datos .tabla table{min-width:max-content}
 table{width:100%;border-collapse:collapse}
 /* Sin position:sticky a proposito: el zoom del documento descuadra las
@@ -467,6 +480,7 @@ label .req{color:var(--falla)}
           <div class="campo pie-filtros"><button class="btn gris" id="dtLimpiar">Limpiar</button></div>
         </div>
 
+        <div class="barra-sup" id="dtBarraSup"><div></div></div>
         <div class="tabla" id="dtTablaCuerpo"></div>
       </div>
     </section>
@@ -1280,7 +1294,10 @@ label .req{color:var(--falla)}
       sel.innerHTML = '<option value="">' + etiqueta + '</option>' +
         ops.map(v => '<option>' + esc(v) + '</option>').join('');
       sel.value = ops.includes(previo) ? previo : '';
-      sel.parentElement.classList.toggle('oculto', ops.length < 2);
+      // Ciclo, carrera y área se muestran siempre: que estén vacíos es en sí
+      // una señal de que faltan datos.
+      const siempre = ['fCiclo2','fPrograma2','fArea2'].includes(id);
+      sel.parentElement.classList.toggle('oculto', !siempre && ops.length === 0);
       return ops.length;
     };
     poner('fCiclo2',    lista.map(f => f.ciclo), 'Todos');
@@ -1365,7 +1382,7 @@ label .req{color:var(--falla)}
       h += '<tr>';
       if (vista === 'cursos') {
         h += '<td class="mono">' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
-             '<td><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
+             '<td class="col-curso"><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
              '<td>' + plan(f.plan) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
@@ -1380,18 +1397,19 @@ label .req{color:var(--falla)}
              '<td>' + (f.celular ? esc(f.celular) : falta('No')) + '</td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
              '<td>' + esc(f.area || '—') + '</td>' +
-             '<td>' + esc(f.nCursos) + '<small class="codigo">' + esc(f.cursos.slice(0,120)) + '</small></td>' +
+             '<td class="col-cursos">' + esc(f.nCursos) +
+             '<small class="codigo">' + esc(f.cursos) + '</small></td>' +
              '<td>' + esc(f.cargas) + '</td>';
       } else {
         h += '<td>' + esc(f.ciclo || '—') + '</td>' +
              '<td>' + esc(f.codigo || '') + '</td>' +
-             '<td><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
+             '<td class="col-curso"><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
              (f.falta ? '<small class="pendiente">Falta ' + esc(f.falta) + '</small>' : '') + '</td>' +
              '<td>' + plan(f.planEstudio) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.grupo || '—') + (f.subGrupo !== '' ? ' · ' + esc(f.subGrupo) : '') + '</td>' +
              '<td>' + esc(f.tipo || '—') + '</td>' +
-             '<td>' + esc(f.docente || '—') + '</td>' +
+             '<td class="col-docente">' + esc(f.docente || '—') + '</td>' +
              '<td>' + (f.correoDocente ? esc(f.correoDocente) : falta('No')) + '</td>' +
              '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
              '<td>' + area(f.area) + '</td>';
@@ -1405,6 +1423,7 @@ label .req{color:var(--falla)}
       h += '</tr>';
     });
     $('dtTablaCuerpo').innerHTML = h + '</tbody></table>';
+    sincronizarBarras();
     estado.datosVisibles = lista;
     $('dtTablaCuerpo').querySelectorAll('[data-rep]').forEach(b => {
       b.addEventListener('click', () => abrirReporte(lista[Number(b.dataset.rep)], vista === 'cursos'));
@@ -1468,6 +1487,27 @@ label .req{color:var(--falla)}
 
   // Un resumen de lo que falta, con acceso directo: el coordinador entra y ve
   // en qué tiene que trabajar, no una tabla más.
+  // Las dos barras de desplazamiento se mueven juntas.
+  function sincronizarBarras() {
+    const tabla = $('dtTablaCuerpo'), sup = $('dtBarraSup');
+    const t = tabla.querySelector('table');
+    if (!t) { sup.classList.add('oculto'); return; }
+    const ancho = t.scrollWidth;
+    sup.classList.toggle('oculto', ancho <= tabla.clientWidth + 4);
+    sup.firstElementChild.style.width = ancho + 'px';
+    if (sup.dataset.listo) return;
+    sup.dataset.listo = '1';
+    let bloqueo = false;
+    sup.addEventListener('scroll', () => {
+      if (bloqueo) return; bloqueo = true;
+      tabla.scrollLeft = sup.scrollLeft; bloqueo = false;
+    });
+    tabla.addEventListener('scroll', () => {
+      if (bloqueo) return; bloqueo = true;
+      sup.scrollLeft = tabla.scrollLeft; bloqueo = false;
+    });
+  }
+
   function pintarResumen(lista, vista) {
     const n = (cond) => lista.filter(cond).length;
     const p = [];
