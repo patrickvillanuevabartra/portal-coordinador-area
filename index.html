@@ -380,8 +380,8 @@ label .req{color:var(--falla)}
     <section class="tarjeta">
       <header class="tarjeta-cab"><div>
         <h2>Validar la información base</h2>
-        <p>Revisa el catálogo de cursos y la carga lectiva de tu ámbito. No se editan aquí:
-           si algo está mal, se reporta desde la propia fila y queda registrado.</p>
+        <p id="dtNota">Revisa el catálogo de cursos y la carga lectiva de tu ámbito.
+           Si algo está mal, se reporta desde la propia fila y queda registrado.</p>
       </div></header>
       <div class="tarjeta-cuerpo">
         <div class="buscador">
@@ -425,6 +425,21 @@ label .req{color:var(--falla)}
       <div class="tarjeta-cuerpo"><div class="tabla" id="dtReportes"></div></div>
     </section>
   </section>
+
+  <div id="capaEd" class="capa oculto">
+    <div class="dialogo">
+      <h3>Editar</h3>
+      <p class="det" id="edResumen"></p>
+      <div id="edCampos"></div>
+      <p class="nota-dialogo">Solo se editan los datos de contacto y de identificación.
+        La carga aprobada por el Departamento no se modifica desde aquí.</p>
+      <div class="pie">
+        <button class="btn" id="btnGuardarEd">Guardar</button>
+        <button class="btn gris" id="btnEdCancel">Cancelar</button>
+        <span class="aviso" id="avisoEd"></span>
+      </div>
+    </div>
+  </div>
 
   <div id="capaAt" class="capa oculto">
     <div class="dialogo">
@@ -658,7 +673,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
-    datos: null, datosVisibles: [], reportando: null, reportes: [], atendiendo: null,
+    datos: null, datosVisibles: [], reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -691,6 +706,22 @@ label .req{color:var(--falla)}
     ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos'].forEach(id => $(id).classList.add('oculto'));
     mostrar('ingreso');
     $('ingresoError').textContent = 'Tu sesión venció. Vuelve a entrar con tu cuenta URP.';
+  }
+
+  // Algunas sumillas se guardaron con etiquetas HTML. Se limpian al mostrar:
+  // los saltos se respetan y el resto de marcas se descarta.
+  function textoPlano(t) {
+    return String(t || '')
+      .replace(/<br\s*\/?>/gi, '\n')
+      .replace(/<\/(p|div|li|tr)>/gi, '\n')
+      .replace(/<li[^>]*>/gi, '• ')
+      .replace(/<[^>]+>/g, '')
+      .replace(/&nbsp;/gi, ' ').replace(/&amp;/gi, '&')
+      .replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+      .replace(/&quot;/gi, '"').replace(/&#39;/gi, "'")
+      .replace(/[ \t]+/g, ' ')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
   }
 
   function esc(s) {
@@ -1144,7 +1175,14 @@ label .req{color:var(--falla)}
 
   /* ---------------------------------------------- validar datos */
 
-  $('btnDatos').addEventListener('click', () => { mostrar('datos'); cargarDatos(); cargarReportes(); });
+  $('btnDatos').addEventListener('click', () => {
+    mostrar('datos');
+    if (puedeEditar()) $('dtNota').textContent =
+      'Revisa y corrige el catálogo de cursos y la carga lectiva de tu ámbito. ' +
+      'Puedes editar los datos de contacto y de identificación; la carga aprobada por el ' +
+      'Departamento no se modifica desde aquí.';
+    cargarDatos(); cargarReportes();
+  });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
   $('dtTabla').addEventListener('change', cargarDatos);
   $('dtBuscar').addEventListener('input', pintarDatos);
@@ -1239,7 +1277,7 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.area || '') + falta(f.tieneArea) + '</td>' +
              '<td class="celda-sumilla">' + (f.sumilla
-                ? '<small class="codigo">' + esc(f.sumilla) + '</small>'
+                ? '<small class="codigo">' + esc(textoPlano(f.sumilla)) + '</small>'
                 : falta('No')) + '</td>';
       } else if (vista === 'docentes') {
         h += '<td>' + esc(f.ciclo || '—') + '</td>' +
@@ -1265,7 +1303,9 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.area || '') + '</td>';
       }
       if (vista !== 'docentes') {
-        h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button></td>';
+        h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button>' +
+          (puedeEditar() ? ' <button class="chip activo" data-ed="' + i + '">Editar</button>' : '') +
+          '</td>';
       }
       h += '</tr>';
     });
@@ -1274,7 +1314,75 @@ label .req{color:var(--falla)}
     $('dtTablaCuerpo').querySelectorAll('[data-rep]').forEach(b => {
       b.addEventListener('click', () => abrirReporte(lista[Number(b.dataset.rep)], vista === 'cursos'));
     });
+    $('dtTablaCuerpo').querySelectorAll('[data-ed]').forEach(b => {
+      b.addEventListener('click', () => abrirEdicion(lista[Number(b.dataset.ed)], vista === 'cursos'));
+    });
   }
+
+  function puedeEditar() { return estado.admin || estado.general; }
+
+  // Qué se puede editar en cada vista. Nada de esto altera la carga aprobada.
+  const CAMPOS_EDIT = {
+    curso: [
+      { col:'Codigo texto', etq:'Código', de:'codigo' },
+      { col:'Curso', etq:'Nombre del curso', de:'curso' },
+      { col:'Plan de estudio', etq:'Plan de estudio', de:'plan' },
+      { col:'Semestre', etq:'Semestre', de:'semestre' },
+      { col:'Área texto', etq:'Área', de:'area' },
+      { col:'Sumilla', etq:'Sumilla', de:'sumilla', largo:true }
+    ],
+    carga: [
+      { col:'Docente (apellidos y nombres)', etq:'Docente', de:'docente' },
+      { col:'Correo electrónico docente', etq:'Correo institucional', de:'correoDocente' },
+      { col:'Celular del docente', etq:'Celular', de:'celularDocente' },
+      { col:'Codigo texto', etq:'Código', de:'codigo' },
+      { col:'Plan texto', etq:'Plan de estudio', de:'planEstudio' },
+      { col:'Semestre texto', etq:'Semestre', de:'semestre' },
+      { col:'Subgrupo texto', etq:'Subgrupo', de:'subGrupo' },
+      { col:'Tipo', etq:'Tipo', de:'tipo' },
+      { col:'Área texto', etq:'Área', de:'area' }
+    ]
+  };
+
+  function abrirEdicion(f, esCursos) {
+    const tipo = esCursos ? 'curso' : 'carga';
+    estado.editando = { fila: f, tipo };
+    $('edResumen').textContent = esCursos
+      ? (f.codigo || 'sin código') + ' · ' + nombreCurso(f.curso) + ' · plan ' + (f.plan || '—')
+      : nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
+    $('edCampos').innerHTML = CAMPOS_EDIT[tipo].map((c, i) =>
+      '<label for="ed_' + i + '" style="margin-top:10px">' + esc(c.etq) + '</label>' +
+      (c.largo
+        ? '<textarea id="ed_' + i + '" rows="5">' + esc(textoPlano(f[c.de] || '')) + '</textarea>'
+        : '<input type="text" id="ed_' + i + '" value="' + esc(f[c.de] || '') + '">')
+    ).join('');
+    $('avisoEd').textContent = '';
+    $('capaEd').classList.remove('oculto');
+  }
+
+  $('btnEdCancel').addEventListener('click', () => $('capaEd').classList.add('oculto'));
+  $('capaEd').addEventListener('click', e => {
+    if (e.target === $('capaEd')) $('capaEd').classList.add('oculto');
+  });
+
+  $('btnGuardarEd').addEventListener('click', () => {
+    const e0 = estado.editando;
+    if (!e0) return;
+    const valores = {};
+    CAMPOS_EDIT[e0.tipo].forEach((c, i) => { valores[c.col] = $('ed_' + i).value.trim(); });
+    $('btnGuardarEd').disabled = true;
+    api('/editar', { method:'POST', body: JSON.stringify({
+      destino: e0.tipo === 'curso' ? 'curso' : 'carga',
+      recordId: e0.fila.recordId, valores
+    })})
+      .then(() => {
+        $('capaEd').classList.add('oculto');
+        $('btnGuardarEd').disabled = false;
+        cargarDatos();
+      })
+      .catch(err => { $('avisoEd').textContent = err.message; $('avisoEd').className = 'aviso error';
+                      $('btnGuardarEd').disabled = false; });
+  });
 
   function abrirReporte(f, esCursos) {
     estado.reportando = { fila: f, esCursos };
@@ -1386,7 +1494,7 @@ label .req{color:var(--falla)}
       nombre = 'Catalogo_de_cursos'; titulo = 'Catálogo de cursos y sumillas';
       cols = ['N°','Carrera','Plan','Código','Curso','Semestre','Área','¿Tiene código?','¿Tiene área?','¿Tiene sumilla?','Sumilla'];
       filas = lista.map((f, i) => [i+1, f.programa, f.plan, f.codigo, nombreCurso(f.curso),
-        f.semestre, f.area, f.tieneCodigo, f.tieneArea, f.tieneSumilla, f.sumilla]);
+        f.semestre, f.area, f.tieneCodigo, f.tieneArea, f.tieneSumilla, textoPlano(f.sumilla)]);
     } else if (vista === 'docentes') {
       nombre = 'Directorio_de_docentes'; titulo = 'Directorio de docentes del ciclo';
       cols = ['N°','Ciclo','Docente','Correo institucional','Celular','Carrera','Áreas','N° de cursos','N° de cargas','Cursos','¿Tiene correo?','¿Tiene celular?'];
