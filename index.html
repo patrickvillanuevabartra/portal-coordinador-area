@@ -166,8 +166,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .ayuda{margin:6px 0 0;font-size:11.5px;color:var(--tinta-media);line-height:1.45}
 .marcas{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand-oscuro)}
 .capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;place-items:center;z-index:40;padding:20px}
-.dialogo{background:var(--papel);border-radius:12px;padding:26px 28px;width:min(480px,100%);
-  box-shadow:0 10px 40px rgba(21,32,27,.25)}
+.dialogo{background:var(--papel);border-radius:12px;padding:26px 28px;width:min(560px,100%);
+  box-shadow:0 10px 40px rgba(21,32,27,.25);max-height:88vh;display:flex;flex-direction:column}
+.dialogo>h3,.dialogo>.det{flex:none}
+.dialogo .cuerpo-dialogo{overflow:auto;flex:1;min-height:0;padding-right:4px}
+.dialogo .pie{flex:none;border-top:1px solid var(--linea);padding-top:14px;margin-top:14px}
 .dialogo h3{font-size:17px;margin-bottom:6px}
 .dialogo select{width:100%;margin-top:4px}
 .nota-dialogo{font-size:12px;color:var(--tinta-media);margin:12px 0 16px;line-height:1.5}
@@ -430,9 +433,10 @@ label .req{color:var(--falla)}
     <div class="dialogo">
       <h3>Editar</h3>
       <p class="det" id="edResumen"></p>
-      <div id="edCampos"></div>
-      <p class="nota-dialogo">Solo se editan los datos de contacto y de identificación.
-        La carga aprobada por el Departamento no se modifica desde aquí.</p>
+      <div class="cuerpo-dialogo">
+        <div id="edCampos"></div>
+        <p class="nota-dialogo" id="edNota"></p>
+      </div>
       <div class="pie">
         <button class="btn" id="btnGuardarEd">Guardar</button>
         <button class="btn gris" id="btnEdCancel">Cancelar</button>
@@ -1182,6 +1186,7 @@ label .req{color:var(--falla)}
       'Puedes editar los datos de contacto y de identificación; la carga aprobada por el ' +
       'Departamento no se modifica desde aquí.';
     cargarDatos(); cargarReportes();
+    if (puedeEditar() && !(estado.areas || []).length) cargarAreas();
   });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
   $('dtTabla').addEventListener('change', cargarDatos);
@@ -1260,7 +1265,8 @@ label .req{color:var(--falla)}
     if (vista === 'cursos') {
       h += ['Código','Curso','Carrera','Plan','Sem.','Área','Sumilla',''].map(c => '<th>' + c + '</th>').join('');
     } else if (vista === 'docentes') {
-      h += ['Ciclo','Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas'].map(c => '<th>' + c + '</th>').join('');
+      h += ['Ciclo','Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas']
+        .concat(puedeEditar() ? [''] : []).map(c => '<th>' + c + '</th>').join('');
     } else {
       h += ['Ciclo','Código','Curso','Plan','Sem.','Grupo','Tipo','Docente','Correo','Celular','Área','']
         .map(c => '<th>' + c + '</th>').join('');
@@ -1302,7 +1308,9 @@ label .req{color:var(--falla)}
              '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
              '<td>' + esc(f.area || '') + '</td>';
       }
-      if (vista !== 'docentes') {
+      if (vista === 'docentes') {
+        if (puedeEditar()) h += '<td><button class="chip activo" data-ed="' + i + '">Editar</button></td>';
+      } else {
         h += '<td><button class="chip activo" data-rep="' + i + '">Reportar</button>' +
           (puedeEditar() ? ' <button class="chip activo" data-ed="' + i + '">Editar</button>' : '') +
           '</td>';
@@ -1315,20 +1323,25 @@ label .req{color:var(--falla)}
       b.addEventListener('click', () => abrirReporte(lista[Number(b.dataset.rep)], vista === 'cursos'));
     });
     $('dtTablaCuerpo').querySelectorAll('[data-ed]').forEach(b => {
-      b.addEventListener('click', () => abrirEdicion(lista[Number(b.dataset.ed)], vista === 'cursos'));
+      b.addEventListener('click', () => abrirEdicion(lista[Number(b.dataset.ed)], vista));
     });
   }
 
   function puedeEditar() { return estado.admin || estado.general; }
 
   // Qué se puede editar en cada vista. Nada de esto altera la carga aprobada.
+  const PLANES = ['2015-II', '2024-I'];
+  const SEMESTRES = ['I','II','III','IV','V','VI','VII','VIII','IX','X'];
+  const TIPOS = ['Teo','Tal','Prá','Lab'];
+  const SUBGRUPOS = ['0','1','2','3','4','5'];
+
   const CAMPOS_EDIT = {
     curso: [
       { col:'Codigo texto', etq:'Código', de:'codigo' },
       { col:'Curso', etq:'Nombre del curso', de:'curso' },
-      { col:'Plan de estudio', etq:'Plan de estudio', de:'plan' },
-      { col:'Semestre', etq:'Semestre', de:'semestre' },
-      { col:'Área texto', etq:'Área', de:'area' },
+      { col:'Plan de estudio', etq:'Plan de estudio', de:'plan', ops:PLANES },
+      { col:'Semestre', etq:'Semestre', de:'semestre', ops:SEMESTRES },
+      { col:'Área texto', etq:'Área', de:'area', ops:'areas' },
       { col:'Sumilla', etq:'Sumilla', de:'sumilla', largo:true }
     ],
     carga: [
@@ -1336,26 +1349,61 @@ label .req{color:var(--falla)}
       { col:'Correo electrónico docente', etq:'Correo institucional', de:'correoDocente' },
       { col:'Celular del docente', etq:'Celular', de:'celularDocente' },
       { col:'Codigo texto', etq:'Código', de:'codigo' },
-      { col:'Plan texto', etq:'Plan de estudio', de:'planEstudio' },
-      { col:'Semestre texto', etq:'Semestre', de:'semestre' },
-      { col:'Subgrupo texto', etq:'Subgrupo', de:'subGrupo' },
-      { col:'Tipo', etq:'Tipo', de:'tipo' },
-      { col:'Área texto', etq:'Área', de:'area' }
+      { col:'Plan texto', etq:'Plan de estudio', de:'planEstudio', ops:PLANES },
+      { col:'Semestre texto', etq:'Semestre', de:'semestre', ops:SEMESTRES },
+      { col:'Subgrupo texto', etq:'Subgrupo', de:'subGrupo', ops:SUBGRUPOS },
+      { col:'Tipo', etq:'Tipo', de:'tipo', ops:TIPOS },
+      { col:'Área texto', etq:'Área', de:'area', ops:'areas' }
+    ],
+    docente: [
+      { col:'Correo electrónico docente', etq:'Correo institucional', de:'correo' },
+      { col:'Celular del docente', etq:'Celular', de:'celular' }
     ]
   };
 
-  function abrirEdicion(f, esCursos) {
-    const tipo = esCursos ? 'curso' : 'carga';
+  const NOTA_EDIT = {
+    curso: 'Cambia lo que corresponda al plan de estudios. El área determina qué coordinador ' +
+           'supervisa el curso, así que revísala con cuidado.',
+    carga: 'Se editan los datos de contacto y de identificación. El curso y el grupo vienen de ' +
+           'la carga aprobada por el Departamento y no se modifican desde aquí.',
+    docente: 'El correo y el celular se guardan en todas las cargas de este docente, así que ' +
+             'basta con corregirlos una vez.'
+  };
+
+  // Las áreas ofrecidas dependen de la carrera del registro.
+  function areasDe(programa) {
+    const todas = (estado.areas || []).filter(a => a.estado === 'Vigente');
+    const suyas = todas.filter(a => a.programa === programa).map(a => a.nombre);
+    return suyas.length ? suyas : todas.map(a => a.nombre);
+  }
+
+  function abrirEdicion(f, vista) {
+    const tipo = vista === 'cursos' ? 'curso' : (vista === 'docentes' ? 'docente' : 'carga');
     estado.editando = { fila: f, tipo };
-    $('edResumen').textContent = esCursos
-      ? (f.codigo || 'sin código') + ' · ' + nombreCurso(f.curso) + ' · plan ' + (f.plan || '—')
-      : nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
-    $('edCampos').innerHTML = CAMPOS_EDIT[tipo].map((c, i) =>
-      '<label for="ed_' + i + '" style="margin-top:10px">' + esc(c.etq) + '</label>' +
-      (c.largo
-        ? '<textarea id="ed_' + i + '" rows="5">' + esc(textoPlano(f[c.de] || '')) + '</textarea>'
-        : '<input type="text" id="ed_' + i + '" value="' + esc(f[c.de] || '') + '">')
-    ).join('');
+    $('edResumen').textContent =
+      tipo === 'curso'   ? (f.codigo || 'sin código') + ' · ' + nombreCurso(f.curso) + ' · plan ' + (f.plan || '—')
+    : tipo === 'docente' ? f.docente + ' · ' + f.cargas + ' cargas · ' + (f.programa || '')
+    :                      nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
+
+    const prog = f.programa || '';
+    $('edCampos').innerHTML = CAMPOS_EDIT[tipo].map((c, i) => {
+      const valor = c.de === 'area' ? (f.area || '') : (f[c.de] || '');
+      let control;
+      if (c.largo) {
+        control = '<textarea id="ed_' + i + '" rows="5">' + esc(textoPlano(valor)) + '</textarea>';
+      } else if (c.ops) {
+        const ops = c.ops === 'areas' ? areasDe(prog) : c.ops;
+        const fuera = valor && ops.indexOf(valor) < 0 ? [valor] : [];
+        control = '<select id="ed_' + i + '"><option value="">Seleccione</option>' +
+          fuera.concat(ops).map(o =>
+            '<option' + (o === valor ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+          '</select>';
+      } else {
+        control = '<input type="text" id="ed_' + i + '" value="' + esc(valor) + '">';
+      }
+      return '<label for="ed_' + i + '" style="margin-top:10px">' + esc(c.etq) + '</label>' + control;
+    }).join('');
+    $('edNota').textContent = NOTA_EDIT[tipo];
     $('avisoEd').textContent = '';
     $('capaEd').classList.remove('oculto');
   }
@@ -1372,8 +1420,10 @@ label .req{color:var(--falla)}
     CAMPOS_EDIT[e0.tipo].forEach((c, i) => { valores[c.col] = $('ed_' + i).value.trim(); });
     $('btnGuardarEd').disabled = true;
     api('/editar', { method:'POST', body: JSON.stringify({
-      destino: e0.tipo === 'curso' ? 'curso' : 'carga',
-      recordId: e0.fila.recordId, valores
+      destino: e0.tipo,
+      recordId: e0.fila.recordId,
+      docente: e0.fila.docente,
+      valores
     })})
       .then(() => {
         $('capaEd').classList.add('oculto');
