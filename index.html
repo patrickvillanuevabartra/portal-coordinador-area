@@ -183,6 +183,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .filtros-av label{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;
   color:var(--tinta-media);margin:0 0 5px;display:block;font-weight:600}
 .filtros-av select{width:100%;max-width:100%}
+.filtros-av .campo-revisar{grid-column:1/-1}
+.casillas{display:flex;flex-wrap:wrap;gap:6px 14px;padding-top:2px}
+.casillas label{display:flex;align-items:center;gap:6px;font-size:12.5px;font-weight:400;
+  text-transform:none;letter-spacing:0;color:var(--tinta);margin:0;cursor:pointer;white-space:nowrap}
+.casillas input{margin:0}
 .filtros-av .pie-filtros{display:flex;align-items:flex-end}
 .filtros-av .pie-filtros .btn{width:100%}
 .buscador{
@@ -478,16 +483,8 @@ label .req{color:var(--falla)}
           <div class="campo"><label for="fSem2">Semestre</label><select id="fSem2"></select></div>
           <div class="campo"><label for="fTipo2">Tipo</label><select id="fTipo2"></select></div>
           <div class="campo"><label for="fDocente2">Docente</label><select id="fDocente2"></select></div>
-          <div class="campo"><label for="fFalta">Revisar</label>
-            <select id="fFalta">
-              <option value="">Todo</option>
-              <option value="correo">Sin correo del docente</option>
-              <option value="celular">Sin celular del docente</option>
-              <option value="codigo">Sin código</option>
-              <option value="area">Sin área</option>
-              <option value="sumilla">Sin sumilla</option>
-              <option value="incompleta">Cargas incompletas</option>
-            </select></div>
+          <div class="campo campo-revisar"><label>Revisar</label>
+            <div class="casillas" id="fFalta"></div></div>
           <div class="campo pie-filtros"><button class="btn gris" id="dtLimpiar">Limpiar</button></div>
         </div>
 
@@ -1293,7 +1290,8 @@ label .req{color:var(--falla)}
   const FILTROS = ['fCiclo2','fPrograma2','fArea2','fPlan2','fSem2','fTipo2','fDocente2','fFalta'];
   FILTROS.forEach(id => $(id).addEventListener('change', pintarDatos));
   $('dtLimpiar').addEventListener('click', () => {
-    FILTROS.forEach(id => $(id).value = '');
+    FILTROS.filter(id => id !== 'fFalta').forEach(id => $(id).value = '');
+    $('fFalta').querySelectorAll('input').forEach(c => c.checked = false);
     $('dtBuscar').value = '';
     pintarDatos();
   });
@@ -1331,6 +1329,10 @@ label .req{color:var(--falla)}
     }));
   }
 
+  function marcados() {
+    return [...$('fFalta').querySelectorAll('input:checked')].map(c => c.value);
+  }
+
   function llenarFiltros(lista, vista) {
     Object.keys(CRITERIOS).forEach(id => {
       const sel = $(id), previo = sel.value;
@@ -1354,10 +1356,14 @@ label .req{color:var(--falla)}
                  ['codigo','Sin código'], ['area','Sin área'], ['incompleta','Cargas incompletas']],
       docentes: [['correo','Sin correo'], ['celular','Sin celular']]
     };
-    const sel2 = $('fFalta'), prev2 = sel2.value;
-    sel2.innerHTML = '<option value="">Todo</option>' +
-      (REV[vista] || []).map(o => '<option value="' + o[0] + '">' + esc(o[1]) + '</option>').join('');
-    sel2.value = [...sel2.options].some(o => o.value === prev2) ? prev2 : '';
+    // Se marcan varias a la vez: aparece lo que cumpla alguna de ellas, que es
+    // lo que se quiere al depurar datos incompletos.
+    const prev2 = marcados();
+    $('fFalta').innerHTML = (REV[vista] || []).map(o =>
+      '<label><input type="checkbox" value="' + o[0] + '"' +
+      (prev2.includes(o[0]) ? ' checked' : '') + '> ' + esc(o[1]) + '</label>').join('');
+    $('fFalta').querySelectorAll('input').forEach(c =>
+      c.addEventListener('change', pintarDatos));
   }
 
   function pintarDatos() {
@@ -1368,14 +1374,19 @@ label .req{color:var(--falla)}
     let lista = d.filas || [];
     llenarFiltros(lista, vista);
 
-    const ff = $('fFalta').value;
+    const ff = marcados();
     lista = aplicar(lista, null).filter(f => {
-      if (ff === 'correo'    && f.tieneCorreo  !== 'No') return false;
-      if (ff === 'celular'   && f.tieneCelular !== 'No') return false;
-      if (ff === 'codigo'    && f.tieneCodigo  !== 'No') return false;
-      if (ff === 'area'      && f.tieneArea    !== 'No' && f.area) return false;
-      if (ff === 'sumilla'   && f.tieneSumilla !== 'No') return false;
-      if (ff === 'incompleta'&& f.completa     !== 'No') return false;
+      if (ff.length) {
+        const cumple = {
+          correo:     !f.correo && !f.correoDocente,
+          celular:    !f.celular && !f.celularDocente,
+          codigo:     !f.codigo,
+          area:       !f.area,
+          sumilla:    !f.sumilla,
+          incompleta: f.completa === 'No'
+        };
+        if (!ff.some(k => cumple[k])) return false;
+      }
       if (!q) return true;
       // Se busca en los campos que identifican, no en la sumilla: si no, un
       // curso aparece porque su sumilla menciona palabras de otro.
@@ -1571,8 +1582,9 @@ label .req{color:var(--falla)}
     $('dtResumen').classList.remove('oculto');
     $('dtResumen').querySelectorAll('[data-f]').forEach(b => {
       b.addEventListener('click', () => {
-        $('fFalta').value = b.dataset.f;
         $('dtAvanzado').classList.remove('oculto');
+        const c = $('fFalta').querySelector('input[value="' + b.dataset.f + '"]');
+        if (c) c.checked = !c.checked;
         pintarDatos();
       });
     });
