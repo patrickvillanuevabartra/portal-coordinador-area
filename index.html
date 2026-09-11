@@ -182,9 +182,11 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   border-left:2px solid var(--linea)}
 .ayuda{margin:6px 0 0;font-size:11.5px;color:var(--tinta-media);line-height:1.45}
 .marcas{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand-oscuro)}
-.capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;place-items:center;z-index:40;padding:20px}
+.capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;
+  place-items:start center;z-index:40;padding:24px 20px;overflow:auto}
 .dialogo{background:var(--papel);border-radius:12px;padding:26px 28px;width:min(560px,100%);
-  box-shadow:0 10px 40px rgba(21,32,27,.25);max-height:88vh;display:flex;flex-direction:column}
+  box-shadow:0 10px 40px rgba(21,32,27,.25);max-height:calc(100vh - 48px);
+  display:flex;flex-direction:column;margin:auto 0}
 .dialogo>h3,.dialogo>.det{flex:none}
 .dialogo .cuerpo-dialogo{overflow:auto;flex:1;min-height:0;padding-right:4px}
 .dialogo .pie{flex:none;border-top:1px solid var(--linea);padding-top:14px;margin-top:14px}
@@ -1263,6 +1265,18 @@ label .req{color:var(--falla)}
     // En el catálogo no hay docente ni tipo; en el directorio no hay plan ni semestre.
     if (vista === 'cursos') ['fTipo2','fDocente2'].forEach(id => $(id).parentElement.classList.add('oculto'));
     if (vista === 'docentes') ['fPlan2','fSem2','fTipo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
+
+    // «Revisar» solo ofrece lo que existe en esta vista.
+    const REV = {
+      cursos:   [['codigo','Sin código'], ['area','Sin área'], ['sumilla','Sin sumilla']],
+      cargas:   [['correo','Sin correo del docente'], ['celular','Sin celular del docente'],
+                 ['codigo','Sin código'], ['area','Sin área'], ['incompleta','Cargas incompletas']],
+      docentes: [['correo','Sin correo'], ['celular','Sin celular']]
+    };
+    const sel = $('fFalta'), prev = sel.value;
+    sel.innerHTML = '<option value="">Todo</option>' +
+      (REV[vista] || []).map(o => '<option value="' + o[0] + '">' + esc(o[1]) + '</option>').join('');
+    sel.value = [...sel.options].some(o => o.value === prev) ? prev : '';
   }
 
   function pintarDatos() {
@@ -1403,7 +1417,9 @@ label .req{color:var(--falla)}
     carga: 'Se editan los datos de contacto y de identificación. El curso y el grupo vienen de ' +
            'la carga aprobada por el Departamento y no se modifican desde aquí.',
     docente: 'El correo y el celular se guardan en todas las cargas de este docente, así que ' +
-             'basta con corregirlos una vez.'
+             'basta con corregirlos una vez. El área no se edita aquí: pertenece al curso, no ' +
+             'a la persona, y un mismo docente puede dictar en varias áreas. Cámbiala desde el ' +
+             'catálogo de cursos o desde la carga lectiva.'
   };
 
   // Las áreas ofrecidas dependen de la carrera del registro.
