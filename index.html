@@ -135,21 +135,18 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
 #datos table th{font-size:10.5px;letter-spacing:.06em;white-space:nowrap}
 #datos table td{padding:11px 12px;vertical-align:top}
+/* La tabla se ajusta a su contenido: cada columna mide lo que necesita y no
+   más. Las de texto largo se acotan para que no acaparen el ancho. */
 #datos table{table-layout:auto;width:100%}
-/* Las columnas cortas no se parten nunca; el espacio que sobra va a las de
-   texto largo, que son las que de verdad lo necesitan. */
-#datos .w-ciclo,#datos .w-cod,#datos .w-plan,#datos .w-sem,#datos .w-gr,
-#datos .w-tipo,#datos .w-num,#datos .w-cel,#datos .w-acc{white-space:nowrap;width:1%}
-#datos .w-correo{width:1%;white-space:nowrap}
-#datos .w-area{min-width:150px;max-width:190px}
-#datos .w-carrera{min-width:130px;max-width:160px}
-#datos td.col-curso{min-width:260px;max-width:380px}
-#datos td.col-curso b{display:block;overflow-wrap:break-word;line-height:1.35}
-#datos td.col-docente,#datos td.col-doc{min-width:200px;max-width:260px;overflow-wrap:break-word}
-#datos td.col-cursos{min-width:56px}
-#datos .celda-sumilla{min-width:240px;max-width:360px}
-#datos td.col-areas{min-width:150px;max-width:200px}
-#datos td.col-areas .etq-area{margin:0 4px 4px 0}
+#datos th,#datos td{white-space:nowrap}
+#datos td.largo,#datos th.largo{white-space:normal;overflow-wrap:break-word}
+#datos td.col-curso{max-width:34ch}
+#datos td.col-docente,#datos td.col-doc{max-width:28ch}
+#datos td.col-areas,#datos .w-area{max-width:24ch;white-space:normal}
+#datos .w-carrera{max-width:22ch;white-space:normal}
+#datos td.col-cursos{max-width:40ch;white-space:normal}
+#datos .celda-sumilla{max-width:46ch;white-space:normal}
+#datos .celda-sumilla .codigo{max-height:88px}
 .detalle-cargas{margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--tinta-media)}
 .detalle-cargas li{padding:2px 0;line-height:1.4}
 .detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
@@ -1399,16 +1396,16 @@ label .req{color:var(--falla)}
     pintarResumen(lista, vista);
     let h = '<table><thead><tr>';
     if (vista === 'cursos') {
-      h += [['Código','w-cod'],['Curso',''],['Carrera','w-carrera'],['Plan','w-plan'],
-            ['Sem.','w-sem'],['Área','w-area'],['Sumilla',''],['','w-acc']]
+      h += [['Código','w-cod'],['Curso','largo'],['Carrera','w-carrera'],['Plan','w-plan'],
+            ['Sem.','w-sem'],['Área','w-area'],['Sumilla','largo'],['','w-acc']]
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else if (vista === 'docentes') {
-      h += [['Ciclo','w-ciclo'],['Docente',''],['Correo','w-correo'],['Celular','w-cel'],
-            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Cargas',''],['','w-acc']]
+      h += [['Ciclo','w-ciclo'],['Docente','largo'],['Correo','w-correo'],['Celular','w-cel'],
+            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Cargas','largo'],['','w-acc']]
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else {
-      h += [['Ciclo','w-ciclo'],['Código','w-cod'],['Curso',''],['Plan','w-plan'],['Sem.','w-sem'],
-            ['Grupo','w-gr'],['Tipo','w-tipo'],['Docente',''],['Correo','w-correo'],
+      h += [['Ciclo','w-ciclo'],['Código','w-cod'],['Curso','largo'],['Plan','w-plan'],['Sem.','w-sem'],
+            ['Grupo','w-gr'],['Tipo','w-tipo'],['Docente','largo'],['Correo','w-correo'],
             ['Celular','w-cel'],['Área','w-area'],['','w-acc']]
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     }
@@ -1418,12 +1415,12 @@ label .req{color:var(--falla)}
       h += '<tr>';
       if (vista === 'cursos') {
         h += '<td class="mono">' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
-             '<td class="col-curso"><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
+             '<td class="col-curso largo"><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
              '<td>' + plan(f.plan) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + area(f.area) + '</td>' +
-             '<td class="celda-sumilla">' + (f.sumilla
+             '<td class="celda-sumilla largo">' + (f.sumilla
                 ? '<small class="codigo">' + esc(textoPlano(f.sumilla)) + '</small>'
                 : falta('No')) + '</td>';
       } else if (vista === 'docentes') {
@@ -1435,24 +1432,24 @@ label .req{color:var(--falla)}
           esc(nombreCurso(x.curso)) + ' · grupo ' + esc(x.grupo) +
           (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '') + '</li>').join('');
         h += '<td class="mono">' + esc(f.ciclo || '—') + '</td>' +
-             '<td class="col-doc"><b>' + esc(f.docente) + '</b></td>' +
+             '<td class="col-doc largo"><b>' + esc(f.docente) + '</b></td>' +
              '<td>' + (f.correo ? esc(f.correo) : falta('No')) + '</td>' +
              '<td>' + (f.celular ? esc(f.celular) : falta('No')) + '</td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
-             '<td class="col-areas">' + areasDoc + '</td>' +
-             '<td class="col-cursos">' + esc(f.nCursos) + '</td>' +
+             '<td class="col-areas largo">' + areasDoc + '</td>' +
+             '<td class="col-cursos largo">' + esc(f.nCursos) + '</td>' +
              '<td><b>' + esc(f.cargas) + '</b>' +
              (det ? '<ul class="detalle-cargas">' + det + '</ul>' : '') + '</td>';
       } else {
         h += '<td>' + esc(f.ciclo || '—') + '</td>' +
              '<td>' + esc(f.codigo || '') + '</td>' +
-             '<td class="col-curso"><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
+             '<td class="col-curso largo"><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
              (f.falta ? '<small class="pendiente">Falta ' + esc(f.falta) + '</small>' : '') + '</td>' +
              '<td>' + plan(f.planEstudio) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.grupo || '—') + (f.subGrupo !== '' ? ' · ' + esc(f.subGrupo) : '') + '</td>' +
              '<td>' + esc(f.tipo || '—') + '</td>' +
-             '<td class="col-docente">' + esc(f.docente || '—') + '</td>' +
+             '<td class="col-docente largo">' + esc(f.docente || '—') + '</td>' +
              '<td>' + (f.correoDocente ? esc(f.correoDocente) : falta('No')) + '</td>' +
              '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
              '<td>' + area(f.area) + '</td>';
