@@ -135,19 +135,26 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
 #datos table th{font-size:10.5px;letter-spacing:.06em;white-space:nowrap}
 #datos table td{padding:11px 12px;vertical-align:top}
-#datos table{table-layout:auto}
-#datos td.col-curso{max-width:320px}
+#datos table{table-layout:fixed;width:100%}
+#datos th,#datos td{overflow-wrap:anywhere}
+/* Anchos pensados para que quepa todo sin desplazarse en una pantalla normal. */
+#datos .w-ciclo{width:78px} #datos .w-cod{width:92px} #datos .w-plan{width:84px}
+#datos .w-sem{width:58px}   #datos .w-gr{width:74px}  #datos .w-tipo{width:64px}
+#datos .w-num{width:62px}   #datos .w-acc{width:150px}
+#datos .w-correo{width:190px} #datos .w-cel{width:106px}
+#datos .w-carrera{width:150px} #datos .w-area{width:170px}
+#datos td.col-curso{max-width:none}
 #datos td.col-curso b{display:block;overflow-wrap:anywhere;line-height:1.35}
-#datos td.col-docente{max-width:220px;overflow-wrap:anywhere}
-#datos td.col-cursos{max-width:300px}
-#datos td.col-doc{max-width:210px;overflow-wrap:anywhere}
-#datos td.col-areas{max-width:200px}
+#datos td.col-docente{overflow-wrap:anywhere}
+#datos td.col-cursos{}
+#datos td.col-doc{overflow-wrap:anywhere}
+#datos td.col-areas{}
 #datos td.col-areas .etq-area{margin:0 4px 4px 0}
 .detalle-cargas{margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--tinta-media)}
 .detalle-cargas li{padding:2px 0;line-height:1.4}
 .detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   background:var(--fondo);border-radius:3px;padding:0 4px;margin-right:5px}
-#datos .celda-sumilla{max-width:300px}
+#datos .celda-sumilla{}
 #datos .celda-sumilla .codigo{max-height:88px}
 #datos table tbody tr:hover{background:var(--brand-suave)}
 #datos table tbody tr{transition:background .12s}
@@ -1388,12 +1395,18 @@ label .req{color:var(--falla)}
     pintarResumen(lista, vista);
     let h = '<table><thead><tr>';
     if (vista === 'cursos') {
-      h += ['Código','Curso','Carrera','Plan','Sem.','Área','Sumilla',''].map(c => '<th>' + c + '</th>').join('');
+      h += [['Código','w-cod'],['Curso',''],['Carrera','w-carrera'],['Plan','w-plan'],
+            ['Sem.','w-sem'],['Área','w-area'],['Sumilla',''],['','w-acc']]
+        .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else if (vista === 'docentes') {
-      h += ['Ciclo','Docente','Correo','Celular','Carrera','Áreas','Cursos','Cargas',''].map(c => '<th>' + c + '</th>').join('');
+      h += [['Ciclo','w-ciclo'],['Docente',''],['Correo','w-correo'],['Celular','w-cel'],
+            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Cargas',''],['','w-acc']]
+        .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else {
-      h += ['Ciclo','Código','Curso','Plan','Sem.','Grupo','Tipo','Docente','Correo','Celular','Área','']
-        .map(c => '<th>' + c + '</th>').join('');
+      h += [['Ciclo','w-ciclo'],['Código','w-cod'],['Curso',''],['Plan','w-plan'],['Sem.','w-sem'],
+            ['Grupo','w-gr'],['Tipo','w-tipo'],['Docente',''],['Correo','w-correo'],
+            ['Celular','w-cel'],['Área','w-area'],['','w-acc']]
+        .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     }
     h += '</tr></thead><tbody>';
 
