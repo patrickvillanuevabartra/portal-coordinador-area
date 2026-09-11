@@ -135,26 +135,26 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 
 #datos table th{font-size:10.5px;letter-spacing:.06em;white-space:nowrap}
 #datos table td{padding:11px 12px;vertical-align:top}
-#datos table{table-layout:fixed;width:100%}
-#datos th,#datos td{overflow-wrap:anywhere}
-/* Anchos pensados para que quepa todo sin desplazarse en una pantalla normal. */
-#datos .w-ciclo{width:78px} #datos .w-cod{width:92px} #datos .w-plan{width:84px}
-#datos .w-sem{width:58px}   #datos .w-gr{width:74px}  #datos .w-tipo{width:64px}
-#datos .w-num{width:62px}   #datos .w-acc{width:150px}
-#datos .w-correo{width:190px} #datos .w-cel{width:106px}
-#datos .w-carrera{width:150px} #datos .w-area{width:170px}
-#datos td.col-curso{max-width:none}
-#datos td.col-curso b{display:block;overflow-wrap:anywhere;line-height:1.35}
-#datos td.col-docente{overflow-wrap:anywhere}
-#datos td.col-cursos{}
-#datos td.col-doc{overflow-wrap:anywhere}
-#datos td.col-areas{}
+#datos table{table-layout:auto;width:100%}
+/* Las columnas cortas no se parten nunca; el espacio que sobra va a las de
+   texto largo, que son las que de verdad lo necesitan. */
+#datos .w-ciclo,#datos .w-cod,#datos .w-plan,#datos .w-sem,#datos .w-gr,
+#datos .w-tipo,#datos .w-num,#datos .w-cel,#datos .w-acc{white-space:nowrap;width:1%}
+#datos .w-correo{width:1%;white-space:nowrap}
+#datos .w-area{min-width:150px;max-width:190px}
+#datos .w-carrera{min-width:130px;max-width:160px}
+#datos td.col-curso{min-width:260px;max-width:380px}
+#datos td.col-curso b{display:block;overflow-wrap:break-word;line-height:1.35}
+#datos td.col-docente,#datos td.col-doc{min-width:200px;max-width:260px;overflow-wrap:break-word}
+#datos td.col-cursos{min-width:56px}
+#datos .celda-sumilla{min-width:240px;max-width:360px}
+#datos td.col-areas{min-width:150px;max-width:200px}
 #datos td.col-areas .etq-area{margin:0 4px 4px 0}
 .detalle-cargas{margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--tinta-media)}
 .detalle-cargas li{padding:2px 0;line-height:1.4}
 .detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   background:var(--fondo);border-radius:3px;padding:0 4px;margin-right:5px}
-#datos .celda-sumilla{}
+
 #datos .celda-sumilla .codigo{max-height:88px}
 #datos table tbody tr:hover{background:var(--brand-suave)}
 #datos table tbody tr{transition:background .12s}
@@ -1027,7 +1027,10 @@ label .req{color:var(--falla)}
         if (ya) ya.partes.push(c); else fusion.push({ k, partes: [c] });
       });
       g.filas = fusion.map(f => {
-        f.partes.sort((x, y) => (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9));
+        // Teoría primero y luego los subgrupos en orden: 0, 1, 2.
+        f.partes.sort((x, y) =>
+          (orden[x.a.tipo] ?? 9) - (orden[y.a.tipo] ?? 9) ||
+          (parseInt(x.a.subGrupo, 10) || 0) - (parseInt(y.a.subGrupo, 10) || 0));
         return { ancla: f.partes[0], partes: f.partes };
       });
       g.filas.sort((x, y) =>
@@ -1344,7 +1347,8 @@ label .req{color:var(--falla)}
       const siempre = ['fCiclo2','fPrograma2','fArea2'].includes(id);
       sel.parentElement.classList.toggle('oculto', !siempre && ops.length === 0);
     });
-    if (vista === 'cursos') ['fTipo2','fDocente2'].forEach(id => $(id).parentElement.classList.add('oculto'));
+    // El catálogo no depende del ciclo: es el plan de estudios.
+    if (vista === 'cursos') ['fTipo2','fDocente2','fCiclo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
     if (vista === 'docentes') ['fPlan2','fSem2','fTipo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
 
     const REV = {
