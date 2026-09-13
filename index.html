@@ -769,13 +769,30 @@ label .req{color:var(--falla)}
         // El identificador de Google vence al cabo de una hora. En vez de un
         // error críptico, se pide la sesión otra vez.
         if (/token/i.test(data.error || '')) {
-          sesionVencida();
-          throw new Error('Tu sesión venció. Vuelve a entrar con tu cuenta URP.');
+          // El identificador de Google dura una hora. Se pide uno nuevo sin
+          // sacar al usuario de donde estaba.
+          renovarSesion();
+          throw new Error('Tu sesión venció. Se está renovando, vuelve a intentarlo.');
         }
         throw new Error(data.error || ('Error ' + r.status));
       }
       return data;
     });
+  }
+
+  // Pide a Google un identificador nuevo sin perder la pantalla actual.
+  let renovando = false;
+  function renovarSesion() {
+    if (renovando || !window.google || !google.accounts) return sesionVencida();
+    renovando = true;
+    try {
+      google.accounts.id.prompt(n => {
+        renovando = false;
+        if (n && (n.isNotDisplayed && n.isNotDisplayed() || n.isSkippedMoment && n.isSkippedMoment())) {
+          sesionVencida();
+        }
+      });
+    } catch (e) { renovando = false; sesionVencida(); }
   }
 
   function sesionVencida() {
@@ -875,10 +892,10 @@ label .req{color:var(--falla)}
         $('usuarioNombre').textContent = datos.nombre;
         const roles = [];
         if (estado.admin) roles.push('Administrador');
-        if (estado.general) roles.push('Coordinador general · ' + estado.programas.join(', '));
+        if (estado.general) roles.push('Coordinador general · ' + (estado.programas || []).join(', '));
         $('usuarioArea').textContent = roles.length
           ? roles.join(' · ')
-          : datos.areas.join(' · ');
+          : (datos.areas || []).join(' · ');
         $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
         $('btnTablero').classList.remove('oculto');
         $('btnDatos').classList.remove('oculto');
@@ -917,16 +934,21 @@ label .req{color:var(--falla)}
     sel.onchange = cargarAsignaciones;
   }
 
+  // El avance se pide en paralelo con las asignaciones: antes esperaba a que
+  // terminara la primera llamada y eso duplicaba el tiempo de entrada.
+  function cargarAvance() {
+    api('/avance?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+      .then(d => { estado.avance = d.avance || {}; if (estado.asignaciones.length) pintarTablero(); })
+      .catch(() => {});
+  }
+
   function cargarAsignaciones() {
+    cargarAvance();
     $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
     mostrar('tablero');
     api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
       .then(datos => {
-        estado.asignaciones = datos.asignaciones; prepararFiltros(); pintarTablero();
-        // El avance llega despues para no demorar la tabla.
-        api('/avance?ciclo=' + encodeURIComponent($('filtroCiclo').value))
-          .then(d => { estado.avance = d.avance || {}; pintarTablero(); })
-          .catch(() => {});
+        estado.asignaciones = datos.asignaciones || []; prepararFiltros(); pintarTablero();
       })
       .catch(e => {
         $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
@@ -979,7 +1001,7 @@ label .req{color:var(--falla)}
     // Los indices de los botones apuntan a ESTA lista, no a la completa: si se
     // resuelven contra la otra, al filtrar se abre la carga equivocada.
     estado.visibles = lista;
-    const ambito = estado.admin ? 'Toda la Facultad' : estado.areas.join(' · ');
+    const ambito = estado.admin ? 'Toda la Facultad' : (estado.areas || []).join(' · ');
     const filtrando = lista.length !== todas.length;
     $('tableroSub').textContent = ambito + ' — ' +
       (filtrando ? lista.length + ' de ' + todas.length : lista.length) +
@@ -1066,7 +1088,7 @@ label .req{color:var(--falla)}
         const cargas = g.filas.map(({ ancla, partes }) => {
           const a = ancla.a;
           nCarga++;
-          const bloqueada = a.faltantes.length > 0;
+          const bloqueada = (a.faltantes || []).length > 0;
           const hechos = new Set();
           partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
 
@@ -1097,7 +1119,7 @@ label .req{color:var(--falla)}
           return '<tr>' +
             '<td class="carga"><span class="num-carga">' + nCarga + '</span>' +
               '<div class="detalle-carga">' + detalle + '</div>' +
-              (bloqueada ? '<div class="pendiente">Falta ' + esc(a.faltantes.join(', ')) + '</div>' : '') +
+              (bloqueada ? '<div class="pendiente">Falta ' + esc((a.faltantes || []).join(', ')) + '</div>' : '') +
             '</td>' +
             '<td>' + esc(a.docente) + barra + '</td>' +
             '<td><div class="chips">' + chips + mover + '</div></td>' +
@@ -1176,7 +1198,7 @@ label .req{color:var(--falla)}
 
   function ambitoTexto() {
     return estado.admin ? 'Toda la Facultad'
-      : (estado.general ? estado.programas.join(', ') : estado.areas.join(' · '));
+      : (estado.general ? (estado.programas || []).join(', ') : (estado.areas || []).join(' · '));
   }
 
   // 1) Estado de cumplimiento: lo que se está viendo en el tablero.
@@ -1794,7 +1816,7 @@ label .req{color:var(--falla)}
     const posibles = d.totalCargas * d.totalModulos;
     const pct = posibles ? Math.round(d.registrados / posibles * 1000) / 10 : 0;
     const ambito = estado.admin ? 'Toda la Facultad'
-      : (estado.general ? estado.programas.join(', ') : estado.areas.join(' · '));
+      : (estado.general ? (estado.programas || []).join(', ') : (estado.areas || []).join(' · '));
 
     let h = '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
       '<h2>Avance de la supervisión</h2>' +
@@ -1891,8 +1913,7 @@ label .req{color:var(--falla)}
       'Indicadores de la supervisión docente',
       ['Concepto', '', '', ''], filas,
       ['Ciclo académico: ' + (d.ciclo || 'todos'),
-       'Ámbito: ' + (estado.admin ? 'Toda la Facultad'
-         : (estado.general ? estado.programas.join(', ') : estado.areas.join(' · ')))]);
+       'Ámbito: ' + ambitoTexto()]);
   }
 
   /* ---------------------------------------------- cambiar el área */
