@@ -148,7 +148,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 #datos .celda-sumilla{max-width:46ch;white-space:normal}
 #datos .celda-sumilla .codigo{max-height:88px}
 .detalle-cargas{margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--tinta-media)}
-.detalle-cargas li{padding:2px 0;line-height:1.4}
+.detalle-cargas li{padding:3px 0;line-height:1.45}
+.detalle-cargas li+li{border-top:1px solid var(--linea);margin-top:3px}
+.detalle-cargas b{display:block;color:var(--tinta);font-weight:600;font-size:12px}
+.detalle-cargas .grupos{display:block;margin-top:2px}
 .detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   background:var(--fondo);border-radius:3px;padding:0 4px;margin-right:5px}
 
@@ -747,6 +750,7 @@ label .req{color:var(--falla)}
     correo: '', nombre: '', areas: [],
     asignaciones: [],
     admin: false, general: false, programas: [], propiasArea: [],
+    tokenDesde: 0, alRenovar: null, temporizador: null,
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
@@ -759,40 +763,58 @@ label .req{color:var(--falla)}
 
   /* ------------------------------------------------------------- utilidades */
 
-  function api(ruta, opciones = {}) {
+  // El identificador de Google dura una hora y no se renueva solo. Se pide uno
+  // nuevo antes de que venza, y si aun así una llamada falla por eso, se renueva
+  // y se reintenta una vez: el usuario no debería enterarse.
+  let esperandoToken = null;
+
+  function pedirToken() {
+    if (esperandoToken) return esperandoToken;
+    esperandoToken = new Promise((resolver, rechazar) => {
+      const antes = estado.credential;
+      estado.alRenovar = (nuevo) => {
+        estado.alRenovar = null;
+        esperandoToken = null;
+        resolver(nuevo);
+      };
+      try {
+        google.accounts.id.prompt(n => {
+          const fallo = n && ((n.isNotDisplayed && n.isNotDisplayed()) ||
+                              (n.isSkippedMoment && n.isSkippedMoment()) ||
+                              (n.isDismissedMoment && n.isDismissedMoment()));
+          if (fallo && estado.credential === antes) {
+            estado.alRenovar = null;
+            esperandoToken = null;
+            rechazar(new Error('sin renovar'));
+          }
+        });
+      } catch (e) {
+        esperandoToken = null;
+        rechazar(e);
+      }
+      setTimeout(() => {
+        if (esperandoToken) { esperandoToken = null; estado.alRenovar = null; rechazar(new Error('sin renovar')); }
+      }, 20000);
+    });
+    return esperandoToken;
+  }
+
+  function api(ruta, opciones = {}, reintento = false) {
     const cfg = Object.assign({ headers: {} }, opciones);
     cfg.headers['Authorization'] = 'Bearer ' + estado.credential;
     if (cfg.body) cfg.headers['Content-Type'] = 'application/json';
     return fetch(CFG.PROXY + ruta, cfg).then(async r => {
       const data = await r.json().catch(() => ({ error: 'El proxy devolvió una respuesta ilegible' }));
       if (!r.ok) {
-        // El identificador de Google vence al cabo de una hora. En vez de un
-        // error críptico, se pide la sesión otra vez.
-        if (/token/i.test(data.error || '')) {
-          // El identificador de Google dura una hora. Se pide uno nuevo sin
-          // sacar al usuario de donde estaba.
-          renovarSesion();
-          throw new Error('Tu sesión venció. Se está renovando, vuelve a intentarlo.');
+        if (/token/i.test(data.error || '') && !reintento) {
+          return pedirToken()
+            .then(() => api(ruta, opciones, true))
+            .catch(() => { sesionVencida(); throw new Error('Tu sesión venció. Vuelve a entrar.'); });
         }
         throw new Error(data.error || ('Error ' + r.status));
       }
       return data;
     });
-  }
-
-  // Pide a Google un identificador nuevo sin perder la pantalla actual.
-  let renovando = false;
-  function renovarSesion() {
-    if (renovando || !window.google || !google.accounts) return sesionVencida();
-    renovando = true;
-    try {
-      google.accounts.id.prompt(n => {
-        renovando = false;
-        if (n && (n.isNotDisplayed && n.isNotDisplayed() || n.isSkippedMoment && n.isSkippedMoment())) {
-          sesionVencida();
-        }
-      });
-    } catch (e) { renovando = false; sesionVencida(); }
   }
 
   function sesionVencida() {
@@ -870,7 +892,13 @@ label .req{color:var(--falla)}
     google.accounts.id.initialize({
       client_id: CFG.GOOGLE_CLIENT_ID,
       hd: CFG.DOMINIO,
-      callback: alIngresar
+      auto_select: true,
+      callback: (r) => {
+        estado.credential = r.credential;
+        estado.tokenDesde = Date.now();
+        if (estado.alRenovar) estado.alRenovar(r.credential);
+        else alIngresar(r);
+      }
     });
     google.accounts.id.renderButton($('botonGoogle'), {
       theme: 'outline', size: 'large', text: 'signin_with', locale: 'es', width: 280
@@ -899,6 +927,10 @@ label .req{color:var(--falla)}
         $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
         $('btnTablero').classList.remove('oculto');
         $('btnDatos').classList.remove('oculto');
+        // Se renueva antes de la hora para que nunca caduque en pleno trabajo.
+        if (!estado.temporizador) {
+          estado.temporizador = setInterval(() => pedirToken().catch(() => {}), 45 * 60 * 1000);
+        }
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
@@ -912,6 +944,7 @@ label .req{color:var(--falla)}
   $('btnSalir').addEventListener('click', () => {
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
     estado.credential = null;
+    if (estado.temporizador) { clearInterval(estado.temporizador); estado.temporizador = null; }
     estado.admin = false; estado.general = false;
     estado.areas = []; estado.programas = []; estado.asignaciones = []; estado.avance = {};
     ['usuarioCaja','btnSalir','btnCoord'].forEach(id => $(id).classList.add('oculto'));
@@ -1460,10 +1493,20 @@ label .req{color:var(--falla)}
         const areasDoc = (f.area || '').split(' · ').filter(Boolean)
           .map(a => '<span class="etq-area">' + esc(a) + '</span>').join(' ') ||
           '<span class="vacio-dato">sin área</span>';
-        const det = (f.detalle || []).map(x =>
-          '<li><span class="mini">' + esc(x.tipo || '?') + '</span>' +
-          esc(nombreCurso(x.curso)) + ' · grupo ' + esc(x.grupo) +
-          (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '') + '</li>').join('');
+        // Se agrupa por curso: el nombre una vez y debajo sus grupos en orden.
+        const porCurso = [];
+        (f.detalle || []).forEach(x => {
+          const nom = nombreCurso(x.curso);
+          let g = porCurso.find(y => y.curso === nom);
+          if (!g) { g = { curso: nom, codigo: x.codigo, partes: [] }; porCurso.push(g); }
+          g.partes.push(x);
+        });
+        const det = porCurso.map(g =>
+          '<li><b>' + esc(g.curso) + '</b><span class="grupos">' +
+          g.partes.map(x =>
+            '<span class="mini">' + esc(x.tipo || '?') + '</span>grupo ' + esc(x.grupo) +
+            (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '')
+          ).join('<br>') + '</span></li>').join('');
         h += '<td class="mono">' + esc(f.ciclo || '—') + '</td>' +
              '<td class="col-doc largo"><b>' + esc(f.docente) + '</b></td>' +
              '<td>' + (f.correo ? esc(f.correo) : falta('No')) + '</td>' +
