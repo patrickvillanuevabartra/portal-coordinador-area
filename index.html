@@ -2444,19 +2444,23 @@ label .req{color:var(--falla)}
 
     entrevistas: {
       guardar: 'Guardar entrevista',
+      // La entrevista es conjunta: los ocho temas se registran una sola vez.
+      // Las pestañas separan la reunión, lo tratado y lo acordado.
+      pestanas: ['La reunión', 'Temas tratados', 'Conclusiones'],
       bloques: [
-        { tipo:'grid', campos:[
+        { pestana:0, tipo:'grid', campos:[
           { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
           { k:'fechaHora', etq:'Fecha y hora de reunión', tipo:'fechahora', req:true },
           { k:'modalidad', etq:'Modalidad', tipo:'select', opciones:['Presencial','Virtual','Mixta'], req:true },
           { k:'delegado', etq:'Delegado', tipo:'texto', req:true },
           { k:'subdelegado', etq:'Subdelegado', tipo:'texto' }
         ]},
-        { tipo:'textos', fuente:'temas', titulo:'Temas tratados' },
-        { tipo:'grid', ancho:true, campos:[
+        { pestana:1, tipo:'textos', fuente:'temas' },
+        { pestana:2, tipo:'grid', ancho:true, campos:[
           { k:'compromisos', etq:'Compromisos acordados', tipo:'textarea',
             ayuda:'Qué se acordó y con qué plazo.' },
-          { k:'alerta', etq:'¿Requiere atención de la Escuela?', col:'Alerta', tipo:'select', opciones:['Si','No'], req:true },
+          { k:'alerta', etq:'¿Requiere atención de la Escuela?', col:'Alerta', tipo:'select', opciones:['Si','No'], req:true,
+            ayuda:'Al marcar Sí, se envía el informe de la entrevista al coordinador general y a la Administración.' },
           { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
         ]}
       ]
@@ -2703,7 +2707,26 @@ label .req{color:var(--falla)}
       return '';
     });
 
-    $('fichaForm').innerHTML = partes.join('');
+    if (F.pestanas) {
+      // Cada bloque va a la pestaña que declara; el usuario ve una a la vez.
+      const hojas = F.pestanas.map((t, i) =>
+        '<div class="hoja' + (i ? ' oculto' : '') + '" data-hoja="' + i + '">' +
+        partes.filter((_, bi) => (F.bloques[bi].pestana || 0) === i).join('') + '</div>').join('');
+      $('fichaForm').innerHTML =
+        '<div class="vistas" id="pestanas">' + F.pestanas.map((t, i) =>
+          '<button type="button" class="vista' + (i ? '' : ' activa') + '" data-p="' + i + '">' +
+          esc(t) + '</button>').join('') + '</div>' + hojas;
+      $('fichaForm').querySelectorAll('#pestanas .vista').forEach(b => {
+        b.addEventListener('click', () => {
+          $('fichaForm').querySelectorAll('#pestanas .vista')
+            .forEach(x => x.classList.toggle('activa', x === b));
+          $('fichaForm').querySelectorAll('[data-hoja]')
+            .forEach(h => h.classList.toggle('oculto', h.dataset.hoja !== b.dataset.p));
+        });
+      });
+    } else {
+      $('fichaForm').innerHTML = partes.join('');
+    }
 
     // Valores automáticos
     F.bloques.forEach(b => {
