@@ -474,6 +474,7 @@ label .req{color:var(--falla)}
         <div class="barra">
           <input type="search" id="dtBuscar" placeholder="Buscar por curso, código, docente…" autocomplete="off">
           <button class="btn gris" id="dtMasFiltros">Filtros</button>
+          <button class="btn gris" id="dtRecargar" title="Volver a leer los datos">Actualizar</button>
           <button class="btn fantasma" id="dtExportar">Descargar</button>
           <span class="conteo" id="dtConteo"></span>
         </div>
@@ -754,8 +755,8 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
-    vista: 'cursos',
-    datos: null, datosVisibles: [], reportando: null, reportes: [], atendiendo: null, editando: null,
+    vista: 'cursos', indicadores: null,
+    datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
     registro: null     // registro existente en QuintaDB, si lo hay
@@ -934,6 +935,7 @@ label .req{color:var(--falla)}
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
+        estado.cacheDatos = {};
         cargarAsignaciones();
         if (estado.admin || estado.general) cargarAreas();
         api('/plantillas').then(d => { estado.plantillas = d.plantillas || []; }).catch(() => {});
@@ -1322,6 +1324,8 @@ label .req{color:var(--falla)}
     if (puedeEditar() && !(estado.areas || []).length) cargarAreas();
   });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
+  $('dtRecargar').addEventListener('click', () => { estado.cacheDatos = {}; cargarDatos(true); });
+
   document.querySelectorAll('.vista').forEach(b => {
     b.addEventListener('click', () => {
       document.querySelectorAll('.vista').forEach(x => x.classList.toggle('activa', x === b));
@@ -1331,11 +1335,16 @@ label .req{color:var(--falla)}
   });
   $('dtBuscar').addEventListener('input', pintarDatos);
 
-  function cargarDatos() {
+  function cargarDatos(forzar) {
+    const v = estado.vista || 'cursos';
+    if (!forzar && estado.cacheDatos[v]) {
+      estado.datos = estado.cacheDatos[v];
+      return pintarDatos();
+    }
     $('dtTablaCuerpo').innerHTML = '<div class="vacio">Cargando…</div>';
     api('/consultar?tabla=' + (estado.vista || 'cursos') +
         '&ciclo=' + encodeURIComponent($('filtroCiclo').value))
-      .then(d => { estado.datos = d; pintarDatos(); })
+      .then(d => { estado.datos = d; estado.cacheDatos[estado.vista || 'cursos'] = d; pintarDatos(); })
       .catch(e => { $('dtTablaCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
@@ -1704,9 +1713,18 @@ label .req{color:var(--falla)}
       valores
     })})
       .then(() => {
+        // Se actualiza la fila en memoria: recargar toda la tabla por un
+        // cambio de correo hacía esperar varios segundos sin necesidad.
+        CAMPOS_EDIT[e0.tipo].forEach(c => {
+          if (c.de) e0.fila[c.de] = valores[c.col];
+        });
+        if (e0.tipo === 'docente') {
+          e0.fila.tieneCorreo = e0.fila.correo ? 'Sí' : 'No';
+          e0.fila.tieneCelular = e0.fila.celular ? 'Sí' : 'No';
+        }
         $('capaEd').classList.add('oculto');
         $('btnGuardarEd').disabled = false;
-        cargarDatos();
+        pintarDatos();
       })
       .catch(err => { $('avisoEd').textContent = err.message; $('avisoEd').className = 'aviso error';
                       $('btnGuardarEd').disabled = false; });
@@ -1847,8 +1865,13 @@ label .req{color:var(--falla)}
   $('volverInd').addEventListener('click', () => mostrar('tablero'));
 
   function cargarIndicadores() {
+    const ciclo = $('filtroCiclo').value;
+    // Se recalculan solo si cambió el ciclo o si se registró algo nuevo.
+    if (estado.indicadores && estado.indicadores.ciclo === ciclo) {
+      return pintarIndicadores(estado.indicadores);
+    }
     $('indCuerpo').innerHTML = '<div class="vacio">Calculando…</div>';
-    api('/indicadores?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+    api('/indicadores?ciclo=' + encodeURIComponent(ciclo))
       .then(pintarIndicadores)
       .catch(e => { $('indCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
@@ -1988,9 +2011,12 @@ label .req{color:var(--falla)}
     $('avisoMover').className = 'aviso';
     api('/reasignar-area', { method:'POST', body: JSON.stringify({ idAsignacion: a.idAsignacion, area }) })
       .then(() => {
+        // Se corrige en memoria; recargar las 390 cargas por un cambio sobra.
+        estado.asignaciones.forEach(x => { if (x.idAsignacion === a.idAsignacion) x.area = area; });
+        estado.indicadores = null;
         $('capaMover').classList.add('oculto');
         $('btnMover').disabled = false;
-        cargarAsignaciones();
+        prepararFiltros(); pintarTablero();
       })
       .catch(e => {
         $('avisoMover').textContent = e.message;
@@ -2921,6 +2947,11 @@ label .req{color:var(--falla)}
     })
       .then(r => {
         if (r.recordId && !estado.registro) estado.registro = { recordId: r.recordId, valores: {} };
+        // El avance se actualiza aquí: volver a consultarlo al servidor por un
+        // registro obligaría a releer las siete tablas de módulos.
+        const hechos = estado.avance[a.idAsignacion] || [];
+        if (!hechos.includes(clave)) estado.avance[a.idAsignacion] = hechos.concat(clave);
+        estado.indicadores = null;
         aviso('Guardado.', 'ok');
         $('btnGuardar').disabled = false;
       })
