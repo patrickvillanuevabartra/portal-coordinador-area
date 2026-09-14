@@ -551,8 +551,11 @@ label .req{color:var(--falla)}
       <h3 id="repTitulo">Reportar una inconsistencia</h3>
       <p class="det" id="repRegistro"></p>
       <div id="repDirigir" class="oculto">
-        <label for="repPara">Dirigir a</label>
+        <label for="repPara">¿A quién va?</label>
         <select id="repPara"></select>
+        <p class="ayuda" style="margin-top:5px">Déjalo en la primera opción para que lo
+          atienda quien pueda resolverlo. Elige un coordinador si lo que quieres es
+          señalarle algo de su área.</p>
       </div>
       <label for="repTipo" style="margin-top:10px">¿Qué está mal?</label>
       <select id="repTipo">
@@ -1747,9 +1750,11 @@ label .req{color:var(--falla)}
         estado.destinatarios = d.destinatarios || [];
         const ciclo = $('filtroCiclo').value;
         const l = estado.destinatarios.filter(c => !ciclo || !c.ciclo || c.ciclo === ciclo);
-        $('repPara').innerHTML = '<option value="">Elevar a la Coordinación</option>' +
+        $('repPara').innerHTML =
+          '<option value="">Quien pueda resolverlo (Coordinación y Administración)</option>' +
+          '<optgroup label="O dirigirlo a un coordinador">' +
           l.map(c => '<option value="' + esc(c.correo) + '">' + esc(c.nombre) +
-            ' · ' + esc(c.area || c.programa || '') + '</option>').join('');
+            ' · ' + esc(c.area || c.programa || '') + '</option>').join('') + '</optgroup>';
       })
       .catch(() => {});
   }
