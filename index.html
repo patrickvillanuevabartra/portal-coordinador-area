@@ -166,6 +166,10 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   border-radius:4px;padding:1px 7px;font-size:11px;color:var(--tinta-media);white-space:nowrap}
 .vacio-dato{color:#b06a00;font-size:11px;font-style:italic}
 
+.etq-dir{display:inline-block;margin-top:4px;background:var(--fondo);border:1px solid var(--linea);
+  border-radius:4px;padding:1px 7px;font-size:10.5px;color:var(--tinta-media)}
+.etq-dir.recibido{background:#fdf4e3;border-color:#e6c86a;color:#8a6400;font-weight:600}
+tr.sin-leer{background:#fffdf6}
 .acciones{white-space:nowrap}
 .acciones .chip{margin-right:5px}
 .vistas{display:flex;gap:4px;background:var(--fondo);border:1px solid var(--linea);
@@ -544,9 +548,13 @@ label .req{color:var(--falla)}
 
   <div id="capaRep" class="capa oculto">
     <div class="dialogo">
-      <h3>Reportar una inconsistencia</h3>
+      <h3 id="repTitulo">Reportar una inconsistencia</h3>
       <p class="det" id="repRegistro"></p>
-      <label for="repTipo">¿Qué está mal?</label>
+      <div id="repDirigir" class="oculto">
+        <label for="repPara">Dirigir a</label>
+        <select id="repPara"></select>
+      </div>
+      <label for="repTipo" style="margin-top:10px">¿Qué está mal?</label>
       <select id="repTipo">
         <option>Código equivocado</option>
         <option>Curso que falta</option>
@@ -559,8 +567,7 @@ label .req{color:var(--falla)}
       </select>
       <label for="repDetalle" style="margin-top:10px">Detalle</label>
       <textarea id="repDetalle" rows="4" placeholder="Explica qué encontraste y, si lo sabes, cuál sería lo correcto."></textarea>
-      <p class="nota-dialogo">El reporte queda a tu nombre y con la fecha. No modifica los datos:
-        lo revisa la Coordinación y, si corresponde, se eleva a la Escuela o al Departamento.</p>
+      <p class="nota-dialogo" id="repNota"></p>
       <div class="pie">
         <button class="btn" id="btnEnviarRep">Enviar reporte</button>
         <button class="btn gris" id="btnRepCancel">Cancelar</button>
@@ -756,6 +763,7 @@ label .req{color:var(--falla)}
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
     vista: 'cursos', indicadores: null,
+    correo: '', destinatarios: null,
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
@@ -1730,6 +1738,22 @@ label .req{color:var(--falla)}
                       $('btnGuardarEd').disabled = false; });
   });
 
+  // Quien coordina una carrera o administra puede además dirigir la observación
+  // a un coordinador concreto, en lugar de solo elevarla.
+  function cargarDestinatarios() {
+    if (!puedeEditar() || estado.destinatarios) return;
+    api('/destinatarios')
+      .then(d => {
+        estado.destinatarios = d.destinatarios || [];
+        const ciclo = $('filtroCiclo').value;
+        const l = estado.destinatarios.filter(c => !ciclo || !c.ciclo || c.ciclo === ciclo);
+        $('repPara').innerHTML = '<option value="">Elevar a la Coordinación</option>' +
+          l.map(c => '<option value="' + esc(c.correo) + '">' + esc(c.nombre) +
+            ' · ' + esc(c.area || c.programa || '') + '</option>').join('');
+      })
+      .catch(() => {});
+  }
+
   function abrirReporte(f, esCursos) {
     estado.reportando = { fila: f, esCursos };
     $('repRegistro').textContent = esCursos
@@ -1737,8 +1761,21 @@ label .req{color:var(--falla)}
       : (f.codigo || '') + ' · ' + nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
     $('repDetalle').value = '';
     $('avisoRep').textContent = '';
+    $('repDirigir').classList.toggle('oculto', !puedeEditar());
+    if (puedeEditar()) cargarDestinatarios();
+    actualizarNotaReporte();
     $('capaRep').classList.remove('oculto');
   }
+
+  function actualizarNotaReporte() {
+    const dirigido = puedeEditar() && $('repPara').value;
+    $('repTitulo').textContent = dirigido ? 'Observar a un coordinador' : 'Reportar una inconsistencia';
+    $('repNota').textContent = dirigido
+      ? 'Le llegará por correo y lo verá en su portal. Queda a tu nombre y con la fecha.'
+      : 'Queda a tu nombre y con la fecha, y se avisa por correo a quien puede resolverlo. ' +
+        'No modifica los datos.';
+  }
+  $('repPara').addEventListener('change', actualizarNotaReporte);
 
   $('btnRepCancel').addEventListener('click', () => $('capaRep').classList.add('oculto'));
   $('capaRep').addEventListener('click', e => {
@@ -1758,6 +1795,9 @@ label .req{color:var(--falla)}
           docente:f.docente, grupo:f.grupo, subGrupo:f.subGrupo };
     cuerpo.tipo = $('repTipo').value;
     cuerpo.detalle = detalle;
+    const para = puedeEditar() ? $('repPara').value : '';
+    cuerpo.direccion = para ? 'Observación' : 'Reporte';
+    cuerpo.dirigidoA = para;
     $('btnEnviarRep').disabled = true;
     api('/reportes', { method:'POST', body: JSON.stringify(cuerpo) })
       .then(() => { $('capaRep').classList.add('oculto'); $('btnEnviarRep').disabled = false; cargarReportes(); })
@@ -1766,12 +1806,14 @@ label .req{color:var(--falla)}
   });
 
   function cargarReportes() {
+    // Al abrir, lo dirigido a esta persona queda marcado como visto.
+
     if (estado.admin) {
       $('tituloReportes').textContent = 'Reportes de inconsistencia';
       $('subReportes').textContent = 'Lo que han señalado los coordinadores. Atiende cada uno ' +
         'indicando el estado y la respuesta que verán ellos.';
     }
-    api('/reportes')
+    api('/reportes?marcar=1')
       .then(d => {
         const l = d.reportes || [];
         estado.reportes = l;
@@ -1783,7 +1825,13 @@ label .req{color:var(--falla)}
         let h = '<table><thead><tr><th>Código</th><th>Qué se reportó</th>' +
           '<th>Registro</th><th>Estado</th></tr></thead><tbody>';
         l.forEach(r => {
-          h += '<tr><td>' + esc(r.codigo) + '<small class="codigo">' + esc(r.fecha) + '</small></td>' +
+          const mio = (r.correo || '').toLowerCase() === (estado.correo || '').toLowerCase();
+          const paraMi = (r.dirigidoA || '').toLowerCase() === (estado.correo || '').toLowerCase();
+          const marca = paraMi ? '<span class="etq-dir recibido">Para ti</span>'
+                     : (/observ/i.test(r.direccion) ? '<span class="etq-dir">Observación</span>'
+                     : (mio ? '<span class="etq-dir">Enviado</span>' : ''));
+          h += '<tr' + (paraMi && !r.leido ? ' class="sin-leer"' : '') + '>' +
+            '<td>' + esc(r.codigo) + '<small class="codigo">' + esc(r.fecha) + '</small>' + marca + '</td>' +
             '<td><b>' + esc(r.tipo) + '</b><small class="codigo">' + esc(r.detalle || '') + '</small></td>' +
             '<td>' + esc(r.registro) + '<small class="codigo">' + esc(r.tabla) + '</small></td>' +
             (estado.admin ? '<td>' + esc(r.quien || '') +
