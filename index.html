@@ -1724,6 +1724,9 @@ label .req{color:var(--falla)}
       destino: e0.tipo,
       recordId: e0.fila.recordId,
       docente: e0.fila.docente,
+      // Se envían los registros del docente, que el portal ya conoce: así el
+      // servidor no tiene que releer la tabla para encontrarlos.
+      ids: e0.tipo === 'docente' ? (e0.fila.ids || []) : undefined,
       valores
     })})
       .then(() => {
