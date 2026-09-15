@@ -150,7 +150,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .detalle-cargas{margin:4px 0 0;padding:0;list-style:none;font-size:11.5px;color:var(--tinta-media)}
 .detalle-cargas li{padding:3px 0;line-height:1.45}
 .detalle-cargas li+li{border-top:1px solid var(--linea);margin-top:3px}
-.detalle-cargas b{display:block;color:var(--tinta);font-weight:600;font-size:12px}
+.detalle-cargas b{color:var(--tinta);font-weight:600;font-size:12px}
+.detalle-cargas .etq-plan{margin-left:6px;vertical-align:1px}
 .detalle-cargas .grupos{display:block;margin-top:2px}
 .detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   background:var(--fondo);border-radius:3px;padding:0 4px;margin-right:5px}
@@ -1518,11 +1519,13 @@ label .req{color:var(--falla)}
         (f.detalle || []).forEach(x => {
           const nom = nombreCurso(x.curso);
           let g = porCurso.find(y => y.curso === nom);
-          if (!g) { g = { curso: nom, codigo: x.codigo, partes: [] }; porCurso.push(g); }
+          if (!g) { g = { curso: nom, codigo: x.codigo, plan: x.plan, partes: [] }; porCurso.push(g); }
           g.partes.push(x);
         });
         const det = porCurso.map(g =>
-          '<li><b>' + esc(g.curso) + '</b><span class="grupos">' +
+          '<li><b>' + esc(g.curso) + '</b>' +
+          (g.plan ? '<span class="etq-plan">' + esc(g.plan) + '</span>' : '') +
+          '<span class="grupos">' +
           g.partes.map(x =>
             '<span class="mini">' + esc(x.tipo || '?') + '</span>grupo ' + esc(x.grupo) +
             (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '')
