@@ -3208,6 +3208,18 @@ label .req{color:var(--falla)}
   #asis-clip{background:none;border:1px solid var(--linea);border-radius:9px;cursor:pointer;
     font-size:17px;padding:0 10px;color:var(--tinta-media);align-self:flex-end;height:38px}
   #asis-clip:hover{background:#eef4f1}
+  #asis-mic{background:none;border:1px solid var(--linea);border-radius:9px;cursor:pointer;
+    font-size:16px;padding:0 10px;color:var(--tinta-media);align-self:flex-end;height:38px}
+  #asis-mic:hover{background:#eef4f1}
+  #asis-mic.grabando{background:#fdecea;border-color:#e6a49a;color:#c0392b;
+    animation:asisLat 1.1s infinite}
+  @keyframes asisLat{0%,100%{box-shadow:0 0 0 0 rgba(192,57,43,.35)}
+                     70%{box-shadow:0 0 0 7px rgba(192,57,43,0)}}
+  #asis-voz{background:none;border:0;color:#fff;opacity:.75;font-size:15px;cursor:pointer;
+    padding:0 6px;line-height:1}
+  #asis-voz:hover{opacity:1}
+  #asis-voz.activa{opacity:1}
+  .asis-msg.leyendo{border-left:3px solid var(--brand);padding-left:9px}
   .asis-msg img.asis-mini{max-width:130px;border-radius:8px;margin-top:6px;display:block}
   .asis-nota{font-size:10.5px;color:var(--tinta-media);padding:0 14px 8px;background:var(--papel);line-height:1.4}
   .asis-esc{display:flex;gap:4px;align-items:center;padding:4px 0}
@@ -3223,6 +3235,8 @@ label .req{color:var(--falla)}
 <div id="asis-panel" role="dialog" aria-label="Asistente de ayuda">
   <div class="asis-cab">
     <div><b>Asistente de ayuda</b><small>Dudas sobre el portal</small></div>
+    <button id="asis-voz" onclick="asisAlternarVoz()" title="Leer las respuestas en voz alta"
+      aria-label="Leer las respuestas en voz alta">🔇</button>
     <button onclick="asisCerrar()" title="Cerrar">×</button>
   </div>
   <div class="asis-msgs" id="asis-msgs"></div>
@@ -3233,11 +3247,13 @@ label .req{color:var(--falla)}
       onchange="asisAdjuntar(this.files); this.value='';">
     <button id="asis-clip" title="Adjuntar una captura" aria-label="Adjuntar una captura"
       onclick="document.getElementById('asis-file').click()">📎</button>
+    <button id="asis-mic" title="Dictar la pregunta" aria-label="Dictar la pregunta"
+      onclick="asisDictar()">🎙️</button>
     <textarea id="asis-input" rows="1" placeholder="Escribe tu pregunta o pega una captura…"
       oninput="asisAutoAlto(this)" onkeydown="asisTecla(event)" onpaste="asisPegar(event)"></textarea>
     <button id="asis-enviar" onclick="asisEnviar()">Enviar</button>
   </div>
-  <div class="asis-nota">Asistente con IA. Explica cómo usar el portal; no ve tus cursos ni tus registros. No escribas información confidencial.<br>Nuevo: puedes pegar una captura con Ctrl+V o adjuntarla con 📎 para que la revise. Evita capturas con datos personales.</div>
+  <div class="asis-nota">Asistente con IA. Explica cómo usar el portal y consulta tus cursos, tus supervisiones y tu avance del ciclo. Solo accede a lo que tú ves al entrar. No escribas información confidencial.<br>Puedes pegar una captura con Ctrl+V o adjuntarla con 📎, dictar con 🎙️ y activar la lectura en voz alta con el altavoz de arriba. El dictado y la voz se procesan en tu propio equipo.</div>
 </div>
 
 <script>
@@ -3249,10 +3265,10 @@ let ASIS_HIST = [];        // historial de la conversación (se pierde al recarg
 let ASIS_OCUPADO = false;
 
 const ASIS_SUGERENCIAS = [
-  '¿Cómo registro la revisión de un sílabo?',
-  '¿Por qué un curso aparece bloqueado?',
-  '¿Cómo reporto una inconsistencia?',
-  '¿Cómo se calcula el porcentaje?'
+  '¿Qué cursos y cargas tengo en mi área?',
+  '¿Qué me falta por supervisar?',
+  '¿Cómo va el avance de mi área?',
+  '¿Qué sílabos quedaron observados?'
 ];
 
 function asisAbrir(){
@@ -3272,6 +3288,8 @@ function asisAbrir(){
   setTimeout(()=>document.getElementById('asis-input').focus(),80);
 }
 function asisCerrar(){
+  asisCallar();
+  if(ASIS_GRABANDO && ASIS_REC){ try{ASIS_REC.stop();}catch(e){} }
   document.getElementById('asis-panel').classList.remove('abierto');
   const b=document.getElementById('asis-btn');
   b.classList.add('mini');
@@ -3454,12 +3472,15 @@ async function asisEnviar(){
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ mensaje:pregunta, historial:ASIS_HIST.slice(0,-1), pantalla:asisPantalla(),
+        credencial: asisCredencial(),
+        perfil: asisPerfil(),
         imagenes: imgs.map(function(im){ return { mime:im.mime, datos:im.datos }; }) })
     });
     const data=await r.json().catch(()=>({}));
     if(r.ok && data.ok!==false && data.respuesta){
       esperando.innerHTML=asisFormato(data.respuesta);
       ASIS_HIST.push({rol:'modelo', texto:data.respuesta});
+      asisLeer(data.respuesta, esperando);
     } else {
       asisFallo(esperando, data.error || data.respuesta || 'No pude responder. Inténtalo de nuevo.', pregunta);
     }
@@ -3473,6 +3494,136 @@ async function asisEnviar(){
   }
 }
 window.asisEnviar=asisEnviar;
+
+/* --------------------------------------------------- datos del ciclo ----
+   El asistente no recibe los datos: recibe la credencial de quien pregunta y
+   consulta el portal por su cuenta, solo lo que la pregunta necesita. El
+   servidor aplica los mismos permisos que al entrar, así que nadie ve por el
+   asistente lo que no vería navegando. */
+
+function asisCredencial(){
+  try{
+    return (typeof estado!=='undefined' && estado && estado.credential) ? estado.credential : '';
+  }catch(e){ return ''; }
+}
+
+function asisPerfil(){
+  try{
+    if(typeof estado==='undefined' || !estado) return '';
+    const roles=[];
+    if(estado.admin) roles.push('administrador');
+    if(estado.general) roles.push('coordinador general de ' + (estado.programas||[]).join(', '));
+    if((estado.propiasArea||[]).length) roles.push('coordinador de ' + estado.propiasArea.join(' y '));
+    const ciclo=(document.getElementById('filtroCiclo')||{}).value||'';
+    return (estado.nombre||'') + (roles.length ? ' · ' + roles.join(' · ') : '') +
+           (ciclo ? ' · ciclo ' + ciclo : '');
+  }catch(e){ return ''; }
+}
+
+/* ------------------------------------------------------------------ voz ----
+   Dictado y lectura en voz alta. Ambos usan lo que el navegador ya trae, así
+   que no viaja nada al servidor: el audio no sale del equipo. */
+
+let ASIS_REC=null, ASIS_GRABANDO=false, ASIS_VOZ=false;
+
+function asisSoportaDictado(){
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function asisDictar(){
+  const mic=document.getElementById('asis-mic');
+  const inp=document.getElementById('asis-input');
+  if(!asisSoportaDictado()){
+    asisAviso('Tu navegador no permite dictar. Funciona en Chrome y en Edge.');
+    return;
+  }
+  if(ASIS_GRABANDO){ try{ASIS_REC.stop();}catch(e){} return; }
+
+  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  ASIS_REC = new Rec();
+  ASIS_REC.lang='es-PE';
+  ASIS_REC.continuous=false;
+  ASIS_REC.interimResults=true;
+
+  const previo = inp.value.trim();
+  ASIS_REC.onstart=()=>{ ASIS_GRABANDO=true; mic.classList.add('grabando');
+    mic.title='Detener el dictado'; inp.placeholder='Escuchando…'; };
+  ASIS_REC.onresult=(ev)=>{
+    let texto='';
+    for(let i=0;i<ev.results.length;i++) texto += ev.results[i][0].transcript;
+    inp.value = (previo ? previo+' ' : '') + texto;
+    asisAutoAlto(inp);
+  };
+  ASIS_REC.onerror=(ev)=>{
+    if(ev.error==='not-allowed') asisAviso('Hay que permitir el micrófono en el navegador.');
+    else if(ev.error==='no-speech') asisAviso('No se escuchó nada. Inténtalo otra vez.');
+  };
+  ASIS_REC.onend=()=>{
+    ASIS_GRABANDO=false; mic.classList.remove('grabando');
+    mic.title='Dictar la pregunta';
+    inp.placeholder='Escribe tu pregunta o pega una captura…';
+    inp.focus();
+  };
+  try{ ASIS_REC.start(); }catch(e){ asisAviso('No se pudo iniciar el dictado.'); }
+}
+window.asisDictar=asisDictar;
+
+function asisAlternarVoz(){
+  ASIS_VOZ=!ASIS_VOZ;
+  const b=document.getElementById('asis-voz');
+  b.textContent = ASIS_VOZ ? '🔊' : '🔇';
+  b.classList.toggle('activa', ASIS_VOZ);
+  b.title = ASIS_VOZ ? 'Dejar de leer las respuestas' : 'Leer las respuestas en voz alta';
+  if(!ASIS_VOZ) asisCallar();
+  else asisAviso('Leeré las respuestas en voz alta.');
+}
+window.asisAlternarVoz=asisAlternarVoz;
+
+function asisCallar(){
+  try{ window.speechSynthesis.cancel(); }catch(e){}
+  document.querySelectorAll('.asis-msg.leyendo').forEach(m=>m.classList.remove('leyendo'));
+}
+
+function asisLeer(texto, nodo){
+  if(!ASIS_VOZ || !window.speechSynthesis) return;
+  asisCallar();
+  // Se lee el texto sin marcas: los asteriscos y guiones no se pronuncian.
+  const limpio = String(texto||'')
+    .replace(/```[\s\S]*?```/g,' ')
+    .replace(/[*_`#>]/g,'')
+    .replace(/^\s*[-•]\s*/gm,'')
+    .replace(/\s+/g,' ').trim();
+  if(!limpio) return;
+  const u=new SpeechSynthesisUtterance(limpio);
+  u.lang='es-PE'; u.rate=1.02; u.pitch=1;
+  const voces=window.speechSynthesis.getVoices()||[];
+  const es=voces.find(v=>/es[-_]?(PE|MX|US|419)/i.test(v.lang)) || voces.find(v=>/^es/i.test(v.lang));
+  if(es) u.voice=es;
+  if(nodo){
+    nodo.classList.add('leyendo');
+    u.onend=()=>nodo.classList.remove('leyendo');
+    u.onerror=()=>nodo.classList.remove('leyendo');
+  }
+  try{ window.speechSynthesis.speak(u); }catch(e){}
+}
+
+function asisAviso(t){
+  const c=document.getElementById('asis-msgs');
+  const d=document.createElement('div');
+  d.className='asis-msg bot'; d.style.opacity='.8'; d.textContent=t;
+  c.appendChild(d); c.scrollTop=c.scrollHeight;
+  setTimeout(()=>d.remove(), 6000);
+}
+
+// El dictado no está en todos los navegadores: se oculta donde no funciona.
+document.addEventListener('DOMContentLoaded',()=>{
+  const mic=document.getElementById('asis-mic');
+  if(mic && !asisSoportaDictado()) mic.style.display='none';
+  const voz=document.getElementById('asis-voz');
+  if(voz && !window.speechSynthesis) voz.style.display='none';
+  // Algunas voces se cargan con retraso.
+  if(window.speechSynthesis) window.speechSynthesis.getVoices();
+});
 
 // El asistente solo se muestra con la sesión iniciada
 document.addEventListener('DOMContentLoaded',()=>{
