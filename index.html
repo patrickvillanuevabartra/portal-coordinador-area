@@ -3381,7 +3381,14 @@ window.asisEnviar=asisEnviar;
 // El asistente solo se muestra con la sesión iniciada
 document.addEventListener('DOMContentLoaded',()=>{
   const btn=document.getElementById('asis-btn');
-  const ver=()=>{ btn.style.display = (typeof estado!=='undefined' && estado && estado.credential) ? 'flex' : 'none'; };
+  // La sesión no es visible desde aquí: se detecta por la pantalla de ingreso,
+  // que se oculta al entrar.
+  const ver=()=>{
+    const ing=document.getElementById('ingreso');
+    const dentro = ing && ing.classList.contains('oculto');
+    btn.style.display = dentro ? 'flex' : 'none';
+    if(!dentro) asisCerrar();
+  };
   ver(); setInterval(ver, 1500);
   // La píldora muestra la palabra «Ayuda» unos segundos y luego se contrae al
   // círculo, para no tapar contenido. Vuelve a abrirse al pasar el cursor.
