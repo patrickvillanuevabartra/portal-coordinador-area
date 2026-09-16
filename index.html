@@ -3054,5 +3054,340 @@ label .req{color:var(--falla)}
 
 })();
 </script>
+<!-- ===================== ASISTENTE DE AYUDA (chat con Gemini) ===================== -->
+<style>
+  #asis-btn{position:fixed;right:20px;bottom:20px;z-index:900;height:56px;border-radius:28px;
+    background:var(--brand);color:#fff;border:0;cursor:pointer;display:flex;align-items:center;
+    justify-content:center;gap:9px;padding:0 20px 0 16px;box-shadow:0 6px 22px rgba(0,0,0,.22);
+    font:inherit;font-size:15px;font-weight:600;white-space:nowrap;
+    transition:padding .25s ease,width .25s ease,transform .15s}
+  #asis-btn .asis-ico{font-size:24px;line-height:1}
+  #asis-btn .asis-txt{max-width:120px;overflow:hidden;transition:max-width .25s ease,opacity .2s ease}
+  #asis-btn.mini{padding:0;width:56px}
+  #asis-btn.mini .asis-txt{max-width:0;opacity:0}
+  #asis-btn:hover{transform:scale(1.06)}
+  #asis-btn.mini:hover{padding:0 20px 0 16px;width:auto}
+  #asis-btn.mini:hover .asis-txt{max-width:120px;opacity:1}
+  .asis-msg.err button{margin-top:8px;display:block;background:#c0392b;color:#fff;border:0;border-radius:8px;
+    padding:6px 12px;cursor:pointer;font:inherit;font-size:12px;font-weight:600}
+  .asis-msg a{color:inherit;text-decoration:underline}
+  /* El panel se ancla ARRIBA y ABAJO a la vez: así nunca se sale de la pantalla, sin importar
+     el zoom del aplicativo (body{zoom:1.22}) ni el alto de la ventana. La cabecera con el
+     botón × queda siempre visible. */
+  #asis-panel{position:fixed;right:20px;bottom:88px;top:88px;z-index:900;
+    width:min(390px,calc(100vw - 32px));max-height:none;
+    display:none;flex-direction:column;background:var(--papel);
+    border:1px solid var(--linea);border-radius:14px;box-shadow:0 14px 44px rgba(0,0,0,.20);overflow:hidden}
+  @media(min-height:820px){ #asis-panel{top:auto;max-height:620px} }
+  #asis-panel.abierto{display:flex}
+  .asis-cab{background:var(--brand);color:#fff;padding:12px 14px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex:none}
+  .asis-cab b{font-size:14px}
+  .asis-cab small{display:block;font-size:11px;opacity:.85;font-weight:400}
+  .asis-cab button{background:rgba(255,255,255,.18);border:0;color:#fff;font-size:22px;cursor:pointer;line-height:1;
+    width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none;padding:0}
+  .asis-cab button:hover{background:rgba(255,255,255,.32)}
+  .asis-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px;background:var(--fondo)}
+  .asis-msg{max-width:88%;padding:9px 12px;border-radius:12px;font-size:13.5px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word}
+  .asis-msg.yo{align-self:flex-end;background:var(--brand);color:#fff;border-bottom-right-radius:4px}
+  .asis-msg.bot{align-self:flex-start;background:var(--papel);border:1px solid var(--linea);color:var(--tinta);border-bottom-left-radius:4px}
+  .asis-msg.err{align-self:flex-start;background:#fdeceb;border:1px solid #f0b3ac;color:#c0392b}
+  .asis-msg b{font-weight:700}
+  .asis-msg ul,.asis-msg ol{margin:5px 0;padding-left:20px}
+  .asis-suge{display:flex;flex-wrap:wrap;gap:6px;padding:0 14px 10px;background:var(--fondo)}
+  .asis-suge button{font:inherit;font-size:12px;padding:5px 10px;border:1px solid var(--brand);background:var(--papel);
+    color:var(--brand);border-radius:14px;cursor:pointer}
+  .asis-suge button:hover{background:var(--fondo)}
+  .asis-pie{border-top:1px solid var(--linea);padding:10px;display:flex;gap:8px;align-items:flex-end;background:var(--papel)}
+  .asis-pie textarea{flex:1;resize:none;font:inherit;font-size:13.5px;padding:8px 10px;border:1px solid var(--linea);
+    border-radius:9px;max-height:90px;min-height:38px}
+  .asis-pie button{background:var(--brand);color:#fff;border:0;border-radius:9px;padding:9px 14px;cursor:pointer;font:inherit;font-size:13px;font-weight:600}
+  .asis-pie button:disabled{opacity:.5;cursor:not-allowed}
+  .asis-adj{display:flex;flex-wrap:wrap;gap:7px;padding:0 14px 8px}
+  .asis-adj:empty{display:none}
+  .asis-adj figure{position:relative;margin:0;width:62px;height:62px;border-radius:9px;overflow:hidden;
+    border:1px solid var(--linea);background:#f2f6f4}
+  .asis-adj img{width:100%;height:100%;object-fit:cover;display:block}
+  .asis-adj button{position:absolute;top:2px;right:2px;width:19px;height:19px;border:0;border-radius:50%;
+    background:rgba(0,0,0,.62);color:#fff;font-size:12px;line-height:1;cursor:pointer;padding:0}
+  #asis-clip{background:none;border:1px solid var(--linea);border-radius:9px;cursor:pointer;
+    font-size:17px;padding:0 10px;color:var(--tinta-media);align-self:flex-end;height:38px}
+  #asis-clip:hover{background:#eef4f1}
+  .asis-msg img.asis-mini{max-width:130px;border-radius:8px;margin-top:6px;display:block}
+  .asis-nota{font-size:10.5px;color:var(--tinta-media);padding:0 14px 8px;background:var(--papel);line-height:1.4}
+  .asis-esc{display:flex;gap:4px;align-items:center;padding:4px 0}
+  .asis-esc span{width:6px;height:6px;border-radius:50%;background:var(--tinta-media);animation:asisP 1.2s infinite}
+  .asis-esc span:nth-child(2){animation-delay:.2s}
+  .asis-esc span:nth-child(3){animation-delay:.4s}
+  @keyframes asisP{0%,60%,100%{opacity:.3}30%{opacity:1}}
+  @media(max-width:520px){ #asis-panel{right:10px;left:10px;width:auto;bottom:80px;top:70px} #asis-btn{right:14px;bottom:14px} }
+</style>
+
+<button id="asis-btn" title="Asistente de ayuda" aria-label="Abrir el asistente de ayuda" aria-expanded="false" onclick="asisAlternar()"><span class="asis-ico" aria-hidden="true">💬</span><span class="asis-txt">Ayuda</span></button>
+
+<div id="asis-panel" role="dialog" aria-label="Asistente de ayuda">
+  <div class="asis-cab">
+    <div><b>Asistente de ayuda</b><small>Dudas sobre el portal</small></div>
+    <button onclick="asisCerrar()" title="Cerrar">×</button>
+  </div>
+  <div class="asis-msgs" id="asis-msgs"></div>
+  <div class="asis-suge" id="asis-suge"></div>
+  <div class="asis-adj" id="asis-adj"></div>
+  <div class="asis-pie">
+    <input type="file" id="asis-file" accept="image/png,image/jpeg,image/webp" multiple hidden
+      onchange="asisAdjuntar(this.files); this.value='';">
+    <button id="asis-clip" title="Adjuntar una captura" aria-label="Adjuntar una captura"
+      onclick="document.getElementById('asis-file').click()">📎</button>
+    <textarea id="asis-input" rows="1" placeholder="Escribe tu pregunta o pega una captura…"
+      oninput="asisAutoAlto(this)" onkeydown="asisTecla(event)" onpaste="asisPegar(event)"></textarea>
+    <button id="asis-enviar" onclick="asisEnviar()">Enviar</button>
+  </div>
+  <div class="asis-nota">Asistente con IA. Explica cómo usar el portal; no ve tus cursos ni tus registros. No escribas información confidencial.<br>Nuevo: puedes pegar una captura con Ctrl+V o adjuntarla con 📎 para que la revise. Evita capturas con datos personales.</div>
+</div>
+
+<script>
+/* ---- Asistente de ayuda: chat conectado al Worker que consulta a Gemini ----
+   La clave de la API NO está aquí: vive como secreto en el Worker. */
+const ASISTENTE_URL = 'https://asistente-pca.patrick-villanueva.workers.dev';
+
+let ASIS_HIST = [];        // historial de la conversación (se pierde al recargar)
+let ASIS_OCUPADO = false;
+
+const ASIS_SUGERENCIAS = [
+  '¿Cómo registro la revisión de un sílabo?',
+  '¿Por qué un curso aparece bloqueado?',
+  '¿Cómo reporto una inconsistencia?',
+  '¿Cómo se calcula el porcentaje?'
+];
+
+function asisAbrir(){
+  const p=document.getElementById('asis-panel');
+  p.classList.add('abierto');
+  const b=document.getElementById('asis-btn');
+  b.classList.remove('mini');
+  b.setAttribute('aria-expanded','true');
+  b.setAttribute('aria-label','Cerrar el asistente de ayuda');
+  b.querySelector('.asis-ico').textContent='✕';
+  b.querySelector('.asis-txt').textContent='Cerrar';
+  const yaSaludado = document.getElementById('asis-msgs').children.length > 0;
+  if(!yaSaludado){
+    asisPintar('bot','¡Hola! Soy el asistente del portal. Puedo explicarte cómo registrar cada formato de supervisión, qué significa cada campo, por qué un curso aparece bloqueado o cómo reportar una inconsistencia.\n\nSi necesitas apoyo de una persona, escribe a la Subcomisión de Sistematización (patrick.villanueva@urp.edu.pe).\n\n¿En qué te ayudo?');
+    asisSugerencias();
+  }
+  setTimeout(()=>document.getElementById('asis-input').focus(),80);
+}
+function asisCerrar(){
+  document.getElementById('asis-panel').classList.remove('abierto');
+  const b=document.getElementById('asis-btn');
+  b.classList.add('mini');
+  b.setAttribute('aria-expanded','false');
+  b.setAttribute('aria-label','Abrir el asistente de ayuda');
+  b.querySelector('.asis-ico').textContent='💬';
+  b.querySelector('.asis-txt').textContent='Ayuda';
+}
+// Un clic en el botón abre si está cerrado y cierra si está abierto.
+function asisAlternar(){
+  const p=document.getElementById('asis-panel');
+  if(p.classList.contains('abierto')) asisCerrar(); else asisAbrir();
+}
+window.asisAbrir=asisAbrir; window.asisCerrar=asisCerrar; window.asisAlternar=asisAlternar;
+// Además del botón ×, el panel se cierra con la tecla Escape o haciendo clic fuera de él.
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    const p=document.getElementById('asis-panel');
+    if(p && p.classList.contains('abierto')) asisCerrar();
+  }
+});
+document.addEventListener('click', e=>{
+  const p=document.getElementById('asis-panel');
+  if(!p || !p.classList.contains('abierto')) return;
+  if(p.contains(e.target)) return;                         // clic dentro del panel
+  if(e.target.closest && e.target.closest('#asis-btn')) return;  // clic en el botón que lo abre
+  asisCerrar();
+});
+
+function asisSugerencias(){
+  const c=document.getElementById('asis-suge');
+  c.innerHTML = ASIS_SUGERENCIAS.map(t=>`<button onclick="asisPreguntar('${t.replace(/'/g,"\\'")}')">${t}</button>`).join('');
+}
+function asisPreguntar(t){
+  document.getElementById('asis-input').value=t;
+  asisEnviar();
+}
+window.asisPreguntar=asisPreguntar;
+
+function asisAutoAlto(el){ el.style.height='auto'; el.style.height=Math.min(el.scrollHeight,90)+'px'; }
+window.asisAutoAlto=asisAutoAlto;
+function asisTecla(e){ if(e.key==='Enter' && !e.shiftKey){ e.preventDefault(); asisEnviar(); } }
+window.asisTecla=asisTecla;
+
+// Convierte el formato sencillo de la respuesta (negritas, listas) a HTML seguro
+function asisFormato(txt){
+  const esc = String(txt||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return esc
+    .replace(/\*\*(.+?)\*\*/g,'<b>$1</b>')
+    .replace(/«(.+?)»/g,'«<b>$1</b>»')
+    .replace(/([\w.+-]+@[\w-]+\.[\w.-]+)/g,'<a href="mailto:$1">$1</a>');
+}
+
+function asisPintar(quien, texto){
+  const cont=document.getElementById('asis-msgs');
+  const d=document.createElement('div');
+  d.className='asis-msg '+quien;
+  d.innerHTML = (quien==='yo') ? String(texto).replace(/</g,'&lt;') : asisFormato(texto);
+  cont.appendChild(d);
+  cont.scrollTop=cont.scrollHeight;
+  return d;
+}
+
+// ¿En qué pantalla está el usuario? Ayuda al asistente a responder mejor
+function asisPantalla(){
+  // Qué está viendo: la sección abierta y, si es una ficha, qué formato.
+  const secciones = { tablero:'Mis cursos', ficha:'Ficha de un formato',
+    datos:'Validar datos', indicadores:'Indicadores', coordinadores:'Coordinadores' };
+  for (const id in secciones) {
+    const s = document.getElementById(id);
+    if (s && !s.classList.contains('oculto')) {
+      if (id === 'ficha') {
+        const m = document.getElementById('fichaModulo');
+        return 'Ficha · ' + ((m && m.textContent) || '');
+      }
+      return secciones[id];
+    }
+  }
+  return '';
+}
+
+// Muestra el error, devuelve la pregunta a la caja y ofrece reintentar
+function asisFallo(nodo, mensaje, pregunta){
+  if(ASIS_HIST.length && ASIS_HIST[ASIS_HIST.length-1].rol==='user'){ ASIS_HIST.pop(); }
+  nodo.className='asis-msg err';
+  nodo.innerHTML='';
+  const t=document.createElement('div'); t.textContent=mensaje; nodo.appendChild(t);
+  const b=document.createElement('button'); b.type='button'; b.textContent='Reintentar';
+  b.onclick=function(){ nodo.remove(); asisPreguntar(pregunta); };
+  nodo.appendChild(b);
+  const inp=document.getElementById('asis-input');
+  if(!(inp.value||'').trim()){ inp.value=pregunta; asisAutoAlto(inp); }
+}
+
+let ASIS_IMGS = [];        // capturas pendientes de enviar (máximo 2)
+const ASIS_MAX_IMGS = 2;
+
+/* Reduce la captura antes de enviarla: una pantalla completa puede pesar varios
+   megas y no hace falta tanto detalle para leerla. Se limita el lado mayor y se
+   recomprime como JPEG, con lo que el envío baja a unos cientos de kilobytes. */
+function asisComprimir(archivo){
+  return new Promise(function(resolver, rechazar){
+    const lector=new FileReader();
+    lector.onerror=function(){ rechazar(new Error('No se pudo leer el archivo')); };
+    lector.onload=function(){
+      const img=new Image();
+      img.onerror=function(){ rechazar(new Error('No es una imagen válida')); };
+      img.onload=function(){
+        const LADO=1600;
+        let a=img.width, b=img.height;
+        if(Math.max(a,b)>LADO){ const f=LADO/Math.max(a,b); a=Math.round(a*f); b=Math.round(b*f); }
+        const c=document.createElement('canvas'); c.width=a; c.height=b;
+        const ctx=c.getContext('2d');
+        ctx.fillStyle='#fff'; ctx.fillRect(0,0,a,b);   // fondo blanco para PNG con transparencia
+        ctx.drawImage(img,0,0,a,b);
+        const url=c.toDataURL('image/jpeg',0.86);
+        resolver({ mime:'image/jpeg', datos:url.split(',')[1], vista:url });
+      };
+      img.src=lector.result;
+    };
+    lector.readAsDataURL(archivo);
+  });
+}
+
+async function asisAdjuntar(archivos){
+  if(!archivos || !archivos.length) return;
+  for(const f of Array.from(archivos)){
+    if(ASIS_IMGS.length>=ASIS_MAX_IMGS){ asisPintar('bot','Puedo revisar hasta '+ASIS_MAX_IMGS+' capturas por mensaje.'); break; }
+    if(!/^image\//.test(f.type)) continue;
+    try{ ASIS_IMGS.push(await asisComprimir(f)); }
+    catch(e){ asisPintar('bot','No pude leer esa imagen. Prueba con una captura en PNG o JPG.'); }
+  }
+  asisPintarAdjuntos();
+}
+
+// Pegar con Ctrl+V: la tecla Impr Pant deja la captura en el portapapeles
+function asisPegar(ev){
+  const items=(ev.clipboardData||{}).items||[];
+  const imgs=[];
+  for(const it of items){ if(it.type && it.type.indexOf('image/')===0){ const f=it.getAsFile(); if(f) imgs.push(f); } }
+  if(imgs.length){ ev.preventDefault(); asisAdjuntar(imgs); }
+}
+
+function asisPintarAdjuntos(){
+  const c=document.getElementById('asis-adj');
+  c.innerHTML='';
+  ASIS_IMGS.forEach(function(im,i){
+    const fig=document.createElement('figure');
+    const img=document.createElement('img'); img.src=im.vista; img.alt='Captura adjunta';
+    const bt=document.createElement('button'); bt.type='button'; bt.textContent='×';
+    bt.title='Quitar'; bt.onclick=function(){ ASIS_IMGS.splice(i,1); asisPintarAdjuntos(); };
+    fig.appendChild(img); fig.appendChild(bt); c.appendChild(fig);
+  });
+}
+
+async function asisEnviar(){
+  if(ASIS_OCUPADO) return;
+  const inp=document.getElementById('asis-input');
+  const pregunta=(inp.value||'').trim();
+  const imgs=ASIS_IMGS.slice();
+  if(!pregunta && !imgs.length) return;   // con una captura basta, sin escribir nada
+
+  inp.value=''; asisAutoAlto(inp);
+  ASIS_IMGS=[]; asisPintarAdjuntos();
+  document.getElementById('asis-suge').innerHTML='';
+  const mio=asisPintar('yo', pregunta || '(captura adjunta)');
+  imgs.forEach(function(im){
+    const t=document.createElement('img'); t.className='asis-mini'; t.src=im.vista; t.alt='Captura enviada';
+    mio.appendChild(t);
+  });
+  ASIS_HIST.push({rol:'user', texto:pregunta || '(el usuario adjuntó una captura)'});
+
+  ASIS_OCUPADO=true;
+  document.getElementById('asis-enviar').disabled=true;
+  const esperando=asisPintar('bot','');
+  esperando.innerHTML='<div class="asis-esc"><span></span><span></span><span></span></div>';
+
+  try{
+    const r=await fetch(ASISTENTE_URL,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ mensaje:pregunta, historial:ASIS_HIST.slice(0,-1), pantalla:asisPantalla(),
+        imagenes: imgs.map(function(im){ return { mime:im.mime, datos:im.datos }; }) })
+    });
+    const data=await r.json().catch(()=>({}));
+    if(r.ok && data.ok!==false && data.respuesta){
+      esperando.innerHTML=asisFormato(data.respuesta);
+      ASIS_HIST.push({rol:'modelo', texto:data.respuesta});
+    } else {
+      asisFallo(esperando, data.error || data.respuesta || 'No pude responder. Inténtalo de nuevo.', pregunta);
+    }
+  }catch(e){
+    asisFallo(esperando,'No pude conectarme con el asistente. Revisa tu conexión e inténtalo de nuevo.', pregunta);
+  }finally{
+    ASIS_OCUPADO=false;
+    document.getElementById('asis-enviar').disabled=false;
+    document.getElementById('asis-msgs').scrollTop=document.getElementById('asis-msgs').scrollHeight;
+    inp.focus();
+  }
+}
+window.asisEnviar=asisEnviar;
+
+// El asistente solo se muestra con la sesión iniciada
+document.addEventListener('DOMContentLoaded',()=>{
+  const btn=document.getElementById('asis-btn');
+  const ver=()=>{ btn.style.display = (typeof estado!=='undefined' && estado && estado.credential) ? 'flex' : 'none'; };
+  ver(); setInterval(ver, 1500);
+  // La píldora muestra la palabra «Ayuda» unos segundos y luego se contrae al
+  // círculo, para no tapar contenido. Vuelve a abrirse al pasar el cursor.
+  setTimeout(()=>btn.classList.add('mini'), 6000);
+});
+</script>
+
 </body>
 </html>
