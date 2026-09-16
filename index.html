@@ -924,6 +924,19 @@ label .req{color:var(--falla)}
 
   // Algunas sumillas se guardaron con etiquetas HTML. Se limpian al mostrar:
   // los saltos se respetan y el resto de marcas se descarta.
+  // Las horas vienen desglosadas: teoría, práctica, laboratorio y taller.
+  function horasDe(h) {
+    if (!h) return { total: 0, detalle: '' };
+    const n = (v) => parseInt(v, 10) || 0;
+    const t = n(h.teoria), p = n(h.practica), l = n(h.laboratorio), o = n(h.taller);
+    const partes = [];
+    if (t) partes.push(t + ' teoría');
+    if (p) partes.push(p + ' práctica');
+    if (l) partes.push(l + ' laboratorio');
+    if (o) partes.push(o + ' taller');
+    return { total: t + p + l + o, detalle: partes.join(' · ') };
+  }
+
   function textoPlano(t) {
     return String(t || '')
       .replace(/<br\s*\/?>/gi, '\n')
@@ -1587,12 +1600,13 @@ label .req{color:var(--falla)}
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else if (vista === 'docentes') {
       cab = [['Ciclo','w-ciclo'],['Docente','largo'],['Correo','w-correo'],['Celular','w-cel'],
-            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Cargas','largo'],['','w-acc']];
+            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Horas','w-num'],
+            ['Cargas','largo'],['','w-acc']];
       h += cab
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else {
       cab = [['Ciclo','w-ciclo'],['Código','w-cod'],['Curso','largo'],['Plan','w-plan'],['Sem.','w-sem'],
-            ['Grupo','w-gr'],['Tipo','w-tipo'],['Docente','largo'],['Correo','w-correo'],
+            ['Grupo','w-gr'],['Tipo','w-tipo'],['Horas','w-num'],['Docente','largo'],['Correo','w-correo'],
             ['Celular','w-cel'],['Área','w-area'],['','w-acc']];
       h += cab
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
@@ -1630,7 +1644,8 @@ label .req{color:var(--falla)}
           '<span class="grupos">' +
           g.partes.map(x =>
             '<span class="mini">' + esc(x.tipo || '?') + '</span>grupo ' + esc(x.grupo) +
-            (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '')
+            (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + esc(x.subGrupo) : '') +
+            (horasDe(x.horas).total ? ' · ' + horasDe(x.horas).total + ' h' : '')
           ).join('<br>') + '</span></li>').join('');
         h += '<td class="mono">' + esc(f.ciclo || '—') + '</td>' +
              '<td class="col-doc largo"><b>' + esc(f.docente) + '</b></td>' +
@@ -1639,6 +1654,8 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.programa || '—') + '</td>' +
              '<td class="col-areas largo">' + areasDoc + '</td>' +
              '<td class="col-cursos largo">' + esc(f.nCursos) + '</td>' +
+             '<td><b>' + ((f.detalle || []).reduce((t, x) => t + horasDe(x.horas).total, 0) || '—') + '</b>' +
+             '<small class="codigo">h/semana</small></td>' +
              '<td><b>' + esc(f.cargas) + '</b>' +
              (det ? '<ul class="detalle-cargas">' + det + '</ul>' : '') + '</td>';
       } else {
@@ -1650,6 +1667,7 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.semestre || '—') + '</td>' +
              '<td>' + esc(f.grupo || '—') + (f.subGrupo !== '' ? ' · ' + esc(f.subGrupo) : '') + '</td>' +
              '<td>' + esc(f.tipo || '—') + '</td>' +
+             '<td>' + (horasDe(f.horas).total || '—') + '</td>' +
              '<td class="col-docente largo">' + esc(f.docente || '—') + '</td>' +
              '<td>' + (f.correoDocente ? esc(f.correoDocente) : falta('No')) + '</td>' +
              '<td>' + (f.celularDocente ? esc(f.celularDocente) : falta('No')) + '</td>' +
@@ -2011,16 +2029,24 @@ label .req{color:var(--falla)}
         f.semestre, f.area, f.tieneCodigo, f.tieneArea, f.tieneSumilla, textoPlano(f.sumilla)]);
     } else if (vista === 'docentes') {
       nombre = 'Directorio_de_docentes'; titulo = 'Directorio de docentes del ciclo';
-      cols = ['N°','Ciclo','Docente','Correo institucional','Celular','Carrera','Áreas','N° de cursos','N° de cargas','Cursos','¿Tiene correo?','¿Tiene celular?'];
+      cols = ['N°','Ciclo','Docente','Correo institucional','Celular','Carrera','Áreas','N° de cursos','N° de cargas','Horas por semana','Cursos','¿Tiene correo?','¿Tiene celular?'];
       filas = lista.map((f, i) => [i+1, f.ciclo, f.docente, f.correo, f.celular, f.programa, f.area,
-        f.nCursos, f.cargas, f.cursos, f.tieneCorreo, f.tieneCelular]);
+        f.nCursos, f.cargas,
+        (f.detalle || []).reduce((t, x) => t + horasDe(x.horas).total, 0),
+        f.cursos, f.tieneCorreo, f.tieneCelular]);
     } else {
       nombre = 'Carga_lectiva'; titulo = 'Carga lectiva del ciclo';
       cols = ['N°','Ciclo','Carrera','Plan','Código','Curso','Semestre','Grupo','Subgrupo','Tipo',
+              'Horas teoría','Horas práctica','Horas laboratorio','Horas taller','Total horas',
               'Docente','Correo','Celular','Área','Coordinador','ID asignación','¿Completa?','Qué falta'];
-      filas = lista.map((f, i) => [i+1, f.ciclo, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura),
-        f.semestre, f.grupo, f.subGrupo, f.tipo, f.docente, f.correoDocente, f.celularDocente,
-        f.area, f.coordinador, f.idAsignacion, f.completa, f.falta]);
+      filas = lista.map((f, i) => {
+        const h = f.horas || {};
+        return [i+1, f.ciclo, f.programa, f.planEstudio, f.codigo, nombreCurso(f.asignatura),
+          f.semestre, f.grupo, f.subGrupo, f.tipo,
+          h.teoria || 0, h.practica || 0, h.laboratorio || 0, h.taller || 0, horasDe(h).total,
+          f.docente, f.correoDocente, f.celularDocente,
+          f.area, f.coordinador, f.idAsignacion, f.completa, f.falta];
+      });
     }
     descargarXls(nombre, titulo, cols, filas,
       ['Ciclo académico: ' + ($('filtroCiclo').value || 'todos'),
@@ -2734,6 +2760,7 @@ label .req{color:var(--falla)}
       dato('Grupo', a.grupo) +
       dato('Subgrupo', a.subGrupo) +
       dato('Tipo', a.tipo) +
+      (horasDe(a.horas).total ? dato('Horas', horasDe(a.horas).total + ' (' + horasDe(a.horas).detalle + ')') : '') +
       dato('Semestre', a.semestre) +
       dato('Plan de estudio', a.planEstudio) +
       dato('Ciclo', a.ciclo);
