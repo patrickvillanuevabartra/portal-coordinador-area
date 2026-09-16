@@ -1024,6 +1024,18 @@ label .req{color:var(--falla)}
         $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
         $('btnTablero').classList.remove('oculto');
         $('btnDatos').classList.remove('oculto');
+        // El asistente vive en otro bloque y no ve estas variables: se publica
+        // aquí lo que necesita para consultar los datos en nombre del usuario.
+        window.pcaSesion = () => ({
+          credencial: estado.credential || '',
+          perfil: [
+            estado.nombre || estado.correo,
+            estado.admin ? 'administrador' : '',
+            estado.general ? 'coordinador general de ' + (estado.programas || []).join(', ') : '',
+            (estado.propiasArea || []).length ? 'coordinador de ' + estado.propiasArea.join(' y ') : ''
+          ].filter(Boolean).join(' · ') +
+            (($('filtroCiclo') || {}).value ? ' · ciclo ' + $('filtroCiclo').value : '')
+        });
         // Se renueva antes de la hora para que nunca caduque en pleno trabajo.
         if (!estado.temporizador) {
           estado.temporizador = setInterval(() => pedirToken().catch(() => {}), 45 * 60 * 1000);
@@ -1043,6 +1055,7 @@ label .req{color:var(--falla)}
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
     estado.credential = null;
     if (estado.temporizador) { clearInterval(estado.temporizador); estado.temporizador = null; }
+    window.pcaSesion = null;
     estado.admin = false; estado.general = false;
     estado.areas = []; estado.programas = []; estado.asignaciones = []; estado.avance = {};
     ['usuarioCaja','btnSalir','btnCoord'].forEach(id => $(id).classList.add('oculto'));
@@ -3501,24 +3514,12 @@ window.asisEnviar=asisEnviar;
    servidor aplica los mismos permisos que al entrar, así que nadie ve por el
    asistente lo que no vería navegando. */
 
-function asisCredencial(){
-  try{
-    return (typeof estado!=='undefined' && estado && estado.credential) ? estado.credential : '';
-  }catch(e){ return ''; }
+function asisSesion(){
+  try{ return (typeof window.pcaSesion==='function') ? window.pcaSesion() : null; }
+  catch(e){ return null; }
 }
-
-function asisPerfil(){
-  try{
-    if(typeof estado==='undefined' || !estado) return '';
-    const roles=[];
-    if(estado.admin) roles.push('administrador');
-    if(estado.general) roles.push('coordinador general de ' + (estado.programas||[]).join(', '));
-    if((estado.propiasArea||[]).length) roles.push('coordinador de ' + estado.propiasArea.join(' y '));
-    const ciclo=(document.getElementById('filtroCiclo')||{}).value||'';
-    return (estado.nombre||'') + (roles.length ? ' · ' + roles.join(' · ') : '') +
-           (ciclo ? ' · ciclo ' + ciclo : '');
-  }catch(e){ return ''; }
-}
+function asisCredencial(){ const x=asisSesion(); return x ? x.credencial : ''; }
+function asisPerfil(){ const x=asisSesion(); return x ? x.perfil : ''; }
 
 /* ------------------------------------------------------------------ voz ----
    Dictado y lectura en voz alta. Ambos usan lo que el navegador ya trae, así
@@ -3631,8 +3632,7 @@ document.addEventListener('DOMContentLoaded',()=>{
   // La sesión no es visible desde aquí: se detecta por la pantalla de ingreso,
   // que se oculta al entrar.
   const ver=()=>{
-    const ing=document.getElementById('ingreso');
-    const dentro = ing && ing.classList.contains('oculto');
+    const dentro = !!asisCredencial();
     btn.style.display = dentro ? 'flex' : 'none';
     if(!dentro) asisCerrar();
   };
