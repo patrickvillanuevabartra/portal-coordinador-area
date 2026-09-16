@@ -151,7 +151,7 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .detalle-cargas li{padding:3px 0;line-height:1.45}
 .detalle-cargas li+li{border-top:1px solid var(--linea);margin-top:3px}
 .detalle-cargas b{color:var(--tinta);font-weight:600;font-size:12px}
-.detalle-cargas .etq-plan{margin-left:6px;vertical-align:1px}
+.detalle-cargas .etq-plan,.detalle-cargas .etq-area{margin-left:6px;vertical-align:1px}
 .detalle-cargas .grupos{display:block;margin-top:2px}
 .detalle-cargas .mini{font-family:'IBM Plex Mono',monospace;font-size:10.5px;
   background:var(--fondo);border-radius:3px;padding:0 4px;margin-right:5px}
@@ -390,6 +390,90 @@ label .req{color:var(--falla)}
   html{zoom:1}
   .item{grid-template-columns:28px 1fr}
   .item select{grid-column:2}
+}
+
+/* ==========================================================================
+   Pantallas pequeñas: tablet y celular
+   El portal se usa en el pasillo y entre clases, así que tiene que funcionar
+   en el teléfono. Las tablas anchas pasan a tarjetas, una por fila.
+   ========================================================================== */
+
+@media (max-width:900px){
+  header{flex-wrap:wrap;gap:10px;padding:12px 16px}
+  header .marca{flex:1 1 100%;order:-1}
+  .usuario-caja{text-align:left}
+  main,section{padding-left:14px;padding-right:14px}
+  .tarjeta-cuerpo{padding:16px 14px}
+  .tarjeta-cab{padding:14px 16px}
+  .rejilla{grid-template-columns:1fr}
+  .kpi>div{min-width:calc(50% - 7px)}
+  .filtros-av{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+  .dialogo{width:100%;max-height:calc(100vh - 24px)}
+  .capa{padding:12px}
+}
+
+@media (max-width:680px){
+  header{padding:10px 14px}
+  header .btn{padding:7px 12px;font-size:13px}
+  .sello{width:34px;height:34px;font-size:12px}
+  .marca h1{font-size:15px}
+
+  .barra,.buscador{flex-direction:column;align-items:stretch}
+  .barra>*,.buscador>*{width:100%}
+  .barra input[type=search],.buscador input[type=search]{min-width:0}
+  .conteo{text-align:right}
+  .vistas{width:100%;overflow-x:auto}
+  .vista{flex:1;white-space:nowrap}
+
+  .kpi>div{min-width:100%}
+  .filtros-av{grid-template-columns:1fr}
+  .casillas{flex-direction:column;gap:8px}
+
+  /* Cada fila del tablero se apila: el curso, el docente y los formatos. */
+  #tableroTabla table,#tableroTabla thead,#tableroTabla tbody,
+  #tableroTabla tr,#tableroTabla td{display:block;width:auto}
+  #tableroTabla thead{display:none}
+  #tableroTabla tbody tr{border:1px solid var(--linea);border-radius:10px;
+    margin-bottom:10px;padding:10px 12px;background:var(--papel)}
+  #tableroTabla tbody tr.curso-cab{background:var(--brand-suave);border-color:transparent}
+  #tableroTabla td{border:0;padding:3px 0}
+  #tableroTabla .chips{margin-top:8px}
+  #tableroTabla .chip{font-size:12px;padding:6px 10px}
+  .detalle-carga{margin-left:0}
+
+  /* En Validar datos, cada registro pasa a ser una tarjeta con sus etiquetas. */
+  #datos .tabla{max-height:none;overflow:visible;border:0;background:transparent}
+  #datos .barra-sup{display:none}
+  #datos table,#datos thead,#datos tbody,#datos tr,#datos td{display:block;width:auto}
+  #datos thead{display:none}
+  #datos tbody tr{border:1px solid var(--linea);border-radius:10px;background:var(--papel);
+    margin-bottom:10px;padding:12px 14px}
+  #datos td{border:0;padding:4px 0;white-space:normal;max-width:none}
+  #datos td:before{content:attr(data-etq);display:block;font-size:10px;font-weight:700;
+    text-transform:uppercase;letter-spacing:.06em;color:var(--tinta-media);margin-bottom:2px}
+  #datos td:empty{display:none}
+  #datos .acciones{margin-top:10px}
+  #datos .acciones .chip{padding:7px 12px;font-size:12.5px}
+  #datos .celda-sumilla .codigo{max-height:none}
+
+  /* Los formularios de los módulos, en una sola columna. */
+  .grid,.grid-3,.grid-4{grid-template-columns:1fr !important}
+  .item{grid-template-columns:26px 1fr}
+  .item select,.item textarea{grid-column:2}
+  .pie{flex-wrap:wrap;gap:8px}
+  .pie .btn{flex:1 1 auto}
+  .aviso{flex:1 1 100%}
+
+  table th,table td{padding:8px 10px;font-size:13px}
+  .resumen-datos{gap:8px}
+  .pastilla{padding:6px 12px;font-size:12px}
+}
+
+@media (max-width:420px){
+  .marca h1{font-size:14px}
+  .marca span{font-size:11px}
+  .vista{font-size:12px;padding:7px 10px}
+  .kpi .n{font-size:22px}
 }
 </style>
 </head>
@@ -1476,6 +1560,7 @@ label .req{color:var(--falla)}
 
     if (!lista.length) { $('dtTablaCuerpo').innerHTML = '<div class="vacio">Sin resultados.</div>'; return; }
 
+    let cab = [];
     const falta = (v) => v === 'No' ? '<span class="vacio-dato">falta</span>' : '';
     const area = (a) => a ? '<span class="etq-area">' + esc(a) + '</span>'
                           : '<span class="vacio-dato">sin área</span>';
@@ -1483,17 +1568,20 @@ label .req{color:var(--falla)}
     pintarResumen(lista, vista);
     let h = '<table><thead><tr>';
     if (vista === 'cursos') {
-      h += [['Código','w-cod'],['Curso','largo'],['Carrera','w-carrera'],['Plan','w-plan'],
-            ['Sem.','w-sem'],['Área','w-area'],['Sumilla','largo'],['','w-acc']]
+      cab = [['Código','w-cod'],['Curso','largo'],['Carrera','w-carrera'],['Plan','w-plan'],
+            ['Sem.','w-sem'],['Área','w-area'],['Sumilla','largo'],['','w-acc']];
+      h += cab
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else if (vista === 'docentes') {
-      h += [['Ciclo','w-ciclo'],['Docente','largo'],['Correo','w-correo'],['Celular','w-cel'],
-            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Cargas','largo'],['','w-acc']]
+      cab = [['Ciclo','w-ciclo'],['Docente','largo'],['Correo','w-correo'],['Celular','w-cel'],
+            ['Carrera','w-carrera'],['Áreas','w-area'],['Cursos','w-num'],['Cargas','largo'],['','w-acc']];
+      h += cab
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     } else {
-      h += [['Ciclo','w-ciclo'],['Código','w-cod'],['Curso','largo'],['Plan','w-plan'],['Sem.','w-sem'],
+      cab = [['Ciclo','w-ciclo'],['Código','w-cod'],['Curso','largo'],['Plan','w-plan'],['Sem.','w-sem'],
             ['Grupo','w-gr'],['Tipo','w-tipo'],['Docente','largo'],['Correo','w-correo'],
-            ['Celular','w-cel'],['Área','w-area'],['','w-acc']]
+            ['Celular','w-cel'],['Área','w-area'],['','w-acc']];
+      h += cab
         .map(c => '<th class="' + c[1] + '">' + c[0] + '</th>').join('');
     }
     h += '</tr></thead><tbody>';
@@ -1519,12 +1607,13 @@ label .req{color:var(--falla)}
         (f.detalle || []).forEach(x => {
           const nom = nombreCurso(x.curso);
           let g = porCurso.find(y => y.curso === nom);
-          if (!g) { g = { curso: nom, codigo: x.codigo, plan: x.plan, partes: [] }; porCurso.push(g); }
+          if (!g) { g = { curso: nom, codigo: x.codigo, plan: x.plan, area: x.area, partes: [] }; porCurso.push(g); }
           g.partes.push(x);
         });
         const det = porCurso.map(g =>
           '<li><b>' + esc(g.curso) + '</b>' +
           (g.plan ? '<span class="etq-plan">' + esc(g.plan) + '</span>' : '') +
+          (g.area ? '<span class="etq-area">' + esc(g.area) + '</span>' : '') +
           '<span class="grupos">' +
           g.partes.map(x =>
             '<span class="mini">' + esc(x.tipo || '?') + '</span>grupo ' + esc(x.grupo) +
@@ -1562,6 +1651,13 @@ label .req{color:var(--falla)}
       h += '</tr>';
     });
     $('dtTablaCuerpo').innerHTML = h + '</tbody></table>';
+    // En pantallas pequeñas la tabla se apila: cada celda necesita saber de qué
+    // columna viene para poder mostrar su nombre encima.
+    $('dtTablaCuerpo').querySelectorAll('tbody tr').forEach(tr => {
+      [...tr.children].forEach((td, i) => {
+        if (cab[i] && cab[i][0]) td.setAttribute('data-etq', cab[i][0]);
+      });
+    });
     sincronizarBarras();
     estado.datosVisibles = lista;
     $('dtTablaCuerpo').querySelectorAll('[data-rep]').forEach(b => {
