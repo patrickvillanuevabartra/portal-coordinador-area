@@ -3358,6 +3358,7 @@ function asisAbrir(){
 }
 function asisCerrar(){
   asisCallar();
+  ASIS_PARAR=true;
   if(ASIS_GRABANDO && ASIS_REC){ try{ASIS_REC.stop();}catch(e){} }
   if(ASIS_STREAM){ try{ ASIS_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} ASIS_STREAM=null; }
   document.getElementById('asis-panel').classList.remove('abierto');
@@ -3588,72 +3589,87 @@ function asisSoportaDictado(){
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
-let ASIS_STREAM=null;
+let ASIS_STREAM=null, ASIS_PARAR=false;
+
+// En el móvil el micrófono no se puede compartir: abrirlo por nuestra cuenta
+// bloquea al reconocimiento. Y el modo continuo no está soportado, así que se
+// reanuda solo hasta que la persona lo detiene.
+const ASIS_MOVIL = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
 
 function asisDictar(){
   const mic=document.getElementById('asis-mic');
   const inp=document.getElementById('asis-input');
   if(!asisSoportaDictado()){
-    asisAviso('Tu navegador no permite dictar. Funciona en Chrome y en Edge.');
+    asisAviso('Este navegador no permite dictar. En el celular funciona con Chrome en Android.');
     return;
   }
-  if(ASIS_GRABANDO){ try{ASIS_REC.stop();}catch(e){} return; }
+  if(ASIS_GRABANDO){ ASIS_PARAR=true; try{ASIS_REC.stop();}catch(e){} return; }
 
-  const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  ASIS_REC = new Rec();
-  ASIS_REC.lang='es-PE';
-  ASIS_REC.continuous=true;        // no se corta en la primera pausa
-  ASIS_REC.interimResults=true;
-  ASIS_REC.maxAlternatives=1;
-
+  ASIS_PARAR=false;
   const previo = inp.value.trim();
   let cerrado='';
 
-  ASIS_REC.onstart=()=>{ ASIS_GRABANDO=true; mic.classList.add('grabando');
-    mic.title='Detener el dictado'; inp.placeholder='Escuchando… habla y pulsa el micrófono al terminar'; };
+  const crear=()=>{
+    const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const rec = new Rec();
+    rec.lang='es-PE';
+    rec.continuous = !ASIS_MOVIL;   // en el móvil se reanuda a mano
+    rec.interimResults=true;
+    rec.maxAlternatives=1;
 
-  ASIS_REC.onresult=(ev)=>{
-    let enCurso='';
-    for(let i=ev.resultIndex;i<ev.results.length;i++){
-      const t=ev.results[i][0].transcript;
-      if(ev.results[i].isFinal) cerrado += t + ' '; else enCurso += t;
-    }
-    inp.value = ((previo ? previo+' ' : '') + cerrado + enCurso).replace(/\s+/g,' ');
-    asisAutoAlto(inp);
-  };
+    rec.onstart=()=>{ ASIS_GRABANDO=true; mic.classList.add('grabando');
+      mic.title='Detener el dictado';
+      inp.placeholder='Escuchando… pulsa el micrófono al terminar'; };
 
-  ASIS_REC.onerror=(ev)=>{
-    const M={
-      'not-allowed':'El navegador bloqueó el micrófono. Pulsa el candado de la barra de direcciones y permítelo para este sitio.',
-      'service-not-allowed':'Windows no está dejando usar el micrófono. Revisa Configuración › Privacidad › Micrófono y activa el acceso para las aplicaciones de escritorio.',
-      'no-speech':'No se escuchó nada. Revisa que el micrófono que usas sea el predeterminado de Windows y vuelve a intentarlo.',
-      'audio-capture':'No se encontró ningún micrófono conectado.',
-      'network':'El dictado necesita conexión y no pudo alcanzar el servicio de Google.',
-      'aborted':''
+    rec.onresult=(ev)=>{
+      let enCurso='';
+      for(let i=ev.resultIndex;i<ev.results.length;i++){
+        const t=ev.results[i][0].transcript;
+        if(ev.results[i].isFinal) cerrado += t + ' '; else enCurso += t;
+      }
+      inp.value = ((previo ? previo+' ' : '') + cerrado + enCurso).replace(/\s+/g,' ');
+      asisAutoAlto(inp);
     };
-    const t=M[ev.error];
-    if(t===undefined) asisAviso('El dictado falló: '+ev.error);
-    else if(t) asisAviso(t);
+
+    rec.onerror=(ev)=>{
+      const M={
+        'not-allowed':'El navegador bloqueó el micrófono. Permítelo para este sitio y vuelve a intentarlo.',
+        'service-not-allowed':'El sistema no está dejando usar el micrófono. Revisa los permisos del navegador.',
+        'no-speech':'',
+        'audio-capture':'No se encontró ningún micrófono.',
+        'network':'El dictado necesita conexión y no pudo alcanzar el servicio de Google.',
+        'aborted':''
+      };
+      const t=M[ev.error];
+      if(t===undefined) asisAviso('El dictado falló: '+ev.error);
+      else if(t){ ASIS_PARAR=true; asisAviso(t); }
+    };
+
+    rec.onend=()=>{
+      // En el móvil el reconocimiento se corta en cada pausa: si la persona no
+      // lo detuvo, se reanuda para que pueda hablar con naturalidad.
+      if(!ASIS_PARAR && ASIS_MOVIL){
+        try{ ASIS_REC = crear(); ASIS_REC.start(); return; }catch(e){}
+      }
+      ASIS_GRABANDO=false; mic.classList.remove('grabando');
+      mic.title='Dictar la pregunta';
+      inp.placeholder='Escribe tu pregunta o pega una captura…';
+      if(ASIS_STREAM){ try{ ASIS_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} ASIS_STREAM=null; }
+      if(!ASIS_MOVIL) inp.focus();
+    };
+    return rec;
   };
 
-  ASIS_REC.onend=()=>{
-    ASIS_GRABANDO=false; mic.classList.remove('grabando');
-    mic.title='Dictar la pregunta';
-    inp.placeholder='Escribe tu pregunta o pega una captura…';
-    // El micrófono se suelta recién ahora: cerrarlo antes dejaba al
-    // reconocimiento escuchando un canal que ya no estaba abierto.
-    if(ASIS_STREAM){ try{ ASIS_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} ASIS_STREAM=null; }
-    inp.focus();
-  };
-
+  ASIS_REC = crear();
   const arrancar=()=>{ try{ ASIS_REC.start(); }catch(e){ asisAviso('No se pudo iniciar el dictado: '+e.message); } };
 
-  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+  // Solo en escritorio se abre el micrófono antes: en el móvil eso lo bloquea.
+  if(!ASIS_MOVIL && navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
     navigator.mediaDevices.getUserMedia({audio:true})
       .then(st=>{ ASIS_STREAM=st; arrancar(); })
       .catch(err=>{
         if(err && err.name==='NotAllowedError')
-          asisAviso('No se dio permiso al micrófono. Pulsa el candado de la barra de direcciones y permítelo para este sitio.');
+          asisAviso('No se dio permiso al micrófono. Pulsa el candado de la barra de direcciones y permítelo.');
         else if(err && err.name==='NotFoundError')
           asisAviso('No se detectó ningún micrófono en este equipo.');
         else arrancar();
