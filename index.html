@@ -1018,7 +1018,7 @@ label .req{color:var(--falla)}
   function alIngresar(respuesta) {
     estado.credential = respuesta.credential;
     $('ingresoError').textContent = '';
-    api('/sesion')
+    api('/sesion?conCargas=1&ciclo=' + encodeURIComponent(CFG.CICLO_ACTIVO || ''))
       .then(datos => {
         estado.correo = datos.correo;
         estado.nombre = datos.nombre;
@@ -1057,7 +1057,16 @@ label .req{color:var(--falla)}
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
         estado.cacheDatos = {};
-        cargarAsignaciones();
+        // La sesión ya trae las cargas: se pintan de inmediato y solo se
+        // vuelve a pedir si se cambia de ciclo.
+        if (datos.asignaciones && datos.asignaciones.length) {
+          estado.asignaciones = datos.asignaciones;
+          guardarLocal();
+          prepararFiltros(); pintarTablero();
+          cargarAvance();
+        } else {
+          cargarAsignaciones();
+        }
         if (estado.admin || estado.general) cargarAreas();
         api('/plantillas').then(d => { estado.plantillas = d.plantillas || []; }).catch(() => {});
       })
@@ -1095,17 +1104,43 @@ label .req{color:var(--falla)}
   // terminara la primera llamada y eso duplicaba el tiempo de entrada.
   function cargarAvance() {
     api('/avance?ciclo=' + encodeURIComponent($('filtroCiclo').value))
-      .then(d => { estado.avance = d.avance || {}; if (estado.asignaciones.length) pintarTablero(); })
+      .then(d => { estado.avance = d.avance || {};
+        if (estado.asignaciones.length) { pintarTablero(); guardarLocal(); } })
       .catch(() => {});
   }
 
+  // Lo último que se vio queda guardado en el navegador: al volver a entrar el
+  // tablero aparece de inmediato y se refresca por detrás.
+  function guardarLocal() {
+    try {
+      sessionStorage.setItem('pca_cargas_' + ($('filtroCiclo').value || ''),
+        JSON.stringify({ cuando: Date.now(), asignaciones: estado.asignaciones, avance: estado.avance }));
+    } catch (e) {}
+  }
+
+  function leerLocal() {
+    try {
+      const g = sessionStorage.getItem('pca_cargas_' + ($('filtroCiclo').value || ''));
+      if (!g) return false;
+      const d = JSON.parse(g);
+      if (!d || !d.asignaciones || !d.asignaciones.length) return false;
+      estado.asignaciones = d.asignaciones;
+      estado.avance = d.avance || {};
+      prepararFiltros(); pintarTablero();
+      return true;
+    } catch (e) { return false; }
+  }
+
   function cargarAsignaciones() {
+    const habia = leerLocal();
     cargarAvance();
-    $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
+    if (!estado.asignaciones.length)
+      $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
     mostrar('tablero');
     api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
       .then(datos => {
-        estado.asignaciones = datos.asignaciones || []; prepararFiltros(); pintarTablero();
+        estado.asignaciones = datos.asignaciones || [];
+        prepararFiltros(); pintarTablero(); guardarLocal();
       })
       .catch(e => {
         $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
@@ -3583,8 +3618,19 @@ function asisDictar(){
     asisAutoAlto(inp);
   };
   ASIS_REC.onerror=(ev)=>{
-    if(ev.error==='not-allowed') asisAviso('Hay que permitir el micrófono en el navegador.');
-    else if(ev.error==='no-speech') asisAviso('No se escuchó nada. Inténtalo otra vez.');
+    // Cada fallo tiene una causa distinta y una solución distinta: decirlo
+    // evita que la persona piense que el dictado no funciona.
+    const M={
+      'not-allowed':'El navegador bloqueó el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono para este sitio.',
+      'service-not-allowed':'Windows no está dejando usar el micrófono. Revisa Configuración › Privacidad › Micrófono y activa el acceso para las aplicaciones de escritorio.',
+      'no-speech':'No se escuchó nada. Acércate al micrófono y vuelve a intentarlo.',
+      'audio-capture':'No se encontró ningún micrófono conectado.',
+      'network':'El dictado necesita conexión y no pudo alcanzar el servicio de Google.',
+      'aborted':''
+    };
+    const t=M[ev.error];
+    if(t===undefined) asisAviso('El dictado falló: '+ev.error);
+    else if(t) asisAviso(t);
   };
   ASIS_REC.onend=()=>{
     ASIS_GRABANDO=false; mic.classList.remove('grabando');
@@ -3592,7 +3638,20 @@ function asisDictar(){
     inp.placeholder='Escribe tu pregunta o pega una captura…';
     inp.focus();
   };
-  try{ ASIS_REC.start(); }catch(e){ asisAviso('No se pudo iniciar el dictado.'); }
+  // Se pide el micrófono antes de empezar: así el navegador muestra el aviso
+  // de permiso y sabemos si el equipo lo tiene disponible.
+  const arrancar=()=>{ try{ ASIS_REC.start(); }catch(e){ asisAviso('No se pudo iniciar el dictado: '+e.message); } };
+  if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
+    navigator.mediaDevices.getUserMedia({audio:true})
+      .then(st=>{ st.getTracks().forEach(t=>t.stop()); arrancar(); })
+      .catch(err=>{
+        if(err && err.name==='NotAllowedError')
+          asisAviso('No se dio permiso al micrófono. Pulsa el candado de la barra de direcciones y permítelo para este sitio.');
+        else if(err && err.name==='NotFoundError')
+          asisAviso('No se detectó ningún micrófono en este equipo.');
+        else asisAviso('No se pudo acceder al micrófono: '+(err && err.name || 'error'));
+      });
+  } else arrancar();
 }
 window.asisDictar=asisDictar;
 
@@ -3612,27 +3671,65 @@ function asisCallar(){
   document.querySelectorAll('.asis-msg.leyendo').forEach(m=>m.classList.remove('leyendo'));
 }
 
+// Las voces del sistema suenan a robot; las «Natural» u «Online» de Edge y las
+// de Google son mucho mejores. Se elige la mejor disponible y se lee por frases,
+// que es lo que da entonación.
+function asisMejorVoz(){
+  const v = window.speechSynthesis.getVoices() || [];
+  const es = v.filter(x => /^es/i.test(x.lang));
+  if(!es.length) return null;
+  const puntos = (x) => {
+    let p = 0;
+    if(/natural/i.test(x.name)) p += 100;
+    if(/online/i.test(x.name)) p += 60;
+    if(/google/i.test(x.name)) p += 50;
+    if(/neural|premium|enhanced/i.test(x.name)) p += 40;
+    if(/es[-_]?PE/i.test(x.lang)) p += 30;
+    if(/es[-_]?MX|es[-_]?US|es[-_]?419/i.test(x.lang)) p += 20;
+    if(/microsoft/i.test(x.name)) p += 10;
+    if(!x.localService) p += 15;          // las de servidor suenan mejor
+    return p;
+  };
+  return es.slice().sort((a,b) => puntos(b) - puntos(a))[0];
+}
+
 function asisLeer(texto, nodo){
   if(!ASIS_VOZ || !window.speechSynthesis) return;
   asisCallar();
-  // Se lee el texto sin marcas: los asteriscos y guiones no se pronuncian.
   const limpio = String(texto||'')
     .replace(/```[\s\S]*?```/g,' ')
     .replace(/[*_`#>]/g,'')
     .replace(/^\s*[-•]\s*/gm,'')
     .replace(/\s+/g,' ').trim();
   if(!limpio) return;
-  const u=new SpeechSynthesisUtterance(limpio);
-  u.lang='es-PE'; u.rate=1.02; u.pitch=1;
-  const voces=window.speechSynthesis.getVoices()||[];
-  const es=voces.find(v=>/es[-_]?(PE|MX|US|419)/i.test(v.lang)) || voces.find(v=>/^es/i.test(v.lang));
-  if(es) u.voice=es;
-  if(nodo){
-    nodo.classList.add('leyendo');
-    u.onend=()=>nodo.classList.remove('leyendo');
-    u.onerror=()=>nodo.classList.remove('leyendo');
-  }
-  try{ window.speechSynthesis.speak(u); }catch(e){}
+
+  const voz = asisMejorVoz();
+  // Se parte en frases: leer un bloque entero de corrido es lo que suena
+  // monótono, y además así se puede interrumpir a mitad.
+  const frases = limpio.match(/[^.!?;:\n]+[.!?;:]?/g) || [limpio];
+  const trozos = [];
+  let acum = '';
+  frases.forEach(f => {
+    if((acum + f).length > 180){ if(acum) trozos.push(acum.trim()); acum = f; }
+    else acum += f;
+  });
+  if(acum.trim()) trozos.push(acum.trim());
+
+  if(nodo) nodo.classList.add('leyendo');
+  let i = 0;
+  const siguiente = () => {
+    if(i >= trozos.length){ if(nodo) nodo.classList.remove('leyendo'); return; }
+    const u = new SpeechSynthesisUtterance(trozos[i++]);
+    u.lang = (voz && voz.lang) || 'es-PE';
+    if(voz) u.voice = voz;
+    u.rate = 0.98;      // un pelo más lento se entiende mejor
+    u.pitch = 1.04;     // ligeramente más alto, menos plano
+    u.volume = 1;
+    u.onend = siguiente;
+    u.onerror = () => { if(nodo) nodo.classList.remove('leyendo'); };
+    try{ window.speechSynthesis.speak(u); }catch(e){ if(nodo) nodo.classList.remove('leyendo'); }
+  };
+  siguiente();
 }
 
 function asisAviso(t){
@@ -3650,7 +3747,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   const voz=document.getElementById('asis-voz');
   if(voz && !window.speechSynthesis) voz.style.display='none';
   // Algunas voces se cargan con retraso.
-  if(window.speechSynthesis) window.speechSynthesis.getVoices();
+  if(window.speechSynthesis){
+    window.speechSynthesis.getVoices();
+    window.speechSynthesis.onvoiceschanged = () => window.speechSynthesis.getVoices();
+  }
 });
 
 // El asistente solo se muestra con la sesión iniciada
