@@ -1021,6 +1021,7 @@ label .req{color:var(--falla)}
     api('/sesion?conCargas=1&ciclo=' + encodeURIComponent(CFG.CICLO_ACTIVO || ''))
       .then(datos => {
         estado.correo = datos.correo;
+        if (datos.ms) console.log('Portal: la sesión tardó ' + datos.ms + ' ms en el servidor.');
         estado.nombre = datos.nombre;
         estado.areas = datos.areas;
         estado.admin = !!datos.admin;
