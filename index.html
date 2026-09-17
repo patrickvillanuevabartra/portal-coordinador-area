@@ -1125,7 +1125,6 @@ label .req{color:var(--falla)}
 
   function cargarAsignaciones() {
     const habia = leerLocal();
-    cargarAvance();
     if (!estado.asignaciones.length)
       $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
     mostrar('tablero');
@@ -1133,6 +1132,9 @@ label .req{color:var(--falla)}
       .then(datos => {
         estado.asignaciones = datos.asignaciones || [];
         prepararFiltros(); pintarTablero(); guardarLocal();
+        // El avance se pide recién ahora: leer las siete tablas de supervisión
+        // es lo más lento, y el tablero no lo necesita para mostrarse.
+        cargarAvance();
       })
       .catch(e => {
         $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
