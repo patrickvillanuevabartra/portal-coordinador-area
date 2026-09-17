@@ -1018,7 +1018,7 @@ label .req{color:var(--falla)}
   function alIngresar(respuesta) {
     estado.credential = respuesta.credential;
     $('ingresoError').textContent = '';
-    api('/sesion?conCargas=1&ciclo=' + encodeURIComponent(CFG.CICLO_ACTIVO || ''))
+    api('/sesion')
       .then(datos => {
         estado.correo = datos.correo;
         if (datos.ms) console.log('Portal: la sesión tardó ' + datos.ms + ' ms en el servidor.');
@@ -1058,16 +1058,7 @@ label .req{color:var(--falla)}
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
         estado.cacheDatos = {};
-        // La sesión ya trae las cargas: se pintan de inmediato y solo se
-        // vuelve a pedir si se cambia de ciclo.
-        if (datos.asignaciones && datos.asignaciones.length) {
-          estado.asignaciones = datos.asignaciones;
-          guardarLocal();
-          prepararFiltros(); pintarTablero();
-          cargarAvance();
-        } else {
-          cargarAsignaciones();
-        }
+        cargarAsignaciones();
         if (estado.admin || estado.general) cargarAreas();
         api('/plantillas').then(d => { estado.plantillas = d.plantillas || []; }).catch(() => {});
       })
