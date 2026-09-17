@@ -3365,6 +3365,7 @@ function asisAbrir(){
 function asisCerrar(){
   asisCallar();
   if(ASIS_GRABANDO && ASIS_REC){ try{ASIS_REC.stop();}catch(e){} }
+  if(ASIS_STREAM){ try{ ASIS_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} ASIS_STREAM=null; }
   document.getElementById('asis-panel').classList.remove('abierto');
   const b=document.getElementById('asis-btn');
   b.classList.add('mini');
@@ -3593,6 +3594,8 @@ function asisSoportaDictado(){
   return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
+let ASIS_STREAM=null;
+
 function asisDictar(){
   const mic=document.getElementById('asis-mic');
   const inp=document.getElementById('asis-input');
@@ -3605,25 +3608,31 @@ function asisDictar(){
   const Rec = window.SpeechRecognition || window.webkitSpeechRecognition;
   ASIS_REC = new Rec();
   ASIS_REC.lang='es-PE';
-  ASIS_REC.continuous=false;
+  ASIS_REC.continuous=true;        // no se corta en la primera pausa
   ASIS_REC.interimResults=true;
+  ASIS_REC.maxAlternatives=1;
 
   const previo = inp.value.trim();
+  let cerrado='';
+
   ASIS_REC.onstart=()=>{ ASIS_GRABANDO=true; mic.classList.add('grabando');
-    mic.title='Detener el dictado'; inp.placeholder='Escuchando…'; };
+    mic.title='Detener el dictado'; inp.placeholder='Escuchando… habla y pulsa el micrófono al terminar'; };
+
   ASIS_REC.onresult=(ev)=>{
-    let texto='';
-    for(let i=0;i<ev.results.length;i++) texto += ev.results[i][0].transcript;
-    inp.value = (previo ? previo+' ' : '') + texto;
+    let enCurso='';
+    for(let i=ev.resultIndex;i<ev.results.length;i++){
+      const t=ev.results[i][0].transcript;
+      if(ev.results[i].isFinal) cerrado += t + ' '; else enCurso += t;
+    }
+    inp.value = ((previo ? previo+' ' : '') + cerrado + enCurso).replace(/\s+/g,' ');
     asisAutoAlto(inp);
   };
+
   ASIS_REC.onerror=(ev)=>{
-    // Cada fallo tiene una causa distinta y una solución distinta: decirlo
-    // evita que la persona piense que el dictado no funciona.
     const M={
-      'not-allowed':'El navegador bloqueó el micrófono. Pulsa el candado de la barra de direcciones y permite el micrófono para este sitio.',
+      'not-allowed':'El navegador bloqueó el micrófono. Pulsa el candado de la barra de direcciones y permítelo para este sitio.',
       'service-not-allowed':'Windows no está dejando usar el micrófono. Revisa Configuración › Privacidad › Micrófono y activa el acceso para las aplicaciones de escritorio.',
-      'no-speech':'No se escuchó nada. Acércate al micrófono y vuelve a intentarlo.',
+      'no-speech':'No se escuchó nada. Revisa que el micrófono que usas sea el predeterminado de Windows y vuelve a intentarlo.',
       'audio-capture':'No se encontró ningún micrófono conectado.',
       'network':'El dictado necesita conexión y no pudo alcanzar el servicio de Google.',
       'aborted':''
@@ -3632,24 +3641,28 @@ function asisDictar(){
     if(t===undefined) asisAviso('El dictado falló: '+ev.error);
     else if(t) asisAviso(t);
   };
+
   ASIS_REC.onend=()=>{
     ASIS_GRABANDO=false; mic.classList.remove('grabando');
     mic.title='Dictar la pregunta';
     inp.placeholder='Escribe tu pregunta o pega una captura…';
+    // El micrófono se suelta recién ahora: cerrarlo antes dejaba al
+    // reconocimiento escuchando un canal que ya no estaba abierto.
+    if(ASIS_STREAM){ try{ ASIS_STREAM.getTracks().forEach(t=>t.stop()); }catch(e){} ASIS_STREAM=null; }
     inp.focus();
   };
-  // Se pide el micrófono antes de empezar: así el navegador muestra el aviso
-  // de permiso y sabemos si el equipo lo tiene disponible.
+
   const arrancar=()=>{ try{ ASIS_REC.start(); }catch(e){ asisAviso('No se pudo iniciar el dictado: '+e.message); } };
+
   if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia){
     navigator.mediaDevices.getUserMedia({audio:true})
-      .then(st=>{ st.getTracks().forEach(t=>t.stop()); arrancar(); })
+      .then(st=>{ ASIS_STREAM=st; arrancar(); })
       .catch(err=>{
         if(err && err.name==='NotAllowedError')
           asisAviso('No se dio permiso al micrófono. Pulsa el candado de la barra de direcciones y permítelo para este sitio.');
         else if(err && err.name==='NotFoundError')
           asisAviso('No se detectó ningún micrófono en este equipo.');
-        else asisAviso('No se pudo acceder al micrófono: '+(err && err.name || 'error'));
+        else arrancar();
       });
   } else arrancar();
 }
