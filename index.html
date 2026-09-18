@@ -565,6 +565,7 @@ label .req{color:var(--falla)}
         <div class="barra">
           <input type="search" id="dtBuscar" placeholder="Buscar por curso, código, docente…" autocomplete="off">
           <button class="btn gris" id="dtMasFiltros">Filtros</button>
+          <button class="btn gris" id="dtNuevoCurso" title="Añadir un curso al catálogo">Añadir curso</button>
           <button class="btn gris" id="dtNueva" title="Añadir una carga">Añadir carga</button>
           <button class="btn gris" id="dtRecargar" title="Volver a leer los datos">Actualizar</button>
           <button class="btn fantasma" id="dtExportar">Descargar</button>
@@ -598,6 +599,34 @@ label .req{color:var(--falla)}
     </section>
   </section>
 
+  <div id="capaCurso" class="capa oculto">
+    <div class="dialogo">
+      <h3>Añadir un curso al catálogo</h3>
+      <p class="det">Queda en Cursos-Sumillas y desde ahí lo usan las cargas.</p>
+      <div class="cuerpo-dialogo">
+        <div class="grid">
+          <div><label for="ncCurso">Nombre del curso</label><input type="text" id="ncCurso"></div>
+          <div><label for="ncCodigo">Código</label><input type="text" id="ncCodigo" placeholder="IE1008"></div>
+          <div><label for="ncPrograma">Carrera</label><select id="ncPrograma"></select></div>
+          <div><label for="ncPlan">Plan de estudio</label><select id="ncPlan"></select></div>
+          <div><label for="ncSem">Semestre</label><select id="ncSem"></select></div>
+          <div><label for="ncArea">Área</label><select id="ncArea"></select></div>
+          <div><label for="ncComun">¿Es un curso común?</label><select id="ncComun"></select></div>
+          <div><label for="ncCompartido">Se comparte con</label><select id="ncCompartido"></select></div>
+        </div>
+        <label for="ncSumilla" style="margin-top:10px">Sumilla</label>
+        <textarea id="ncSumilla" rows="5"></textarea>
+        <p class="nota-dialogo">El código identifica al curso: es lo que vincula cada carga
+          con él. Dos cursos de la misma carrera no pueden compartirlo.</p>
+      </div>
+      <div class="pie">
+        <button class="btn" id="btnCrearCurso">Añadir</button>
+        <button class="btn gris" id="btnNcCancel">Cancelar</button>
+        <span class="aviso" id="avisoCurso"></span>
+      </div>
+    </div>
+  </div>
+
   <div id="capaNueva" class="capa oculto">
     <div class="dialogo">
       <h3>Añadir una carga</h3>
@@ -610,7 +639,9 @@ label .req{color:var(--falla)}
 
         <div class="grid" style="margin-top:12px">
           <div><label for="nvDocente">Docente (apellidos y nombres)</label>
-            <input type="text" id="nvDocente" placeholder="APELLIDOS, Nombres"></div>
+            <input type="text" id="nvDocente" list="nvDocentes" placeholder="Escribe o elige de la lista"
+              autocomplete="off">
+            <datalist id="nvDocentes"></datalist></div>
           <div><label for="nvGrupo">Grupo</label>
             <select id="nvGrupo"></select></div>
           <div><label for="nvSub">Subgrupo</label>
@@ -896,7 +927,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
-    vista: 'cursos', indicadores: null, cursosCatalogo: null,
+    vista: 'cursos', indicadores: null, cursosCatalogo: null, docentesConocidos: [],
     correo: '', destinatarios: null,
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
@@ -1537,6 +1568,7 @@ label .req{color:var(--falla)}
     cargarDatos(); cargarReportes();
     if (puedeEditar() && !(estado.areas || []).length) cargarAreas();
     $('dtNueva').classList.toggle('oculto', !puedeEditar());
+    $('dtNuevoCurso').classList.toggle('oculto', !puedeEditar());
   });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
   $('dtRecargar').addEventListener('click', () => { estado.cacheDatos = {}; cargarDatos(true); });
@@ -1835,10 +1867,18 @@ label .req{color:var(--falla)}
     $('nvSub').innerHTML = ops(SUBGRUPOS);
     $('nvTipo').innerHTML = ops(TIPOS);
     $('capaNueva').classList.remove('oculto');
+    $('nvDocentes').innerHTML = (estado.docentesConocidos || [])
+      .map(x => '<option value="' + esc(x.nombre) + '">').join('');
     if (!estado.cursosCatalogo) {
       $('nvCurso').innerHTML = '<option>Cargando el catálogo…</option>';
       api('/cursos-para-carga')
-        .then(d => { estado.cursosCatalogo = d.cursos || []; pintarCursosNueva(); })
+        .then(d => {
+          estado.cursosCatalogo = d.cursos || [];
+          estado.docentesConocidos = d.docentes || [];
+          $('nvDocentes').innerHTML = estado.docentesConocidos
+            .map(x => '<option value="' + esc(x.nombre) + '">').join('');
+          pintarCursosNueva();
+        })
         .catch(e => { $('avisoNueva').textContent = e.message; $('avisoNueva').className = 'aviso error'; });
     } else pintarCursosNueva();
   }
@@ -1877,7 +1917,71 @@ label .req{color:var(--falla)}
       .catch(e => { avisoNv(e.message); $('btnCrearCarga').disabled = false; });
   });
 
+  // Al elegir un docente ya registrado se traen su correo y su celular.
+  $('nvDocente').addEventListener('change', () => {
+    const d = (estado.docentesConocidos || [])
+      .find(x => x.nombre.toLowerCase() === $('nvDocente').value.trim().toLowerCase());
+    if (!d) return;
+    if (d.correo && !$('nvCorreo').value) $('nvCorreo').value = d.correo;
+    if (d.celular && !$('nvCel').value) $('nvCel').value = d.celular;
+  });
+
   function avisoNv(t) { $('avisoNueva').textContent = t; $('avisoNueva').className = 'aviso error'; }
+
+  /* ------------------------------------------------- añadir un curso ----- */
+
+  $('dtNuevoCurso').addEventListener('click', abrirNuevoCurso);
+  $('btnNcCancel').addEventListener('click', () => $('capaCurso').classList.add('oculto'));
+  $('capaCurso').addEventListener('click', e => {
+    if (e.target === $('capaCurso')) $('capaCurso').classList.add('oculto');
+  });
+  $('ncPrograma').addEventListener('change', () => {
+    const ops = areasDe($('ncPrograma').value);
+    $('ncArea').innerHTML = '<option value="">Seleccione</option>' +
+      ops.map(o => '<option>' + esc(o) + '</option>').join('');
+  });
+
+  function abrirNuevoCurso() {
+    ['ncCurso','ncCodigo','ncSumilla'].forEach(id => $(id).value = '');
+    $('avisoCurso').textContent = '';
+    const ops = (l, vacio) => (vacio ? '<option value="">' + vacio + '</option>' : '') +
+      l.map(v => '<option>' + esc(v) + '</option>').join('');
+    const carreras = estado.admin
+      ? ['Ingeniería Industrial','Ingeniería Mecatrónica','Ingeniería Civil',
+         'Ingeniería Electrónica','Ingeniería Informática']
+      : (estado.programas || []);
+    $('ncPrograma').innerHTML = ops(carreras);
+    $('ncPlan').innerHTML = ops(PLANES);
+    $('ncSem').innerHTML = ops(SEMESTRES, 'Sin semestre');
+    $('ncComun').innerHTML = ops(['No','Sí']);
+    $('ncCompartido').innerHTML = ops(carreras, 'Ninguna');
+    $('ncArea').innerHTML = '<option value="">Seleccione</option>' +
+      areasDe(carreras[0]).map(o => '<option>' + esc(o) + '</option>').join('');
+    if (!(estado.areas || []).length) cargarAreas();
+    $('capaCurso').classList.remove('oculto');
+  }
+
+  $('btnCrearCurso').addEventListener('click', () => {
+    const nombre = $('ncCurso').value.trim();
+    if (!nombre) { $('avisoCurso').textContent = 'Escribe el nombre del curso.';
+                   $('avisoCurso').className = 'aviso error'; return; }
+    $('btnCrearCurso').disabled = true;
+    api('/crear-curso', { method:'POST', body: JSON.stringify({ curso: {
+      curso: nombre, codigo: $('ncCodigo').value.trim(), programa: $('ncPrograma').value,
+      plan: $('ncPlan').value, semestre: $('ncSem').value, area: $('ncArea').value,
+      sumilla: $('ncSumilla').value.trim(), comun: $('ncComun').value,
+      compartidoCon: $('ncCompartido').value
+    }})})
+      .then(() => {
+        $('capaCurso').classList.add('oculto');
+        $('btnCrearCurso').disabled = false;
+        estado.cursosCatalogo = null;
+        estado.cacheDatos = {}; cargarDatos(true);
+      })
+      .catch(e => { $('avisoCurso').textContent = e.message;
+                    $('avisoCurso').className = 'aviso error';
+                    $('btnCrearCurso').disabled = false; });
+  });
 
   /* ------------------------------------------------- borrar una carga ---- */
 
