@@ -1524,7 +1524,9 @@ label .req{color:var(--falla)}
   // Criterios de filtrado, en un solo lugar para poder aplicarlos en cascada.
   const CRITERIOS = {
     fCiclo2:    (f, v) => f.ciclo === v,
-    fPrograma2: (f, v) => f.programa === v,
+    // Un docente puede dictar en varias carreras: su fila las lleva todas
+    // separadas por «·», así que debe aparecer al filtrar por cualquiera.
+    fPrograma2: (f, v) => (f.programa || '').split(' · ').includes(v),
     fArea2:     (f, v) => (f.area || '').split(' · ').includes(v),
     fPlan2:     (f, v) => (f.plan || f.planEstudio) === v,
     fSem2:      (f, v) => f.semestre === v,
