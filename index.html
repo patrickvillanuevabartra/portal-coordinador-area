@@ -1673,11 +1673,13 @@ label .req{color:var(--falla)}
         (f.detalle || []).forEach(x => {
           const nom = nombreCurso(x.curso);
           let g = porCurso.find(y => y.curso === nom);
-          if (!g) { g = { curso: nom, codigo: x.codigo, plan: x.plan, area: x.area, partes: [] }; porCurso.push(g); }
+          if (!g) { g = { curso: nom, codigo: x.codigo, plan: x.plan, area: x.area,
+                          programa: x.programa, partes: [] }; porCurso.push(g); }
           g.partes.push(x);
         });
         const det = porCurso.map(g =>
           '<li><b>' + esc(g.curso) + '</b>' +
+          (g.programa ? '<span class="etq-plan">' + esc(g.programa) + '</span>' : '') +
           (g.plan ? '<span class="etq-plan">' + esc(g.plan) + '</span>' : '') +
           (g.area ? '<span class="etq-area">' + esc(g.area) + '</span>' : '') +
           '<span class="grupos">' +
