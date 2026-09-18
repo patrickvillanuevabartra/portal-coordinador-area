@@ -171,6 +171,8 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   border-radius:4px;padding:1px 7px;font-size:10.5px;color:var(--tinta-media)}
 .etq-dir.recibido{background:#fdf4e3;border-color:#e6c86a;color:#8a6400;font-weight:600}
 tr.sin-leer{background:#fffdf6}
+.comun{display:inline-block;margin-top:5px;background:#e6f1fb;color:#0c447c;
+  border:1px solid #c3ddf3;border-radius:5px;padding:2px 8px;font-size:11.5px}
 .acciones{white-space:nowrap}
 .acciones .chip{margin-right:5px}
 .vistas{display:flex;gap:4px;background:var(--fondo);border:1px solid var(--linea);
@@ -563,6 +565,7 @@ label .req{color:var(--falla)}
         <div class="barra">
           <input type="search" id="dtBuscar" placeholder="Buscar por curso, código, docente…" autocomplete="off">
           <button class="btn gris" id="dtMasFiltros">Filtros</button>
+          <button class="btn gris" id="dtNueva" title="Añadir una carga">Añadir carga</button>
           <button class="btn gris" id="dtRecargar" title="Volver a leer los datos">Actualizar</button>
           <button class="btn fantasma" id="dtExportar">Descargar</button>
           <span class="conteo" id="dtConteo"></span>
@@ -594,6 +597,49 @@ label .req{color:var(--falla)}
       <div class="tarjeta-cuerpo"><div class="tabla" id="dtReportes"></div></div>
     </section>
   </section>
+
+  <div id="capaNueva" class="capa oculto">
+    <div class="dialogo">
+      <h3>Añadir una carga</h3>
+      <p class="det">El curso trae su código, plan, semestre y área desde el catálogo.</p>
+      <div class="cuerpo-dialogo">
+        <label for="nvCurso">Curso</label>
+        <input type="search" id="nvBuscarCurso" placeholder="Escribe el código o el nombre…" autocomplete="off">
+        <select id="nvCurso" size="6" style="margin-top:6px"></select>
+        <p class="ayuda" id="nvDetalle"></p>
+
+        <div class="grid" style="margin-top:12px">
+          <div><label for="nvDocente">Docente (apellidos y nombres)</label>
+            <input type="text" id="nvDocente" placeholder="APELLIDOS, Nombres"></div>
+          <div><label for="nvGrupo">Grupo</label>
+            <select id="nvGrupo"></select></div>
+          <div><label for="nvSub">Subgrupo</label>
+            <select id="nvSub"></select></div>
+          <div><label for="nvTipo">Tipo</label>
+            <select id="nvTipo"></select></div>
+        </div>
+
+        <div class="grid" style="margin-top:12px">
+          <div><label for="nvHT">Horas de teoría</label><input type="number" id="nvHT" min="0" value="0"></div>
+          <div><label for="nvHP">Horas de práctica</label><input type="number" id="nvHP" min="0" value="0"></div>
+          <div><label for="nvHL">Horas de laboratorio</label><input type="number" id="nvHL" min="0" value="0"></div>
+          <div><label for="nvHO">Horas de taller</label><input type="number" id="nvHO" min="0" value="0"></div>
+        </div>
+
+        <div class="grid" style="margin-top:12px">
+          <div><label for="nvCorreo">Correo del docente</label><input type="text" id="nvCorreo"></div>
+          <div><label for="nvCel">Celular</label><input type="text" id="nvCel"></div>
+        </div>
+        <p class="nota-dialogo">Queda registrada en Docentes DAI, igual que si se hubiera
+          importado. El identificador se genera solo.</p>
+      </div>
+      <div class="pie">
+        <button class="btn" id="btnCrearCarga">Añadir</button>
+        <button class="btn gris" id="btnNvCancel">Cancelar</button>
+        <span class="aviso" id="avisoNueva"></span>
+      </div>
+    </div>
+  </div>
 
   <div id="capaEd" class="capa oculto">
     <div class="dialogo">
@@ -850,7 +896,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
-    vista: 'cursos', indicadores: null,
+    vista: 'cursos', indicadores: null, cursosCatalogo: null,
     correo: '', destinatarios: null,
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
@@ -1282,7 +1328,9 @@ label .req{color:var(--falla)}
         const cargas = g.filas.map(({ ancla, partes }) => {
           const a = ancla.a;
           nCarga++;
-          const bloqueada = (a.faltantes || []).length > 0;
+          // Un curso común que supervisa la otra carrera se muestra, pero sus
+          // botones quedan inactivos: la supervisión se registra una sola vez.
+          const bloqueada = (a.faltantes || []).length > 0 || a.soloConsulta;
           const hechos = new Set();
           partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
 
@@ -1313,7 +1361,14 @@ label .req{color:var(--falla)}
           return '<tr>' +
             '<td class="carga"><span class="num-carga">' + nCarga + '</span>' +
               '<div class="detalle-carga">' + detalle + '</div>' +
-              (bloqueada ? '<div class="pendiente">Falta ' + esc((a.faltantes || []).join(', ')) + '</div>' : '') +
+              ((a.faltantes || []).length
+                ? '<div class="pendiente">Falta ' + esc((a.faltantes || []).join(', ')) + '</div>' : '') +
+              (a.soloConsulta
+                ? '<div class="comun">Curso común · lo supervisa ' + esc(a.area) +
+                  (a.coordinador ? ' (' + esc(a.coordinador) + ')' : '') + '</div>'
+                : (a.comun && a.compartidoCon
+                   ? '<div class="comun">Curso común · también se dicta en ' + esc(a.compartidoCon) + '</div>'
+                   : '')) +
             '</td>' +
             '<td>' + esc(a.docente) + barra + '</td>' +
             '<td><div class="chips">' + chips + mover + '</div></td>' +
@@ -1481,6 +1536,7 @@ label .req{color:var(--falla)}
       'Departamento no se modifica desde aquí.';
     cargarDatos(); cargarReportes();
     if (puedeEditar() && !(estado.areas || []).length) cargarAreas();
+    $('dtNueva').classList.toggle('oculto', !puedeEditar());
   });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
   $('dtRecargar').addEventListener('click', () => { estado.cacheDatos = {}; cargarDatos(true); });
@@ -1660,7 +1716,9 @@ label .req{color:var(--falla)}
              '<td>' + esc(f.programa || '—') + '</td>' +
              '<td>' + plan(f.plan) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
-             '<td>' + area(f.area) + '</td>' +
+             '<td>' + area(f.area) +
+               (/^s/i.test(f.comun || '') ? '<small class="codigo">común con ' +
+                 esc(f.compartidoCon || '—') + '</small>' : '') + '</td>' +
              '<td class="celda-sumilla largo">' + (f.sumilla
                 ? '<small class="codigo">' + esc(textoPlano(f.sumilla)) + '</small>'
                 : falta('No')) + '</td>';
@@ -1672,7 +1730,9 @@ label .req{color:var(--falla)}
         const porCurso = [];
         (f.detalle || []).forEach(x => {
           const nom = nombreCurso(x.curso);
-          let g = porCurso.find(y => y.curso === nom);
+          // Se agrupa por curso Y carrera: un mismo curso de área común se
+          // dicta en dos carreras y cada una es una carga distinta.
+          let g = porCurso.find(y => y.curso === nom && y.programa === x.programa);
           if (!g) { g = { curso: nom, codigo: x.codigo, plan: x.plan, area: x.area,
                           programa: x.programa, partes: [] }; porCurso.push(g); }
           g.partes.push(x);
@@ -1719,6 +1779,8 @@ label .req{color:var(--falla)}
       h += '<td class="acciones">' +
         (vista !== 'docentes' ? '<button class="chip activo" data-rep="' + i + '">Reportar</button>' : '') +
         (puedeEditar() ? '<button class="chip activo" data-ed="' + i + '">Editar</button>' : '') +
+        (puedeEditar() && vista === 'cargas'
+          ? '<button class="chip activo" data-del="' + i + '" title="Borrar la carga">Borrar</button>' : '') +
         '</td>';
       h += '</tr>';
     });
@@ -1738,9 +1800,103 @@ label .req{color:var(--falla)}
     $('dtTablaCuerpo').querySelectorAll('[data-ed]').forEach(b => {
       b.addEventListener('click', () => abrirEdicion(lista[Number(b.dataset.ed)], vista));
     });
+    $('dtTablaCuerpo').querySelectorAll('[data-del]').forEach(b => {
+      b.addEventListener('click', () => borrarCarga(lista[Number(b.dataset.del)]));
+    });
   }
 
   function puedeEditar() { return estado.admin || estado.general; }
+
+  /* ------------------------------------------------- añadir una carga ----
+     Se elige el curso del catálogo y de él salen el código, el plan, el
+     semestre y el área. Así no hay que llenar nada a mano en QuintaDB. */
+
+  $('dtNueva').addEventListener('click', abrirNuevaCarga);
+  $('btnNvCancel').addEventListener('click', () => $('capaNueva').classList.add('oculto'));
+  $('capaNueva').addEventListener('click', e => {
+    if (e.target === $('capaNueva')) $('capaNueva').classList.add('oculto');
+  });
+  $('nvBuscarCurso').addEventListener('input', pintarCursosNueva);
+  $('nvCurso').addEventListener('change', () => {
+    const c = (estado.cursosCatalogo || []).find(x => x.codigo === $('nvCurso').value);
+    $('nvDetalle').textContent = c
+      ? c.programa + ' · plan ' + (c.plan || '—') + ' · semestre ' + (c.semestre || '—') +
+        ' · ' + (c.area || 'sin área')
+      : '';
+  });
+
+  function abrirNuevaCarga() {
+    ['nvDocente','nvCorreo','nvCel'].forEach(id => $(id).value = '');
+    ['nvHT','nvHP','nvHL','nvHO'].forEach(id => $(id).value = 0);
+    $('nvBuscarCurso').value = ''; $('nvDetalle').textContent = '';
+    $('avisoNueva').textContent = '';
+    const ops = (l) => l.map(v => '<option>' + esc(v) + '</option>').join('');
+    $('nvGrupo').innerHTML = ops(['1','2','3','4','5','6','7','8','9','10']);
+    $('nvSub').innerHTML = ops(SUBGRUPOS);
+    $('nvTipo').innerHTML = ops(TIPOS);
+    $('capaNueva').classList.remove('oculto');
+    if (!estado.cursosCatalogo) {
+      $('nvCurso').innerHTML = '<option>Cargando el catálogo…</option>';
+      api('/cursos-para-carga')
+        .then(d => { estado.cursosCatalogo = d.cursos || []; pintarCursosNueva(); })
+        .catch(e => { $('avisoNueva').textContent = e.message; $('avisoNueva').className = 'aviso error'; });
+    } else pintarCursosNueva();
+  }
+
+  function pintarCursosNueva() {
+    const q = sinAcentos($('nvBuscarCurso').value.trim());
+    let l = estado.cursosCatalogo || [];
+    if (q) l = l.filter(c => q.split(/\s+/).every(p =>
+      sinAcentos(c.codigo + ' ' + c.curso + ' ' + c.programa + ' ' + (c.area || '')).includes(p)));
+    $('nvCurso').innerHTML = l.slice(0, 300).map(c =>
+      '<option value="' + esc(c.codigo) + '">' + esc(c.codigo) + ' · ' +
+      esc(nombreCurso(c.curso)) + '</option>').join('') ||
+      '<option disabled>Ningún curso coincide</option>';
+  }
+
+  $('btnCrearCarga').addEventListener('click', () => {
+    const cod = $('nvCurso').value;
+    const doc = $('nvDocente').value.trim();
+    if (!cod) { avisoNv('Elige el curso.'); return; }
+    if (!doc) { avisoNv('Escribe el docente.'); return; }
+    const c = (estado.cursosCatalogo || []).find(x => x.codigo === cod) || {};
+    $('btnCrearCarga').disabled = true;
+    api('/crear-carga', { method:'POST', body: JSON.stringify({ carga: {
+      codigo: cod, programa: c.programa, ciclo: $('filtroCiclo').value,
+      docente: doc, grupo: $('nvGrupo').value, subGrupo: $('nvSub').value,
+      tipo: $('nvTipo').value, correo: $('nvCorreo').value.trim(),
+      celular: $('nvCel').value.trim(),
+      horasTeoria: $('nvHT').value, horasPractica: $('nvHP').value,
+      horasLaboratorio: $('nvHL').value, horasTaller: $('nvHO').value
+    }})})
+      .then(() => {
+        $('capaNueva').classList.add('oculto');
+        $('btnCrearCarga').disabled = false;
+        estado.cacheDatos = {}; cargarDatos(true);
+      })
+      .catch(e => { avisoNv(e.message); $('btnCrearCarga').disabled = false; });
+  });
+
+  function avisoNv(t) { $('avisoNueva').textContent = t; $('avisoNueva').className = 'aviso error'; }
+
+  /* ------------------------------------------------- borrar una carga ---- */
+
+  function borrarCarga(f) {
+    const quien = nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
+    if (!confirm('¿Borrar esta carga?\n\n' + quien)) return;
+    const pedir = (confirmado) =>
+      api('/borrar-carga', { method:'POST', body: JSON.stringify({ recordId: f.recordId, confirmado }) });
+    pedir(false)
+      .then(d => {
+        if (d.requiereConfirmacion) {
+          if (!confirm(d.aviso + '\n\n¿Borrarla de todos modos?')) return null;
+          return pedir(true);
+        }
+        return d;
+      })
+      .then(d => { if (d) { estado.cacheDatos = {}; cargarDatos(true); } })
+      .catch(e => alert('No se pudo borrar: ' + e.message));
+  }
 
   // Qué se puede editar en cada vista. Nada de esto altera la carga aprobada.
   const PLANES = ['2015-II', '2024-I'];
@@ -1755,6 +1911,10 @@ label .req{color:var(--falla)}
       { col:'Plan de estudio', etq:'Plan de estudio', de:'plan', ops:PLANES },
       { col:'Semestre', etq:'Semestre', de:'semestre', ops:SEMESTRES },
       { col:'Área texto', etq:'Área', de:'area', ops:'areas' },
+      { col:'Curso comun', etq:'¿Es un curso común?', de:'comun', ops:['No','Sí'],
+        ayuda:'Marca Sí cuando lo llevan alumnos de dos carreras.' },
+      { col:'Compartido con', etq:'Se comparte con', de:'compartidoCon', ops:'carreras',
+        ayuda:'La otra carrera cuyos alumnos también lo llevan.' },
       { col:'Sumilla', etq:'Sumilla', de:'sumilla', largo:true }
     ],
     carga: [
@@ -1858,7 +2018,15 @@ label .req{color:var(--falla)}
     $('edCampos').innerHTML = CAMPOS_EDIT[tipo].map((c, i) => {
       const valor = c.de === 'area' ? (f.area || '') : (f[c.de] || '');
       let control;
-      if (c.largo) {
+      if (c.ops === 'carreras') {
+        const carreras = [...new Set((estado.datos && estado.datos.filas || [])
+          .map(x => x.programa).filter(Boolean))].sort();
+        const fuera = valor && !carreras.includes(valor) ? [valor] : [];
+        control = '<select id="ed_' + i + '"><option value="">Ninguna</option>' +
+          fuera.concat(carreras).map(o =>
+            '<option' + (o === valor ? ' selected' : '') + '>' + esc(o) + '</option>').join('') +
+          '</select>';
+      } else if (c.largo) {
         control = '<textarea id="ed_' + i + '" rows="5">' + esc(textoPlano(valor)) + '</textarea>';
       } else if (c.ops) {
         const ops = c.ops === 'areas' ? areasDe(prog) : c.ops;
