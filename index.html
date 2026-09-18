@@ -1135,6 +1135,10 @@ label .req{color:var(--falla)}
     api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
       .then(datos => {
         estado.asignaciones = datos.asignaciones || [];
+        if (!estado.asignaciones.length && datos.ciclos_en_la_tabla) {
+          console.log('Portal: se pidió el ciclo', JSON.stringify(datos.ciclo_pedido),
+                      'y en la tabla hay', datos.ciclos_en_la_tabla);
+        }
         prepararFiltros(); pintarTablero(); guardarLocal();
         // El avance se pide recién ahora: leer las siete tablas de supervisión
         // es lo más lento, y el tablero no lo necesita para mostrarse.
