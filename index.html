@@ -903,7 +903,11 @@ label .req{color:var(--falla)}
     return fetch(CFG.PROXY + ruta, cfg).then(async r => {
       const data = await r.json().catch(() => ({ error: 'El proxy devolvió una respuesta ilegible' }));
       if (!r.ok) {
-        if (/token/i.test(data.error || '') && !reintento) {
+        // Solo un fallo real del identificador pide renovar: antes cualquier
+        // error con la palabra «token» disparaba la renovación de Google.
+        const esToken = /token (no v|ausente|inv)/i.test(data.error || '') ||
+                        /credencial/i.test(data.error || '');
+        if (esToken && !reintento) {
           return pedirToken()
             .then(() => api(ruta, opciones, true))
             .catch(() => { sesionVencida(); throw new Error('Tu sesión venció. Vuelve a entrar.'); });
