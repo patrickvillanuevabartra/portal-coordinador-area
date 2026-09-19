@@ -332,6 +332,15 @@ tbody tr:hover{background:#fafcfb}
 .num-curso{display:inline-block;min-width:24px;font-size:11px;color:var(--brand-oscuro);
   font-family:'IBM Plex Mono',monospace;opacity:.75}
 .curso-cab .codigo{margin-left:24px}
+
+/* --------- Cursos comunes: los llevan alumnos de dos carreras --------- */
+.curso-cab.comun-cab td{background:#eaf2fb;box-shadow:inset 3px 0 0 #2a6fb0}
+.curso-cab.comun-cab b{color:#0c447c}
+.curso-cab.comun-cab .marca-area{background:#fff;border-color:#bcd9f0}
+.sello-comun{display:inline-block;margin-left:10px;background:#2a6fb0;color:#fff;
+  border-radius:5px;padding:1px 8px;font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;vertical-align:2px}
+.nota-comun{margin:6px 0 0 24px;font-size:12px;color:#0c447c;line-height:1.45;max-width:78ch}
 .tipo{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;
   border:1px solid var(--linea);border-radius:5px;padding:1px 7px;color:var(--tinta-media);background:var(--papel)}
 
@@ -1347,14 +1356,27 @@ label .req{color:var(--falla)}
       let nCarga = 0;
       const bloques = car.cursos.map((g, iCurso) => {
         const c = g.a;
-        const cabecera = '<tr class="curso-cab"><td colspan="3">' +
+        // Un curso común se distingue de un vistazo: cambia el color de su
+        // cabecera y lleva una nota de qué significa y qué toca hacer.
+        const esComun = !!c.comun;
+        const cabecera = '<tr class="curso-cab' + (esComun ? ' comun-cab' : '') + '"><td colspan="3">' +
           '<span class="num-curso">' + (iCurso + 1) + '</span>' +
           '<b>' + esc(nombreCurso(c.asignatura)) + '</b>' +
+          (esComun ? '<span class="sello-comun">Curso común</span>' : '') +
           '<small class="codigo">' + esc(c.codigo || 'sin código') +
             ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
             ' · <span class="marca-area">' + esc(c.area || 'sin área') + '</span>' +
             (c.coordinador ? ' · coordina ' + esc(c.coordinador) : '') +
-          '</small></td></tr>';
+          '</small>' +
+          (esComun ? '<div class="nota-comun">' + (c.soloConsulta
+            ? 'Lo llevan alumnos de dos carreras y la carga está registrada en ' +
+              esc(c.area) + (c.coordinador ? ', a cargo de ' + esc(c.coordinador) : '') +
+              '. Lo supervisa esa área, no la tuya: aquí solo puedes consultarlo.'
+            : 'Lo llevan alumnos de dos carreras' +
+              (c.compartidoCon ? ', también de ' + esc(c.compartidoCon) : '') +
+              '. La carga está en tu área, así que la supervisión te corresponde a ti ' +
+              'y se registra una sola vez.') + '</div>' : '') +
+          '</td></tr>';
 
         const cargas = g.filas.map(({ ancla, partes }) => {
           const a = ancla.a;
