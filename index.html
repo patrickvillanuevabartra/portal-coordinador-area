@@ -171,6 +171,9 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
   border-radius:4px;padding:1px 7px;font-size:10.5px;color:var(--tinta-media)}
 .etq-dir.recibido{background:#fdf4e3;border-color:#e6c86a;color:#8a6400;font-weight:600}
 tr.sin-leer{background:#fffdf6}
+.fila-comun td{background:#f2f7fd}
+.fila-comun td:first-child{box-shadow:inset 3px 0 0 #2a6fb0}
+#datos .sello-comun{margin:4px 0 0;display:inline-block}
 .comun{display:inline-block;margin-top:5px;background:#e6f1fb;color:#0c447c;
   border:1px solid #c3ddf3;border-radius:5px;padding:2px 8px;font-size:11.5px}
 .acciones{white-space:nowrap}
@@ -986,13 +989,18 @@ label .req{color:var(--falla)}
     const cfg = Object.assign({ headers: {} }, opciones);
     cfg.headers['Authorization'] = 'Bearer ' + estado.credential;
     if (cfg.body) cfg.headers['Content-Type'] = 'application/json';
-    return fetch(CFG.PROXY + ruta, cfg).then(async r => {
+    return fetch(CFG.PROXY + ruta, cfg).catch(() => {
+      throw new Error('No se pudo contactar al servidor. Revisa tu conexión y reintenta.');
+    }).then(async r => {
       const data = await r.json().catch(() => ({ error: 'El proxy devolvió una respuesta ilegible' }));
       if (!r.ok) {
         // Solo un fallo real del identificador pide renovar: antes cualquier
         // error con la palabra «token» disparaba la renovación de Google.
         const esToken = /token (no v|ausente|inv)/i.test(data.error || '') ||
                         /credencial/i.test(data.error || '');
+        // Un error de red o de tiempo no es una sesión vencida: si se trata
+        // como tal, se pide renovar a Google y este impone diez minutos de
+        // espera, que es lo que dejaba el portal bloqueado.
         if (esToken && !reintento) {
           return pedirToken()
             .then(() => api(ruta, opciones, true))
@@ -1686,9 +1694,11 @@ label .req{color:var(--falla)}
     if (vista === 'docentes') ['fPlan2','fSem2','fTipo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
 
     const REV = {
-      cursos:   [['codigo','Sin código'], ['area','Sin área'], ['sumilla','Sin sumilla']],
-      cargas:   [['correo','Sin correo del docente'], ['celular','Sin celular del docente'],
-                 ['codigo','Sin código'], ['area','Sin área'], ['incompleta','Cargas incompletas']],
+      cursos:   [['comun','Solo cursos comunes'], ['codigo','Sin código'],
+                 ['area','Sin área'], ['sumilla','Sin sumilla']],
+      cargas:   [['comun','Solo cursos comunes'], ['correo','Sin correo del docente'],
+                 ['celular','Sin celular del docente'], ['codigo','Sin código'],
+                 ['area','Sin área'], ['incompleta','Cargas incompletas']],
       docentes: [['correo','Sin correo'], ['celular','Sin celular']]
     };
     // Se marcan varias a la vez: aparece lo que cumpla alguna de ellas, que es
@@ -1713,6 +1723,7 @@ label .req{color:var(--falla)}
     lista = aplicar(lista, null).filter(f => {
       if (ff.length) {
         const cumple = {
+          comun:      /^s/i.test(f.comun || '') || f.comun === true,
           correo:     !f.correo && !f.correoDocente,
           celular:    !f.celular && !f.celularDocente,
           codigo:     !f.codigo,
@@ -1741,6 +1752,12 @@ label .req{color:var(--falla)}
                           : '<span class="vacio-dato">sin área</span>';
     const plan = (p) => p ? '<span class="etq-plan">' + esc(p) + '</span>' : '—';
     pintarResumen(lista, vista);
+    // Un curso común se reconoce por el color de su fila y por su etiqueta.
+    const esComun = (f) => /^s/i.test(f.comun || '') || f.comun === true;
+    const selloComun = (f) => esComun(f)
+      ? '<span class="sello-comun">Común</span>' +
+        (f.compartidoCon ? '<small class="codigo">con ' + esc(f.compartidoCon) + '</small>' : '')
+      : '';
     let h = '<table><thead><tr>';
     if (vista === 'cursos') {
       cab = [['Código','w-cod'],['Curso','largo'],['Carrera','w-carrera'],['Plan','w-plan'],
@@ -1763,10 +1780,11 @@ label .req{color:var(--falla)}
     h += '</tr></thead><tbody>';
 
     lista.forEach((f, i) => {
-      h += '<tr>';
+      h += '<tr' + (esComun(f) ? ' class="fila-comun"' : '') + '>';
       if (vista === 'cursos') {
         h += '<td class="mono">' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
-             '<td class="col-curso largo"><b>' + esc(nombreCurso(f.curso)) + '</b></td>' +
+             '<td class="col-curso largo"><b>' + esc(nombreCurso(f.curso)) + '</b>' +
+             selloComun(f) + '</td>' +
              '<td>' + esc(f.programa || '—') + '</td>' +
              '<td>' + plan(f.plan) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
@@ -1817,6 +1835,7 @@ label .req{color:var(--falla)}
         h += '<td>' + esc(f.ciclo || '—') + '</td>' +
              '<td>' + esc(f.codigo || '') + '</td>' +
              '<td class="col-curso largo"><b>' + esc(nombreCurso(f.asignatura)) + '</b>' +
+             selloComun(f) +
              (f.falta ? '<small class="pendiente">Falta ' + esc(f.falta) + '</small>' : '') + '</td>' +
              '<td>' + plan(f.planEstudio) + '</td>' +
              '<td>' + esc(f.semestre || '—') + '</td>' +
@@ -2169,6 +2188,20 @@ label .req{color:var(--falla)}
     $('edNota').textContent = NOTA_EDIT[tipo];
     $('avisoEd').textContent = '';
     $('capaEd').classList.remove('oculto');
+
+    // La lista trae solo un extracto de la sumilla: la completa se pide ahora,
+    // para no guardarla cortada.
+    if (tipo === 'curso' && f.sumillaLarga && f.recordId) {
+      const i = CAMPOS_EDIT.curso.findIndex(c => c.de === 'sumilla');
+      const caja = $('ed_' + i);
+      if (caja) {
+        caja.disabled = true;
+        api('/sumilla?recordId=' + encodeURIComponent(f.recordId))
+          .then(d => { caja.value = textoPlano(d.sumilla || ''); caja.disabled = false;
+                       f.sumilla = d.sumilla || ''; f.sumillaLarga = false; })
+          .catch(() => { caja.disabled = false; });
+      }
+    }
   }
 
   $('btnEdCancel').addEventListener('click', () => $('capaEd').classList.add('oculto'));
