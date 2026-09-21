@@ -189,6 +189,24 @@ tr.sin-leer{background:#fffdf6}
 .chip.hecho.niv-medio{background:#fdf2dc;border-color:#e2b457;color:#7a5200}
 .chip.hecho.niv-bajo{background:#fde7e4;border-color:#e59a8f;color:#8f2418}
 .chip.hecho.niv-ok{background:#eef3f1;border-color:#b9cbc3;color:#2d4a3f}
+/* ------ Qué falta de un vistazo: completo en verde, pendiente en ámbar ------ */
+#fichaForm .campo-lleno{background:#f0f9f4;box-shadow:inset 3px 0 0 #3aa56e;
+  border-radius:6px;transition:background .2s}
+#fichaForm .campo-vacio{background:#fffaf0;box-shadow:inset 3px 0 0 #e2b457;
+  border-radius:6px;transition:background .2s}
+#fichaForm .campo-lleno,#fichaForm .campo-vacio,#fichaForm .campo-auto{padding:6px 8px 6px 11px}
+#fichaForm .campo-lleno input,#fichaForm .campo-lleno select,#fichaForm .campo-lleno textarea{
+  border-color:#9fd3b6}
+#fichaForm .campo-vacio input,#fichaForm .campo-vacio select,#fichaForm .campo-vacio textarea{
+  border-color:#ecd08f}
+.leyenda-campos{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tinta-media);
+  margin:0 0 12px}
+.leyenda-campos i{display:inline-block;width:10px;height:10px;border-radius:3px;
+  margin-right:5px;vertical-align:-1px}
+.resumen-completo{margin:0 0 16px}
+.resumen-completo.nivel-alto .cifra{color:#0b5a38}
+.resumen-completo.nivel-medio .cifra{color:#7a5200}
+.resumen-completo.nivel-bajo .cifra{color:#8f2418}
 .comun{display:inline-block;margin-top:5px;background:#e6f1fb;color:#0c447c;
   border:1px solid #c3ddf3;border-radius:5px;padding:2px 8px;font-size:11.5px}
 .acciones{white-space:nowrap}
@@ -3405,16 +3423,99 @@ label .req{color:var(--falla)}
           const obs = fila.querySelector('.obs');
           if (obs) obs.classList.toggle('oculto', !(sel.value === 'Parcial' || sel.value === 'No cumple'));
           recalcularEscala(F);
+        recalcularCompleto(F);
         });
       });
     }
     recalcularEscala(F);
     recalcularConteo(F);
+
+    // Los formatos sin calificación por ítem muestran cuánto está completo el
+    // registro: así todos tienen su nivel a la vista, no solo sílabo y aula.
+    const leyenda = document.createElement('div');
+    leyenda.className = 'leyenda-campos';
+    leyenda.innerHTML = '<span><i style="background:#3aa56e"></i>Completado</span>' +
+                        '<span><i style="background:#e2b457"></i>Falta completar</span>';
+    $('fichaForm').prepend(leyenda);
+
+    // En todos los formatos, al escribir se actualiza el color de cada campo.
+    $('fichaForm').addEventListener('input', marcarCampos);
+    $('fichaForm').addEventListener('change', marcarCampos);
+    marcarCampos();
+
+    if (!bloqueEscala(F)) {
+      const caja = document.createElement('div');
+      caja.className = 'resumen resumen-completo';
+      caja.innerHTML =
+        '<div><div class="cifra" id="rcPorcentaje">0<small>%</small></div>' +
+        '<div class="det">completado</div></div>' +
+        '<div class="det" id="rcDetalle">Sin datos</div>';
+      $('fichaForm').prepend(caja);
+      $('fichaForm').addEventListener('input', () => recalcularCompleto(F));
+      $('fichaForm').addEventListener('change', () => recalcularCompleto(F));
+      recalcularCompleto(F);
+    }
   }
 
   function bloqueEscala(F) { return F.bloques.find(b => b.tipo === 'escala'); }
 
+  // Cada campo se pinta según esté completo o falte: el coordinador ve de un
+  // vistazo dónde ya terminó y dónde le queda trabajo.
+  function marcarCampos() {
+    const form = $('fichaForm');
+    if (!form) return;
+    form.querySelectorAll('[id^="f_"], [data-tema], [data-estado]').forEach(el => {
+      if (el.type === 'hidden') return;
+      const caja = el.closest('.item') || el.closest('.temas > div') || el.parentElement;
+      if (!caja) return;
+      const lleno = String(el.value || '').trim() && el.value !== 'Seleccione';
+      const soloLectura = el.disabled || el.readOnly;
+      caja.classList.toggle('campo-lleno', !!lleno && !soloLectura);
+      caja.classList.toggle('campo-vacio', !lleno && !soloLectura);
+      caja.classList.toggle('campo-auto', soloLectura);
+    });
+  }
+
+  // Cuánto del formato está lleno, sin contar lo que el portal completa solo.
+  function recalcularCompleto(F) {
+    marcarCampos();
+    if (!$('rcPorcentaje')) return;
+    const campos = [...$('fichaForm').querySelectorAll('[id^="f_"], [data-tema]')]
+      .filter(el => !el.disabled && !el.readOnly && el.type !== 'hidden');
+    const llenos = campos.filter(el => String(el.value || '').trim() &&
+                                      el.value !== 'Seleccione').length;
+    const pct = campos.length ? Math.round(llenos / campos.length * 100) : 0;
+    $('rcPorcentaje').innerHTML = pct + '<small>%</small>';
+
+    // Un dato propio de cada formato, además del porcentaje.
+    const v = (k) => ($('f_' + k) || {}).value || '';
+    let extra = '';
+    if (F === FORMULARIOS.formularios) {
+      const n = ['f1','f2','f3'].filter(k => /^s/i.test(v(k))).length;
+      extra = n + ' de 3 formularios presentados';
+    } else if (F === FORMULARIOS.formula) {
+      extra = [v('registroSistema'), v('coincide') ? 'coincide: ' + v('coincide') : '', v('estado')]
+        .filter(Boolean).join(' · ');
+    } else if (F === FORMULARIOS.entrevistas) {
+      const temas = [...$('fichaForm').querySelectorAll('[data-tema]')];
+      const t = temas.filter(x => x.value.trim()).length;
+      extra = t + ' de ' + temas.length + ' temas tratados' +
+              (v('alerta') ? ' · alerta: ' + v('alerta') : '');
+    } else if (F === FORMULARIOS.delegados) {
+      extra = [v('delegado') ? 'delegado registrado' : 'falta delegado',
+               v('subdelegado') ? 'subdelegado registrado' : 'falta subdelegado'].join(' · ');
+    }
+    $('rcDetalle').textContent = llenos
+      ? llenos + ' de ' + campos.length + ' campos completos' + (extra ? ' · ' + extra : '')
+      : 'Sin datos';
+    const caja = $('rcPorcentaje').closest('.resumen');
+    caja.classList.toggle('nivel-alto', pct >= 70);
+    caja.classList.toggle('nivel-medio', pct >= 40 && pct < 70);
+    caja.classList.toggle('nivel-bajo', pct > 0 && pct < 40);
+  }
+
   function recalcularEscala(F) {
+    marcarCampos();
     const b = bloqueEscala(F);
     if (!b || !$('listaItems')) return null;
     const valores = [...$('listaItems').querySelectorAll('[data-estado]')].map(s => s.value);
