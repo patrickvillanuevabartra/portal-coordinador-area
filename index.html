@@ -172,6 +172,12 @@ select:focus,input:focus,textarea:focus{border-color:var(--brand);outline:none}
 .etq-dir.recibido{background:#fdf4e3;border-color:#e6c86a;color:#8a6400;font-weight:600}
 tr.sin-leer{background:#fffdf6}
 .fila-comun td{background:#f2f7fd}
+.fila-posible td{background:#fffaf0}
+.fila-posible td:first-child{box-shadow:inset 3px 0 0 #d99a1b}
+.sello-posible{display:inline-block;margin-left:10px;background:#fff;color:#8a6400;
+  border:1px solid #e6c86a;border-radius:5px;padding:1px 8px;font-size:10.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.05em;vertical-align:2px}
+#datos .sello-posible{margin:4px 0 0;display:inline-block}
 .fila-comun td:first-child{box-shadow:inset 3px 0 0 #2a6fb0}
 #datos .sello-comun{margin:4px 0 0;display:inline-block}
 .comun{display:inline-block;margin-top:5px;background:#e6f1fb;color:#0c447c;
@@ -343,6 +349,9 @@ tbody tr:hover{background:#fafcfb}
 .sello-comun{display:inline-block;margin-left:10px;background:#2a6fb0;color:#fff;
   border-radius:5px;padding:1px 8px;font-size:10.5px;font-weight:600;
   text-transform:uppercase;letter-spacing:.05em;vertical-align:2px}
+.curso-cab.posible-cab td{background:#fdf6e6;box-shadow:inset 3px 0 0 #d99a1b}
+.curso-cab.posible-cab b{color:#6b4c00}
+.nota-posible{margin:6px 0 0 24px;font-size:12px;color:#6b4c00;line-height:1.45;max-width:78ch}
 .nota-comun{margin:6px 0 0 24px;font-size:12px;color:#0c447c;line-height:1.45;max-width:78ch}
 .tipo{display:inline-block;font-size:10.5px;font-weight:600;letter-spacing:.04em;
   border:1px solid var(--linea);border-radius:5px;padding:1px 7px;color:var(--tinta-media);background:var(--papel)}
@@ -1367,10 +1376,15 @@ label .req{color:var(--falla)}
         // Un curso común se distingue de un vistazo: cambia el color de su
         // cabecera y lleva una nota de qué significa y qué toca hacer.
         const esComun = !!c.comun;
-        const cabecera = '<tr class="curso-cab' + (esComun ? ' comun-cab' : '') + '"><td colspan="3">' +
+        // Su código está en otras carreras pero nadie lo ha confirmado: se
+        // resalta en ámbar para que la Coordinación decida si es común.
+        const posible = !esComun && !!c.detectado;
+        const cabecera = '<tr class="curso-cab' + (esComun ? ' comun-cab' : (posible ? ' posible-cab' : '')) +
+          '"><td colspan="3">' +
           '<span class="num-curso">' + (iCurso + 1) + '</span>' +
           '<b>' + esc(nombreCurso(c.asignatura)) + '</b>' +
           (esComun ? '<span class="sello-comun">Curso común</span>' : '') +
+          (posible ? '<span class="sello-posible">¿Curso común?</span>' : '') +
           '<small class="codigo">' + esc(c.codigo || 'sin código') +
             ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
             ' · <span class="marca-area">' + esc(c.area || 'sin área') + '</span>' +
@@ -1384,6 +1398,11 @@ label .req{color:var(--falla)}
               (c.compartidoCon ? ', también de ' + esc(c.compartidoCon) : '') +
               '. La carga está en tu área, así que la supervisión te corresponde a ti ' +
               'y se registra una sola vez.') + '</div>' : '') +
+          (posible ? '<div class="nota-posible">Su código también figura en ' +
+            esc(c.otrasCarreras) + '. Si alumnos de ambas carreras lo llevan juntos, ' +
+            (puedeEditar()
+              ? 'confírmalo en Validar datos, en la tarjeta de cursos comunes detectados.'
+              : 'avisa a la Coordinación para que lo confirme.') + '</div>' : '') +
           '</td></tr>';
 
         const cargas = g.filas.map(({ ancla, partes }) => {
@@ -1694,7 +1713,7 @@ label .req{color:var(--falla)}
     if (vista === 'docentes') ['fPlan2','fSem2','fTipo2'].forEach(id => $(id).parentElement.classList.add('oculto'));
 
     const REV = {
-      cursos:   [['comun','Solo cursos comunes'], ['codigo','Sin código'],
+      cursos:   [['comun','Cursos comunes (confirmados y detectados)'], ['codigo','Sin código'],
                  ['area','Sin área'], ['sumilla','Sin sumilla']],
       cargas:   [['comun','Solo cursos comunes'], ['correo','Sin correo del docente'],
                  ['celular','Sin celular del docente'], ['codigo','Sin código'],
@@ -1723,7 +1742,8 @@ label .req{color:var(--falla)}
     lista = aplicar(lista, null).filter(f => {
       if (ff.length) {
         const cumple = {
-          comun:      /^s/i.test(f.comun || '') || f.comun === true,
+          // Los confirmados y los detectados: así se ubican todos de una vez.
+          comun:      /^s/i.test(f.comun || '') || f.comun === true || !!f.detectado,
           correo:     !f.correo && !f.correoDocente,
           celular:    !f.celular && !f.celularDocente,
           codigo:     !f.codigo,
@@ -1757,7 +1777,10 @@ label .req{color:var(--falla)}
     const selloComun = (f) => esComun(f)
       ? '<span class="sello-comun">Común</span>' +
         (f.compartidoCon ? '<small class="codigo">con ' + esc(f.compartidoCon) + '</small>' : '')
-      : '';
+      : (f.detectado
+          ? '<span class="sello-posible">¿Común?</span>' +
+            '<small class="codigo">el código también está en ' + esc(f.otrasCarreras) + '</small>'
+          : '');
     let h = '<table><thead><tr>';
     if (vista === 'cursos') {
       cab = [['Código','w-cod'],['Curso','largo'],['Carrera','w-carrera'],['Plan','w-plan'],
@@ -1780,7 +1803,7 @@ label .req{color:var(--falla)}
     h += '</tr></thead><tbody>';
 
     lista.forEach((f, i) => {
-      h += '<tr' + (esComun(f) ? ' class="fila-comun"' : '') + '>';
+      h += '<tr' + (esComun(f) ? ' class="fila-comun"' : (f.detectado ? ' class="fila-posible"' : '')) + '>';
       if (vista === 'cursos') {
         h += '<td class="mono">' + esc(f.codigo || '') + falta(f.tieneCodigo) + '</td>' +
              '<td class="col-curso largo"><b>' + esc(nombreCurso(f.curso)) + '</b>' +
@@ -1854,6 +1877,8 @@ label .req{color:var(--falla)}
         (puedeEditar() ? '<button class="chip activo" data-ed="' + i + '">Editar</button>' : '') +
         (puedeEditar() && vista === 'cargas'
           ? '<button class="chip activo" data-del="' + i + '" title="Borrar la carga">Borrar</button>' : '') +
+        (puedeEditar() && vista === 'cursos' && f.detectado
+          ? '<button class="chip activo" data-conf="' + i + '" title="Marcarlo como curso común">Confirmar común</button>' : '') +
         '</td>';
       h += '</tr>';
     });
@@ -1875,6 +1900,18 @@ label .req{color:var(--falla)}
     });
     $('dtTablaCuerpo').querySelectorAll('[data-del]').forEach(b => {
       b.addEventListener('click', () => borrarCarga(lista[Number(b.dataset.del)]));
+    });
+    $('dtTablaCuerpo').querySelectorAll('[data-conf]').forEach(b => {
+      b.addEventListener('click', () => {
+        const f = lista[Number(b.dataset.conf)];
+        if (!confirm('¿Marcar ' + (f.codigo || '') + ' ' + nombreCurso(f.curso) +
+                     ' como curso común?\n\nSe marcarán sus registros en: ' +
+                     f.programa + ' · ' + f.otrasCarreras)) return;
+        b.disabled = true;
+        api('/marcar-comun', { method:'POST', body: JSON.stringify({ codigo: f.codigo }) })
+          .then(() => { refrescarVivo(); cargarComunes(); })
+          .catch(e => { alert(e.message); b.disabled = false; });
+      });
     });
   }
 
