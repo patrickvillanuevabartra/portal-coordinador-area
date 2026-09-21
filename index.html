@@ -182,6 +182,13 @@ tr.sin-leer{background:#fffdf6}
 #datos .sello-posible{margin:4px 0 0;display:inline-block}
 .fila-comun td:first-child{box-shadow:inset 3px 0 0 #2a6fb0}
 #datos .sello-comun{margin:4px 0 0;display:inline-block}
+.chip-val{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;
+  font-size:10.5px;font-weight:700;font-family:'IBM Plex Mono',monospace;
+  background:rgba(255,255,255,.75)}
+.chip.hecho.niv-alto{background:#dff3e8;border-color:#7cc49b;color:#0b5a38}
+.chip.hecho.niv-medio{background:#fdf2dc;border-color:#e2b457;color:#7a5200}
+.chip.hecho.niv-bajo{background:#fde7e4;border-color:#e59a8f;color:#8f2418}
+.chip.hecho.niv-ok{background:#eef3f1;border-color:#b9cbc3;color:#2d4a3f}
 .comun{display:inline-block;margin-top:5px;background:#e6f1fb;color:#0c447c;
   border:1px solid #c3ddf3;border-radius:5px;padding:2px 8px;font-size:11.5px}
 .acciones{white-space:nowrap}
@@ -950,7 +957,7 @@ label .req{color:var(--falla)}
     avance: {},
     visibles: [],
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
-    vista: 'cursos', indicadores: null, cursosCatalogo: null, docentesConocidos: [],
+    vista: 'cursos', indicadores: null, cursosCatalogo: null, docentesConocidos: [], nivel: {},
     correo: '', destinatarios: null,
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
@@ -1228,7 +1235,7 @@ label .req{color:var(--falla)}
   // terminara la primera llamada y eso duplicaba el tiempo de entrada.
   function cargarAvance() {
     api('/avance?ciclo=' + encodeURIComponent($('filtroCiclo').value))
-      .then(d => { estado.avance = d.avance || {};
+      .then(d => { estado.avance = d.avance || {}; estado.nivel = d.nivel || {};
         if (estado.asignaciones.length) { pintarTablero(); guardarLocal(); } })
       .catch(() => {});
   }
@@ -1441,12 +1448,21 @@ label .req{color:var(--falla)}
 
           const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) => {
             const ok = hechos.has(clave);
-            const cls = 'chip' + (ok ? ' hecho' : (bloqueada ? '' : ' activo'));
+            // Además de si está hecho, cada botón dice cómo salió: el
+            // porcentaje, el estado o si hay alerta, con su color de semáforo.
+            const niv = ok && estado.nivel && estado.nivel[a.idAsignacion]
+              ? estado.nivel[a.idAsignacion][clave] : null;
+            const cls = 'chip' + (ok ? ' hecho' : (bloqueada ? '' : ' activo')) +
+              (niv ? ' niv-' + niv.n : '');
             return '<button class="' + cls + '" ' +
               (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) +
               '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
-              ' title="' + esc(m.nombre) + (ok ? ' — registrado' : ' — pendiente') + '">' +
-              esc(m.corto) + '</button>';
+              ' title="' + esc(m.nombre) +
+              (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
+                  : ' — pendiente') + '">' +
+              esc(m.corto) +
+              (niv ? '<span class="chip-val">' + esc(niv.t) + '</span>' : '') +
+              '</button>';
           }).join('');
 
           const pct = Math.round((hechos.size / totalMod) * 100);
@@ -3664,6 +3680,9 @@ label .req{color:var(--falla)}
         const hechos = estado.avance[a.idAsignacion] || [];
         if (!hechos.includes(clave)) estado.avance[a.idAsignacion] = hechos.concat(clave);
         estado.indicadores = null;
+        // El resultado del formato recién guardado se pide por detrás, para que
+        // su botón en Mis cursos muestre el porcentaje o el estado al volver.
+        cargarAvance();
         aviso('Guardado.', 'ok');
         $('btnGuardar').disabled = false;
       })
