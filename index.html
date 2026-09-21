@@ -1595,7 +1595,7 @@ label .req{color:var(--falla)}
       'Revisa y corrige el catálogo de cursos y la carga lectiva de tu ámbito. ' +
       'Puedes editar los datos de contacto y de identificación; la carga aprobada por el ' +
       'Departamento no se modifica desde aquí.';
-    cargarDatos(); cargarReportes();
+    cargarDatos(); cargarReportes(); cargarComunes();
     if (puedeEditar() && !(estado.areas || []).length) cargarAreas();
     $('dtNueva').classList.toggle('oculto', !puedeEditar());
     $('dtNuevoCurso').classList.toggle('oculto', !puedeEditar());
@@ -2024,6 +2024,68 @@ label .req{color:var(--falla)}
                     $('btnCrearCurso').disabled = false; });
   });
 
+  /* ------------------------------------------- cursos comunes detectados --
+     El portal los encuentra solo: mismo código en dos carreras. Se muestran
+     para que el administrador o el coordinador general los confirme. */
+
+  function cargarComunes() {
+    if (!puedeEditar()) return;
+    api('/comunes-detectados')
+      .then(d => pintarComunes(d.comunes || []))
+      .catch(() => {});
+  }
+
+  function pintarComunes(l) {
+    $('tarjetaComunes').classList.toggle('oculto', !l.length);
+    if (!l.length) return;
+    const pendientes = l.filter(c => !c.todosMarcados).length;
+    let h = '<p class="ayuda" style="margin:0 0 10px">' + l.length + ' detectados · ' +
+      (pendientes ? '<b>' + pendientes + ' sin confirmar</b>' : 'todos confirmados') + '</p>' +
+      '<table><thead><tr><th>Código</th><th>Curso</th><th>Carreras</th>' +
+      '<th>Carga en el DAI</th><th></th></tr></thead><tbody>';
+    l.forEach((c, i) => {
+      const dai = c.cargaEn.length
+        ? c.cargaEn.map(p => esc(p) + ' <small class="codigo">' + c.cargas[p] + ' carga(s)</small>').join('<br>')
+        : '<span class="vacio-dato">sin carga este ciclo</span>';
+      h += '<tr class="' + (c.todosMarcados ? '' : 'fila-comun') + '">' +
+        '<td class="mono">' + esc(c.codigo) + '</td>' +
+        '<td><b>' + esc(nombreCurso(c.curso)) + '</b></td>' +
+        '<td>' + c.carreras.map(esc).join('<br>') + '</td>' +
+        '<td>' + dai + '</td>' +
+        '<td class="acciones">' + (c.todosMarcados
+          ? '<span class="sello-comun">Confirmado</span> ' +
+            '<button class="chip activo" data-quitar="' + i + '">Quitar</button>'
+          : '<button class="chip activo" data-marcar="' + i + '">Marcar como común</button>') +
+        '</td></tr>';
+    });
+    $('dtComunes').innerHTML = h + '</tbody></table>';
+    const accion = (c, quitar) => {
+      api('/marcar-comun', { method:'POST', body: JSON.stringify({ codigo: c.codigo, quitar }) })
+        .then(() => { cargarComunes(); refrescarVivo(); })
+        .catch(e => alert(e.message));
+    };
+    $('dtComunes').querySelectorAll('[data-marcar]').forEach(b =>
+      b.addEventListener('click', () => accion(l[Number(b.dataset.marcar)], false)));
+    $('dtComunes').querySelectorAll('[data-quitar]').forEach(b =>
+      b.addEventListener('click', () => {
+        if (confirm('¿Quitar la marca de curso común?')) accion(l[Number(b.dataset.quitar)], true);
+      }));
+  }
+
+  // Tras un cambio en el catálogo, Mis cursos se actualiza sin recargar: se
+  // vuelven a pedir las cargas por detrás y se repinta el tablero.
+  function refrescarVivo() {
+    estado.cacheDatos = {};
+    estado.indicadores = null;
+    cargarDatos(true);
+    api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+      .then(d => {
+        estado.asignaciones = d.asignaciones || estado.asignaciones;
+        prepararFiltros(); pintarTablero(); guardarLocal();
+      })
+      .catch(() => {});
+  }
+
   /* ------------------------------------------------- borrar una carga ---- */
 
   function borrarCarga(f) {
@@ -2237,6 +2299,8 @@ label .req{color:var(--falla)}
         $('capaEd').classList.add('oculto');
         $('btnGuardarEd').disabled = false;
         pintarDatos();
+        // Lo que cambia en un curso se refleja en Mis cursos sin recargar.
+        if (e0.tipo === 'curso') { refrescarVivo(); cargarComunes(); }
       })
       .catch(err => { $('avisoEd').textContent = err.message; $('avisoEd').className = 'aviso error';
                       $('btnGuardarEd').disabled = false; });
