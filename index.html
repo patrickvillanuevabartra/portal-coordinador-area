@@ -1038,9 +1038,12 @@ label .req{color:var(--falla)}
         // como tal, se pide renovar a Google y este impone diez minutos de
         // espera, que es lo que dejaba el portal bloqueado.
         if (esToken && String(estado.credential || '').indexOf('pca.') === 0) {
+          // La sesión guardada ya no sirve: se descarta y se vuelve a la
+          // pantalla de ingreso una sola vez, sin quedar en un bucle.
           try { localStorage.removeItem('pca_sesion'); } catch (e) {}
+          estado.credential = null;
           sesionVencida();
-          throw new Error('Tu sesión de ocho horas terminó. Vuelve a entrar.');
+          throw new Error('Vuelve a entrar con tu cuenta URP.');
         }
         if (esToken && !reintento) {
           return pedirToken()
@@ -1054,6 +1057,16 @@ label .req{color:var(--falla)}
   }
 
   function sesionVencida() {
+    // Si falló una sesión guardada al abrir el portal, no es que haya vencido:
+    // simplemente hay que entrar de nuevo, sin mensaje de error.
+    if (estado.entrandoGuardada) {
+      estado.entrandoGuardada = false;
+      estado.credential = null;
+      ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos'].forEach(id => $(id).classList.add('oculto'));
+      mostrar('ingreso');
+      $('ingresoError').textContent = '';
+      return;
+    }
     estado.credential = null;
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
     ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos'].forEach(id => $(id).classList.add('oculto'));
@@ -1144,6 +1157,7 @@ label .req{color:var(--falla)}
       if (guardada && !estado.credential) {
         const datosS = JSON.parse(atob(guardada.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));
         if (datosS.v && Date.now() < datosS.v - 60000) {
+          estado.entrandoGuardada = true;
           alIngresar({ credential: guardada });
         } else {
           localStorage.removeItem('pca_sesion');
@@ -1178,6 +1192,7 @@ label .req{color:var(--falla)}
           estado.credential = datos.sesion;
           try { localStorage.setItem('pca_sesion', datos.sesion); } catch (e) {}
         }
+        estado.entrandoGuardada = false;
         estado.correo = datos.correo;
         if (datos.ms) console.log('Portal: la sesión tardó ' + datos.ms + ' ms en el servidor.');
         estado.nombre = datos.nombre;
