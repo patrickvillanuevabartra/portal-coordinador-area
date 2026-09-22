@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Importar la carga lectiva — PCA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#0f8f5e;--brand-oscuro:#0b3b2e;--tinta:#15201b;--tinta-media:#5a6660;
+  --linea:#dfe4e1;--fondo:#f6f8f7;--papel:#fff;--falla:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);
+  font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.55}
+main{max-width:880px;margin:0 auto;padding:32px 20px}
+h1{font-size:20px;margin:0 0 6px}
+p.sub{color:var(--tinta-media);margin:0 0 22px;font-size:13px}
+.caja{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:24px;margin-bottom:16px}
+.btn{border:1px solid var(--brand);background:var(--brand);color:#fff;padding:9px 18px;
+  border-radius:8px;font:inherit;font-weight:500;cursor:pointer}
+.btn.g{background:transparent;color:var(--brand)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+label.archivo{display:block;border:2px dashed var(--linea);border-radius:10px;padding:26px;
+  text-align:center;cursor:pointer;color:var(--tinta-media);transition:.15s}
+label.archivo:hover{border-color:var(--brand);color:var(--brand)}
+input[type=file]{display:none}
+select,input[type=text]{font:inherit;padding:8px 10px;border:1px solid var(--linea);
+  border-radius:8px;background:var(--papel);color:var(--tinta)}
+.kpi{display:flex;gap:24px;flex-wrap:wrap;margin:16px 0}
+.kpi div b{display:block;font-size:24px;font-weight:700;color:var(--brand-oscuro);line-height:1.1}
+.kpi div span{font-size:11px;color:var(--tinta-media);text-transform:uppercase;letter-spacing:.05em}
+#log{font-family:'IBM Plex Mono',monospace;font-size:12px;background:#0f1613;color:#c8e6d8;
+  border-radius:8px;padding:14px;max-height:340px;overflow:auto;white-space:pre-wrap;
+  display:none;margin-top:16px}
+.aviso{font-size:13px;margin-left:10px}
+.aviso.error{color:var(--falla)} .aviso.ok{color:var(--brand)}
+.nota{font-size:12.5px;color:var(--tinta-media);border-left:3px solid var(--linea);
+  padding-left:12px;margin:14px 0}
+table{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px}
+th{background:var(--fondo);text-align:left;padding:8px 10px;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.06em;color:var(--tinta-media);white-space:nowrap}
+td{padding:7px 10px;border-top:1px solid var(--linea);vertical-align:top}
+.tabla{max-height:340px;overflow:auto;border:1px solid var(--linea);border-radius:10px}
+.mono{font-family:'IBM Plex Mono',monospace;font-size:11.5px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Importar la carga lectiva</h1>
+  <p class="sub">Sube el reporte del Departamento Académico en PDF. El portal extrae las
+     cargas, las cruza con el catálogo y te muestra qué entra antes de guardar nada.</p>
+
+  <div class="caja">
+    <div id="botonGoogle"></div>
+    <div id="zona" style="display:none">
+      <label class="archivo" for="pdf">
+        <b>Elegir el PDF del reporte</b><br>
+        <span id="nombreArchivo">Ningún archivo elegido</span>
+      </label>
+      <input type="file" id="pdf" accept="application/pdf">
+
+      <div style="margin-top:14px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <label for="ciclo">Ciclo:</label>
+        <input type="text" id="ciclo" value="2026 II" style="width:110px">
+        <button class="btn g" id="btnLeer" disabled>1. Leer el PDF</button>
+        <button class="btn g" id="btnCruzar" disabled>2. Cruzar con el catálogo</button>
+        <button class="btn" id="btnImportar" disabled>3. Importar</button>
+        <span class="aviso" id="aviso"></span>
+      </div>
+
+      <p class="nota">Las cargas entran con su curso, plan, semestre, área y horas ya
+        resueltos desde el catálogo. No hace falta completar espejos después. Si una carga
+        ya existe con el mismo identificador, se salta en vez de duplicarse.</p>
+
+      <div class="kpi" id="kpi" style="display:none">
+        <div><b id="nCargas">0</b><span>cargas en el PDF</span></div>
+        <div><b id="nDocentes">0</b><span>docentes</span></div>
+        <div><b id="nOk">—</b><span>listas para importar</span></div>
+        <div><b id="nSin">—</b><span>sin curso en el catálogo</span></div>
+      </div>
+      <div class="tabla" id="tabla" style="display:none"></div>
+    </div>
+    <div class="aviso error" id="error"></div>
+    <div id="log"></div>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+  'use strict';
+  const CFG = window.PCA_CONFIG, $ = (i) => document.getElementById(i);
+  let cred = null, CARGAS = [];
+
+  function log(t){ const l=$('log'); l.style.display='block'; l.textContent += t + '\n';
+                   l.scrollTop = l.scrollHeight; }
+  function aviso(t, clase){ $('aviso').textContent = t; $('aviso').className = 'aviso ' + (clase||''); }
+
+  /* ------------------------------------------------------------- sesión --- */
+  window.alListo = function(){
+    google.accounts.id.initialize({ client_id: CFG.GOOGLE_CLIENT_ID, hd: CFG.DOMINIO,
+      callback: e => {
+        cred = e.credential;
+        fetch(CFG.PROXY + '/sesion', { headers: { Authorization: 'Bearer ' + cred } })
+          .then(r => r.json()).then(d => {
+            if (d.error) throw new Error(d.error);
+            if (!d.admin) throw new Error('Solo un administrador puede importar la carga lectiva.');
+            $('botonGoogle').style.display = 'none';
+            $('zona').style.display = 'block';
+            aviso('Sesión iniciada como ' + d.correo, 'ok');
+          }).catch(e => { $('error').textContent = e.message; });
+      }});
+    google.accounts.id.renderButton($('botonGoogle'),
+      { theme:'outline', size:'large', text:'signin_with', locale:'es', width:280 });
+  };
+
+  /* --------------------------------------------------------- leer el PDF --- */
+  $('pdf').addEventListener('change', () => {
+    const f = $('pdf').files[0];
+    $('nombreArchivo').textContent = f ? f.name : 'Ningún archivo elegido';
+    $('btnLeer').disabled = !f;
+    $('btnCruzar').disabled = true; $('btnImportar').disabled = true;
+  });
+
+  // El reporte no es una tabla: hay que reconstruir cada línea por la posición
+  // vertical de cada palabra, que es lo único fiable.
+  async function lineasDelPdf(archivo){
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const datos = await archivo.arrayBuffer();
+    const doc = await pdfjsLib.getDocument({ data: datos }).promise;
+    const lineas = [];
+    for (let p = 1; p <= doc.numPages; p++){
+      const pagina = await doc.getPage(p);
+      const contenido = await pagina.getTextContent();
+      const filas = {};
+      contenido.items.forEach(it => {
+        const t = (it.str || '').trim();
+        if (!t) return;
+        const x = it.transform[4], y = Math.round(it.transform[5] / 3);
+        (filas[y] = filas[y] || []).push({ x, t });
+      });
+      Object.keys(filas).map(Number).sort((a,b) => b - a).forEach(k => {
+        lineas.push(filas[k].sort((a,b) => a.x - b.x).map(o => o.t));
+      });
+      if (p % 5 === 0) log('  leídas ' + p + ' de ' + doc.numPages + ' páginas');
+    }
+    return lineas;
+  }
+
+  const COD = /^[A-Z]{2,4}-?[A-Z]{0,2}\d{2,4}$/;
+
+  function extraer(lineas){
+    const out = [];
+    let docente = null;
+    lineas.forEach(ts => {
+      // El nombre del docente encabeza su bloque, junto a su condición.
+      const ic = ts.indexOf('CONTRATADO') >= 0 ? ts.indexOf('CONTRATADO') : ts.indexOf('NOMBRADO');
+      if (ic > 0){
+        const nom = ts.slice(0, ic).join(' ').replace(/\*/g,'').trim();
+        if (nom.includes(',') && nom.length > 8) docente = nom.replace(/\s+/g,' ');
+        return;
+      }
+      // Una carga se reconoce por: carrera, plan, código y el grupo «01 - 0».
+      const ci = ts.findIndex((t,k) => k >= 2 && COD.test(t) && !/^\d+$/.test(t));
+      if (ci < 0) return;
+      if (!/^\d{2}$/.test(ts[ci-2]) || !/^\d{3}$/.test(ts[ci-1])) return;
+      let gi = -1;
+      for (let k = ci+1; k < ts.length-2; k++){
+        if (/^\d{1,2}$/.test(ts[k]) && ts[k+1] === '-' && /^\d$/.test(ts[k+2])){ gi = k; break; }
+      }
+      if (gi < 0 || !docente) return;
+      const nums = ts.slice(gi+3).filter(t => /^\d+$/.test(t)).map(Number);
+      if (nums.length < 4) return;
+      const [T,P,L,O] = nums;
+      out.push({ car: ts[ci-2], codigo: ts[ci].replace(/-/g,''),
+                 curso: ts.slice(ci+1, gi).join(' '),
+                 grupo: String(Number(ts[gi])), subgrupo: ts[gi+2],
+                 docente, T, P, L, O,
+                 tipo: T > 0 ? 'Teo' : (O > 0 ? 'Tal' : (L > 0 ? 'Lab' : (P > 0 ? 'Prá' : 'Teo'))) });
+    });
+    // Una misma carga puede repetirse si el bloque se parte entre páginas.
+    const vistas = {}, limpias = [];
+    out.forEach(c => {
+      const k = [c.codigo, c.grupo, c.subgrupo, c.docente].join('|');
+      if (vistas[k]) return;
+      vistas[k] = 1; limpias.push(c);
+    });
+    return limpias;
+  }
+
+  $('btnLeer').addEventListener('click', async () => {
+    $('btnLeer').disabled = true; aviso('Leyendo el PDF…');
+    log('Leyendo el PDF…');
+    try{
+      const lineas = await lineasDelPdf($('pdf').files[0]);
+      CARGAS = extraer(lineas);
+      const docs = new Set(CARGAS.map(c => c.docente));
+      $('nCargas').textContent = CARGAS.length;
+      $('nDocentes').textContent = docs.size;
+      $('kpi').style.display = 'flex';
+      log('  ' + CARGAS.length + ' cargas de ' + docs.size + ' docentes');
+      if (!CARGAS.length) { aviso('No se reconoció ninguna carga en ese PDF.', 'error'); }
+      else { aviso('PDF leído. Ahora crúzalo con el catálogo.', 'ok');
+             $('btnCruzar').disabled = false; }
+      pintar(CARGAS.slice(0, 60));
+    }catch(e){ log('ERROR: ' + e.message); aviso('No se pudo leer el PDF.', 'error'); }
+    $('btnLeer').disabled = false;
+  });
+
+  function pintar(l){
+    $('tabla').style.display = 'block';
+    $('tabla').innerHTML = '<table><thead><tr><th>Código</th><th>Curso</th><th>Grupo</th>' +
+      '<th>Tipo</th><th>Horas</th><th>Docente</th></tr></thead><tbody>' +
+      l.map(c => '<tr><td class="mono">' + c.codigo + '</td><td>' + c.curso +
+        '</td><td class="mono">G' + c.grupo + '-' + c.subgrupo + '</td><td>' + c.tipo +
+        '</td><td class="mono">T' + c.T + ' P' + c.P + ' L' + c.L + ' O' + c.O +
+        '</td><td>' + c.docente + '</td></tr>').join('') + '</tbody></table>';
+  }
+
+  /* ------------------------------------------------------------ servidor --- */
+  async function llamar(cuerpo){
+    const r = await fetch(CFG.PROXY + '/importar-cargas', { method:'POST',
+      headers: { Authorization:'Bearer ' + cred, 'Content-Type':'application/json' },
+      body: JSON.stringify(cuerpo) });
+    const txt = await r.text();
+    let d;
+    try { d = JSON.parse(txt); }
+    catch(e){ throw new Error('respuesta ilegible: ' + txt.slice(0,140)); }
+    if (d.error) throw new Error(d.error);
+    return d;
+  }
+
+  $('btnCruzar').addEventListener('click', async () => {
+    $('btnCruzar').disabled = true; aviso('Cruzando con el catálogo…');
+    log(''); log('Cruzando con el catálogo…');
+    try{
+      const d = await llamar({ cargas: CARGAS, ciclo: $('ciclo').value.trim(), probar: true });
+      $('nOk').textContent = d.seImportarian;
+      $('nSin').textContent = d.sinCurso;
+      log('  listas para importar: ' + d.seImportarian);
+      log('  sin curso en el catálogo: ' + d.sinCurso);
+      if (d.yaExisten) log('  ya existen y se saltarán: ' + d.yaExisten);
+      (d.ejemplosSinCurso || []).forEach(x => log('    sin curso: ' + x));
+      if (d.seImportarian){ aviso('Revisa el resumen. Si está bien, importa.', 'ok');
+                            $('btnImportar').disabled = false; }
+      else aviso('No hay nada que importar.', 'error');
+    }catch(e){ log('ERROR: ' + e.message); aviso(e.message, 'error'); }
+    $('btnCruzar').disabled = false;
+  });
+
+  $('btnImportar').addEventListener('click', async () => {
+    if (!confirm('Se crearán las cargas en Docentes DAI. ¿Continuar?')) return;
+    $('btnImportar').disabled = true;
+    log(''); log('Importando por tramos…');
+    let desde = 0, ok = 0, total = 0, vuelta = 0;
+    const ciclo = $('ciclo').value.trim();
+    while (desde !== null && vuelta < 60){
+      vuelta++;
+      try{
+        const d = await llamar({ cargas: CARGAS, ciclo, desde, cuantas: 40 });
+        ok += d.creadas; total = d.total || total;
+        log('  tramo ' + vuelta + ': ' + d.creadas + ' cargas · ' + ok + ' de ' + total);
+        (d.fallos || []).forEach(f => log('    no entró: ' + f));
+        desde = d.siguiente;
+        if (desde !== null) await new Promise(r => setTimeout(r, 1400));
+      }catch(e){
+        log('  tramo ' + vuelta + ' falló: ' + e.message);
+        await new Promise(r => setTimeout(r, 6000));
+        if (vuelta > 3 && !ok) break;
+      }
+    }
+    log(''); log('Terminado. ' + ok + ' cargas creadas.');
+    aviso('Listo. Entra al portal y recarga.', 'ok');
+    $('btnImportar').disabled = false;
+  });
+
+  let n = 0;
+  (function esperar(){
+    if (window.google && window.google.accounts) return window.alListo();
+    if (++n > 40){ $('error').textContent = 'No se pudo cargar el acceso de Google.'; return; }
+    setTimeout(esperar, 150);
+  })();
+})();
+</script>
+</body>
+</html>
