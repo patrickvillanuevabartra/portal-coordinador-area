@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Informática — preparar el catálogo — PCA</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#0f8f5e;--tinta:#15201b;--tinta-media:#5a6660;--linea:#dfe4e1;--fondo:#f6f8f7;--papel:#fff;--falla:#c0392b}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:14px;line-height:1.55}
+main{max-width:800px;margin:0 auto;padding:32px 20px}
+h1{font-size:20px;margin:0 0 6px} h2{font-size:15px;margin:0 0 6px}
+p.sub{color:var(--tinta-media);margin:0 0 22px;font-size:13px}
+.caja{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:22px;margin-bottom:16px}
+.btn{border:1px solid var(--brand);background:var(--brand);color:#fff;padding:8px 16px;border-radius:8px;font:inherit;font-weight:500;cursor:pointer}
+.btn.g{background:transparent;color:var(--brand)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.nota{font-size:12.5px;color:var(--tinta-media);border-left:3px solid var(--linea);padding-left:12px;margin:10px 0 14px}
+#log{font-family:'IBM Plex Mono',monospace;font-size:12px;background:#0f1613;color:#c8e6d8;border-radius:8px;padding:14px;max-height:360px;overflow:auto;white-space:pre-wrap;display:none}
+.aviso{font-size:13px}.aviso.error{color:var(--falla)}.aviso.ok{color:var(--brand)}
+</style></head><body><main>
+<h1>Informática — preparar el catálogo</h1>
+<p class="sub">Dos pasos, en este orden. Cada uno se comprueba antes de aplicarse.</p>
+<div id="botonGoogle"></div><div class="aviso" id="aviso"></div>
+<div id="zona" style="display:none">
+  <div class="caja">
+    <h2>Paso 1 · Corregir los códigos (44 cursos)</h2>
+    <p class="nota">Los códigos oficiales de la guía de matrícula 2026-II. Cada curso se
+      busca por carrera, plan y nombre exacto: si un nombre no calza con un solo registro,
+      se informa y no se toca.</p>
+    <button class="btn g" id="p1">Comprobar</button>
+    <button class="btn" id="a1" disabled>Aplicar</button>
+  </div>
+  <div class="caja">
+    <h2>Paso 2 · Asignar el área a cada curso (46 cursos)</h2>
+    <p class="nota">Las áreas que remitió la Escuela. Se buscan por código, así que debe
+      hacerse después del paso 1. Si un código está en los dos planes, ambos llevan el área.</p>
+    <button class="btn g" id="p2" disabled>Comprobar</button>
+    <button class="btn" id="a2" disabled>Aplicar</button>
+  </div>
+  <div id="log"></div>
+</div>
+</main>
+<script src="config.js"></script>
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<script>
+(function(){
+  'use strict';
+  const CFG=window.PCA_CONFIG,$=i=>document.getElementById(i);
+  const CAMBIOS=[{"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Inglés I (Informática)", "codigo": "EB0006"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Matemáticas (Informática)", "codigo": "BE0111"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Química (Informática)", "codigo": "BE0112"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Introducción a la Ingeniería Informática", "codigo": "II0101"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Taller de Interpretación y Redacción de Textos (Informática)", "codigo": "EB0007"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Filosofía y ética (Informática)", "codigo": "EB0008"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "PSICOLOGÍA GENERAL", "codigo": "EB0009"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Inglés II (Informática)", "codigo": "EB0011"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Matemática I (Informática)", "codigo": "BE0211"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Física I (Informática)", "codigo": "BE0212"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Taller de Desarrollo de Software I", "codigo": "II0201"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Recursos Naturales y Medio Ambiente (Informática)", "codigo": "EB0012"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Realidad Nacional (Informática)", "codigo": "EB0013"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Globalización e Integración", "codigo": "EB0014"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Matemática II (Informática)", "codigo": "BE0311"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Circuitos y Sistemas Digitales", "codigo": "II0301"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Taller de Desarrollo de Software II", "codigo": "II0302"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Estadística y Probabilidades (Informática)", "codigo": "BE0411"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Dibujo en Ingeniería", "codigo": "BE0412"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Estructuras de Datos y Algorítmica para desarrollo de Software", "codigo": "II0401"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Fundamentos de Redes Informáticas de Datos", "codigo": "II0402"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Matemática Discreta (Informática)", "codigo": "II0403"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Taller de Desarrollo de Software III", "codigo": "II0404"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Arquitectura de Redes Informáticas", "codigo": "II0501"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Fundamentos de Bases de Datos", "codigo": "II0502"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Gestión de Sistemas de Planeamiento de Recursos Empresariales - ERP", "codigo": "II0503"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Ingeniería de Procesos, Requisitos y Análisis de Software", "codigo": "II0504"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Taller de Proyectos Informáticos I", "codigo": "II0505"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Arquitectura y Diseño de Software", "codigo": "II0601"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Fundamentos de Servicios en la Nube", "codigo": "II0602"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Inteligencia de Negocios y Analítica de Datos", "codigo": "II0603"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Investigación de Operaciones y Simulación", "codigo": "II0604"}, {"programa": "Ingeniería Informática", "plan": "2024-I", "curso": "Taller de Proyectos Informáticos II", "codigo": "II0605"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Teoría y Metodología de la Investigación en Ingeniería (Informática)", "codigo": "ACI001"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Derecho Informático", "codigo": "IF1101"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Mercadotecnia y Comercio Electrónico", "codigo": "IF1102"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Sistemas Móviles y Plataformas Menores", "codigo": "IF1103"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Inteligencia de Negocios", "codigo": "IF1105"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Seguridad y Protección Informática", "codigo": "IF1108"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Tópicos Especiales de Sistemas de Información", "codigo": "IF1109"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Computación Gráfica", "codigo": "IF1112"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Tópicos de Tecnologías de Información", "codigo": "IF1116"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Redes y Comunicación de Datos III", "codigo": "IF1117"}, {"programa": "Ingeniería Informática", "plan": "2015-II", "curso": "Sistema de Información Empresarial II", "codigo": "IF0601"}], AREAS=[{"programa": "Ingeniería Informática", "codigo": "IF0602", "curso": "Investigación de Operaciones", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0603", "curso": "Arquitectura de Computadores", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0701", "curso": "Simulación de Sistemas", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0702", "curso": "Sistemas Operativos", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0704", "curso": "Base de Datos II", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0201", "curso": "Taller de desarrollo de software I", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0302", "curso": "Taller de desarrollo de software II", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0401", "curso": "Estructuras de datos y algorítmica para desarrollo de software", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0404", "curso": "Taller de desarrollo de software III", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0502", "curso": "Fundamentos de bases de datos", "area": "Ciencia de la computación (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0504", "curso": "Ingeniería de requerimientos", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0604", "curso": "Análisis de Sistemas y Diseño de Software", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0605", "curso": "Diseño Gráfico y de Interfaces", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0703", "curso": "Inteligencia Artificial", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0705", "curso": "Arquitectura y Evolución de Software", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0802", "curso": "Calidad y Pruebas de Software", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1103", "curso": "Sistemas móviles y plataformas menores", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1107", "curso": "Tópicos especiales de ingeniería de software", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0101", "curso": "Introducción a la Ingeniería Informática", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0504", "curso": "Ingeniería de procesos, requisitos y análisis de software", "area": "Ingeniería de software (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0601", "curso": "Sistemas de Información Empresarial II", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0803", "curso": "Arquitectura Empresarial", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0903", "curso": "Administración de Proyectos Informáticos", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1003", "curso": "Gerencia Informática", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1004", "curso": "Auditoría de Sistemas", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1102", "curso": "Mercadotecnia y Comercio electrónico", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1105", "curso": "Inteligencia de negocios", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1108", "curso": "Seguridad y protección informática", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1116", "curso": "Tópicos de tecnologías de la información", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0503", "curso": "Gestión de sistemas de Planeamiento de recursos empresariales - ERP", "area": "Sistemas de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0606", "curso": "Taller de Proyectos II", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0706", "curso": "Taller de Proyectos III", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0804", "curso": "Taller de Proyectos IV", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "ACI001", "curso": "Teoría y Metodología de la Investigación en Ingeniería", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0901", "curso": "Taller de Investigación en Ingenieria I", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0904", "curso": "Taller de Aseguramiento de la Calidad", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1001", "curso": "Taller de Investigación en Ingenieria II", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF1002", "curso": "Taller de Gerencia de Proyectos", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0505", "curso": "Taller de proyectos informáticos I", "area": "Talleres y Tesis (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0502", "curso": "Circuitos y sistemas digitales", "area": "Tecnología de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0801", "curso": "Redes y Comunicación de Datos I", "area": "Tecnología de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "IF0902", "curso": "Redes y Comunicación de Datos II", "area": "Tecnología de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0301", "curso": "Circuitos y Sistemas Digitales", "area": "Tecnología de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0402", "curso": "Fundamentos de redes informáticas de datos", "area": "Tecnología de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0403", "curso": "Matemática discreta", "area": "Tecnología de información (Informática)"}, {"programa": "Ingeniería Informática", "codigo": "II0501", "curso": "Arquitectura de Redes Informáticas", "area": "Tecnología de información (Informática)"}];
+  let cred=null;
+  function log(t){const l=$('log');l.style.display='block';l.textContent+=t+'\n';l.scrollTop=l.scrollHeight;}
+  async function llamar(ruta,c){
+    const r=await fetch(CFG.PROXY+ruta,{method:'POST',headers:{Authorization:'Bearer '+cred,'Content-Type':'application/json'},body:JSON.stringify(c)});
+    const t=await r.text();let d;try{d=JSON.parse(t);}catch(e){throw new Error('respuesta ilegible: '+t.slice(0,120));}
+    if(d.error)throw new Error(d.error);return d;
+  }
+  window.onGoogleReady=function(){
+    google.accounts.id.initialize({client_id:CFG.GOOGLE_CLIENT_ID,hd:CFG.DOMINIO,callback:e=>{
+      cred=e.credential;
+      fetch(CFG.PROXY+'/sesion',{headers:{Authorization:'Bearer '+cred}}).then(r=>r.json()).then(d=>{
+        if(d.error)throw new Error(d.error);
+        if(!d.admin)throw new Error('Solo un administrador puede hacer esto.');
+        if(d.sesion)cred=d.sesion;
+        $('botonGoogle').style.display='none';$('zona').style.display='block';
+        $('aviso').textContent='Sesión iniciada como '+d.correo;$('aviso').className='aviso ok';
+      }).catch(e=>{$('aviso').textContent=e.message;$('aviso').className='aviso error';});
+    }});
+    google.accounts.id.renderButton($('botonGoogle'),{theme:'outline',size:'large',text:'signin_with',locale:'es',width:280});
+  };
+  $('p1').onclick=async()=>{
+    $('p1').disabled=true;log('Paso 1 · comprobando…');
+    try{const d=await llamar('/corregir-codigos',{cambios:CAMBIOS,probar:true});
+      log('  se pueden corregir: '+d.aplicables+' de '+CAMBIOS.length);
+      (d.ejemplos||[]).forEach(x=>log('    '+x));
+      (d.problemas||[]).forEach(x=>log('  NO SE TOCA: '+x));
+      if(d.aplicables){$('a1').disabled=false;log('  Revisa y pulsa Aplicar.');}
+    }catch(e){log('ERROR: '+e.message);}
+    $('p1').disabled=false;
+  };
+  $('a1').onclick=async()=>{
+    if(!confirm('Se corregirán los códigos en Cursos-Sumillas. ¿Continuar?'))return;
+    $('a1').disabled=true;log('Paso 1 · aplicando…');
+    try{const d=await llamar('/corregir-codigos',{cambios:CAMBIOS});
+      log('  corregidos: '+d.corregidos);(d.problemas||[]).forEach(x=>log('  no se tocó: '+x));
+      log('  Listo. Ahora el paso 2.');$('p2').disabled=false;
+    }catch(e){log('ERROR: '+e.message);$('a1').disabled=false;}
+  };
+  $('p2').onclick=async()=>{
+    $('p2').disabled=true;log('Paso 2 · comprobando…');
+    try{const d=await llamar('/area-por-codigo',{cambios:AREAS,probar:true});
+      log('  cursos encontrados: '+d.cursos+' de '+AREAS.length+' ('+d.registros+' registros)');
+      (d.sinCurso||[]).forEach(x=>log('  sin curso en el catálogo: '+x));
+      $('a2').disabled=false;log('  Revisa y pulsa Aplicar.');
+    }catch(e){log('ERROR: '+e.message);}
+    $('p2').disabled=false;
+  };
+  $('a2').onclick=async()=>{
+    if(!confirm('Se asignará el área a los cursos. ¿Continuar?'))return;
+    $('a2').disabled=true;log('Paso 2 · aplicando…');
+    try{const d=await llamar('/area-por-codigo',{cambios:AREAS});
+      log('  registros con área: '+d.asignados);(d.sinCurso||[]).forEach(x=>log('  sin curso: '+x));
+      log('');log('Terminado. Recarga el portal.');
+    }catch(e){log('ERROR: '+e.message);$('a2').disabled=false;}
+  };
+  let n=0;(function w(){if(window.google&&window.google.accounts)return window.onGoogleReady();if(++n>40){$('aviso').textContent='No se pudo cargar el acceso de Google.';return;}setTimeout(w,150);})();
+})();
+</script></body></html>
