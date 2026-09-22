@@ -1792,7 +1792,7 @@ label .req{color:var(--falla)}
       cargas:   [['comun','Solo cursos comunes'], ['correo','Sin correo del docente'],
                  ['celular','Sin celular del docente'], ['codigo','Sin código'],
                  ['area','Sin área'], ['incompleta','Cargas incompletas']],
-      docentes: [['correo','Sin correo'], ['celular','Sin celular']]
+      docentes: [['correo','Sin correo'], ['celular','Sin celular'], ['area','Sin área']]
     };
     // Se marcan varias a la vez: aparece lo que cumpla alguna de ellas, que es
     // lo que se quiere al depurar datos incompletos.
@@ -1821,7 +1821,9 @@ label .req{color:var(--falla)}
           correo:     !f.correo && !f.correoDocente,
           celular:    !f.celular && !f.celularDocente,
           codigo:     !f.codigo,
-          area:       !f.area,
+          // En el directorio, un docente «sin área» es el que tiene alguna
+          // carga cuyo curso no la tiene asignada.
+          area:       !f.area || (f.detalle || []).some(x => !x.area),
           sumilla:    !f.sumilla,
           incompleta: f.completa === 'No'
         };
@@ -3039,7 +3041,7 @@ label .req{color:var(--falla)}
 
   const NOTAS_MODULO = {
     silabo: 'Verifica que el sílabo cumpla los once requisitos del formato. Los ítems marcados como Parcial o No cumple exigen una observación.',
-    formularios: 'Deja constancia de la entrega de los formularios F1 (Registro del delegado), F2 (Registro de presentación del sílabo) y F3 (Informe de la prueba de entrada), con la fecha de cada uno.',
+    formularios: 'Deja constancia de la entrega de los formularios F1, F2 y F3, con la fecha de cada uno.',
     aulaVirtual: 'Revisa que el aula virtual tenga los ocho elementos exigidos y anota lo que falte.',
     portafolios: 'Comprueba que el portafolio digital contenga las evidencias de cada tipo de evaluación.',
     delegados: 'Registra a los delegados del curso. Este dato es el que después se usa en la entrevista.',
@@ -3158,11 +3160,11 @@ label .req{color:var(--falla)}
           { k:'fechaRevision', etq:'Fecha de revisión', tipo:'fecha', req:true, auto:'hoy' }
         ]},
         { tipo:'grid', titulo:'Formularios', campos:[
-          { k:'f1', etq:'F1 · Registro del delegado', col:'F1', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
+          { k:'f1', etq:'F1', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
           { k:'fechaF1', etq:'Fecha F1', tipo:'fecha' },
-          { k:'f2', etq:'F2 · Registro de presentación del sílabo', col:'F2', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
+          { k:'f2', etq:'F2', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
           { k:'fechaF2', etq:'Fecha F2', tipo:'fecha' },
-          { k:'f3', etq:'F3 · Informe de la prueba de entrada', col:'F3', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
+          { k:'f3', etq:'F3', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
           { k:'fechaF3', etq:'Fecha F3', tipo:'fecha' }
         ], contar:{ desde:['f1','f2','f3'], valor:'Presentado', campo:'presentados', rotulo:'formularios presentados' } },
         { tipo:'grid', ancho:true, campos:[
