@@ -199,6 +199,14 @@ tr.sin-leer{background:#fffdf6}
   border-color:#9fd3b6}
 #fichaForm .campo-vacio input,#fichaForm .campo-vacio select,#fichaForm .campo-vacio textarea{
   border-color:#ecd08f}
+.caja-transcripcion{display:flex;gap:16px;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
+  padding:14px 16px;margin:0 0 14px}
+.caja-transcripcion b{font-size:13.5px}
+.caja-transcripcion p{margin:3px 0 0;font-size:12.5px;color:var(--tinta-media);max-width:62ch}
+.aviso-propuesta{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
+  border-radius:8px;padding:12px 14px;margin:0 0 14px;color:#0c447c}
+.aviso-propuesta p{margin:3px 0 0;font-size:12.5px;line-height:1.5}
 .leyenda-campos{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tinta-media);
   margin:0 0 12px}
 .leyenda-campos i{display:inline-block;width:10px;height:10px;border-radius:3px;
@@ -1393,8 +1401,17 @@ label .req{color:var(--falla)}
   function prepararFiltros() {
     const llenar = (id, valores, etiquetaTodos) => {
       const sel = $(id), actual = sel.value;
+      // Un mismo valor escrito con distinta acentuación o mayúsculas no debe
+      // aparecer dos veces: se agrupa y se muestra la forma más frecuente.
+      const cuenta = {};
+      valores.filter(Boolean).forEach(v => {
+        const k = sinAcentos(v);
+        (cuenta[k] = cuenta[k] || {})[v] = (cuenta[k][v] || 0) + 1;
+      });
+      const unicos = Object.keys(cuenta).map(k =>
+        Object.keys(cuenta[k]).sort((a, b) => cuenta[k][b] - cuenta[k][a])[0]);
       sel.innerHTML = '<option value="">' + etiquetaTodos + '</option>' +
-        [...new Set(valores)].filter(Boolean).sort((a,b) => a.localeCompare(b,'es'))
+        unicos.sort((a,b) => a.localeCompare(b,'es'))
           .map(v => '<option>' + esc(v) + '</option>').join('');
       sel.value = actual;
     };
@@ -1404,13 +1421,17 @@ label .req{color:var(--falla)}
     llenar('fTipo', l.map(a => a.tipo), 'Todos los tipos');
   }
 
+  // Se compara sin tildes ni mayúsculas: «Ingeniería electrónica» y
+  // «Ingeniería Electrónica» son la misma carrera.
+  const igual_ = (a, b) => !b || sinAcentos(a || '') === sinAcentos(b);
+
   function filtrar(lista) {
     const q = sinAcentos($('buscar').value.trim());
     const prog = $('fPrograma').value, area = $('fArea').value, tipo = $('fTipo').value;
     return lista.filter(a => {
-      if (prog && a.programa !== prog) return false;
-      if (area && a.area !== area) return false;
-      if (tipo && a.tipo !== tipo) return false;
+      if (!igual_(a.programa, prog)) return false;
+      if (!igual_(a.area, area)) return false;
+      if (!igual_(a.tipo, tipo)) return false;
       if (!q) return true;
       // Cada palabra debe aparecer en algun campo: permite "logistica bendezu".
       const texto = sinAcentos([a.asignatura,a.codigo,a.docente,a.area,a.programa,
@@ -3767,6 +3788,35 @@ label .req{color:var(--falla)}
                         '<span><i style="background:#e2b457"></i>Falta completar</span>';
     $('fichaForm').prepend(leyenda);
 
+    // En los siete formatos: el asistente propone a partir de un archivo o de
+    // una indicación escrita. Nunca guarda: el coordinador revisa y decide.
+    (function () {
+      const esEntrevista = F === FORMULARIOS.entrevistas;
+      const caja = document.createElement('div');
+      caja.className = 'caja-transcripcion';
+      caja.innerHTML =
+        '<div style="flex:1;min-width:260px"><b>¿Quieres que el asistente lo proponga?</b>' +
+        '<p>' + (esEntrevista
+          ? 'Sube la transcripción de la reunión, o escribe lo que se trató.'
+          : 'Escribe lo que encontraste, o sube un archivo con la información.') +
+        ' Él completa el formato y tú lo revisas antes de guardar.</p>' +
+        '<input type="text" id="trIndicacion" style="width:100%;margin-top:8px" ' +
+        'placeholder="' + (esEntrevista
+          ? 'Ej.: se quejaron de la puntualidad y faltan laboratorios'
+          : 'Ej.: el docente cumplió todos los ítems, revisado hoy') + '"></div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
+        '<input type="file" id="trArchivo" accept=".txt,.vtt,.srt,.md,.csv,text/plain" class="oculto">' +
+        '<button type="button" class="btn gris" id="btnArchivo">Subir archivo</button>' +
+        '<button type="button" class="btn gris" id="btnProponer">Proponer</button></div>';
+      $('fichaForm').prepend(caja);
+      $('btnArchivo').addEventListener('click', () => $('trArchivo').click());
+      $('trArchivo').addEventListener('change', () => proponer(F, 'archivo'));
+      $('btnProponer').addEventListener('click', () => proponer(F, 'texto'));
+      $('trIndicacion').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); proponer(F, 'texto'); }
+      });
+    })();
+
     // En todos los formatos, al escribir se actualiza el color de cada campo.
     $('fichaForm').addEventListener('input', marcarCampos);
     $('fichaForm').addEventListener('change', marcarCampos);
@@ -3790,6 +3840,132 @@ label .req{color:var(--falla)}
 
   // Cada campo se pinta según esté completo o falte: el coordinador ve de un
   // vistazo dónde ya terminó y dónde le queda trabajo.
+  /* ------------------------- la transcripción de la entrevista ----------
+     El archivo se lee aquí y su texto va al asistente, que devuelve una
+     propuesta. Nada se guarda: el coordinador revisa y decide. */
+
+  // Los campos del formato, tal como el asistente necesita conocerlos: una
+  // clave, una etiqueta y, si los tiene, sus valores posibles.
+  function camposDelFormato(F) {
+    const lista = [];
+    (F.bloques || []).forEach(b => {
+      if (b.tipo === 'grid') {
+        (b.campos || []).forEach(c => {
+          if (c.auto || c.soloVista) return;
+          lista.push({ clave: 'campo:' + c.k, etiqueta: c.etq, tipo: c.tipo,
+                       opciones: c.opciones || null });
+        });
+      }
+      if (b.tipo === 'escala') {
+        (M_ACTUAL().items || M_ACTUAL().criterios || []).forEach((it, i) => {
+          lista.push({ clave: 'item:' + i,
+                       etiqueta: (it.n ? it.n + '. ' : '') + it.etiqueta,
+                       opciones: CFG.ESCALA });
+          lista.push({ clave: 'obs:' + i, etiqueta: 'Observación de «' + it.etiqueta + '»' });
+        });
+      }
+      if (b.tipo === 'textos') {
+        (M_ACTUAL().temas || []).forEach((t, i) =>
+          lista.push({ clave: 'tema:' + i, etiqueta: t.etiqueta }));
+      }
+    });
+    return lista;
+  }
+
+  function M_ACTUAL() { return CFG.MODULOS[estado.modulo] || {}; }
+
+  async function proponer(F, origen) {
+    const btn = origen === 'archivo' ? $('btnArchivo') : $('btnProponer');
+    let fuente = '';
+    try {
+      if (origen === 'archivo') {
+        const arch = $('trArchivo').files[0];
+        if (!arch) return;
+        fuente = await arch.text();
+        // Los .vtt y .srt traen tiempos y numeración que solo estorban.
+        fuente = fuente.replace(/^WEBVTT.*$/gim, '')
+                       .replace(/^\d+$/gm, '')
+                       .replace(/^\d{2}:\d{2}:\d{2}[.,]\d{3}\s*-->.*$/gm, '')
+                       .replace(/\n{3,}/g, '\n\n').trim();
+        if (fuente.length < 40) throw new Error('El archivo parece vacío.');
+      } else {
+        fuente = $('trIndicacion').value.trim();
+        if (!fuente) { $('trIndicacion').focus(); return; }
+      }
+
+      btn.disabled = true;
+      const textoAntes = btn.textContent;
+      btn.textContent = 'El asistente está leyendo…';
+
+      const a = estado.actual || {};
+      const URL_ASISTENTE = 'https://asistente-pca.patrick-villanueva.workers.dev';
+      const r = await fetch(URL_ASISTENTE + '/proponer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          modulo: M_ACTUAL().nombre || '',
+          curso: [a.codigo, nombreCurso(a.asignatura), a.docente].filter(Boolean).join(' · '),
+          campos: camposDelFormato(F),
+          texto: fuente
+        })
+      });
+      const d = await r.json();
+      btn.disabled = false; btn.textContent = textoAntes;
+      if (d.error) throw new Error(d.error);
+      aplicarPropuesta(F, d.propuesta || {});
+    } catch (e) {
+      btn.disabled = false;
+      if (origen === 'archivo') btn.textContent = 'Subir archivo'; else btn.textContent = 'Proponer';
+      alert('No se pudo preparar la propuesta: ' + e.message);
+    }
+    $('trArchivo').value = '';
+  }
+
+  function aplicarPropuesta(F, p) {
+    let puestos = 0;
+    const cajas = [...$('fichaForm').querySelectorAll('[data-tema]')];
+    const items = [...$('fichaForm').querySelectorAll('[data-estado]')];
+
+    Object.keys(p).forEach(k => {
+      const v = p[k];
+      if (k === '_resumen' || v === '' || v === null || v === undefined) return;
+      const [tipo, ref] = k.split(':');
+      if (tipo === 'campo') {
+        const el = $('f_' + ref);
+        if (el && !String(el.value).trim()) { el.value = v; puestos++; }
+      } else if (tipo === 'tema') {
+        const el = cajas[Number(ref)];
+        if (el && !el.value.trim()) { el.value = v; puestos++; }
+      } else if (tipo === 'item') {
+        const el = items[Number(ref)];
+        if (el && (!el.value || el.value === 'Seleccione')) {
+          el.value = v; puestos++;
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      } else if (tipo === 'obs') {
+        const fila = items[Number(ref)] && items[Number(ref)].closest('.item');
+        const obs = fila && fila.querySelector('.obs textarea, textarea.obs');
+        if (obs && !obs.value.trim()) { obs.value = v; puestos++; }
+      }
+    });
+
+    marcarCampos();
+    recalcularEscala(F);
+    recalcularCompleto(F);
+
+    let av = $('avisoPropuesta');
+    if (!av) {
+      av = document.createElement('div');
+      av.id = 'avisoPropuesta';
+      av.className = 'aviso-propuesta';
+      $('fichaForm').prepend(av);
+    }
+    av.innerHTML = '<b>Propuesta del asistente</b>' +
+      '<p>Se completaron ' + puestos + ' campos' +
+      (p._resumen ? '. ' + esc(p._resumen) : '.') +
+      ' Revísalos y corrige lo que haga falta: al guardar, el registro queda a tu nombre.</p>';
+    av.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
   function marcarCampos() {
     const form = $('fichaForm');
     if (!form) return;
