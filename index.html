@@ -182,6 +182,8 @@ tr.sin-leer{background:#fffdf6}
 #datos .sello-posible{margin:4px 0 0;display:inline-block}
 .fila-comun td:first-child{box-shadow:inset 3px 0 0 #2a6fb0}
 #datos .sello-comun{margin:4px 0 0;display:inline-block}
+.chip.esperando{opacity:.55}
+.avance.cargando-avance span{color:var(--tinta-media)}
 .chip-val{display:inline-block;margin-left:6px;padding:0 5px;border-radius:4px;
   font-size:10.5px;font-weight:700;font-family:'IBM Plex Mono',monospace;
   background:rgba(255,255,255,.75)}
@@ -1077,6 +1079,7 @@ label .req{color:var(--falla)}
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
     vista: 'cursos', indicadores: null, cursosCatalogo: null, docentesConocidos: [], nivel: {},
     correo: '', destinatarios: null,
+    avanceListo: false,
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
@@ -1371,6 +1374,7 @@ label .req{color:var(--falla)}
   function cargarAvance() {
     api('/avance?ciclo=' + encodeURIComponent($('filtroCiclo').value))
       .then(d => { estado.avance = d.avance || {}; estado.nivel = d.nivel || {};
+        estado.avanceListo = true;
         if (estado.asignaciones.length) { pintarTablero(); guardarLocal(); } })
       .catch(() => {});
   }
@@ -1600,7 +1604,7 @@ label .req{color:var(--falla)}
             // porcentaje, el estado o si hay alerta, con su color de semáforo.
             const niv = ok && estado.nivel && estado.nivel[a.idAsignacion]
               ? estado.nivel[a.idAsignacion][clave] : null;
-            const cls = 'chip' + (ok ? ' hecho' : (bloqueada ? '' : ' activo')) +
+            const cls = 'chip' + (sinAvance ? ' esperando' : (ok ? ' hecho' : (bloqueada ? '' : ' activo'))) +
               (niv ? ' niv-' + niv.n : '');
             return '<button class="' + cls + '" ' +
               (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) +
@@ -1613,10 +1617,16 @@ label .req{color:var(--falla)}
               '</button>';
           }).join('');
 
+          // Si el avance todavía no llegó, no se muestra un conteo: decir 0/7
+          // cuando puede haber siete registrados es peor que no decir nada.
+          const sinAvance = !estado.avanceListo;
           const pct = Math.round((hechos.size / totalMod) * 100);
-          const barra = '<div class="avance" title="' + hechos.size + ' de ' + totalMod + ' módulos">' +
-            '<div class="barra"><i style="width:' + pct + '%"></i></div>' +
-            '<span>' + hechos.size + '/' + totalMod + '</span></div>';
+          const barra = sinAvance
+            ? '<div class="avance cargando-avance" title="Consultando lo registrado">' +
+              '<div class="barra"><i style="width:0"></i></div><span>…</span></div>'
+            : '<div class="avance" title="' + hechos.size + ' de ' + totalMod + ' módulos">' +
+              '<div class="barra"><i style="width:' + pct + '%"></i></div>' +
+              '<span>' + hechos.size + '/' + totalMod + '</span></div>';
 
           // Sin boton de reasignacion: escribir en Docentes DAI por REST borra
           // los campos de relacion de la fila. El area se cambia desde QuintaDB.
@@ -3821,17 +3831,18 @@ label .req{color:var(--falla)}
       caja.className = 'caja-transcripcion';
       caja.innerHTML =
         '<div style="flex:1;min-width:280px">' +
-        '<b>¿Quieres que el asistente lo proponga?</b>' +
-        '<p>Él llena el formato y tú lo revisas. Nada se guarda hasta que pulses Guardar, ' +
-        'y el registro queda a tu nombre. Hay dos maneras:</p>' +
+        '<b>Adelanta el trabajo con el asistente</b>' +
+        '<p>Si ya tienes el documento o sabes lo que vas a poner, el asistente deja el ' +
+        'formato adelantado y tú solo revisas y corriges. Nada se guarda hasta que pulses ' +
+        'Guardar, y el registro queda a tu nombre. Dos maneras de hacerlo:</p>' +
         '<ul class="como-usar">' +
         '<li><b>Subir archivo</b> — cuando tienes el documento. ' +
         (esEntrevista
           ? 'La transcripción que descargaste de Zoom o Meet.'
           : 'El sílabo o el informe en PDF.') +
         ' Admite PDF con texto, .txt, .vtt y .srt. Un PDF escaneado no sirve: no tiene texto.</li>' +
-        '<li><b>Proponer</b> — cuando no hay documento y lo tienes en la cabeza. ' +
-        'Escríbelo abajo en una frase, como se lo contarías a un colega.</li>' +
+        '<li><b>Proponer</b> — cuando no hay documento y ya lo revisaste tú. ' +
+        'Cuéntalo abajo en una frase, como se lo dirías a un colega, y él lo traduce al formato.</li>' +
         '</ul>' +
         '<p class="ejemplo">Por ejemplo: <i>' + (esEntrevista
           ? 'se quejaron de la puntualidad y de que faltan laboratorios; el docente se comprometió a recuperar dos sesiones'
@@ -4239,8 +4250,7 @@ label .req{color:var(--falla)}
 
     api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(a.idAsignacion))
       .then(datos => {
-        listo();
-        if (!datos.registro) return;
+        if (!datos.registro) { listo(); return; }
         estado.registro = datos.registro;
         const v = datos.registro.valores;
         const M = CFG.MODULOS[clave];
@@ -4281,6 +4291,10 @@ label .req{color:var(--falla)}
 
         recalcularEscala(F);
         recalcularConteo(F);
+        recalcularCompleto(F);
+        marcarCampos();
+        // Recién ahora el formulario muestra algo cierto.
+        listo();
         aviso('Registro existente cargado. Al guardar se actualiza.', 'ok');
       })
       .catch(e => { listo(); aviso(e.message, 'error'); });
