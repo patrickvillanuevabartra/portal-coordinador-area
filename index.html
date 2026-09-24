@@ -1598,6 +1598,9 @@ label .req{color:var(--falla)}
           const hechos = new Set();
           partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
 
+          // Si el avance todavía no llegó, no se muestra un conteo: decir 0/7
+          // cuando puede haber siete registrados es peor que no decir nada.
+          const sinAvance = !estado.avanceListo;
           const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) => {
             const ok = hechos.has(clave);
             // Además de si está hecho, cada botón dice cómo salió: el
@@ -1617,9 +1620,6 @@ label .req{color:var(--falla)}
               '</button>';
           }).join('');
 
-          // Si el avance todavía no llegó, no se muestra un conteo: decir 0/7
-          // cuando puede haber siete registrados es peor que no decir nada.
-          const sinAvance = !estado.avanceListo;
           const pct = Math.round((hechos.size / totalMod) * 100);
           const barra = sinAvance
             ? '<div class="avance cargando-avance" title="Consultando lo registrado">' +
