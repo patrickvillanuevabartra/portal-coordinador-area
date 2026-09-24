@@ -213,6 +213,10 @@ tr.sin-leer{background:#fffdf6}
 .aviso-propuesta{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
   border-radius:8px;padding:12px 14px;margin:0 0 14px;color:#0c447c}
 .aviso-propuesta p{margin:3px 0 0;font-size:12.5px;line-height:1.5}
+.lo-escrito{margin-top:8px;background:#fff;border:1px solid #c3ddf3;border-radius:6px;
+  padding:9px 12px;font-size:12.5px}
+.lo-escrito ul{margin:5px 0 0;padding-left:18px;line-height:1.5}
+.lo-escrito li{margin-bottom:3px}
 .leyenda-campos{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tinta-media);
   margin:0 0 12px}
 .leyenda-campos i{display:inline-block;width:10px;height:10px;border-radius:3px;
@@ -3969,6 +3973,8 @@ label .req{color:var(--falla)}
     // ayuda a saber qué tocó el asistente.
     const cuenta = { items: 0, obs: 0, temas: 0, campos: 0 };
     const conObservacion = [];   // en qué ítems dejó observación
+    const camposPuestos = [];    // qué campos llenó, por su nombre
+    const textos = [];           // lo que escribió, para poder leerlo aquí
     let puestos = 0;
     const cajas = [...$('fichaForm').querySelectorAll('[data-tema]')];
     const items = [...$('fichaForm').querySelectorAll('select[data-estado]')];
@@ -3979,7 +3985,16 @@ label .req{color:var(--falla)}
       const [tipo, ref] = k.split(':');
       if (tipo === 'campo') {
         const el = $('f_' + ref);
-        if (el && !String(el.value).trim()) { el.value = v; puestos++; cuenta.campos++; }
+        if (el && !String(el.value).trim()) {
+          el.value = v; puestos++; cuenta.campos++;
+          // Se busca su etiqueta para poder nombrarlo en el aviso.
+          (F.bloques || []).forEach(b => (b.campos || []).forEach(c => {
+            if (c.k !== ref) return;
+            camposPuestos.push(c.etq);
+            // Si es texto libre, se muestra aquí para no tener que buscarlo.
+            if (c.tipo === 'textarea' || c.tipo === 'texto') textos.push({ donde: c.etq, que: v });
+          }));
+        }
       } else if (tipo === 'tema') {
         const el = cajas[Number(ref)];
         if (el && !el.value.trim()) { el.value = v; puestos++; cuenta.temas++; }
@@ -3996,7 +4011,7 @@ label .req{color:var(--falla)}
           obs.value = v; puestos++; cuenta.obs++;
           const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
           const it = lista[Number(ref)];
-          if (it) conObservacion.push(it.etiqueta);
+          if (it) { conObservacion.push(it.etiqueta); textos.push({ donde: it.etiqueta, que: v }); }
         }
       }
     });
@@ -4020,16 +4035,34 @@ label .req{color:var(--falla)}
                           ? ' (en ' + conObservacion.join(', ').replace(/, ([^,]*)$/, ' y $1') + ')'
                           : ''));
     if (cuenta.temas)  partes.push(plural(cuenta.temas, 'tema tratado', 'temas tratados'));
-    if (cuenta.campos) partes.push(plural(cuenta.campos, 'campo', 'campos'));
+    if (cuenta.campos) partes.push(plural(cuenta.campos, 'campo', 'campos') +
+                        (camposPuestos.length
+                          ? ' (' + camposPuestos.join(', ').replace(/, ([^,]*)$/, ' y $1') + ')'
+                          : ''));
     const detalle = partes.length
       ? partes.join(', ').replace(/, ([^,]*)$/, ' y $1')
       : 'nada: no encontró datos que pudiera usar';
 
+    // Lo que sigue en ámbar es lo que el asistente no pudo saber y toca a ti.
+    const faltan = $('fichaForm').querySelectorAll('.campo-vacio').length;
+
     av.innerHTML = '<b>Propuesta del asistente</b>' +
       '<p>Se completó ' + detalle +
       (p._resumen ? '. ' + esc(p._resumen) : '.') +
-      (puestos ? ' Revísalos y corrige lo que haga falta: al guardar, el registro queda a tu nombre.' : '') +
-      '</p>';
+      (puestos ? ' Revísalos y corrige lo que haga falta.' : '') +
+      '</p>' +
+      (textos.length
+        ? '<div class="lo-escrito"><b>Lo que escribió:</b><ul>' +
+          textos.map(t => '<li><b>' + esc(t.donde) + ':</b> ' + esc(String(t.que).slice(0, 400)) +
+            '</li>').join('') + '</ul></div>'
+        : '') +
+      (faltan
+        ? '<p><b>Quedan ' + faltan + ' campos por llenar</b>, los que están en ámbar. ' +
+          'El asistente no los completó porque no constaban en lo que le diste: ' +
+          'la fecha, el revisor o lo que solo tú sabes.</p>'
+        : '<p>No queda ningún campo pendiente.</p>') +
+      '<p>Al guardar, el registro queda a tu nombre y con tu fecha, como cualquier otra ' +
+      'revisión. Este aviso no se guarda: lo que queda es lo que ves en el formulario.</p>';
     av.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
