@@ -115,7 +115,7 @@ window.PCA_CONFIG = {
         { n:'07', etiqueta:'Unidades (4, según formato)', nota: 'Cada unidad describe su logro de aprendizaje y su programación de contenidos, planificados para las 16 semanas.',           estado:'bArmk9W6vdKOoDdx7cGSk7', obs:'ddVWxcK8nfW6pcHCkZpLmA' },
         { n:'08', etiqueta:'Estrategias didácticas', nota: 'El sílabo describe las estrategias didácticas que se emplearán en el curso.',                estado:'ddJmkOAmjjf4kWw8keah4d', obs:'ceWQNcIsDcAOkrErpdU8kz' },
         { n:'09', etiqueta:'Recursos', nota: 'El sílabo describe los recursos didácticos que se emplearán en el curso.',                              estado:'dcKvpdVdvbfA9OoghdICkF', obs:'ansvLtm05cRzdcRSoAp8o-' },
-        { n:'10', etiqueta:'Fórmula de evaluación', nota: 'Los criterios de evaluación y su ponderación están descritos, con los instrumentos o rúbricas a utilizar. La fórmula debe ser idéntica a la configurada en el Sistema de Evaluación.',                 estado:'ddUbubWQXcH5T6f8otiCoX', obs:'aii8kjtNfcTQS1v8kgW6a7' },
+        { n:'10', etiqueta:'Fórmula de evaluación', nota: 'Los criterios de evaluación y su ponderación están descritos en el sílabo, con los instrumentos o rúbricas a utilizar. Aquí solo se revisa el documento: que la fórmula coincida con el Sistema de Evaluación se verifica en el formato de Verificación de fórmula.',                 estado:'ddUbubWQXcH5T6f8otiCoX', obs:'aii8kjtNfcTQS1v8kgW6a7' },
         { n:'11', etiqueta:'Referencias bibliográficas', nota: 'Referencias básicas y complementarias no mayores a cinco años, en orden alfabético y con estilo APA, promoviendo el uso de bases de datos bibliográficas.',        estado:'cTW7pdSCjhw7_dISkKWOGI', obs:'ahWQaHCmnpWQ7cKJVdQ8kq' }
       ]
     },
