@@ -3799,13 +3799,14 @@ label .req{color:var(--falla)}
         '<p>' + (esEntrevista
           ? 'Sube la transcripción de la reunión, o escribe lo que se trató.'
           : 'Escribe lo que encontraste, o sube un archivo con la información.') +
-        ' Él completa el formato y tú lo revisas antes de guardar.</p>' +
+        ' Él completa el formato y tú lo revisas antes de guardar. ' +
+'Admite PDF con texto, .txt, .vtt y .srt.</p>' +
         '<input type="text" id="trIndicacion" style="width:100%;margin-top:8px" ' +
         'placeholder="' + (esEntrevista
           ? 'Ej.: se quejaron de la puntualidad y faltan laboratorios'
           : 'Ej.: el docente cumplió todos los ítems, revisado hoy') + '"></div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-        '<input type="file" id="trArchivo" accept=".txt,.vtt,.srt,.md,.csv,text/plain" class="oculto">' +
+        '<input type="file" id="trArchivo" accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf" class="oculto">' +
         '<button type="button" class="btn gris" id="btnArchivo">Subir archivo</button>' +
         '<button type="button" class="btn gris" id="btnProponer">Proponer</button></div>';
       $('fichaForm').prepend(caja);
@@ -3874,6 +3875,35 @@ label .req{color:var(--falla)}
 
   function M_ACTUAL() { return CFG.MODULOS[estado.modulo] || {}; }
 
+  // Un PDF no es texto: hay que extraerlo. Los .vtt y .srt sí lo son, pero
+  // traen tiempos que solo estorban y se limpian después.
+  async function textoDelArchivo(arch) {
+    const esPdf = /\.pdf$/i.test(arch.name) || arch.type === 'application/pdf';
+    if (!esPdf) return await arch.text();
+
+    await cargarPdfJs();
+    const doc = await pdfjsLib.getDocument({ data: await arch.arrayBuffer() }).promise;
+    let texto = '';
+    for (let p = 1; p <= doc.numPages; p++) {
+      const contenido = await (await doc.getPage(p)).getTextContent();
+      const filas = {};
+      contenido.items.forEach(it => {
+        const t = (it.str || '').trim();
+        if (!t) return;
+        const y = Math.round(it.transform[5] / 3);
+        (filas[y] = filas[y] || []).push({ x: it.transform[4], t });
+      });
+      Object.keys(filas).map(Number).sort((a, b) => b - a).forEach(k =>
+        texto += filas[k].sort((a, b) => a.x - b.x).map(o => o.t).join(' ') + '\n');
+      texto += '\n';
+    }
+    if (texto.replace(/\s/g, '').length < 40) {
+      throw new Error('Ese PDF no tiene texto: parece un documento escaneado. ' +
+                      'Prueba con el archivo original o escribe la indicación.');
+    }
+    return texto;
+  }
+
   async function proponer(F, origen) {
     const btn = origen === 'archivo' ? $('btnArchivo') : $('btnProponer');
     let fuente = '';
@@ -3881,7 +3911,7 @@ label .req{color:var(--falla)}
       if (origen === 'archivo') {
         const arch = $('trArchivo').files[0];
         if (!arch) return;
-        fuente = await arch.text();
+        fuente = await textoDelArchivo(arch);
         // Los .vtt y .srt traen tiempos y numeración que solo estorban.
         fuente = fuente.replace(/^WEBVTT.*$/gim, '')
                        .replace(/^\d+$/gm, '')
