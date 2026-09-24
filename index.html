@@ -256,6 +256,9 @@ tr.sin-leer{background:#fffdf6}
 .paso-ciclo h3{margin:0 0 3px;font-size:14px}
 .paso-ciclo p{margin:0;font-size:12.5px;color:var(--tinta-media);line-height:1.5}
 .paso-ciclo .acc{white-space:nowrap}
+.alerta-candado{display:block;margin-top:8px;background:#fdecea;border:1px solid #e6a49a;
+  border-left:3px solid #c0392b;border-radius:6px;padding:9px 12px;color:#8f2418;
+  font-size:12px;line-height:1.5}
 .archivo-pdf{display:block;border:2px dashed var(--linea);border-radius:10px;padding:22px;
   text-align:center;cursor:pointer;color:var(--tinta-media)}
 .archivo-pdf:hover{border-color:var(--brand);color:var(--brand)}
@@ -1849,9 +1852,21 @@ label .req{color:var(--falla)}
              ? d.coordinadores.generales.map(x => x.replace('Ingeniería ', '')).join(', ') : 'ninguno'),
         acc: 'Clonar o registrar', ir: 'coordinadores' },
       { n: 3, t: 'Catálogo de cursos',
-        listo: d.catalogo.sinCodigo === 0,
+        listo: d.catalogo.sinCodigo === 0 && !(d.catalogo.repetidos || []).length,
         p: d.catalogo.total + ' cursos · ' + d.catalogo.sinCodigo + ' sin código · ' +
-           d.catalogo.sinArea + ' sin área',
+           d.catalogo.sinArea + ' sin área' +
+           ((d.catalogo.repetidos || []).length
+             ? '<br><span class="alerta-candado"><b>' + d.catalogo.repetidos.length +
+               ' códigos repetidos dentro de una misma carrera.</b> Hay que corregirlos ' +
+               'antes de importar: el portal une las cargas por el código y las engancharía ' +
+               'al curso equivocado.<br>' +
+               d.catalogo.repetidos.slice(0, 6).map(c =>
+                 esc(c.codigo) + ' en ' + esc(c.programa.replace('Ingeniería ', '')) + ': ' +
+                 esc(c.cursos.join(' / '))).join('<br>') +
+               (d.catalogo.repetidos.length > 6
+                 ? '<br>y ' + (d.catalogo.repetidos.length - 6) + ' más.' : '') +
+               '</span>'
+             : ''),
         acc: 'Revisar el catálogo', ir: 'datos', vista: 'cursos' },
       { n: 4, t: 'Cursos comunes',
         listo: d.comunes.porConfirmar === 0,
