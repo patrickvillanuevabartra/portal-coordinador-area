@@ -160,8 +160,8 @@ window.PCA_CONFIG = {
     },
 
     formularios: {
-      nombre: 'Cumplimiento F1, F2 y F3',
-      corto: 'F1-F3',
+      nombre: 'Cumplimiento F1 a F4',
+      corto: 'F1-F4',
       entity: 'ddN8k2u8jiW502WR7cSeeY',
       activo: true,
       comun: {
@@ -185,6 +185,8 @@ window.PCA_CONFIG = {
         fechaF2:      'cYWQdcVCnmW4S6W6SAwX1Z',
         f3:           'cxnCk5W7Hne57cJ3vJqCoc',
         fechaF3:      'aqWPNdJbLdSi_dNd7cS1KR',
+        f4:           'ddP8oJAsffW6HFW6xdVSkd',
+        fechaF4:      'dcGgtcR8jhb4kyWRNcG8oq',
         presentados:  'ddNCkNWRPeFAxdLmkbumof',
         observaciones:'cGqbBdL8jhu4oJcSkTeSkB'
       }
