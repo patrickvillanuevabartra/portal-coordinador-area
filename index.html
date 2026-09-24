@@ -3877,10 +3877,14 @@ label .req{color:var(--falla)}
       }
       if (b.tipo === 'escala') {
         (M_ACTUAL().items || M_ACTUAL().criterios || []).forEach((it, i) => {
-          lista.push({ clave: 'item:' + i,
+          // La clave usa el número del ítem tal como se ve; si no tiene, su
+          // posición. Antes el asistente devolvía «01» y se leía como la
+          // posición 1, corriendo todo un lugar.
+          const ref = it.n || String(i);
+          lista.push({ clave: 'item:' + ref,
                        etiqueta: (it.n ? it.n + '. ' : '') + it.etiqueta,
                        opciones: CFG.ESCALA });
-          lista.push({ clave: 'obs:' + i, etiqueta: 'Observación de «' + it.etiqueta + '»' });
+          lista.push({ clave: 'obs:' + ref, etiqueta: 'Observación de «' + it.etiqueta + '»' });
         });
       }
       if (b.tipo === 'textos') {
@@ -3978,6 +3982,15 @@ label .req{color:var(--falla)}
     let puestos = 0;
     const cajas = [...$('fichaForm').querySelectorAll('[data-tema]')];
     const items = [...$('fichaForm').querySelectorAll('select[data-estado]')];
+    const listaItems = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    // La referencia puede venir como el número del ítem («01») o como su
+    // posición: se prueba primero por número.
+    const indiceDe = (ref) => {
+      const porNumero = listaItems.findIndex(it => String(it.n) === String(ref));
+      if (porNumero >= 0) return porNumero;
+      const n = parseInt(ref, 10);
+      return isNaN(n) ? -1 : n;
+    };
 
     Object.keys(p).forEach(k => {
       const v = p[k];
@@ -3999,18 +4012,18 @@ label .req{color:var(--falla)}
         const el = cajas[Number(ref)];
         if (el && !el.value.trim()) { el.value = v; puestos++; cuenta.temas++; }
       } else if (tipo === 'item') {
-        const el = items[Number(ref)];
+        const el = items[indiceDe(ref)];
         if (el && (!el.value || el.value === 'Seleccione')) {
           el.value = v; puestos++; cuenta.items++;
           el.dispatchEvent(new Event('change', { bubbles: true }));
         }
       } else if (tipo === 'obs') {
-        const fila = items[Number(ref)] && items[Number(ref)].closest('.item');
+        const i = indiceDe(ref);
+        const fila = items[i] && items[i].closest('.item');
         const obs = fila && fila.querySelector('.obs textarea, textarea.obs');
         if (obs && !obs.value.trim()) {
           obs.value = v; puestos++; cuenta.obs++;
-          const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
-          const it = lista[Number(ref)];
+          const it = listaItems[indiceDe(ref)];
           if (it) { conObservacion.push(it.etiqueta); textos.push({ donde: it.etiqueta, que: v }); }
         }
       }
