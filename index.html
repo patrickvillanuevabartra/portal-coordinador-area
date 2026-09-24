@@ -323,6 +323,8 @@ tr.sin-leer{background:#fffdf6}
 .tarjeta-cuerpo{padding:18px 20px}
 .solo-consulta{font-size:12.5px;color:#8a6400;background:#fdf4e3;border:1px solid #e6c86a;
   border-radius:6px;padding:6px 12px}
+.nota-plazo{display:block;margin-top:4px;font-size:11.5px;color:var(--tinta-media)}
+.nota-plazo.fuera{color:#8f2418;font-weight:600}
 .nota-item{display:block;font-size:11.5px;color:var(--tinta-media);font-weight:400;
   line-height:1.5;margin:6px 0 2px;max-width:72ch;padding-left:10px;
   border-left:2px solid var(--linea)}
@@ -1082,7 +1084,7 @@ label .req{color:var(--falla)}
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
     vista: 'cursos', indicadores: null, cursosCatalogo: null, docentesConocidos: [], nivel: {},
     correo: '', destinatarios: null,
-    avanceListo: false,
+    avanceListo: false, plazos: null, plazosCiclo: '',
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
@@ -3554,7 +3556,12 @@ label .req{color:var(--falla)}
           { k:'f2', etq:'F2', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
           { k:'fechaF2', etq:'Fecha F2', tipo:'fecha' },
           { k:'f3', etq:'F3', tipo:'select', opciones:['Presentado','Pendiente','Fuera de plazo','No aplica'], req:true },
-          { k:'fechaF3', etq:'Fecha F3', tipo:'fecha' }
+          { k:'fechaF3', etq:'Fecha F3', tipo:'fecha' },
+          // El F4 se presenta al cerrar el ciclo: existe desde ahora pero no se
+          // exige, y viene como «No aplica» hasta que llegue su momento.
+          { k:'f4', etq:'F4', tipo:'select', opciones:['No aplica','Presentado','Pendiente','Fuera de plazo'],
+            ayuda:'Se presenta al finalizar el ciclo.' },
+          { k:'fechaF4', etq:'Fecha F4', tipo:'fecha' }
         ], contar:{ desde:['f1','f2','f3'], valor:'Presentado', campo:'presentados', rotulo:'formularios presentados' } },
         { tipo:'grid', ancho:true, campos:[
           { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
@@ -3842,6 +3849,10 @@ label .req{color:var(--falla)}
     leyenda.innerHTML = '<span><i style="background:#3aa56e"></i>Completado</span>' +
                         '<span><i style="background:#e2b457"></i>Falta completar</span>';
     $('fichaForm').prepend(leyenda);
+
+    // En el formato de formularios, la fecha se compara con el plazo que fijó
+    // la Escuela: así «Fuera de plazo» deja de marcarse a ojo.
+    if (F === FORMULARIOS.formularios) prepararPlazos();
 
     // En los siete formatos: el asistente propone a partir de un archivo o de
     // una indicación escrita. Nunca guarda: el coordinador revisa y decide.
@@ -4175,6 +4186,58 @@ label .req{color:var(--falla)}
     av.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
+  /* ----------------------------------------------------- los plazos ------
+     Cada Escuela fija su fecha límite para F1, F2, F3 y F4. El portal la
+     compara con la fecha de presentación y propone el estado. */
+
+  function prepararPlazos() {
+    const a = estado.actual || {};
+    const ciclo = a.ciclo || $('filtroCiclo').value || '';
+    const usar = (lista) => {
+      const mios = (lista || []).filter(x => sinAcentos(x.programa || '') === sinAcentos(a.programa || ''));
+      ['f1','f2','f3','f4'].forEach(k => {
+        const plazo = mios.find(x => (x.formato || '').toLowerCase() === k);
+        const campoFecha = $('f_fecha' + k.toUpperCase());
+        const campoEstado = $('f_' + k);
+        if (!campoFecha || !campoEstado) return;
+
+        // Se muestra la fecha límite junto al campo, para que se vea contra
+        // qué se compara.
+        const cont = campoFecha.parentElement;
+        let nota = cont.querySelector('.nota-plazo');
+        if (!nota) {
+          nota = document.createElement('small');
+          nota.className = 'nota-plazo';
+          cont.appendChild(nota);
+        }
+        nota.textContent = plazo && plazo.fecha
+          ? 'Plazo de la Escuela: ' + plazo.fecha + (plazo.observaciones ? ' · ' + plazo.observaciones : '')
+          : 'Sin plazo cargado para esta carrera';
+
+        if (!plazo || !plazo.fecha) return;
+        const comparar = () => {
+          const v = campoFecha.value;
+          if (!v) return;
+          // No se pisa lo que el coordinador haya elegido a conciencia.
+          if (campoEstado.value === 'No aplica') return;
+          campoEstado.value = v <= plazo.fecha ? 'Presentado' : 'Fuera de plazo';
+          nota.classList.toggle('fuera', v > plazo.fecha);
+          marcarCampos();
+          recalcularCompleto(F_ACTUAL());
+        };
+        campoFecha.addEventListener('change', comparar);
+        comparar();
+      });
+    };
+
+    if (estado.plazos && estado.plazosCiclo === ciclo) return usar(estado.plazos);
+    api('/plazos?ciclo=' + encodeURIComponent(ciclo))
+      .then(d => { estado.plazos = d.plazos || []; estado.plazosCiclo = ciclo; usar(estado.plazos); })
+      .catch(() => {});
+  }
+
+  function F_ACTUAL() { return FORMULARIOS[estado.modulo]; }
+
   function marcarCampos() {
     const form = $('fichaForm');
     if (!form) return;
@@ -4205,8 +4268,9 @@ label .req{color:var(--falla)}
     const v = (k) => ($('f_' + k) || {}).value || '';
     let extra = '';
     if (F === FORMULARIOS.formularios) {
-      const n = ['f1','f2','f3'].filter(k => /^s/i.test(v(k))).length;
-      extra = n + ' de 3 formularios presentados';
+      const n = ['f1','f2','f3'].filter(k => /^p/i.test(v(k))).length;
+      const n4 = /^p/i.test(v('f4')) ? ' · F4 presentado' : '';
+      extra = n + ' de 3 formularios presentados' + n4;
     } else if (F === FORMULARIOS.formula) {
       extra = [v('registroSistema'), v('coincide') ? 'coincide: ' + v('coincide') : '', v('estado')]
         .filter(Boolean).join(' · ');
