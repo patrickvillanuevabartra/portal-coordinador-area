@@ -3992,6 +3992,9 @@ label .req{color:var(--falla)}
       return isNaN(n) ? -1 : n;
     };
 
+    // Para poder ver qué devolvió cuando algo no calza.
+    console.log('Propuesta del asistente — claves recibidas:', Object.keys(p));
+
     Object.keys(p).forEach(k => {
       const v = p[k];
       if (k === '_resumen' || v === '' || v === null || v === undefined) return;
@@ -4059,6 +4062,17 @@ label .req{color:var(--falla)}
     // Lo que sigue en ámbar es lo que el asistente no pudo saber y toca a ti.
     const faltan = $('fichaForm').querySelectorAll('.campo-vacio').length;
 
+    // Y, si es un formato con ítems, cuáles quedaron sin evaluar: es lo que
+    // impide guardar.
+    const sinEvaluar = [];
+    items.forEach((el, i) => {
+      if (!el.value || el.value === 'Seleccione') {
+        const it = listaItems[i];
+        sinEvaluar.push(it ? (it.n || (i + 1)) + '. ' + it.etiqueta : 'ítem ' + (i + 1));
+      }
+    });
+    if (sinEvaluar.length) console.log('Ítems sin evaluar:', sinEvaluar);
+
     av.innerHTML = '<b>Propuesta del asistente</b>' +
       '<p>Se completó ' + detalle +
       (p._resumen ? '. ' + esc(p._resumen) : '.') +
@@ -4068,6 +4082,10 @@ label .req{color:var(--falla)}
         ? '<div class="lo-escrito"><b>Lo que escribió:</b><ul>' +
           textos.map(t => '<li><b>' + esc(t.donde) + ':</b> ' + esc(String(t.que).slice(0, 400)) +
             '</li>').join('') + '</ul></div>'
+        : '') +
+      (sinEvaluar.length
+        ? '<p><b>Sin evaluar:</b> ' + esc(sinEvaluar.join(' · ')) +
+          '. Márcalos tú: el portal no deja guardar con ítems en blanco.</p>'
         : '') +
       (faltan
         ? '<p><b>Quedan ' + faltan + ' campos por llenar</b>, los que están en ámbar. ' +
