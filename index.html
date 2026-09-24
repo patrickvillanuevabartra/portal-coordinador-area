@@ -1017,12 +1017,18 @@ label .req{color:var(--falla)}
       <header class="tarjeta-cab">
         <div><span class="paso">4</span><h2>Plazos de entrega de los formularios</h2>
           <p>La fecha límite que fija cada Escuela para F1, F2, F3 y F4. Con ella el portal
-             marca solo si una entrega fue a tiempo o fuera de plazo.</p></div>
+             marca solo si una entrega fue a tiempo o fuera de plazo.</p>
+          <p class="ayuda">El ciclo se escribe como en el resto del portal: el año, un
+             espacio y el número romano, por ejemplo <b>2026 II</b>. Tiene que coincidir con
+             el de las cargas, o los plazos no se encontrarán. Viene puesto el ciclo que
+             estás viendo, así que normalmente no hay que tocarlo. El F4 se fija ahora
+             aunque se presente al cerrar el ciclo; si una Escuela no tiene fecha para algún
+             formulario, se deja vacío y el coordinador lo marcará a criterio.</p></div>
       </header>
       <div class="tarjeta-cuerpo">
         <div class="buscador" style="margin-bottom:12px">
           <label for="plazoCiclo">Ciclo</label>
-          <input type="text" id="plazoCiclo" style="width:120px">
+          <input type="text" id="plazoCiclo" style="width:120px" placeholder="2026 II">
           <button class="btn gris" id="btnVerPlazos">Ver</button>
           <span class="conteo" id="plazoAviso"></span>
         </div>
