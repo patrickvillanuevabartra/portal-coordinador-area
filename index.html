@@ -1406,17 +1406,23 @@ label .req{color:var(--falla)}
     if (!estado.asignaciones.length)
       $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
     mostrar('tablero');
-    api('/asignaciones?ciclo=' + encodeURIComponent($('filtroCiclo').value))
+    // Se pide el avance en la misma llamada: así el servidor calcula las
+    // asignaciones una sola vez en lugar de dos.
+    api('/asignaciones?conAvance=1&ciclo=' + encodeURIComponent($('filtroCiclo').value))
       .then(datos => {
         estado.asignaciones = datos.asignaciones || [];
+        if (datos.avance) {
+          estado.avance = datos.avance;
+          estado.nivel = datos.nivel || {};
+          estado.avanceListo = true;
+        }
         if (!estado.asignaciones.length && datos.ciclos_en_la_tabla) {
           console.log('Portal: se pidió el ciclo', JSON.stringify(datos.ciclo_pedido),
                       'y en la tabla hay', datos.ciclos_en_la_tabla);
         }
         prepararFiltros(); pintarTablero(); guardarLocal();
-        // El avance se pide recién ahora: leer las siete tablas de supervisión
-        // es lo más lento, y el tablero no lo necesita para mostrarse.
-        cargarAvance();
+        // Solo si no vino junto, se pide aparte.
+        if (!datos.avance) cargarAvance();
       })
       .catch(e => {
         $('tableroTabla').innerHTML = '<div class="vacio"><b>No se pudieron cargar los cursos</b>' + esc(e.message) + '</div>';
