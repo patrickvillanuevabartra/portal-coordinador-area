@@ -4275,7 +4275,7 @@ label .req{color:var(--falla)}
     let obs = '';
     if (be && $('listaItems')) {
       const lista = M[be.fuente] || [];
-      const sel = [...$('listaItems').querySelectorAll('[data-estado]')];
+      const sel = [...$('listaItems').querySelectorAll('select[data-estado]')];
       const malos = lista.map((it, i) => ({ it, v: sel[i] ? sel[i].value : '', i }))
         .filter(x => x.v === 'Parcial' || x.v === 'No cumple');
       obs = malos.map(x => {
@@ -4396,7 +4396,9 @@ label .req{color:var(--falla)}
     const be = bloqueEscala(F);
     if (be) {
       const lista = M[be.fuente] || [];
-      const selects = [...$('listaItems').querySelectorAll('[data-estado]')];
+      // Solo los desplegables: la fila lleva el mismo atributo para pintarse
+      // de color y no tiene valor, así que siempre parecía sin evaluar.
+      const selects = [...$('listaItems').querySelectorAll('select[data-estado]')];
       const sinEvaluar = selects.findIndex(s => !s.value);
       if (sinEvaluar >= 0) {
         const it = lista[sinEvaluar];
