@@ -3992,13 +3992,45 @@ label .req{color:var(--falla)}
       return isNaN(n) ? -1 : n;
     };
 
-    // Para poder ver qué devolvió cuando algo no calza.
-    console.log('Propuesta del asistente — claves recibidas:', Object.keys(p));
-
+    // El asistente puede devolver la propuesta de varias formas: plana
+    // («item:01»), agrupada («items»: {...}) o con los nombres de los campos.
+    // Se aplana todo antes de aplicarla.
+    const plano = {};
+    const grupos = { items: 'item', item: 'item', obs: 'obs', observaciones: 'obs',
+                     temas: 'tema', tema: 'tema', campos: 'campo', campo: 'campo' };
     Object.keys(p).forEach(k => {
       const v = p[k];
-      if (k === '_resumen' || v === '' || v === null || v === undefined) return;
-      const [tipo, ref] = k.split(':');
+      if (v && typeof v === 'object' && !Array.isArray(v) && grupos[k]) {
+        Object.keys(v).forEach(k2 => { plano[grupos[k] + ':' + k2] = v[k2]; });
+      } else if (k.indexOf(':') > -1) {
+        plano[k] = v;
+      } else if (k !== '_resumen') {
+        // Sin prefijo: puede ser el nombre de un campo o la etiqueta de un ítem.
+        plano['suelto:' + k] = v;
+      }
+    });
+    console.log('Propuesta del asistente — recibido:', Object.keys(p),
+                '→ aplanado:', Object.keys(plano));
+
+    Object.keys(plano).forEach(k => {
+      p[k] = plano[k];
+    });
+
+    Object.keys(plano).forEach(k => {
+      const v = plano[k];
+      if (v === '' || v === null || v === undefined || typeof v === 'object') return;
+      let [tipo, ref] = k.split(':');
+
+      // Sin prefijo: se busca si coincide con la etiqueta de un ítem o con el
+      // nombre de un campo.
+      if (tipo === 'suelto') {
+        const iEt = listaItems.findIndex(it =>
+          sinAcentos(it.etiqueta) === sinAcentos(ref) ||
+          String(it.n) === String(ref).replace(/\D/g, ''));
+        if (iEt >= 0) { tipo = 'item'; ref = listaItems[iEt].n || String(iEt); }
+        else if ($('f_' + ref)) { tipo = 'campo'; }
+        else return;
+      }
       if (tipo === 'campo') {
         const el = $('f_' + ref);
         if (el && !String(el.value).trim()) {
