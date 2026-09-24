@@ -199,6 +199,20 @@ tr.sin-leer{background:#fffdf6}
   border-color:#9fd3b6}
 #fichaForm .campo-vacio input,#fichaForm .campo-vacio select,#fichaForm .campo-vacio textarea{
   border-color:#ecd08f}
+/* Mientras se busca lo registrado no se muestra ningún resultado: ni el
+   porcentaje ni los colores de completado, porque todavía no se sabe. */
+#fichaForm.cargando .campo-lleno,
+#fichaForm.cargando .campo-vacio{background:transparent;box-shadow:none}
+#fichaForm.cargando .campo-lleno input,#fichaForm.cargando .campo-lleno select,
+#fichaForm.cargando .campo-lleno textarea,#fichaForm.cargando .campo-vacio input,
+#fichaForm.cargando .campo-vacio select,#fichaForm.cargando .campo-vacio textarea{
+  border-color:var(--linea)}
+#fichaForm.cargando .leyenda-campos{visibility:hidden}
+#fichaForm.cargando .resumen .cifra{color:var(--tinta-media);opacity:.35}
+#fichaForm.cargando .resumen .det{visibility:hidden}
+#fichaForm.cargando .resumen::after{content:'Buscando lo registrado…';
+  font-size:12.5px;color:var(--tinta-media)}
+#fichaForm.cargando .barra i{width:0 !important;transition:none}
 .caja-transcripcion{display:flex;gap:16px;align-items:center;justify-content:space-between;
   flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
   padding:14px 16px;margin:0 0 14px}
@@ -4217,16 +4231,15 @@ label .req{color:var(--falla)}
   /* ------------------------------------------------------ leer lo guardado */
 
   function cargarRegistro(a, clave) {
-    // Mientras llega lo guardado, el formulario está vacío y marcaría 0%.
-    // Se avisa para que nadie lo lea como un resultado.
-    const res = $('rDetalle') || $('rcDetalle');
-    if (res) { res.dataset.antes = res.textContent; res.textContent = 'Buscando lo registrado…'; }
+    // Mientras llega lo guardado, el formulario está vacío: mostrar 0% y los
+    // campos en ámbar sería decir algo falso. Se apaga todo eso hasta saberlo.
+    const form = $('fichaForm');
+    if (form) form.classList.add('cargando');
+    const listo = () => { if (form) form.classList.remove('cargando'); };
 
     api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(a.idAsignacion))
       .then(datos => {
-        if (res && res.dataset.antes !== undefined) {
-          res.textContent = res.dataset.antes; delete res.dataset.antes;
-        }
+        listo();
         if (!datos.registro) return;
         estado.registro = datos.registro;
         const v = datos.registro.valores;
@@ -4270,7 +4283,7 @@ label .req{color:var(--falla)}
         recalcularConteo(F);
         aviso('Registro existente cargado. Al guardar se actualiza.', 'ok');
       })
-      .catch(e => aviso(e.message, 'error'));
+      .catch(e => { listo(); aviso(e.message, 'error'); });
   }
 
   // Arma el mensaje reemplazando los marcadores con los datos del registro.
