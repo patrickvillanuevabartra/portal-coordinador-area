@@ -203,7 +203,13 @@ tr.sin-leer{background:#fffdf6}
   flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
   padding:14px 16px;margin:0 0 14px}
 .caja-transcripcion b{font-size:13.5px}
-.caja-transcripcion p{margin:3px 0 0;font-size:12.5px;color:var(--tinta-media);max-width:62ch}
+.caja-transcripcion p{margin:3px 0 0;font-size:12.5px;color:var(--tinta-media);max-width:66ch}
+.como-usar{margin:8px 0 0;padding-left:18px;font-size:12.5px;color:var(--tinta-media);
+  line-height:1.5;max-width:66ch}
+.como-usar li{margin-bottom:4px}
+.como-usar b{color:var(--tinta)}
+.caja-transcripcion .ejemplo{margin-top:6px;font-size:12px;color:var(--tinta-media)}
+.caja-transcripcion .ejemplo i{color:var(--brand-oscuro)}
 .aviso-propuesta{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
   border-radius:8px;padding:12px 14px;margin:0 0 14px;color:#0c447c}
 .aviso-propuesta p{margin:3px 0 0;font-size:12.5px;line-height:1.5}
@@ -3766,7 +3772,7 @@ label .req{color:var(--falla)}
     // Escala: mostrar la observación cuando el ítem no está conforme
     const cont = $('listaItems');
     if (cont) {
-      cont.querySelectorAll('[data-estado]').forEach(sel => {
+      cont.querySelectorAll('select[data-estado]').forEach(sel => {
         sel.addEventListener('change', () => {
           const fila = sel.closest('.item');
           fila.dataset.estado = sel.value;
@@ -3795,16 +3801,24 @@ label .req{color:var(--falla)}
       const caja = document.createElement('div');
       caja.className = 'caja-transcripcion';
       caja.innerHTML =
-        '<div style="flex:1;min-width:260px"><b>¿Quieres que el asistente lo proponga?</b>' +
-        '<p>' + (esEntrevista
-          ? 'Sube la transcripción de la reunión, o escribe lo que se trató.'
-          : 'Escribe lo que encontraste, o sube un archivo con la información.') +
-        ' Él completa el formato y tú lo revisas antes de guardar. ' +
-'Admite PDF con texto, .txt, .vtt y .srt.</p>' +
+        '<div style="flex:1;min-width:280px">' +
+        '<b>¿Quieres que el asistente lo proponga?</b>' +
+        '<p>Él llena el formato y tú lo revisas. Nada se guarda hasta que pulses Guardar, ' +
+        'y el registro queda a tu nombre. Hay dos maneras:</p>' +
+        '<ul class="como-usar">' +
+        '<li><b>Subir archivo</b> — cuando tienes el documento. ' +
+        (esEntrevista
+          ? 'La transcripción que descargaste de Zoom o Meet.'
+          : 'El sílabo o el informe en PDF.') +
+        ' Admite PDF con texto, .txt, .vtt y .srt. Un PDF escaneado no sirve: no tiene texto.</li>' +
+        '<li><b>Proponer</b> — cuando no hay documento y lo tienes en la cabeza. ' +
+        'Escríbelo abajo en una frase, como se lo contarías a un colega.</li>' +
+        '</ul>' +
+        '<p class="ejemplo">Por ejemplo: <i>' + (esEntrevista
+          ? 'se quejaron de la puntualidad y de que faltan laboratorios; el docente se comprometió a recuperar dos sesiones'
+          : 'revisé todo y está conforme, salvo las referencias que son del 2015') + '</i></p>' +
         '<input type="text" id="trIndicacion" style="width:100%;margin-top:8px" ' +
-        'placeholder="' + (esEntrevista
-          ? 'Ej.: se quejaron de la puntualidad y faltan laboratorios'
-          : 'Ej.: el docente cumplió todos los ítems, revisado hoy') + '"></div>' +
+        'placeholder="Escribe aquí y pulsa Proponer, o Enter"></div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
         '<input type="file" id="trArchivo" accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf" class="oculto">' +
         '<button type="button" class="btn gris" id="btnArchivo">Subir archivo</button>' +
@@ -3951,9 +3965,13 @@ label .req{color:var(--falla)}
   }
 
   function aplicarPropuesta(F, p) {
+    // Se cuenta por tipo: decir «12 campos» en un formato de once ítems no
+    // ayuda a saber qué tocó el asistente.
+    const cuenta = { items: 0, obs: 0, temas: 0, campos: 0 };
+    const conObservacion = [];   // en qué ítems dejó observación
     let puestos = 0;
     const cajas = [...$('fichaForm').querySelectorAll('[data-tema]')];
-    const items = [...$('fichaForm').querySelectorAll('[data-estado]')];
+    const items = [...$('fichaForm').querySelectorAll('select[data-estado]')];
 
     Object.keys(p).forEach(k => {
       const v = p[k];
@@ -3961,20 +3979,25 @@ label .req{color:var(--falla)}
       const [tipo, ref] = k.split(':');
       if (tipo === 'campo') {
         const el = $('f_' + ref);
-        if (el && !String(el.value).trim()) { el.value = v; puestos++; }
+        if (el && !String(el.value).trim()) { el.value = v; puestos++; cuenta.campos++; }
       } else if (tipo === 'tema') {
         const el = cajas[Number(ref)];
-        if (el && !el.value.trim()) { el.value = v; puestos++; }
+        if (el && !el.value.trim()) { el.value = v; puestos++; cuenta.temas++; }
       } else if (tipo === 'item') {
         const el = items[Number(ref)];
         if (el && (!el.value || el.value === 'Seleccione')) {
-          el.value = v; puestos++;
+          el.value = v; puestos++; cuenta.items++;
           el.dispatchEvent(new Event('change', { bubbles: true }));
         }
       } else if (tipo === 'obs') {
         const fila = items[Number(ref)] && items[Number(ref)].closest('.item');
         const obs = fila && fila.querySelector('.obs textarea, textarea.obs');
-        if (obs && !obs.value.trim()) { obs.value = v; puestos++; }
+        if (obs && !obs.value.trim()) {
+          obs.value = v; puestos++; cuenta.obs++;
+          const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
+          const it = lista[Number(ref)];
+          if (it) conObservacion.push(it.etiqueta);
+        }
       }
     });
 
@@ -3989,17 +4012,31 @@ label .req{color:var(--falla)}
       av.className = 'aviso-propuesta';
       $('fichaForm').prepend(av);
     }
+    const partes = [];
+    const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
+    if (cuenta.items)  partes.push(plural(cuenta.items, 'ítem evaluado', 'ítems evaluados'));
+    if (cuenta.obs)    partes.push(plural(cuenta.obs, 'observación', 'observaciones') +
+                        (conObservacion.length
+                          ? ' (en ' + conObservacion.join(', ').replace(/, ([^,]*)$/, ' y $1') + ')'
+                          : ''));
+    if (cuenta.temas)  partes.push(plural(cuenta.temas, 'tema tratado', 'temas tratados'));
+    if (cuenta.campos) partes.push(plural(cuenta.campos, 'campo', 'campos'));
+    const detalle = partes.length
+      ? partes.join(', ').replace(/, ([^,]*)$/, ' y $1')
+      : 'nada: no encontró datos que pudiera usar';
+
     av.innerHTML = '<b>Propuesta del asistente</b>' +
-      '<p>Se completaron ' + puestos + ' campos' +
+      '<p>Se completó ' + detalle +
       (p._resumen ? '. ' + esc(p._resumen) : '.') +
-      ' Revísalos y corrige lo que haga falta: al guardar, el registro queda a tu nombre.</p>';
+      (puestos ? ' Revísalos y corrige lo que haga falta: al guardar, el registro queda a tu nombre.' : '') +
+      '</p>';
     av.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function marcarCampos() {
     const form = $('fichaForm');
     if (!form) return;
-    form.querySelectorAll('[id^="f_"], [data-tema], [data-estado]').forEach(el => {
+    form.querySelectorAll('[id^="f_"], [data-tema], select[data-estado]').forEach(el => {
       if (el.type === 'hidden') return;
       const caja = el.closest('.item') || el.closest('.temas > div') || el.parentElement;
       if (!caja) return;
@@ -4053,7 +4090,9 @@ label .req{color:var(--falla)}
     marcarCampos();
     const b = bloqueEscala(F);
     if (!b || !$('listaItems')) return null;
-    const valores = [...$('listaItems').querySelectorAll('[data-estado]')].map(s => s.value);
+    // Solo los desplegables: la fila del ítem lleva el mismo atributo para
+    // pintarse de color, y si se cuenta también sale el doble.
+    const valores = [...$('listaItems').querySelectorAll('select[data-estado]')].map(s => s.value);
     const aplicables = valores.filter(v => v && v !== b.excluye).length;
     const conformes = valores.filter(v => v === b.cuenta).length;
     const evaluados = valores.filter(v => v).length;
