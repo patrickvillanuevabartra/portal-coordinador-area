@@ -1012,7 +1012,29 @@ label .req{color:var(--falla)}
       </div>
     </section>
 
-    <!-- D. Plantillas -->
+    <!-- D. Plazos de entrega -->
+    <section class="tarjeta">
+      <header class="tarjeta-cab">
+        <div><span class="paso">4</span><h2>Plazos de entrega de los formularios</h2>
+          <p>La fecha límite que fija cada Escuela para F1, F2, F3 y F4. Con ella el portal
+             marca solo si una entrega fue a tiempo o fuera de plazo.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo">
+        <div class="buscador" style="margin-bottom:12px">
+          <label for="plazoCiclo">Ciclo</label>
+          <input type="text" id="plazoCiclo" style="width:120px">
+          <button class="btn gris" id="btnVerPlazos">Ver</button>
+          <span class="conteo" id="plazoAviso"></span>
+        </div>
+        <div id="tablaPlazos"><div class="vacio">Pulsa «Ver» para cargar los plazos.</div></div>
+        <div class="pie" style="margin-top:14px">
+          <button class="btn" id="btnGuardarPlazos" disabled>Guardar los plazos</button>
+          <span class="aviso" id="avisoPlazos"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- E. Plantillas -->
     <section class="tarjeta">
       <header class="tarjeta-cab">
         <div><span class="paso">4</span><h2>Plantillas de notificación</h2>
@@ -1084,7 +1106,7 @@ label .req{color:var(--falla)}
     coordinadores: [], areas: [], moviendo: null, plantillas: [],
     vista: 'cursos', indicadores: null, cursosCatalogo: null, docentesConocidos: [], nivel: {},
     correo: '', destinatarios: null,
-    avanceListo: false, plazos: null, plazosCiclo: '',
+    avanceListo: false, plazos: null, plazosCiclo: '', plazosEdit: [],
     datos: null, datosVisibles: [], cacheDatos: {}, reportando: null, reportes: [], atendiendo: null, editando: null,
     actual: null,      // asignación abierta
     modulo: null,      // clave del módulo abierto
@@ -1909,6 +1931,7 @@ label .req{color:var(--falla)}
           cargarDatos(); cargarReportes(); cargarComunes();
         } else if (x.ir === 'coordinadores') {
           mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas();
+    if (!$('plazoCiclo').value) $('plazoCiclo').value = $('filtroCiclo').value || CFG.CICLO_ACTIVO || '';
         } else if (x.ir === 'indicadores') { mostrar('indicadores'); cargarIndicadores(); }
       });
     });
@@ -2472,6 +2495,89 @@ label .req{color:var(--falla)}
   });
 
   function avisoNv(t) { $('avisoNueva').textContent = t; $('avisoNueva').className = 'aviso error'; }
+
+  /* --------------------------------------- plazos de los formularios ----
+     Cada Escuela fija los suyos. El coordinador general edita los de su
+     carrera; el administrador, los de todas. */
+
+  const FORMATOS_PLAZO = ['F1', 'F2', 'F3', 'F4'];
+
+  $('btnVerPlazos').addEventListener('click', cargarPlazos);
+
+  function carrerasQuePuedeFijar() {
+    if (estado.admin) {
+      return [...new Set((estado.asignaciones || []).map(a => a.programa).filter(Boolean))]
+        .sort((a, b) => a.localeCompare(b, 'es'));
+    }
+    return estado.programas || [];
+  }
+
+  function cargarPlazos() {
+    const ciclo = $('plazoCiclo').value.trim();
+    $('tablaPlazos').innerHTML = '<div class="vacio">Cargando…</div>';
+    api('/plazos?ciclo=' + encodeURIComponent(ciclo))
+      .then(d => pintarPlazos(d.plazos || [], ciclo))
+      .catch(e => { $('tablaPlazos').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+  }
+
+  function pintarPlazos(lista, ciclo) {
+    const carreras = carrerasQuePuedeFijar();
+    if (!carreras.length) {
+      $('tablaPlazos').innerHTML = '<div class="vacio">No hay carreras a tu cargo.</div>';
+      return;
+    }
+    estado.plazosEdit = [];
+    let h = '<div class="tabla"><table><thead><tr><th>Carrera</th><th>Formato</th>' +
+      '<th>Fecha límite</th><th>Observaciones</th></tr></thead><tbody>';
+    carreras.forEach(pr => {
+      FORMATOS_PLAZO.forEach((f, j) => {
+        const y = lista.find(x => sinAcentos(x.programa || '') === sinAcentos(pr) &&
+                                  (x.formato || '').toUpperCase() === f);
+        const i = estado.plazosEdit.length;
+        estado.plazosEdit.push({ recordId: y ? y.recordId : null, programa: pr, formato: f, ciclo });
+        h += '<tr>' + (j === 0 ? '<td rowspan="4"><b>' + esc(pr) + '</b></td>' : '') +
+          '<td>' + f + (f === 'F4' ? '<small class="codigo">al cerrar el ciclo</small>' : '') + '</td>' +
+          '<td><input type="date" data-pl="' + i + '" value="' + esc(y && y.fecha ? y.fecha : '') + '"></td>' +
+          '<td><input type="text" data-plo="' + i + '" style="width:100%" ' +
+          'placeholder="Prórroga o aclaración" value="' + esc(y ? (y.observaciones || '') : '') + '"></td>' +
+          '</tr>';
+      });
+    });
+    $('tablaPlazos').innerHTML = h + '</tbody></table></div>';
+    $('btnGuardarPlazos').disabled = false;
+    $('plazoAviso').textContent = lista.length + ' plazos ya fijados en ' + (ciclo || 'todos los ciclos');
+  }
+
+  $('btnGuardarPlazos').addEventListener('click', () => {
+    const ciclo = $('plazoCiclo').value.trim();
+    if (!ciclo) { avisoPl('Escribe el ciclo.', 'error'); return; }
+    const plazos = [];
+    (estado.plazosEdit || []).forEach((x, i) => {
+      const fecha = ($('tablaPlazos').querySelector('[data-pl="' + i + '"]') || {}).value || '';
+      const obs = ($('tablaPlazos').querySelector('[data-plo="' + i + '"]') || {}).value || '';
+      // Solo se guarda lo que tiene fecha, o lo que ya existía y se cambió.
+      if (!fecha && !x.recordId) return;
+      plazos.push({ recordId: x.recordId, programa: x.programa, formato: x.formato,
+                    ciclo, fecha, observaciones: obs.trim() });
+    });
+    if (!plazos.length) { avisoPl('No hay ninguna fecha que guardar.', 'error'); return; }
+    $('btnGuardarPlazos').disabled = true;
+    avisoPl('Guardando…', '');
+    api('/plazos?ciclo=' + encodeURIComponent(ciclo),
+        { method:'POST', body: JSON.stringify({ ciclo, plazos }) })
+      .then(d => {
+        avisoPl('Listo: ' + (d.creados || 0) + ' nuevos y ' + (d.actualizados || 0) + ' actualizados.', 'ok');
+        estado.plazos = null;   // para que las fichas los vuelvan a leer
+        $('btnGuardarPlazos').disabled = false;
+        cargarPlazos();
+      })
+      .catch(e => { avisoPl(e.message, 'error'); $('btnGuardarPlazos').disabled = false; });
+  });
+
+  function avisoPl(t, clase) {
+    $('avisoPlazos').textContent = t;
+    $('avisoPlazos').className = 'aviso ' + (clase || '');
+  }
 
   /* ------------------------------------------------- añadir un curso ----- */
 
