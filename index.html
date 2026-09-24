@@ -1123,6 +1123,7 @@ label .req{color:var(--falla)}
         // Un error de red o de tiempo no es una sesión vencida: si se trata
         // como tal, se pide renovar a Google y este impone diez minutos de
         // espera, que es lo que dejaba el portal bloqueado.
+        if (esToken) console.error('Portal: la sesión se cerró por este error →', data.error, '· ruta:', ruta);
         if (esToken && String(estado.credential || '').indexOf('pca.') === 0) {
           // La sesión guardada ya no sirve: se descarta y se vuelve a la
           // pantalla de ingreso una sola vez, sin quedar en un bucle.
@@ -4216,8 +4217,16 @@ label .req{color:var(--falla)}
   /* ------------------------------------------------------ leer lo guardado */
 
   function cargarRegistro(a, clave) {
+    // Mientras llega lo guardado, el formulario está vacío y marcaría 0%.
+    // Se avisa para que nadie lo lea como un resultado.
+    const res = $('rDetalle') || $('rcDetalle');
+    if (res) { res.dataset.antes = res.textContent; res.textContent = 'Buscando lo registrado…'; }
+
     api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(a.idAsignacion))
       .then(datos => {
+        if (res && res.dataset.antes !== undefined) {
+          res.textContent = res.dataset.antes; delete res.dataset.antes;
+        }
         if (!datos.registro) return;
         estado.registro = datos.registro;
         const v = datos.registro.valores;
