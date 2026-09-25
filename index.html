@@ -2845,11 +2845,14 @@ label .req{color:var(--falla)}
       { col:'Área texto', etq:'Área', de:'area', ops:'areas' },
       { col:'Curso comun', etq:'¿Es un curso común?', de:'comun', ops:['No','Sí'],
         ayuda:'Marca Sí cuando lo llevan alumnos de dos carreras.' },
-      { col:'Compartido con', etq:'Se comparte con', de:'compartidoCon', ops:'carreras',
-        ayuda:'La otra carrera cuyos alumnos también lo llevan.' },
+      { col:'Compartido con', etq:'Se comparte con', de:'compartidoCon', tipo:'texto',
+        soloVista:true,
+        ayuda:'Se calcula solo: son todas las carreras donde existe este código. Puede ser ' +
+              'más de una.' },
       { col:'Supervisa', etq:'Lo supervisa', de:'supervisa', ops:'carreras',
-        ayuda:'La carrera donde el Departamento registró la carga. Solo ese coordinador ' +
-              'lo evalúa; el de la otra carrera lo ve sin poder editarlo.' },
+        ayuda:'La carrera donde el Departamento registró la carga. Solo ese coordinador lo ' +
+              'evalúa; los de las demás carreras lo ven sin poder editarlo. Es la única ' +
+              'decisión que hay que tomar: lo demás se deduce.' },
       { col:'Sumilla', etq:'Sumilla', de:'sumilla', largo:true }
     ],
     carga: [
@@ -2953,7 +2956,10 @@ label .req{color:var(--falla)}
     $('edCampos').innerHTML = CAMPOS_EDIT[tipo].map((c, i) => {
       const valor = c.de === 'area' ? (f.area || '') : (f[c.de] || '');
       let control;
-      if (c.ops === 'carreras') {
+      // Lo que el portal calcula solo se muestra, pero no se edita.
+      if (c.soloVista) {
+        control = '<input type="text" id="ed_' + i + '" value="' + esc(valor) + '" disabled>';
+      } else if (c.ops === 'carreras') {
         const carreras = [...new Set((estado.datos && estado.datos.filas || [])
           .map(x => x.programa).filter(Boolean))].sort();
         const fuera = valor && !carreras.includes(valor) ? [valor] : [];
