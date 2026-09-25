@@ -226,6 +226,13 @@ tr.sin-leer{background:#fffdf6}
 .como-usar b{color:var(--tinta)}
 .caja-transcripcion .ejemplo{margin-top:6px;font-size:12px;color:var(--tinta-media)}
 .caja-transcripcion .ejemplo i{color:var(--brand-oscuro)}
+#fichaForm.solo-lectura input,#fichaForm.solo-lectura select,
+#fichaForm.solo-lectura textarea{pointer-events:none;background:var(--fondo);
+  color:var(--tinta-media);border-color:var(--linea)}
+#fichaForm.solo-lectura .caja-transcripcion{display:none}
+.aviso-consulta{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
+  border-radius:8px;padding:12px 14px;margin:0 0 14px;color:#0c447c}
+.aviso-consulta p{margin:5px 0 0;font-size:12.5px;line-height:1.5;max-width:76ch}
 .aviso-propuesta{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
   border-radius:8px;padding:12px 14px;margin:0 0 14px;color:#0c447c}
 .aviso-propuesta p{margin:3px 0 0;font-size:12.5px;line-height:1.5}
@@ -259,6 +266,11 @@ tr.sin-leer{background:#fffdf6}
 .alerta-candado{display:block;margin-top:8px;background:#fdecea;border:1px solid #e6a49a;
   border-left:3px solid #c0392b;border-radius:6px;padding:9px 12px;color:#8f2418;
   font-size:12px;line-height:1.5}
+.caja-supervisa{display:flex;gap:16px;align-items:center;justify-content:space-between;
+  flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
+  padding:14px 16px;margin-top:14px}
+.caja-supervisa b{font-size:13.5px}
+.caja-supervisa p{margin:3px 0 0;font-size:12.5px;color:var(--tinta-media);max-width:68ch}
 .archivo-pdf{display:block;border:2px dashed var(--linea);border-radius:10px;padding:22px;
   text-align:center;cursor:pointer;color:var(--tinta-media)}
 .archivo-pdf:hover{border-color:var(--brand);color:var(--brand)}
@@ -669,6 +681,15 @@ label .req{color:var(--falla)}
           <span class="conteo" id="cicloAviso"></span>
         </div>
         <div id="pasosCiclo"><div class="vacio">Pulsa «Ver cómo va» para revisar el estado.</div></div>
+
+        <div class="caja-supervisa" id="cajaSupervisa">
+          <div><b>¿Quién supervisa cada curso común?</b>
+            <p>Un curso común lo supervisa la carrera donde el Departamento registró la
+               carga; la otra solo lo consulta. El portal puede deducirlo cuando la carga
+               está en una sola carrera. Cuando está en las dos, lo decides tú.</p></div>
+          <div><button class="btn gris" id="btnSupervisa">Proponer</button></div>
+        </div>
+        <div id="logSupervisa" class="consola oculto"></div>
       </div>
     </section>
 
@@ -1635,7 +1656,9 @@ label .req{color:var(--falla)}
           nCarga++;
           // Un curso común que supervisa la otra carrera se muestra, pero sus
           // botones quedan inactivos: la supervisión se registra una sola vez.
-          const bloqueada = (a.faltantes || []).length > 0 || a.soloConsulta;
+          // En consulta se puede abrir, pero no editar: el coordinador de la
+          // otra carrera tiene derecho a ver cómo se calificó su curso.
+          const bloqueada = (a.faltantes || []).length > 0;
           const hechos = new Set();
           partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
 
@@ -1651,7 +1674,8 @@ label .req{color:var(--falla)}
             const cls = 'chip' + (sinAvance ? ' esperando' : (ok ? ' hecho' : (bloqueada ? '' : ' activo'))) +
               (niv ? ' niv-' + niv.n : '');
             return '<button class="' + cls + '" ' +
-              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) +
+              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' +
+              esc(a.soloConsulta && a.idEspejo ? a.idEspejo : a.idAsignacion) +
               '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
               ' title="' + esc(m.nombre) +
               (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
@@ -1944,6 +1968,55 @@ label .req{color:var(--falla)}
       });
     });
     $('cicloAviso').textContent = pasos.filter(x => x.listo).length + ' de 6 pasos listos';
+  }
+
+  /* ------------------------------ quién supervisa los cursos comunes ----
+     Se deduce de dónde está la carga. Lo que no sea evidente se lista para
+     que lo decida el administrador. */
+
+  $('btnSupervisa').addEventListener('click', () => proponerSupervisa(false));
+
+  function logSup(t) {
+    $('logSupervisa').classList.remove('oculto');
+    $('logSupervisa').textContent += t + '\n';
+    $('logSupervisa').scrollTop = $('logSupervisa').scrollHeight;
+  }
+
+  function proponerSupervisa(aplicar) {
+    const ciclo = $('cicloPrep').value.trim();
+    $('btnSupervisa').disabled = true;
+    logSup(aplicar ? 'Aplicando…' : 'Revisando los cursos comunes…');
+    api('/proponer-supervisa', { method:'POST', body: JSON.stringify({ ciclo, aplicar }) })
+      .then(d => {
+        if (!aplicar) {
+          logSup('  ya tienen quién supervisa: ' + d.yaPuestas);
+          logSup('  se pueden deducir: ' + (d.claras || []).length);
+          (d.claras || []).forEach(c =>
+            logSup('    ' + c.codigo + ' ' + nombreCurso(c.curso) + ' → ' + c.supervisa));
+          if ((d.dudosas || []).length) {
+            logSup('  hay que decidirlos a mano: ' + d.dudosas.length);
+            d.dudosas.forEach(c =>
+              logSup('    ' + c.codigo + ' ' + nombreCurso(c.curso) + ' · carga en ' +
+                     c.carreras.join(' y ')));
+            logSup('    → estos se ponen en Validar datos, editando el curso.');
+          }
+          if ((d.claras || []).length) {
+            logSup('');
+            logSup('Pulsa otra vez para aplicar los que se pueden deducir.');
+            $('btnSupervisa').textContent = 'Aplicar los ' + d.claras.length + ' deducidos';
+            $('btnSupervisa').onclick = () => proponerSupervisa(true);
+          }
+        } else {
+          logSup('  aplicados: ' + d.aplicados + ' cursos (' + d.registros + ' registros)');
+          logSup('');
+          logSup('Terminado.');
+          $('btnSupervisa').textContent = 'Proponer';
+          $('btnSupervisa').onclick = () => proponerSupervisa(false);
+          verEstadoCiclo();
+        }
+        $('btnSupervisa').disabled = false;
+      })
+      .catch(e => { logSup('ERROR: ' + e.message); $('btnSupervisa').disabled = false; });
   }
 
   /* -------------------------------- importar la carga desde el PDF ------
@@ -3819,10 +3892,12 @@ label .req{color:var(--falla)}
 
     estado.actual = a;
     estado.modulo = clave;
+    estado.soloLectura = !!a.soloConsulta;
     estado.registro = null;
 
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
+    aplicarSoloLectura(a);
     $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
     // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
     // aqui cuales, para que la ficha no parezca cubrir solo una.
@@ -4382,6 +4457,37 @@ label .req{color:var(--falla)}
   }
 
   function F_ACTUAL() { return FORMULARIOS[estado.modulo]; }
+
+  // Un curso común lo supervisa una sola carrera. El otro coordinador entra a
+  // ver lo registrado, con una nota que explica por qué no puede editarlo.
+  function aplicarSoloLectura(a) {
+    const form = $('fichaForm');
+    document.getElementById('avisoSoloLectura')?.remove();
+    form.classList.toggle('solo-lectura', !!estado.soloLectura);
+    ['btnGuardar', 'btnCorreo', 'btnWasap'].forEach(id => {
+      const b = $(id);
+      if (b && (id === 'btnGuardar' || estado.soloLectura)) {
+        b.classList.toggle('oculto', !!estado.soloLectura);
+      }
+    });
+    $('btnCancelar').textContent = estado.soloLectura ? 'Volver' : 'Cancelar';
+    if (!estado.soloLectura) return;
+
+    const quien = a.coordinador || 'el coordinador de esa área';
+    const av = document.createElement('div');
+    av.id = 'avisoSoloLectura';
+    av.className = 'aviso-consulta';
+    av.innerHTML = '<b>Este curso lo supervisa ' + esc(a.supervisa || 'la otra carrera') + '</b>' +
+      '<p>Es un curso común: lo llevan alumnos de las dos carreras, pero la carga está ' +
+      'registrada en ' + esc(a.supervisa || 'la otra carrera') + ' según el Departamento ' +
+      'Académico, y allí la supervisa ' + esc(quien) + ' en el área de ' +
+      esc(a.areaEspejo || a.area) + '.</p>' +
+      '<p>Por eso aquí no puedes editar ni guardar: la supervisión se registra una sola vez, ' +
+      'para que no queden dos evaluaciones distintas del mismo curso. Lo que ves es ' +
+      'exactamente lo que registró ' + esc(quien) + '. Si notas algo que corregir, ' +
+      'repórtalo como inconsistencia.</p>';
+    form.prepend(av);
+  }
 
   function marcarCampos() {
     const form = $('fichaForm');
