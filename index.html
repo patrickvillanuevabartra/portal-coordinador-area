@@ -1030,6 +1030,7 @@ label .req{color:var(--falla)}
           <label for="plazoCiclo">Ciclo</label>
           <input type="text" id="plazoCiclo" style="width:120px" placeholder="2026 II">
           <button class="btn gris" id="btnVerPlazos">Ver</button>
+          <button class="btn gris" id="btnLimpiarPlazos" title="Quitar filas repetidas">Quitar repetidos</button>
           <span class="conteo" id="plazoAviso"></span>
         </div>
         <div id="tablaPlazos"><div class="vacio">Pulsa «Ver» para cargar los plazos.</div></div>
@@ -2509,6 +2510,15 @@ label .req{color:var(--falla)}
   const FORMATOS_PLAZO = ['F1', 'F2', 'F3', 'F4'];
 
   $('btnVerPlazos').addEventListener('click', cargarPlazos);
+
+  // Los duplicados que dejó el fallo de lectura se quitan de una vez.
+  $('btnLimpiarPlazos').addEventListener('click', () => {
+    if (!confirm('Se dejará un solo plazo por carrera y formato, el más reciente. ¿Continuar?')) return;
+    api('/plazos', { method:'POST', body: JSON.stringify({ limpiar: true }) })
+      .then(d => { avisoPl('Se quitaron ' + d.borrados + ' repetidos · quedan ' + d.quedan + '.', 'ok');
+                   cargarPlazos(); })
+      .catch(e => avisoPl(e.message, 'error'));
+  });
 
   function carrerasQuePuedeFijar() {
     if (estado.admin) {
