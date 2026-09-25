@@ -2572,11 +2572,15 @@ label .req{color:var(--falla)}
     api('/plazos?ciclo=' + encodeURIComponent(ciclo),
         { method:'POST', body: JSON.stringify({ ciclo, plazos }) })
       .then(d => {
-        console.log('Plazos — respuesta del servidor:', d);
+        console.log('Plazos — respuesta del servidor: ' + JSON.stringify(d));
         const guardados = (d.creados || 0) + (d.actualizados || 0);
         if (!guardados) {
-          avisoPl('No se guardó nada. ' + (d.fallos && d.fallos.length
-            ? d.fallos.join(' · ') : 'Se enviaron ' + (d.recibidos || 0) + ' plazos.'), 'error');
+          const motivo = 'No se guardó nada. Recibidos: ' + (d.recibidos || 0) +
+            ' · en la tabla: ' + (d.enTabla || 0) +
+            (d.fallos && d.fallos.length ? ' · ' + d.fallos.join(' · ') : '');
+          avisoPl(motivo, 'error');
+          $('tablaPlazos').insertAdjacentHTML('afterbegin',
+            '<div class="alerta-candado">' + esc(motivo) + '</div>');
         } else {
           avisoPl('Listo: ' + (d.creados || 0) + ' nuevos y ' + (d.actualizados || 0) +
                   ' actualizados · ' + (d.enTabla || 0) + ' en la tabla' +
