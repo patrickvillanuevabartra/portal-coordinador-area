@@ -1640,14 +1640,17 @@ label .req{color:var(--falla)}
             ? '<b>Este curso lo supervisa ' + esc(c.supervisa || 'otra carrera') + '.</b> ' +
               'Lo llevan alumnos de tu carrera y de ' +
               esc(c.supervisa || 'otra') + ', pero el Departamento Académico registró la ' +
-              'carga allá' + (c.coordinador ? ', donde la revisa ' + esc(c.coordinador) : '') +
+              'carga allá' + (c.coordinadorEspejo
+                ? ', donde la revisa ' + esc(c.coordinadorEspejo) +
+                  (c.areaEspejo ? ' en el área de ' + esc(c.areaEspejo) : '')
+                : '') +
               '. Para que no queden dos evaluaciones distintas del mismo curso, la ' +
               'supervisión se hace una sola vez. Puedes abrir los formatos y ver cómo se ' +
               'calificó, pero no editarlos. Si algo no cuadra, repórtalo como inconsistencia.'
             : '<b>Este curso lo supervisas tú.</b> ' +
               'Lo llevan alumnos de tu carrera y también de ' +
               esc(c.compartidoCon || 'otra carrera') +
-              ', y el Departamento Académico registró la carga en tu área. La supervisión se ' +
+              ', y el Departamento Académico registró la carga en tu programa. La supervisión se ' +
               'hace una sola vez, aquí: el coordinador de la otra carrera verá lo que ' +
               'registres, sin poder cambiarlo.') + '</div>' : '') +
           (posible ? '<div class="nota-posible">Su código también figura en ' +
@@ -4494,15 +4497,15 @@ label .req{color:var(--falla)}
     $('btnCancelar').textContent = estado.soloLectura ? 'Volver' : 'Cancelar';
     if (!estado.soloLectura) return;
 
-    const quien = a.coordinador || 'el coordinador de esa área';
+    const quien = a.coordinadorEspejo || 'el coordinador de esa área';
     const av = document.createElement('div');
     av.id = 'avisoSoloLectura';
     av.className = 'aviso-consulta';
     av.innerHTML = '<b>Este curso lo supervisa ' + esc(a.supervisa || 'la otra carrera') + '</b>' +
-      '<p>Es un curso común: lo llevan alumnos de las dos carreras, pero la carga está ' +
-      'registrada en ' + esc(a.supervisa || 'la otra carrera') + ' según el Departamento ' +
-      'Académico, y allí la supervisa ' + esc(quien) + ' en el área de ' +
-      esc(a.areaEspejo || a.area) + '.</p>' +
+      '<p>Es un curso común: lo llevan alumnos de las dos carreras, pero el Departamento ' +
+      'Académico registró la carga en el programa de ' + esc(a.supervisa || 'la otra carrera') +
+      ', y allí la supervisa ' + esc(quien) + ' en el área de ' +
+      esc(a.areaEspejo || 'su área') + '.</p>' +
       '<p>Por eso aquí no puedes editar ni guardar: la supervisión se registra una sola vez, ' +
       'para que no queden dos evaluaciones distintas del mismo curso. Lo que ves es ' +
       'exactamente lo que registró ' + esc(quien) + '. Si notas algo que corregir, ' +
