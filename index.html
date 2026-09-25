@@ -2572,7 +2572,16 @@ label .req{color:var(--falla)}
     api('/plazos?ciclo=' + encodeURIComponent(ciclo),
         { method:'POST', body: JSON.stringify({ ciclo, plazos }) })
       .then(d => {
-        avisoPl('Listo: ' + (d.creados || 0) + ' nuevos y ' + (d.actualizados || 0) + ' actualizados.', 'ok');
+        console.log('Plazos — respuesta del servidor:', d);
+        const guardados = (d.creados || 0) + (d.actualizados || 0);
+        if (!guardados) {
+          avisoPl('No se guardó nada. ' + (d.fallos && d.fallos.length
+            ? d.fallos.join(' · ') : 'Se enviaron ' + (d.recibidos || 0) + ' plazos.'), 'error');
+        } else {
+          avisoPl('Listo: ' + (d.creados || 0) + ' nuevos y ' + (d.actualizados || 0) +
+                  ' actualizados · ' + (d.enTabla || 0) + ' en la tabla' +
+                  (d.ejemplo ? ' (último: ' + d.ejemplo + ')' : ''), 'ok');
+        }
         estado.plazos = null;   // para que las fichas los vuelvan a leer
         $('btnGuardarPlazos').disabled = false;
         cargarPlazos();
