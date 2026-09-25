@@ -1674,8 +1674,7 @@ label .req{color:var(--falla)}
             const cls = 'chip' + (sinAvance ? ' esperando' : (ok ? ' hecho' : (bloqueada ? '' : ' activo'))) +
               (niv ? ' niv-' + niv.n : '');
             return '<button class="' + cls + '" ' +
-              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' +
-              esc(a.soloConsulta && a.idEspejo ? a.idEspejo : a.idAsignacion) +
+              (bloqueada ? 'disabled' : 'data-abrir="' + clave + '" data-id="' + esc(a.idAsignacion) +
               '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
               ' title="' + esc(m.nombre) +
               (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
@@ -4595,7 +4594,11 @@ label .req{color:var(--falla)}
     if (form) form.classList.add('cargando');
     const listo = () => { if (form) form.classList.remove('cargando'); };
 
-    api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(a.idAsignacion))
+    // En un curso común, lo registrado vive en la carga de la carrera que
+    // supervisa: es lo que el otro coordinador tiene derecho a consultar.
+    const idLeer = (a.soloConsulta && a.idEspejo) ? a.idEspejo : a.idAsignacion;
+
+    api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(idLeer))
       .then(datos => {
         if (!datos.registro) { listo(); return; }
         estado.registro = datos.registro;
