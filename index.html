@@ -1030,7 +1030,8 @@ label .req{color:var(--falla)}
           <label for="plazoCiclo">Ciclo</label>
           <input type="text" id="plazoCiclo" style="width:120px" placeholder="2026 II">
           <button class="btn gris" id="btnVerPlazos">Ver</button>
-          <button class="btn gris" id="btnLimpiarPlazos" title="Quitar filas repetidas">Quitar repetidos</button>
+          <button class="btn gris" id="btnLimpiarPlazos"
+            title="Deja una sola fila por carrera y formato, la más reciente">Quitar repetidos</button>
           <span class="conteo" id="plazoAviso"></span>
         </div>
         <div id="tablaPlazos"><div class="vacio">Pulsa «Ver» para cargar los plazos.</div></div>
@@ -2561,7 +2562,16 @@ label .req{color:var(--falla)}
     });
     $('tablaPlazos').innerHTML = h + '</tbody></table></div>';
     $('btnGuardarPlazos').disabled = false;
-    $('plazoAviso').textContent = lista.length + ' plazos ya fijados en ' + (ciclo || 'todos los ciclos');
+    // La tabla muestra una fila por carrera y formato, así que los duplicados
+    // quedarían ocultos: se cuentan aparte y se avisa.
+    const combinaciones = new Set(lista.map(x =>
+      sinAcentos((x.ciclo || '') + '|' + (x.programa || '') + '|' + (x.formato || ''))));
+    const repetidos = lista.length - combinaciones.size;
+    $('plazoAviso').innerHTML = lista.length + ' filas guardadas · ' + combinaciones.size +
+      ' plazos distintos' +
+      (repetidos > 0
+        ? ' · <b style="color:#8f2418">' + repetidos + ' repetidos</b>, usa «Quitar repetidos»'
+        : '');
   }
 
   $('btnGuardarPlazos').addEventListener('click', () => {
