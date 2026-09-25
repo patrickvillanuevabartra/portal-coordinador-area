@@ -2347,7 +2347,10 @@ label .req{color:var(--falla)}
     const esComun = (f) => /^s/i.test(f.comun || '') || f.comun === true;
     const selloComun = (f) => esComun(f)
       ? '<span class="sello-comun">Común</span>' +
-        (f.compartidoCon ? '<small class="codigo">con ' + esc(f.compartidoCon) + '</small>' : '')
+        (f.compartidoCon ? '<small class="codigo">con ' + esc(f.compartidoCon) + '</small>' : '') +
+        '<small class="codigo">' + (f.supervisa
+          ? 'supervisa ' + esc(f.supervisa)
+          : '<b style="color:#8f2418">falta definir quién supervisa</b>') + '</small>'
       : (f.detectado
           ? '<span class="sello-posible">¿Común?</span>' +
             '<small class="codigo">el código también está en ' + esc(f.otrasCarreras) + '</small>'
@@ -2844,6 +2847,9 @@ label .req{color:var(--falla)}
         ayuda:'Marca Sí cuando lo llevan alumnos de dos carreras.' },
       { col:'Compartido con', etq:'Se comparte con', de:'compartidoCon', ops:'carreras',
         ayuda:'La otra carrera cuyos alumnos también lo llevan.' },
+      { col:'Supervisa', etq:'Lo supervisa', de:'supervisa', ops:'carreras',
+        ayuda:'La carrera donde el Departamento registró la carga. Solo ese coordinador ' +
+              'lo evalúa; el de la otra carrera lo ve sin poder editarlo.' },
       { col:'Sumilla', etq:'Sumilla', de:'sumilla', largo:true }
     ],
     carga: [
