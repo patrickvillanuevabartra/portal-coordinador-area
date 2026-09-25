@@ -1637,13 +1637,19 @@ label .req{color:var(--falla)}
             (c.coordinador ? ' · coordina ' + esc(c.coordinador) : '') +
           '</small>' +
           (esComun ? '<div class="nota-comun">' + (c.soloConsulta
-            ? 'Lo llevan alumnos de dos carreras y la carga está registrada en ' +
-              esc(c.area) + (c.coordinador ? ', a cargo de ' + esc(c.coordinador) : '') +
-              '. Lo supervisa esa área, no la tuya: aquí solo puedes consultarlo.'
-            : 'Lo llevan alumnos de dos carreras' +
-              (c.compartidoCon ? ', también de ' + esc(c.compartidoCon) : '') +
-              '. La carga está en tu área, así que la supervisión te corresponde a ti ' +
-              'y se registra una sola vez.') + '</div>' : '') +
+            ? '<b>Este curso lo supervisa ' + esc(c.supervisa || 'otra carrera') + '.</b> ' +
+              'Lo llevan alumnos de tu carrera y de ' +
+              esc(c.supervisa || 'otra') + ', pero el Departamento Académico registró la ' +
+              'carga allá' + (c.coordinador ? ', donde la revisa ' + esc(c.coordinador) : '') +
+              '. Para que no queden dos evaluaciones distintas del mismo curso, la ' +
+              'supervisión se hace una sola vez. Puedes abrir los formatos y ver cómo se ' +
+              'calificó, pero no editarlos. Si algo no cuadra, repórtalo como inconsistencia.'
+            : '<b>Este curso lo supervisas tú.</b> ' +
+              'Lo llevan alumnos de tu carrera y también de ' +
+              esc(c.compartidoCon || 'otra carrera') +
+              ', y el Departamento Académico registró la carga en tu área. La supervisión se ' +
+              'hace una sola vez, aquí: el coordinador de la otra carrera verá lo que ' +
+              'registres, sin poder cambiarlo.') + '</div>' : '') +
           (posible ? '<div class="nota-posible">Su código también figura en ' +
             esc(c.otrasCarreras) + '. Si alumnos de ambas carreras lo llevan juntos, ' +
             (puedeEditar()
@@ -3908,7 +3914,6 @@ label .req{color:var(--falla)}
 
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
-    aplicarSoloLectura(a);
     $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
     // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
     // aqui cuales, para que la ficha no parezca cubrir solo una.
@@ -3939,17 +3944,22 @@ label .req{color:var(--falla)}
     aviso('', '');
 
     // Si el area no es suya, la ficha queda en consulta.
-    const puede = estado.admin || (estado.propiasArea || []).includes(a.area);
+    // Un curso común solo lo registra la carrera que lo supervisa: para las
+    // demás la ficha queda en consulta aunque el área sea suya.
+    const puede = !a.soloConsulta &&
+                  (estado.admin || (estado.propiasArea || []).includes(a.area));
     $('btnGuardar').classList.toggle('oculto', !puede);
     $('soloConsulta').classList.toggle('oculto', puede);
-    if (!puede) $('soloConsulta').textContent =
-      'Solo consulta: esta carga pertenece al área ' + a.area +
-      (a.coordinador ? ', a cargo de ' + a.coordinador : '') + '.';
+    if (!puede) $('soloConsulta').textContent = a.soloConsulta
+      ? 'Solo consulta: este curso común lo supervisa ' + (a.supervisa || 'la otra carrera') + '.'
+      : 'Solo consulta: esta carga pertenece al área ' + a.area +
+        (a.coordinador ? ', a cargo de ' + a.coordinador : '') + '.';
 
     $('btnCorreo').classList.toggle('oculto', !a.correoDocente);
     $('btnWasap').classList.toggle('oculto', !a.celularDocente);
 
     pintarFormulario(M, F);
+    aplicarSoloLectura(a);
     cargarRegistro(a, clave);
   }
 
