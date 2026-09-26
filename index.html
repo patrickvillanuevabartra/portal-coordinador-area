@@ -339,7 +339,7 @@ tr.sin-leer{background:#fffdf6}
   border-left:3px solid var(--brand);border-radius:6px;padding:10px 12px}
 .sumilla-oficial b{font-size:12px;color:var(--brand-oscuro)}
 .sumilla-oficial p{margin:4px 0 0;font-size:12.5px;line-height:1.55;color:var(--tinta-media);
-  max-height:190px;overflow:auto}
+  max-height:240px;overflow-y:auto;white-space:pre-wrap;word-break:break-word;min-height:1.6em}
 .sumilla-oficial p.falta{color:#8f2418}
 .sumilla-distinta{margin-top:10px;background:#fdf4e3;border:1px solid #e6c86a;
   border-left:3px solid #d99a1b;border-radius:6px;padding:9px 11px}
@@ -4616,9 +4616,13 @@ label .req{color:var(--falla)}
         // muestran las dos: el sílabo se compara con la de esta carrera, pero
         // la diferencia es en sí misma una inconsistencia que hay que elevar.
         const distintas = (d.otras || []).filter(x => x.difiere && x.sumilla);
+        // La sumilla puede venir con etiquetas o con espacios en blanco: se
+        // limpia y, si queda vacía, se dice en lugar de mostrar un hueco.
+        const limpia = textoPlano(c.sumilla || '').replace(/\u00a0/g, ' ').trim();
+        console.log('Sumilla oficial:', (c.sumilla || '').length, 'caracteres · útil:', limpia.length);
         caja.innerHTML = '<b>Sumilla oficial de ' + esc(c.programa || '') + '</b>' +
-          (c.sumilla
-            ? '<p>' + esc(textoPlano(c.sumilla)) + '</p>'
+          (limpia
+            ? '<p>' + esc(limpia) + '</p>'
             : '<p class="falta">No hay sumilla registrada para este curso en el catálogo. ' +
               'Sin ella no se puede comprobar este ítem.</p>') +
           (distintas.length
