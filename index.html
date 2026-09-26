@@ -1216,6 +1216,24 @@ label .req{color:var(--falla)}
     });
   }
 
+  // Pide una sesión nueva usando la actual. Si falla, no molesta: seguirá
+  // valiendo la que hay hasta que de verdad venza.
+  let renovando = false;
+  function renovarSesion() {
+    if (renovando || !estado.credential) return;
+    if (String(estado.credential).indexOf('pca.') !== 0) return;
+    renovando = true;
+    api('/sesion')
+      .then(d => {
+        if (d && d.sesion) {
+          estado.credential = d.sesion;
+          try { localStorage.setItem('pca_sesion', d.sesion); } catch (e) {}
+        }
+      })
+      .catch(() => {})
+      .then(() => { renovando = false; });
+  }
+
   function sesionVencida() {
     // Si falló una sesión guardada al abrir el portal, no es que haya vencido:
     // simplemente hay que entrar de nuevo, sin mensaje de error.
@@ -1385,7 +1403,14 @@ label .req{color:var(--falla)}
             (($('filtroCiclo') || {}).value ? ' · ciclo ' + $('filtroCiclo').value : '')
         });
         // Se renueva antes de la hora para que nunca caduque en pleno trabajo.
-        // La sesión propia dura ocho horas: ya no hay que renovar contra Google.
+        // La sesión dura ocho horas, pero se renueva sola mientras se trabaja:
+        // así no vence a media tarde y obliga a entrar de nuevo.
+        if (!estado.temporizador) {
+          estado.temporizador = setInterval(renovarSesion, 30 * 60 * 1000);
+        }
+        document.addEventListener('visibilitychange', () => {
+          if (!document.hidden) renovarSesion();
+        });
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
