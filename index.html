@@ -335,6 +335,16 @@ tr.sin-leer{background:#fffdf6}
 .tarjeta-cuerpo{padding:18px 20px}
 .solo-consulta{font-size:12.5px;color:#8a6400;background:#fdf4e3;border:1px solid #e6c86a;
   border-radius:6px;padding:6px 12px}
+.sumilla-oficial{margin-top:8px;background:#f4f7f5;border:1px solid var(--linea);
+  border-left:3px solid var(--brand);border-radius:6px;padding:10px 12px}
+.sumilla-oficial b{font-size:12px;color:var(--brand-oscuro)}
+.sumilla-oficial p{margin:4px 0 0;font-size:12.5px;line-height:1.55;color:var(--tinta-media);
+  max-height:190px;overflow:auto}
+.sumilla-oficial p.falta{color:#8f2418}
+.sumilla-distinta{margin-top:10px;background:#fdf4e3;border:1px solid #e6c86a;
+  border-left:3px solid #d99a1b;border-radius:6px;padding:9px 11px}
+.sumilla-distinta b{color:#8a6400;font-size:12px}
+.sumilla-distinta summary{cursor:pointer;font-size:12px;color:#8a6400;margin-top:6px}
 .nota-plazo{display:block;margin-top:4px;font-size:11.5px;color:var(--tinta-media)}
 .nota-plazo.fuera{color:#8f2418;font-weight:600}
 .nota-item{display:block;font-size:11.5px;color:var(--tinta-media);font-weight:400;
@@ -2625,6 +2635,18 @@ label .req{color:var(--falla)}
 
   const FORMATOS_PLAZO = ['F1', 'F2', 'F3', 'F4'];
 
+  // Qué documento sirve para cada formato: el coordinador no tiene por qué
+  // acordarse, y sin el papel adecuado el asistente no puede evaluar.
+  const QUE_SUBIR = {
+    silabo:      'el sílabo del curso en PDF, el que entregó el docente',
+    formularios: 'los formularios F1, F2 y F3 presentados, o el correo con su envío',
+    aulaVirtual: 'las capturas del aula virtual, o el informe de la revisión',
+    portafolios: 'el portafolio del docente, o el índice de lo que contiene',
+    formula:     'la captura de la fórmula cargada en el Sistema de Evaluación',
+    delegados:   'el acta o la lista de los delegados elegidos',
+    entrevistas: 'la transcripción de la reunión, descargada de Zoom o Meet'
+  };
+
   $('btnVerPlazos').addEventListener('click', cargarPlazos);
 
   // Los duplicados que dejó el fallo de lectura se quitan de una vez.
@@ -4125,6 +4147,10 @@ label .req{color:var(--falla)}
                         '<span><i style="background:#e2b457"></i>Falta completar</span>';
     $('fichaForm').prepend(leyenda);
 
+    // La sumilla oficial de la carrera, a la vista: el ítem 02 pide compararla
+    // con la del sílabo y hasta ahora había que buscarla fuera del portal.
+    if (F === FORMULARIOS.silabo) mostrarSumillaOficial();
+
     // En el formato de formularios, la fecha se compara con el plazo que fijó
     // la Escuela: así «Fuera de plazo» deja de marcarse a ojo.
     if (F === FORMULARIOS.formularios) prepararPlazos();
@@ -4142,10 +4168,8 @@ label .req{color:var(--falla)}
         'formato adelantado y tú solo revisas y corriges. Nada se guarda hasta que pulses ' +
         'Guardar, y el registro queda a tu nombre. Dos maneras de hacerlo:</p>' +
         '<ul class="como-usar">' +
-        '<li><b>Subir archivo</b> — cuando tienes el documento. ' +
-        (esEntrevista
-          ? 'La transcripción que descargaste de Zoom o Meet.'
-          : 'El sílabo o el informe en PDF.') +
+        '<li><b>Subir archivo</b> — para este formato conviene subir ' +
+        (QUE_SUBIR[estado.modulo] || 'el documento en que te basas') + '.' +
         ' Admite PDF con texto, .txt, .vtt y .srt. Un PDF escaneado no sirve: no tiene texto.</li>' +
         '<li><b>Proponer</b> — cuando no hay documento y ya lo revisaste tú. ' +
         'Cuéntalo abajo en una frase, como se lo dirías a un colega, y él lo traduce al formato.</li>' +
@@ -4283,12 +4307,25 @@ label .req{color:var(--falla)}
 
       const a = estado.actual || {};
       const URL_ASISTENTE = 'https://asistente-pca.patrick-villanueva.workers.dev';
+
+      // La sumilla oficial de ESTA carrera: dos carreras pueden compartir el
+      // código y tener sumillas distintas.
+      let contexto = null;
+      try {
+        const d = await api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
+                            '&programa=' + encodeURIComponent(a.programa || ''));
+        contexto = d.contexto || null;
+        // Si otra carrera tiene otra sumilla para el mismo código, el asistente
+        // debe saberlo: compara con la de aquí y deja constancia.
+        if (contexto) contexto.otrasSumillas = (d.otras || []).filter(x => x.difiere && x.sumilla);
+      } catch (e) {}
       const r = await fetch(URL_ASISTENTE + '/proponer', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           modulo: M_ACTUAL().nombre || '',
           curso: [a.codigo, nombreCurso(a.asignatura), a.docente].filter(Boolean).join(' · '),
           campos: camposDelFormato(F),
+          contexto: contexto,
           texto: fuente
         })
       });
@@ -4396,6 +4433,11 @@ label .req{color:var(--falla)}
       }
     });
 
+    // Todo lo observado se consolida en el campo de observaciones: es el que
+    // viaja en el correo y en el WhatsApp al docente. Si se queda solo dentro
+    // de cada ítem, el docente nunca se entera del detalle.
+    volcarObservaciones(F, p, textos);
+
     marcarCampos();
     recalcularEscala(F);
     recalcularCompleto(F);
@@ -4446,6 +4488,14 @@ label .req{color:var(--falla)}
         ? '<div class="lo-escrito"><b>Lo que escribió:</b><ul>' +
           textos.map(t => '<li><b>' + esc(t.donde) + ':</b> ' + esc(String(t.que).slice(0, 400)) +
             '</li>').join('') + '</ul></div>'
+        : '') +
+      ((Array.isArray(p._sinComparar) ? p._sinComparar : (p._sinComparar ? [p._sinComparar] : [])).length
+        ? '<div class="lo-escrito"><b>No pudo comprobar esto:</b><ul>' +
+          (Array.isArray(p._sinComparar) ? p._sinComparar : [p._sinComparar])
+            .map(x => '<li>' + esc(String(x)) + '</li>').join('') + '</ul></div>'
+        : '') +
+      (p._falta
+        ? '<p><b>Para completar lo que falta</b> haría falta ' + esc(p._falta) + '.</p>'
         : '') +
       (sinEvaluar.length
         ? '<p><b>Sin evaluar:</b> ' + esc(sinEvaluar.join(' · ')) +
@@ -4542,6 +4592,75 @@ label .req{color:var(--falla)}
       'exactamente lo que registró ' + esc(quien) + '. Si notas algo que corregir, ' +
       'repórtalo como inconsistencia.</p>';
     form.prepend(av);
+  }
+
+  // Trae la sumilla del catálogo y la deja junto al ítem que la evalúa.
+  function mostrarSumillaOficial() {
+    const a = estado.actual || {};
+    const filas = [...$('fichaForm').querySelectorAll('#listaItems .item')];
+    const fila = filas[1];   // ítem 02, «Sumilla según plan de estudios»
+    if (!fila) return;
+
+    const caja = document.createElement('div');
+    caja.className = 'sumilla-oficial';
+    caja.innerHTML = '<b>Sumilla oficial del catálogo</b><p>Buscando…</p>';
+    fila.appendChild(caja);
+
+    api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
+        '&programa=' + encodeURIComponent(a.programa || ''))
+      .then(d => {
+        const c = d.contexto;
+        if (!c) { caja.innerHTML = '<b>Sumilla oficial</b><p>Ese curso no está en el catálogo.</p>'; return; }
+
+        // Si el mismo código tiene sumillas distintas en otra carrera, se
+        // muestran las dos: el sílabo se compara con la de esta carrera, pero
+        // la diferencia es en sí misma una inconsistencia que hay que elevar.
+        const distintas = (d.otras || []).filter(x => x.difiere && x.sumilla);
+        caja.innerHTML = '<b>Sumilla oficial de ' + esc(c.programa || '') + '</b>' +
+          (c.sumilla
+            ? '<p>' + esc(textoPlano(c.sumilla)) + '</p>'
+            : '<p class="falta">No hay sumilla registrada para este curso en el catálogo. ' +
+              'Sin ella no se puede comprobar este ítem.</p>') +
+          (distintas.length
+            ? '<div class="sumilla-distinta"><b>Ojo: este curso tiene otra sumilla en ' +
+              distintas.map(x => esc(x.programa)).join(' y ') + '</b>' +
+              '<p>Es el mismo código y la misma clase, pero cada Escuela aprobó una sumilla ' +
+              'distinta, así que ningún sílabo puede cumplir las dos. Compara con la de ' +
+              esc(c.programa || 'tu carrera') + ', que es la que supervisas, y reporta la ' +
+              'diferencia como inconsistencia para que las Escuelas la unifiquen.</p>' +
+              distintas.map(x =>
+                '<details><summary>Ver la sumilla de ' + esc(x.programa) + '</summary><p>' +
+                esc(textoPlano(x.sumilla)) + '</p></details>').join('') +
+              '</div>'
+            : '');
+      })
+      .catch(() => { caja.innerHTML = '<b>Sumilla oficial</b><p>No se pudo consultar.</p>'; });
+  }
+
+  // Junta lo observado en cada ítem, más lo que el asistente no pudo
+  // comprobar, y lo deja en el campo de observaciones del formato.
+  function volcarObservaciones(F, p, textos) {
+    const caja = $('f_observaciones') || $('f_observacionesGenerales');
+    if (!caja) return;
+
+    const lineas = [];
+    (textos || []).forEach(t => {
+      if (t.donde === 'Observaciones generales') return;
+      lineas.push('• ' + t.donde + ': ' + String(t.que).trim());
+    });
+
+    // Lo que no se pudo verificar se dice, no se calla.
+    const sin = Array.isArray(p._sinComparar) ? p._sinComparar
+              : (p._sinComparar ? [p._sinComparar] : []);
+    sin.forEach(x => lineas.push('• Sin verificar — ' + String(x).trim()));
+    if (p._falta) lineas.push('• Para completar la revisión haría falta: ' + String(p._falta).trim());
+
+    if (!lineas.length) return;
+    const texto = lineas.join('\n');
+    caja.value = caja.value.trim()
+      ? caja.value.trim() + '\n' + texto
+      : texto;
+    caja.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
   function marcarCampos() {
@@ -4727,6 +4846,14 @@ label .req{color:var(--falla)}
         return el && el.value ? '• ' + k.toUpperCase() + ': ' + el.value : '';
       }).filter(Boolean).join('\n');
     }
+    // Lo escrito en Observaciones también viaja: es donde queda el detalle de
+    // la revisión, y el docente debe recibirlo, no solo los ítems no conformes.
+    const campoObs = $('f_observaciones') || $('f_observacionesGenerales');
+    const textoObs = campoObs && campoObs.value.trim() ? campoObs.value.trim() : '';
+    if (textoObs && textoObs !== obs) {
+      obs = obs ? obs + '\n' + textoObs : textoObs;
+    }
+
     if (!obs) obs = 'Sin observaciones.';
 
     const fecha = ['fechaRevision','fechaSupervision','fechaHora']
