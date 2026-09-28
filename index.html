@@ -335,7 +335,9 @@ tr.sin-leer{background:#fffdf6}
 .tarjeta-cuerpo{padding:18px 20px}
 .solo-consulta{font-size:12.5px;color:#8a6400;background:#fdf4e3;border:1px solid #e6c86a;
   border-radius:6px;padding:6px 12px}
-.sumilla-oficial{margin-top:8px;background:#f4f7f5;border:1px solid var(--linea);
+/* La fila del ítem es una cuadrícula de tres columnas: sin esto el recuadro
+   caía en la del medio y se veía como una franja estrecha. */
+.sumilla-oficial{grid-column:1 / -1;margin-top:8px;background:#f4f7f5;border:1px solid var(--linea);
   border-left:3px solid var(--brand);border-radius:6px;padding:10px 12px}
 .sumilla-oficial b{font-size:12px;color:var(--brand-oscuro)}
 .sumilla-oficial p{margin:4px 0 0;font-size:12.5px;line-height:1.55;color:var(--tinta-media);
@@ -1207,13 +1209,26 @@ label .req{color:var(--falla)}
         // como tal, se pide renovar a Google y este impone diez minutos de
         // espera, que es lo que dejaba el portal bloqueado.
         if (esToken) console.error('Portal: la sesión se cerró por este error →', data.error, '· ruta:', ruta);
-        if (esToken && String(estado.credential || '').indexOf('pca.') === 0) {
-          // La sesión guardada ya no sirve: se descarta y se vuelve a la
-          // pantalla de ingreso una sola vez, sin quedar en un bucle.
-          try { localStorage.removeItem('pca_sesion'); } catch (e) {}
-          estado.credential = null;
-          sesionVencida();
-          throw new Error('Vuelve a entrar con tu cuenta URP.');
+        if (esToken && String(estado.credential || '').indexOf('pca.') === 0 && !reintento) {
+          // Antes de echar a nadie, se intenta renovar la sesión con la que
+          // hay: expulsar al primer tropiezo es lo que hacía insoportable
+          // trabajar. Solo si la renovación también falla se vuelve a entrar.
+          return fetch(CFG.PROXY + '/sesion', {
+              headers: { Authorization: 'Bearer ' + estado.credential }
+            })
+            .then(r2 => r2.json())
+            .then(d2 => {
+              if (!d2 || !d2.sesion) throw new Error('sin sesión nueva');
+              estado.credential = d2.sesion;
+              try { localStorage.setItem('pca_sesion', d2.sesion); } catch (e) {}
+              return api(ruta, opciones, true);   // se repite lo que falló
+            })
+            .catch(() => {
+              try { localStorage.removeItem('pca_sesion'); } catch (e) {}
+              estado.credential = null;
+              sesionVencida();
+              throw new Error('Vuelve a entrar con tu cuenta URP.');
+            });
         }
         if (esToken && !reintento) {
           return pedirToken()
