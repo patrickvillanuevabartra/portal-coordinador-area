@@ -4288,39 +4288,40 @@ label .req{color:var(--falla)}
       caja.className = 'caja-transcripcion';
       caja.innerHTML =
         '<div style="flex:1;min-width:280px">' +
-        '<b>Adelanta el trabajo con el asistente</b>' +
-        '<p>Él llena el formato y tú lo revisas. Nada se guarda hasta que pulses Guardar, ' +
-        'y el registro queda a tu nombre. Dos maneras de hacerlo:</p>' +
+        '<b>¿Quieres que el asistente lo llene por ti?</b>' +
+        '<p>Él completa el formulario y usted revisa. Nada queda guardado hasta que pulse ' +
+        'el botón Guardar, y la revisión sale a su nombre. Hay dos formas:</p>' +
         '<ul class="como-usar">' +
-        '<li><b>Subir archivo — el documento patrón</b><br>' +
-        'Es aquello contra lo que hay que comparar: el estándar. Aquí va ' +
+        '<li><b>1. Subir archivo patrón</b><br>' +
+        'Use esta si tiene los documentos en su computadora. Suba ' +
         (esEntrevista
-          ? 'la transcripción de la reunión, descargada de Zoom o Meet'
-          : 'el sílabo del docente, y también los documentos oficiales que el portal no ' +
-            'tiene: el modelo educativo, el plan de estudios, la directiva de investigación ' +
-            'formativa') +
-        '. El asistente los lee, compara y te dice punto por punto en qué coinciden y en qué ' +
-        'no. <b>Estos archivos no se guardan</b>: solo se usan para la comparación.</li>' +
-        '<li><b>Proponer — cuando no vas a subir nada</b><br>' +
-        'Ya lo revisaste tú y solo quieres que te ahorre teclear. Escribe abajo lo que ' +
-        'encontraste, en tus palabras, y él lo traduce al formato. <b>No comprueba nada</b>: ' +
-        'se fía de lo que le cuentas.</li>' +
+          ? 'la grabación escrita de la reunión, la que descarga de Zoom o Meet'
+          : 'el sílabo del profesor y, si los tiene, los documentos oficiales: el plan de ' +
+            'estudios, el modelo educativo') +
+        '. Puede elegir varios a la vez. El asistente los lee, los compara y le dice en qué ' +
+        'coinciden y en qué no.<br>' +
+        '<i>Estos archivos no se guardan. Solo los lee para comparar.</i></li>' +
+        '<li><b>2. Proponer</b><br>' +
+        'Use esta si ya revisó usted mismo y solo quiere ahorrarse escribir. Cuente abajo, ' +
+        'con sus palabras, lo que encontró, y él lo pasa al formulario.<br>' +
+        '<i>Aquí el asistente no revisa nada: le cree lo que usted le diga.</i></li>' +
         '</ul>' +
-        '<p class="ejemplo"><b>No es lo mismo que «Enlace de evidencia», al pie del ' +
-        'formulario.</b> Allí va el respaldo de tu revisión —el sílabo en Drive, las ' +
-        'capturas del aula, el acta de delegados— y <b>sí queda guardado</b> en el registro, ' +
-        'para que cualquiera pueda abrirlo después. En resumen: aquí arriba, contra qué ' +
-        'comparas; abajo, con qué lo pruebas.</p>' +
-        '<p class="ejemplo">Ejemplos de lo que se sube aquí: <i>' + (esEntrevista
-          ? 'la transcripción de la reunión con los delegados'
-          : 'Silabo_IN0904_2026II.pdf · Plan_de_estudios_2015-II.pdf · Modelo_educativo_URP.pdf')
+        '<p class="ejemplo"><b>Ojo, no confunda con «Enlace de evidencia», al final del ' +
+        'formulario.</b> Ahí se pega el enlace de lo que respalda su revisión —el sílabo ' +
+        'guardado en Drive, una captura de pantalla, el acta— y eso <b>sí queda guardado</b> ' +
+        'para que cualquiera lo abra después.<br>' +
+        'En pocas palabras: <b>arriba</b>, los papeles contra los que compara. ' +
+        '<b>Abajo</b>, los papeles con los que prueba lo que revisó.</p>' +
+        '<p class="ejemplo">Ejemplo de lo que sube aquí: <i>' + (esEntrevista
+          ? 'la grabación escrita de la reunión con los delegados'
+          : 'Silabo_IN1001.pdf y Plan_de_estudios_2015-II.pdf')
         + '</i></p>' +
-        '<p class="ejemplo">Y de lo que se escribe en Proponer: <i>' + (esEntrevista
-          ? 'se quejaron de la puntualidad y de que faltan laboratorios; el docente se ' +
-            'comprometió a recuperar dos sesiones'
-          : 'revisé todo y está conforme, salvo las referencias que son del 2015') + '</i></p>' +
+        '<p class="ejemplo">Ejemplo de lo que escribe en Proponer: <i>' + (esEntrevista
+          ? 'se quejaron de la puntualidad y de que faltan laboratorios; el profesor quedó ' +
+            'en recuperar dos clases'
+          : 'revisé todo y está bien, salvo la bibliografía que es del 2015') + '</i></p>' +
         '<input type="text" id="trIndicacion" style="width:100%;margin-top:8px" ' +
-        'placeholder="Escribe aquí y pulsa Proponer, o Enter"></div>' +
+        'placeholder="Escriba aquí lo que encontró y pulse Proponer"></div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
         '<input type="file" id="trArchivo" multiple ' +
         'accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf" class="oculto">' +
@@ -4776,11 +4777,27 @@ label .req{color:var(--falla)}
                      ' · plan ' + (c.plan || a.planEstudio || '') +
                      ' · semestre ' + (c.semestre || a.semestre || ''));
               l.push('Área: ' + (c.area || a.area || ''));
-              l.push('Grupo: ' + (a.grupo || '') +
-                     (a.subGrupo !== '' && a.subGrupo !== undefined ? '-' + a.subGrupo : '') +
-                     ' · tipo ' + (a.tipo || ''));
-              l.push('Horas: ' + (h.total ? h.total + ' por semana (' + h.detalle + ')'
-                                          : 'no registradas en el portal'));
+              // Todas las sesiones del curso, no solo la que se abrió: el
+              // sílabo declara el total de horas, no las de un grupo suelto.
+              const todas = (c.cargas || []).filter(x =>
+                sinAcentos(x.docente || '') === sinAcentos(a.docente || ''));
+              if (todas.length) {
+                let suma = 0;
+                l.push('Sesiones de este docente en el curso:');
+                todas.forEach(x => {
+                  suma += Number(x.horas) || 0;
+                  l.push('   ' + (x.tipo || '') + ' · grupo ' + x.grupo +
+                         (x.subGrupo !== '' && x.subGrupo !== undefined ? '-' + x.subGrupo : '') +
+                         ' · ' + (x.horas || 0) + ' h');
+                });
+                l.push('   Total: ' + suma + ' horas por semana');
+              } else {
+                l.push('Grupo: ' + (a.grupo || '') +
+                       (a.subGrupo !== '' && a.subGrupo !== undefined ? '-' + a.subGrupo : '') +
+                       ' · tipo ' + (a.tipo || ''));
+                l.push('Horas: ' + (h.total ? h.total + ' por semana (' + h.detalle + ')'
+                                            : 'no registradas en el portal'));
+              }
               l.push('Docente: ' + (a.docente || 'no registrado'));
               l.push('Correo institucional: ' + (a.correoDocente || 'no registrado en el portal'));
               l.push('Créditos y requisitos: no se registran en el portal. Compruébalos ' +
@@ -4824,6 +4841,12 @@ label .req{color:var(--falla)}
 
       const caja = document.createElement('div');
       caja.className = 'referencia-item';
+      if (contexto === 'cargando') {
+        caja.innerHTML = '<b>Consultando el portal…</b>' +
+          '<p>Buscando contra qué se compara este punto.</p>';
+        fila.appendChild(caja);
+        return;
+      }
       if (r.de === 'documento') {
         caja.classList.add('sin-referencia');
         caja.innerHTML = '<b>No hay referencia oficial cargada</b>' +
@@ -4846,10 +4869,12 @@ label .req{color:var(--falla)}
   // Trae del catálogo lo que hace falta y lo reparte entre los once puntos.
   function mostrarReferenciasSilabo() {
     const a = estado.actual || {};
+    pintarReferencias('cargando');
     api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
         '&programa=' + encodeURIComponent(a.programa || ''))
       .then(d => {
         const c = d.contexto;
+        document.querySelectorAll('.referencia-item').forEach(x => x.remove());
         pintarReferencias(c || null);
         if (!c) return;
 
@@ -4873,7 +4898,10 @@ label .req{color:var(--falla)}
             '<details><summary>Ver la sumilla de ' + esc(x.programa) + '</summary><p>' +
             esc(textoPlano(x.sumilla)) + '</p></details>').join('') + '</div>');
       })
-      .catch(() => pintarReferencias(null));
+      .catch(() => {
+        document.querySelectorAll('.referencia-item').forEach(x => x.remove());
+        pintarReferencias(null);
+      });
   }
 
   // Junta lo observado en cada ítem, más lo que el asistente no pudo
