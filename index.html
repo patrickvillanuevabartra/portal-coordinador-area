@@ -337,6 +337,14 @@ tr.sin-leer{background:#fffdf6}
   border-radius:6px;padding:6px 12px}
 /* La fila del ítem es una cuadrícula de tres columnas: sin esto el recuadro
    caía en la del medio y se veía como una franja estrecha. */
+.evidencias{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+.evidencia{display:grid;grid-template-columns:1fr 220px auto auto;gap:8px;align-items:center}
+.evidencia a.chip{text-decoration:none;display:inline-flex;align-items:center}
+.btn.chico{align-self:flex-start;padding:6px 12px;font-size:12.5px}
+@media (max-width:760px){
+  .evidencia{grid-template-columns:1fr auto auto}
+  .evidencia [data-ev="nombre"]{grid-column:1 / -1}
+}
 .sumilla-oficial{grid-column:1 / -1;margin-top:8px;background:#f4f7f5;border:1px solid var(--linea);
   border-left:3px solid var(--brand);border-radius:6px;padding:10px 12px}
 .sumilla-oficial b{font-size:12px;color:var(--brand-oscuro)}
@@ -4049,8 +4057,88 @@ label .req{color:var(--falla)}
       control = '<input type="' + (tipos[c.tipo] || 'text') + '" id="' + id + '"' +
         (c.tipo === 'url' ? ' placeholder="https://drive.google.com/..."' : '') + '>';
     }
-    const ancho = (c.tipo === 'textarea' || c.tipo === 'url') ? ' class="full"' : '';
+    // Las evidencias se manejan aparte: son varias, cada una con su enlace y
+    // su nombre, y hay que poder abrirlas.
+    if (c.tipo === 'url') {
+      return '<div class="full"><label>' + esc(c.etq) + req + '</label>' +
+        '<div class="evidencias" id="ev_' + c.k + '" data-campo="' + esc(c.k) + '"></div>' +
+        '<input type="hidden" id="' + id + '">' +
+        '</div>';
+    }
+
+    const ancho = (c.tipo === 'textarea') ? ' class="full"' : '';
     return '<div' + ancho + '><label for="' + id + '">' + esc(c.etq) + req + '</label>' + control + '</div>';
+  }
+
+  /* --------------------------------------------------- las evidencias ----
+     Cada una es un enlace y el nombre con que se reconoce. Se guardan juntas
+     en un solo campo, una por línea, como «nombre | enlace». */
+
+  function leerEvidencias(txt) {
+    return String(txt || '').split('\n').map(l => l.trim()).filter(Boolean).map(l => {
+      const i = l.lastIndexOf('|');
+      if (i > 0) return { nombre: l.slice(0, i).trim(), enlace: l.slice(i + 1).trim() };
+      return { nombre: '', enlace: l };
+    });
+  }
+
+  function escribirEvidencias(lista) {
+    return lista.filter(e => e.enlace.trim())
+      .map(e => (e.nombre.trim() ? e.nombre.trim() + ' | ' : '') + e.enlace.trim())
+      .join('\n');
+  }
+
+  function pintarEvidencias(caja, lista) {
+    const k = caja.dataset.campo;
+    if (!lista.length) lista = [{ nombre: '', enlace: '' }];
+    caja.innerHTML = lista.map((e, i) =>
+      '<div class="evidencia">' +
+      '<input type="url" data-ev="enlace" data-i="' + i + '" placeholder="https://drive.google.com/..." value="' + esc(e.enlace) + '">' +
+      '<input type="text" data-ev="nombre" data-i="' + i + '" placeholder="Nombre del archivo" value="' + esc(e.nombre) + '">' +
+      (e.enlace
+        ? '<a class="chip activo" href="' + esc(e.enlace) + '" target="_blank" rel="noopener" title="Abrir en una pestaña nueva">Abrir</a>'
+        : '<span class="chip" style="opacity:.4">Abrir</span>') +
+      (lista.length > 1
+        ? '<button type="button" class="chip" data-quitar="' + i + '" title="Quitar">×</button>'
+        : '') +
+      '</div>').join('') +
+      '<button type="button" class="btn gris chico" data-mas="1">Agregar otra evidencia</button>';
+
+    const sincronizar = () => {
+      const l = [...caja.querySelectorAll('.evidencia')].map(f => ({
+        enlace: f.querySelector('[data-ev="enlace"]').value,
+        nombre: f.querySelector('[data-ev="nombre"]').value
+      }));
+      $('f_' + k).value = escribirEvidencias(l);
+      $('f_' + k).dispatchEvent(new Event('input', { bubbles: true }));
+      return l;
+    };
+
+    caja.querySelectorAll('[data-ev]').forEach(inp => {
+      inp.addEventListener('input', sincronizar);
+      // Al escribir el enlace aparece el botón de abrir, sin recargar todo.
+      inp.addEventListener('change', () => pintarEvidencias(caja, sincronizar()));
+    });
+    caja.querySelector('[data-mas]').addEventListener('click', () => {
+      const l = sincronizar();
+      l.push({ nombre: '', enlace: '' });
+      pintarEvidencias(caja, l);
+    });
+    caja.querySelectorAll('[data-quitar]').forEach(b => {
+      b.addEventListener('click', () => {
+        const l = sincronizar();
+        l.splice(Number(b.dataset.quitar), 1);
+        pintarEvidencias(caja, l);
+        sincronizar();
+      });
+    });
+  }
+
+  function prepararEvidencias() {
+    document.querySelectorAll('.evidencias').forEach(caja => {
+      const campo = $('f_' + caja.dataset.campo);
+      pintarEvidencias(caja, leerEvidencias(campo ? campo.value : ''));
+    });
   }
 
   function pintarFormulario(M, F) {
@@ -4153,6 +4241,7 @@ label .req{color:var(--falla)}
     }
     recalcularEscala(F);
     recalcularConteo(F);
+    prepararEvidencias();
 
     // Los formatos sin calificación por ítem muestran cuánto está completo el
     // registro: así todos tienen su nivel a la vista, no solo sílabo y aula.
@@ -4823,6 +4912,7 @@ label .req{color:var(--falla)}
 
         recalcularEscala(F);
         recalcularConteo(F);
+        prepararEvidencias();
         recalcularCompleto(F);
         marcarCampos();
         // Recién ahora el formulario muestra algo cierto.
