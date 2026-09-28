@@ -359,6 +359,8 @@ tr.sin-leer{background:#fffdf6}
 .referencia-item p{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--tinta-media);
   max-height:200px;overflow-y:auto;white-space:pre-wrap}
 .referencia-item p.falta{color:#8f2418}
+.referencia-item p.pide-archivo{margin-top:7px;padding-top:7px;border-top:1px dashed var(--linea);
+  color:#8a6400}
 .referencia-item.sin-referencia{background:#fdf4e3;border-color:#e6c86a;border-left-color:#d99a1b}
 .referencia-item.sin-referencia b{color:#8a6400}
 .referencia-item.sin-referencia p{color:#6b4c00}
@@ -4765,6 +4767,9 @@ label .req{color:var(--falla)}
      tiene se muestra ahí mismo; lo que no, se pide. Así nadie evalúa de
      memoria ni el asistente puede dar por bueno lo que no comprobó. */
 
+  const SUBIR_SILABO = 'Para comprobarlo hace falta el sílabo del docente: súbalo con ' +
+    '«Subir archivo patrón», arriba.';
+
   const REFERENCIA_ITEM = {
     '01': { de: 'portal', titulo: 'Datos de la carga en el portal',
             texto: c => {
@@ -4800,12 +4805,11 @@ label .req{color:var(--falla)}
               }
               l.push('Docente: ' + (a.docente || 'no registrado'));
               l.push('Correo institucional: ' + (a.correoDocente || 'no registrado en el portal'));
-              l.push('Créditos y requisitos: no se registran en el portal. Compruébalos ' +
-                     'contra el plan de estudios de la carrera.');
-              l.push('Condición (obligatoria o electiva): no se registra en el portal. ' +
-                     'Compruébala contra el plan de estudios.');
               return l.join('\n');
-            } },
+            },
+            falta: 'Los créditos, los requisitos y si el curso es obligatorio o electivo no ' +
+                   'se registran en el portal. Suba el plan de estudios de la carrera con ' +
+                   '«Subir archivo patrón» para que se puedan comprobar.' },
     '02': { de: 'portal', titulo: 'Sumilla oficial', texto: c => c.sumilla || '' },
     '03': { de: 'documento', pide: 'el modelo educativo o el perfil de egreso, donde están ' +
             'definidas las competencias genéricas de la Universidad' },
@@ -4817,16 +4821,20 @@ label .req{color:var(--falla)}
             'asignatura' },
     '07': { de: 'formato', titulo: 'Formato institucional del sílabo',
             texto: () => 'El formato establece 4 unidades. Se verifica que el sílabo las ' +
-                         'presente completas, con su logro y contenidos.' },
+                         'presente completas, con su logro y contenidos.',
+            falta: SUBIR_SILABO },
     '08': { de: 'formato', titulo: 'Formato institucional del sílabo',
             texto: () => 'Se verifica que las estrategias didácticas estén descritas y sean ' +
-                         'coherentes con el logro de la asignatura.' },
+                         'coherentes con el logro de la asignatura.',
+            falta: SUBIR_SILABO },
     '09': { de: 'formato', titulo: 'Formato institucional del sílabo',
-            texto: () => 'Se verifica que los recursos necesarios estén indicados.' },
+            texto: () => 'Se verifica que los recursos necesarios estén indicados.',
+            falta: SUBIR_SILABO },
     '10': { de: 'formato', titulo: 'Formato institucional del sílabo',
             texto: () => 'Se verifica que los criterios de evaluación y su ponderación estén ' +
                          'descritos, con sus instrumentos o rúbricas. La coincidencia con el ' +
-                         'Sistema de Evaluación se comprueba en el formato de Fórmula.' },
+                         'Sistema de Evaluación se comprueba en el formato de Fórmula.',
+            falta: SUBIR_SILABO },
     '11': { de: 'documento', pide: 'la política de bibliografía de la Facultad, o el listado ' +
             'de referencias que la Escuela considera vigentes' }
   };
@@ -4860,7 +4868,8 @@ label .req{color:var(--falla)}
           (texto
             ? '<p>' + esc(textoPlano(texto)) + '</p>'
             : '<p class="falta">No está registrado en el catálogo. Sin esa fuente este punto ' +
-              'no se puede comprobar: súbela o complétala en Validar datos.</p>');
+              'no se puede comprobar: súbala o complétela en Validar datos.</p>') +
+          (r.falta ? '<p class="pide-archivo">' + esc(r.falta) + '</p>' : '');
       }
       fila.appendChild(caja);
     });
