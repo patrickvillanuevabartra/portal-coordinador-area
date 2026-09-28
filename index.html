@@ -1726,22 +1726,23 @@ label .req{color:var(--falla)}
             (c.coordinador ? ' · coordina ' + esc(c.coordinador) : '') +
           '</small>' +
           (esComun ? '<div class="nota-comun">' + (c.soloConsulta
-            ? '<b>Este curso lo supervisa ' + esc(c.supervisa || 'otra carrera') + '.</b> ' +
-              'Lo llevan alumnos de tu carrera y de ' +
-              esc(c.supervisa || 'otra') + ', pero el Departamento Académico registró la ' +
-              'carga allá' + (c.coordinadorEspejo
-                ? ', donde la revisa ' + esc(c.coordinadorEspejo) +
-                  (c.areaEspejo ? ' en el área de ' + esc(c.areaEspejo) : '')
-                : '') +
-              '. Para que no queden dos evaluaciones distintas del mismo curso, la ' +
-              'supervisión se hace una sola vez. Puedes abrir los formatos y ver cómo se ' +
-              'calificó, pero no editarlos. Si algo no cuadra, repórtalo como inconsistencia.'
-            : '<b>Este curso lo supervisas tú.</b> ' +
+            ? '<b>Área padre: ' + esc(c.areaEspejo || c.supervisa || 'otra carrera') + '.</b> ' +
+              'Lo llevan alumnos de tu carrera y de ' + esc(c.supervisa || 'otra') +
+              ', y el Departamento Académico registró la carga allá' +
+              (c.coordinadorEspejo ? ', donde la supervisa ' + esc(c.coordinadorEspejo) : '') +
+              '. La supervisión se hace una sola vez, para que no queden dos evaluaciones ' +
+              'distintas del mismo curso.<br>' +
+              '<b>Eso no te quita la responsabilidad</b> de presentar el informe de este ' +
+              'curso ante tu Escuela. Abre cualquier formato: verás lo que se registró y ' +
+              'podrás descargar el informe o reportar una inconsistencia al área padre, que ' +
+              'conviene levantar antes de presentarlo.'
+            : '<b>Tu área es la padre de este curso.</b> ' +
               'Lo llevan alumnos de tu carrera y también de ' +
               esc(c.compartidoCon || 'otra carrera') +
-              ', y el Departamento Académico registró la carga en tu programa. La supervisión se ' +
-              'hace una sola vez, aquí: el coordinador de la otra carrera verá lo que ' +
-              'registres, sin poder cambiarlo.') + '</div>' : '') +
+              ', y el Departamento Académico registró la carga en tu programa. Por eso la ' +
+              'supervisión se hace una sola vez, aquí: el coordinador de la otra carrera ' +
+              'verá lo que registres, sin poder cambiarlo, y podrá reportarte lo que no ' +
+              'cuadre para que lo levantes antes de que él presente su informe.') + '</div>' : '') +
           (posible ? '<div class="nota-posible">Su código también figura en ' +
             esc(c.otrasCarreras) + '. Si alumnos de ambas carreras lo llevan juntos, ' +
             (puedeEditar()
