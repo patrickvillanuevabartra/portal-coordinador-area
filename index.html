@@ -4078,6 +4078,10 @@ label .req{color:var(--falla)}
     // su nombre, y hay que poder abrirlas.
     if (c.tipo === 'url') {
       return '<div class="full"><label>' + esc(c.etq) + req + '</label>' +
+        '<p class="ayuda" style="margin:0 0 6px">Los enlaces a lo que respalda esta revisión: ' +
+        'el documento en Drive, las capturas, el acta. Quedan guardados en el registro y se ' +
+        'pueden abrir después. No es lo mismo que el archivo que se le da al asistente arriba, ' +
+        'que solo sirve para que compare y no se guarda.</p>' +
         '<div class="evidencias" id="ev_' + c.k + '" data-campo="' + esc(c.k) + '"></div>' +
         '<input type="hidden" id="' + id + '">' +
         '</div>';
@@ -4270,7 +4274,7 @@ label .req{color:var(--falla)}
 
     // La sumilla oficial de la carrera, a la vista: el ítem 02 pide compararla
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
-    if (F === FORMULARIOS.silabo) mostrarSumillaOficial();
+    if (F === FORMULARIOS.silabo) mostrarReferenciasSilabo();
 
     // En el formato de formularios, la fecha se compara con el plazo que fijó
     // la Escuela: así «Fuera de plazo» deja de marcarse a ojo.
@@ -4285,28 +4289,50 @@ label .req{color:var(--falla)}
       caja.innerHTML =
         '<div style="flex:1;min-width:280px">' +
         '<b>Adelanta el trabajo con el asistente</b>' +
-        '<p>Si ya tienes el documento o sabes lo que vas a poner, el asistente deja el ' +
-        'formato adelantado y tú solo revisas y corriges. Nada se guarda hasta que pulses ' +
-        'Guardar, y el registro queda a tu nombre. Dos maneras de hacerlo:</p>' +
+        '<p>Él llena el formato y tú lo revisas. Nada se guarda hasta que pulses Guardar, ' +
+        'y el registro queda a tu nombre. Dos maneras de hacerlo:</p>' +
         '<ul class="como-usar">' +
-        '<li><b>Subir archivo</b> — para este formato conviene subir ' +
-        (QUE_SUBIR[estado.modulo] || 'el documento en que te basas') + '.' +
-        ' Admite PDF con texto, .txt, .vtt y .srt. Un PDF escaneado no sirve: no tiene texto.</li>' +
-        '<li><b>Proponer</b> — cuando no hay documento y ya lo revisaste tú. ' +
-        'Cuéntalo abajo en una frase, como se lo dirías a un colega, y él lo traduce al formato.</li>' +
+        '<li><b>Subir archivo — el documento patrón</b><br>' +
+        'Es aquello contra lo que hay que comparar: el estándar. Aquí va ' +
+        (esEntrevista
+          ? 'la transcripción de la reunión, descargada de Zoom o Meet'
+          : 'el sílabo del docente, y también los documentos oficiales que el portal no ' +
+            'tiene: el modelo educativo, el plan de estudios, la directiva de investigación ' +
+            'formativa') +
+        '. El asistente los lee, compara y te dice punto por punto en qué coinciden y en qué ' +
+        'no. <b>Estos archivos no se guardan</b>: solo se usan para la comparación.</li>' +
+        '<li><b>Proponer — cuando no vas a subir nada</b><br>' +
+        'Ya lo revisaste tú y solo quieres que te ahorre teclear. Escribe abajo lo que ' +
+        'encontraste, en tus palabras, y él lo traduce al formato. <b>No comprueba nada</b>: ' +
+        'se fía de lo que le cuentas.</li>' +
         '</ul>' +
-        '<p class="ejemplo">Por ejemplo: <i>' + (esEntrevista
-          ? 'se quejaron de la puntualidad y de que faltan laboratorios; el docente se comprometió a recuperar dos sesiones'
+        '<p class="ejemplo"><b>No es lo mismo que «Enlace de evidencia», al pie del ' +
+        'formulario.</b> Allí va el respaldo de tu revisión —el sílabo en Drive, las ' +
+        'capturas del aula, el acta de delegados— y <b>sí queda guardado</b> en el registro, ' +
+        'para que cualquiera pueda abrirlo después. En resumen: aquí arriba, contra qué ' +
+        'comparas; abajo, con qué lo pruebas.</p>' +
+        '<p class="ejemplo">Ejemplos de lo que se sube aquí: <i>' + (esEntrevista
+          ? 'la transcripción de la reunión con los delegados'
+          : 'Silabo_IN0904_2026II.pdf · Plan_de_estudios_2015-II.pdf · Modelo_educativo_URP.pdf')
+        + '</i></p>' +
+        '<p class="ejemplo">Y de lo que se escribe en Proponer: <i>' + (esEntrevista
+          ? 'se quejaron de la puntualidad y de que faltan laboratorios; el docente se ' +
+            'comprometió a recuperar dos sesiones'
           : 'revisé todo y está conforme, salvo las referencias que son del 2015') + '</i></p>' +
         '<input type="text" id="trIndicacion" style="width:100%;margin-top:8px" ' +
         'placeholder="Escribe aquí y pulsa Proponer, o Enter"></div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-        '<input type="file" id="trArchivo" accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf" class="oculto">' +
-        '<button type="button" class="btn gris" id="btnArchivo">Subir archivo</button>' +
+        '<input type="file" id="trArchivo" multiple ' +
+        'accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf" class="oculto">' +
+        '<button type="button" class="btn gris" id="btnArchivo">Subir archivo patrón</button>' +
         '<button type="button" class="btn gris" id="btnProponer">Proponer</button></div>';
       $('fichaForm').prepend(caja);
       $('btnArchivo').addEventListener('click', () => $('trArchivo').click());
-      $('trArchivo').addEventListener('change', () => proponer(F, 'archivo'));
+      $('trArchivo').addEventListener('change', () => {
+        const n = $('trArchivo').files.length;
+        if (n > 1) $('btnArchivo').textContent = 'Leyendo ' + n + ' archivos…';
+        proponer(F, 'archivo');
+      });
       $('btnProponer').addEventListener('click', () => proponer(F, 'texto'));
       $('trIndicacion').addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); proponer(F, 'texto'); }
@@ -4408,9 +4434,15 @@ label .req{color:var(--falla)}
     let fuente = '';
     try {
       if (origen === 'archivo') {
-        const arch = $('trArchivo').files[0];
-        if (!arch) return;
-        fuente = await textoDelArchivo(arch);
+        const archivos = [...$('trArchivo').files];
+        if (!archivos.length) return;
+        // Se pueden subir varios: el sílabo y, aparte, el documento oficial
+        // contra el que se compara.
+        const partes = [];
+        for (const arch of archivos) {
+          partes.push('===== ' + arch.name + ' =====\n' + await textoDelArchivo(arch));
+        }
+        fuente = partes.join('\n\n');
         // Los .vtt y .srt traen tiempos y numeración que solo estorban.
         fuente = fuente.replace(/^WEBVTT.*$/gim, '')
                        .replace(/^\d+$/gm, '')
@@ -4456,7 +4488,7 @@ label .req{color:var(--falla)}
       aplicarPropuesta(F, d.propuesta || {});
     } catch (e) {
       btn.disabled = false;
-      if (origen === 'archivo') btn.textContent = 'Subir archivo'; else btn.textContent = 'Proponer';
+      btn.textContent = origen === 'archivo' ? 'Subir archivo patrón' : 'Proponer';
       alert('No se pudo preparar la propuesta: ' + e.message);
     }
     $('trArchivo').value = '';
@@ -4734,9 +4766,29 @@ label .req{color:var(--falla)}
 
   const REFERENCIA_ITEM = {
     '01': { de: 'portal', titulo: 'Datos de la carga en el portal',
-            texto: c => 'Curso: ' + (c.curso || '') + ' · código ' + (c.codigo || '') +
-                        ' · ' + (c.programa || '') + ' · plan ' + (c.plan || '') +
-                        ' · semestre ' + (c.semestre || '') + ' · área ' + (c.area || '') },
+            texto: c => {
+              const a = estado.actual || {};
+              const h = horasDe(a.horas);
+              const l = [];
+              l.push('Curso: ' + (c.curso || a.asignatura || ''));
+              l.push('Código: ' + (c.codigo || a.codigo || ''));
+              l.push('Carrera: ' + (c.programa || a.programa || '') +
+                     ' · plan ' + (c.plan || a.planEstudio || '') +
+                     ' · semestre ' + (c.semestre || a.semestre || ''));
+              l.push('Área: ' + (c.area || a.area || ''));
+              l.push('Grupo: ' + (a.grupo || '') +
+                     (a.subGrupo !== '' && a.subGrupo !== undefined ? '-' + a.subGrupo : '') +
+                     ' · tipo ' + (a.tipo || ''));
+              l.push('Horas: ' + (h.total ? h.total + ' por semana (' + h.detalle + ')'
+                                          : 'no registradas en el portal'));
+              l.push('Docente: ' + (a.docente || 'no registrado'));
+              l.push('Correo institucional: ' + (a.correoDocente || 'no registrado en el portal'));
+              l.push('Créditos y requisitos: no se registran en el portal. Compruébalos ' +
+                     'contra el plan de estudios de la carrera.');
+              l.push('Condición (obligatoria o electiva): no se registra en el portal. ' +
+                     'Compruébala contra el plan de estudios.');
+              return l.join('\n');
+            } },
     '02': { de: 'portal', titulo: 'Sumilla oficial', texto: c => c.sumilla || '' },
     '03': { de: 'documento', pide: 'el modelo educativo o el perfil de egreso, donde están ' +
             'definidas las competencias genéricas de la Universidad' },
@@ -4775,9 +4827,9 @@ label .req{color:var(--falla)}
       if (r.de === 'documento') {
         caja.classList.add('sin-referencia');
         caja.innerHTML = '<b>No hay referencia oficial cargada</b>' +
-          '<p>Para comprobar este punto hace falta ' + esc(r.pide) + '. Súbelo con «Subir ' +
-          'archivo» o escribe tú lo que dice. Sin esa fuente, el asistente no lo evalúa: ' +
-          'lo deja como no verificable.</p>';
+          '<p>Para comprobar este punto hace falta que subas el documento oficial contra el ' +
+          'que se evalúa: ' + esc(r.pide) + '. Se sube arriba, con el botón ' +
+          '<b>«Subir archivo»</b> del recuadro del asistente.</p>';
       } else {
         const texto = contexto ? r.texto(contexto) : '';
         caja.innerHTML = '<b>Se compara contra: ' + esc(r.titulo) +
@@ -4791,56 +4843,37 @@ label .req{color:var(--falla)}
     });
   }
 
-  // Trae la sumilla del catálogo y la deja junto al ítem que la evalúa.
-  function mostrarSumillaOficial() {
+  // Trae del catálogo lo que hace falta y lo reparte entre los once puntos.
+  function mostrarReferenciasSilabo() {
     const a = estado.actual || {};
-    const filas = [...$('fichaForm').querySelectorAll('#listaItems .item')];
-    const fila = filas[1];   // ítem 02, «Sumilla según plan de estudios»
-    if (!fila) return;
-
-    const caja = document.createElement('div');
-    caja.className = 'sumilla-oficial';
-    caja.innerHTML = '<b>Sumilla oficial del catálogo</b><p>Buscando…</p>';
-    fila.appendChild(caja);
-
     api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
         '&programa=' + encodeURIComponent(a.programa || ''))
       .then(d => {
         const c = d.contexto;
-        if (!c) {
-          caja.innerHTML = '<b>Sumilla oficial</b><p>Ese curso no está en el catálogo.</p>';
-          pintarReferencias(null);
-          return;
-        }
+        pintarReferencias(c || null);
+        if (!c) return;
 
         // Si el mismo código tiene sumillas distintas en otra carrera, se
         // muestran las dos: el sílabo se compara con la de esta carrera, pero
-        // la diferencia es en sí misma una inconsistencia que hay que elevar.
+        // Si el mismo código tiene otra sumilla en otra carrera, el aviso va
+        // bajo el punto 02, junto a la sumilla con la que sí se compara.
         const distintas = (d.otras || []).filter(x => x.difiere && x.sumilla);
-        // La sumilla puede venir con etiquetas o con espacios en blanco: se
-        // limpia y, si queda vacía, se dice en lugar de mostrar un hueco.
-        const limpia = textoPlano(c.sumilla || '').replace(/\u00a0/g, ' ').trim();
-        console.log('Sumilla oficial:', (c.sumilla || '').length, 'caracteres · útil:', limpia.length);
-        pintarReferencias(c);
-        caja.innerHTML = '<b>Sumilla oficial de ' + esc(c.programa || '') + '</b>' +
-          (limpia
-            ? '<p>' + esc(limpia) + '</p>'
-            : '<p class="falta">No hay sumilla registrada para este curso en el catálogo. ' +
-              'Sin ella no se puede comprobar este ítem.</p>') +
-          (distintas.length
-            ? '<div class="sumilla-distinta"><b>Ojo: este curso tiene otra sumilla en ' +
-              distintas.map(x => esc(x.programa)).join(' y ') + '</b>' +
-              '<p>Es el mismo código y la misma clase, pero cada Escuela aprobó una sumilla ' +
-              'distinta, así que ningún sílabo puede cumplir las dos. Compara con la de ' +
-              esc(c.programa || 'tu carrera') + ', que es la que supervisas, y reporta la ' +
-              'diferencia como inconsistencia para que las Escuelas la unifiquen.</p>' +
-              distintas.map(x =>
-                '<details><summary>Ver la sumilla de ' + esc(x.programa) + '</summary><p>' +
-                esc(textoPlano(x.sumilla)) + '</p></details>').join('') +
-              '</div>'
-            : '');
+        if (!distintas.length) return;
+        const filas = [...$('fichaForm').querySelectorAll('#listaItems .item')];
+        const ref = filas[1] && filas[1].querySelector('.referencia-item');
+        if (!ref) return;
+        ref.insertAdjacentHTML('beforeend',
+          '<div class="sumilla-distinta"><b>Ojo: este curso tiene otra sumilla en ' +
+          distintas.map(x => esc(x.programa)).join(' y ') + '</b>' +
+          '<p>Es el mismo código y la misma clase, pero cada Escuela aprobó una sumilla ' +
+          'distinta, así que ningún sílabo puede cumplir las dos. Compara con la de ' +
+          esc(c.programa || 'tu carrera') + ', que es la que supervisas, y reporta la ' +
+          'diferencia como inconsistencia para que las Escuelas la unifiquen.</p>' +
+          distintas.map(x =>
+            '<details><summary>Ver la sumilla de ' + esc(x.programa) + '</summary><p>' +
+            esc(textoPlano(x.sumilla)) + '</p></details>').join('') + '</div>');
       })
-      .catch(() => { caja.innerHTML = '<b>Sumilla oficial</b><p>No se pudo consultar.</p>'; });
+      .catch(() => pintarReferencias(null));
   }
 
   // Junta lo observado en cada ítem, más lo que el asistente no pudo
