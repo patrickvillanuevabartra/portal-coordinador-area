@@ -239,6 +239,13 @@ tr.sin-leer{background:#fffdf6}
 .lo-escrito{margin-top:8px;background:#fff;border:1px solid #c3ddf3;border-radius:6px;
   padding:9px 12px;font-size:12.5px}
 .lo-escrito ul{margin:5px 0 0;padding-left:18px;line-height:1.5}
+.cuadro-informe{width:100%;border-collapse:collapse;margin-top:8px;font-size:11.5px}
+.cuadro-informe th{background:var(--fondo);text-align:left;padding:5px 7px;font-size:10px;
+  text-transform:uppercase;letter-spacing:.05em;color:var(--tinta-media)}
+.cuadro-informe td{padding:5px 7px;border-top:1px solid var(--linea);vertical-align:top}
+.cuadro-informe td.ok{color:#0b5a38;font-weight:600}
+.cuadro-informe td.dif{color:#8a6400;font-weight:600}
+.cuadro-informe td.sinfuente{color:#8f2418;font-weight:600}
 .lo-escrito li{margin-bottom:3px}
 .leyenda-campos{display:flex;gap:16px;flex-wrap:wrap;font-size:11.5px;color:var(--tinta-media);
   margin:0 0 12px}
@@ -1097,7 +1104,7 @@ label .req{color:var(--falla)}
         <label for="plMensaje">Mensaje</label>
         <textarea id="plMensaje" rows="9" style="font-family:'IBM Plex Mono',monospace;font-size:12px"></textarea>
         <p class="nota-dialogo">Marcadores disponibles:
-          <span class="marcas">{docente} {curso} {codigo} {grupo} {ciclo} {area} {coordinador} {estado} {porcentaje} {observados} {fecha}</span>
+          <span class="marcas">{docente} {curso} {codigo} {grupo} {ciclo} {area} {coordinador} {estado} {porcentaje} {observados} {cierre} {fecha}</span>
         </p>
         <div class="pie">
           <button class="btn fantasma" id="btnPlantilla">Guardar plantilla</button>
@@ -3767,7 +3774,7 @@ label .req{color:var(--falla)}
         'grupo {grupo}, del ciclo {ciclo}.\n\n' +
         'Resultado: {estado}. Cumplimiento: {porcentaje}%.\n' +
         '{observados}\n' +
-        'Agradeceré levantar las observaciones y remitir la versión corregida.\n\n' +
+        '{cierre}\n\n' +
         'Cordialmente,\n{coordinador}\nCoordinación del área de {area}' + FIRMA_BASE
     },
     formularios: {
@@ -3775,7 +3782,7 @@ label .req{color:var(--falla)}
       mensaje: 'Estimado(a) {docente}:\n\n' +
         'En la revisión del {fecha} del curso {curso} ({codigo}), grupo {grupo}, se registró lo siguiente:\n' +
         '{observados}\n' +
-        'Agradeceré regularizar lo pendiente a la brevedad.\n\n' +
+        '{cierre}\n\n' +
         'Cordialmente,\n{coordinador}' + FIRMA_BASE
     },
     aulaVirtual: {
@@ -3792,7 +3799,7 @@ label .req{color:var(--falla)}
         'Se revisó el portafolio digital de {curso} ({codigo}), grupo {grupo}, el {fecha}. ' +
         'Cumplimiento: {porcentaje}%.\n' +
         '{observados}\n' +
-        'Agradeceré cargar las evidencias faltantes.\n\nCordialmente,\n{coordinador}' + FIRMA_BASE
+        '{cierre}\n\nCordialmente,\n{coordinador}' + FIRMA_BASE
     },
     delegados: {
       asunto: 'Delegados del curso — {curso} (grupo {grupo})',
@@ -4593,6 +4600,18 @@ label .req{color:var(--falla)}
           textos.map(t => '<li><b>' + esc(t.donde) + ':</b> ' + esc(String(t.que).slice(0, 400)) +
             '</li>').join('') + '</ul></div>'
         : '') +
+      (Array.isArray(p._informe) && p._informe.length
+        ? '<div class="lo-escrito"><b>Contra qué comparó cada punto:</b>' +
+          '<table class="cuadro-informe"><thead><tr><th>Punto</th><th>Fuente</th>' +
+          '<th>¿Coincide?</th><th>Diferencia</th></tr></thead><tbody>' +
+          p._informe.map(r => '<tr><td>' + esc(r.item || '') + '</td>' +
+            '<td>' + esc(r.fuente || 'ninguna') + '</td>' +
+            '<td class="' + (/^s/i.test(r.coincide || '') ? 'ok' :
+                             (/no verific/i.test(r.coincide || '') ? 'sinfuente' : 'dif')) + '">' +
+            esc(r.coincide || '') + '</td>' +
+            '<td>' + esc(r.diferencia || '') + '</td></tr>').join('') +
+          '</tbody></table></div>'
+        : '') +
       ((Array.isArray(p._sinComparar) ? p._sinComparar : (p._sinComparar ? [p._sinComparar] : [])).length
         ? '<div class="lo-escrito"><b>No pudo comprobar esto:</b><ul>' +
           (Array.isArray(p._sinComparar) ? p._sinComparar : [p._sinComparar])
@@ -4752,6 +4771,24 @@ label .req{color:var(--falla)}
     if (!caja) return;
 
     const lineas = [];
+
+    // El informe del asistente, entero: contra qué comparó cada ítem, qué pide
+    // la fuente, qué presenta el sílabo y en qué difieren. Es lo que permite al
+    // docente corregir y al auditor comprobar que la revisión se hizo.
+    const informe = Array.isArray(p._informe) ? p._informe : [];
+    if (informe.length) {
+      lineas.push('REVISIÓN ASISTIDA — comparación punto por punto');
+      informe.forEach(r => {
+        lineas.push('');
+        lineas.push('· ' + (r.item || '') + ' — ' + (r.coincide || 'sin determinar'));
+        lineas.push('   Fuente consultada: ' + (r.fuente || 'ninguna'));
+        if (r.dice_la_fuente) lineas.push('   La fuente exige: ' + r.dice_la_fuente);
+        if (r.dice_el_silabo) lineas.push('   El documento presenta: ' + r.dice_el_silabo);
+        if (r.diferencia) lineas.push('   Diferencia: ' + r.diferencia);
+      });
+      lineas.push('');
+    }
+
     (textos || []).forEach(t => {
       if (t.donde === 'Observaciones generales') return;
       lineas.push('• ' + t.donde + ': ' + String(t.que).trim());
@@ -4977,6 +5014,11 @@ label .req{color:var(--falla)}
                    a.coordinador || estado.nombre,
       modulo: M.nombre, estado: ($('f_estado') && $('f_estado').value) || '',
       porcentaje: r.pct !== undefined ? r.pct : '', observados: obs,
+      // El cierre cambia según el resultado: pedir que levanten observaciones
+      // cuando no hay ninguna queda mal y confunde al docente.
+      cierre: (obs && obs !== 'Sin observaciones.')
+        ? 'Agradeceré atender lo observado y remitir la versión corregida.'
+        : 'No hay observaciones que atender. Gracias por su colaboración.',
       fecha: String(fecha).slice(0, 10)
     };
     const sustituir = (t) => String(t || '').replace(/\{(\w+)\}/g,
