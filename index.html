@@ -352,6 +352,16 @@ tr.sin-leer{background:#fffdf6}
   .evidencia{grid-template-columns:1fr auto auto}
   .evidencia [data-ev="nombre"]{grid-column:1 / -1}
 }
+.referencia-item{grid-column:1 / -1;margin-top:8px;background:#f4f7f5;
+  border:1px solid var(--linea);border-left:3px solid var(--brand);border-radius:6px;
+  padding:9px 11px}
+.referencia-item b{font-size:11.5px;color:var(--brand-oscuro)}
+.referencia-item p{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--tinta-media);
+  max-height:200px;overflow-y:auto;white-space:pre-wrap}
+.referencia-item p.falta{color:#8f2418}
+.referencia-item.sin-referencia{background:#fdf4e3;border-color:#e6c86a;border-left-color:#d99a1b}
+.referencia-item.sin-referencia b{color:#8a6400}
+.referencia-item.sin-referencia p{color:#6b4c00}
 .sumilla-oficial{grid-column:1 / -1;margin-top:8px;background:#f4f7f5;border:1px solid var(--linea);
   border-left:3px solid var(--brand);border-radius:6px;padding:10px 12px}
 .sumilla-oficial b{font-size:12px;color:var(--brand-oscuro)}
@@ -4717,6 +4727,70 @@ label .req{color:var(--falla)}
     form.prepend(av);
   }
 
+  /* ------------------------------- las referencias de cada punto --------
+     Cada ítem del sílabo se compara contra algo concreto. Lo que el portal
+     tiene se muestra ahí mismo; lo que no, se pide. Así nadie evalúa de
+     memoria ni el asistente puede dar por bueno lo que no comprobó. */
+
+  const REFERENCIA_ITEM = {
+    '01': { de: 'portal', titulo: 'Datos de la carga en el portal',
+            texto: c => 'Curso: ' + (c.curso || '') + ' · código ' + (c.codigo || '') +
+                        ' · ' + (c.programa || '') + ' · plan ' + (c.plan || '') +
+                        ' · semestre ' + (c.semestre || '') + ' · área ' + (c.area || '') },
+    '02': { de: 'portal', titulo: 'Sumilla oficial', texto: c => c.sumilla || '' },
+    '03': { de: 'documento', pide: 'el modelo educativo o el perfil de egreso, donde están ' +
+            'definidas las competencias genéricas de la Universidad' },
+    '04': { de: 'documento', pide: 'el plan de estudios de la carrera, donde constan las ' +
+            'competencias específicas del curso' },
+    '05': { de: 'documento', pide: 'la directiva de investigación formativa y responsabilidad ' +
+            'social, para saber qué componentes exige' },
+    '06': { de: 'documento', pide: 'el plan de estudios, donde está el logro previsto de la ' +
+            'asignatura' },
+    '07': { de: 'formato', titulo: 'Formato institucional del sílabo',
+            texto: () => 'El formato establece 4 unidades. Se verifica que el sílabo las ' +
+                         'presente completas, con su logro y contenidos.' },
+    '08': { de: 'formato', titulo: 'Formato institucional del sílabo',
+            texto: () => 'Se verifica que las estrategias didácticas estén descritas y sean ' +
+                         'coherentes con el logro de la asignatura.' },
+    '09': { de: 'formato', titulo: 'Formato institucional del sílabo',
+            texto: () => 'Se verifica que los recursos necesarios estén indicados.' },
+    '10': { de: 'formato', titulo: 'Formato institucional del sílabo',
+            texto: () => 'Se verifica que los criterios de evaluación y su ponderación estén ' +
+                         'descritos, con sus instrumentos o rúbricas. La coincidencia con el ' +
+                         'Sistema de Evaluación se comprueba en el formato de Fórmula.' },
+    '11': { de: 'documento', pide: 'la política de bibliografía de la Facultad, o el listado ' +
+            'de referencias que la Escuela considera vigentes' }
+  };
+
+  function pintarReferencias(contexto) {
+    const M = CFG.MODULOS.silabo;
+    const filas = [...$('fichaForm').querySelectorAll('#listaItems .item')];
+    (M.items || []).forEach((it, i) => {
+      const r = REFERENCIA_ITEM[it.n];
+      const fila = filas[i];
+      if (!r || !fila || fila.querySelector('.referencia-item')) return;
+
+      const caja = document.createElement('div');
+      caja.className = 'referencia-item';
+      if (r.de === 'documento') {
+        caja.classList.add('sin-referencia');
+        caja.innerHTML = '<b>No hay referencia oficial cargada</b>' +
+          '<p>Para comprobar este punto hace falta ' + esc(r.pide) + '. Súbelo con «Subir ' +
+          'archivo» o escribe tú lo que dice. Sin esa fuente, el asistente no lo evalúa: ' +
+          'lo deja como no verificable.</p>';
+      } else {
+        const texto = contexto ? r.texto(contexto) : '';
+        caja.innerHTML = '<b>Se compara contra: ' + esc(r.titulo) +
+          (r.de === 'portal' && contexto ? ' de ' + esc(contexto.programa || '') : '') + '</b>' +
+          (texto
+            ? '<p>' + esc(textoPlano(texto)) + '</p>'
+            : '<p class="falta">No está registrado en el catálogo. Sin esa fuente este punto ' +
+              'no se puede comprobar: súbela o complétala en Validar datos.</p>');
+      }
+      fila.appendChild(caja);
+    });
+  }
+
   // Trae la sumilla del catálogo y la deja junto al ítem que la evalúa.
   function mostrarSumillaOficial() {
     const a = estado.actual || {};
@@ -4733,7 +4807,11 @@ label .req{color:var(--falla)}
         '&programa=' + encodeURIComponent(a.programa || ''))
       .then(d => {
         const c = d.contexto;
-        if (!c) { caja.innerHTML = '<b>Sumilla oficial</b><p>Ese curso no está en el catálogo.</p>'; return; }
+        if (!c) {
+          caja.innerHTML = '<b>Sumilla oficial</b><p>Ese curso no está en el catálogo.</p>';
+          pintarReferencias(null);
+          return;
+        }
 
         // Si el mismo código tiene sumillas distintas en otra carrera, se
         // muestran las dos: el sílabo se compara con la de esta carrera, pero
@@ -4743,6 +4821,7 @@ label .req{color:var(--falla)}
         // limpia y, si queda vacía, se dice en lugar de mostrar un hueco.
         const limpia = textoPlano(c.sumilla || '').replace(/\u00a0/g, ' ').trim();
         console.log('Sumilla oficial:', (c.sumilla || '').length, 'caracteres · útil:', limpia.length);
+        pintarReferencias(c);
         caja.innerHTML = '<b>Sumilla oficial de ' + esc(c.programa || '') + '</b>' +
           (limpia
             ? '<p>' + esc(limpia) + '</p>'
