@@ -1368,8 +1368,14 @@ label .req{color:var(--falla)}
 
   // El sufijo "(Industrial 2015-II)" existe solo para que QuintaDB distinga cursos
   // homonimos entre planes. En pantalla sobra: la carrera y el plan ya se muestran.
+  // El sufijo distingue cursos con el mismo nombre en otra carrera o plan, y
+  // no se muestra. Se admite escrito de varias formas: «(Electrónica 2024-I)»,
+  // «(Electrónica 2024 I)» o solo «(Electrónica)».
   function nombreCurso(t) {
-    return String(t || '').replace(/\s*\((Industrial|Mecatrónica|Civil|Electrónica|Informática)\s+20\d\d-I{1,2}\)\s*$/, '').trim();
+    return String(t || '')
+      .replace(/\s*\((Industrial|Mecatrónica|Mecatronica|Civil|Electrónica|Electronica|Informática|Informatica)(\s*[-–]?\s*20\d\d\s*[-–\s]?\s*I{1,2})?\)\s*/gi, ' ')
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   }
 
   function leerPrefijo(valores, prefijo) {
