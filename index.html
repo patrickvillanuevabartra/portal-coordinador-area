@@ -2020,10 +2020,20 @@ label .req{color:var(--falla)}
         p: d.comunes.confirmados + ' confirmados · ' + d.comunes.porConfirmar + ' por confirmar',
         acc: 'Confirmar', ir: 'datos', vista: 'cursos' },
       { n: 5, t: 'Carga lectiva del ciclo',
-        listo: d.carga.total > 0 && d.carga.incompletas === 0,
+        listo: d.carga.total > 0 && d.carga.incompletas === 0 &&
+               !(d.carga.cicloRaro || []).length,
         p: d.carga.total + ' cargas · ' + carreras(d.carga.porCarrera) +
            (d.carga.incompletas ? ' · ' + d.carga.incompletas + ' incompletas' : '') +
-           (d.carga.sinHoras ? ' · ' + d.carga.sinHoras + ' sin horas' : ''),
+           (d.carga.sinHoras ? ' · ' + d.carga.sinHoras + ' sin horas' : '') +
+           ((d.carga.cicloRaro || []).length
+             ? '<br><span class="alerta-candado"><b>' + d.carga.cicloRaro.length +
+               ' cargas tienen mal el ciclo.</b> Parece que se escribió el semestre en su ' +
+               'lugar. El ciclo va como «2026 II»; el semestre, en su propia columna. ' +
+               'Mientras esté mal, esas cargas no aparecen en Mis cursos.<br>' +
+               d.carga.cicloRaro.slice(0, 8).map(esc).join('<br>') +
+               (d.carga.cicloRaro.length > 8
+                 ? '<br>y ' + (d.carga.cicloRaro.length - 8) + ' más.' : '') + '</span>'
+             : ''),
         acc: 'Importar abajo', ir: null },
       { n: 6, t: 'Comprobación final',
         listo: d.carga.total > 0 && d.carga.incompletas === 0 && d.comunes.porConfirmar === 0,
