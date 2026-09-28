@@ -3179,6 +3179,12 @@ label .req{color:var(--falla)}
 
   function abrirReporte(f, esCursos) {
     estado.reportando = { fila: f, esCursos };
+    // En un curso común, quien puede corregir es el coordinador del área
+    // padre: allí está la carga y allí se registra la supervisión.
+    estado.reportePadre = (f && f.soloConsulta)
+      ? { area: f.areaEspejo || '', coordinador: f.coordinadorEspejo || '',
+          programa: f.supervisa || '' }
+      : null;
     $('repRegistro').textContent = esCursos
       ? (f.codigo || 'sin código') + ' · ' + nombreCurso(f.curso) + ' · plan ' + (f.plan || '—')
       : (f.codigo || '') + ' · ' + nombreCurso(f.asignatura) + ' · grupo ' + f.grupo + ' · ' + f.docente;
@@ -3187,6 +3193,13 @@ label .req{color:var(--falla)}
     $('repDirigir').classList.toggle('oculto', !puedeEditar());
     if (puedeEditar()) cargarDestinatarios();
     actualizarNotaReporte();
+    if (estado.reportePadre) {
+      $('repNota').textContent =
+        'Este curso lo supervisa el área padre ' + (estado.reportePadre.area || '') +
+        (estado.reportePadre.coordinador ? ', a cargo de ' + estado.reportePadre.coordinador : '') +
+        '. El reporte le llegará a esa persona, que es quien puede corregirlo, y también a ' +
+        'la Coordinación. Conviene que quede levantado antes de que presentes tu informe.';
+    }
     $('capaRep').classList.remove('oculto');
   }
 
@@ -4760,21 +4773,41 @@ label .req{color:var(--falla)}
       }
     });
     $('btnCancelar').textContent = estado.soloLectura ? 'Volver' : 'Cancelar';
+
+    // En consulta hacen falta dos cosas: poder avisar de lo que no cuadra y
+    // poder llevarse el informe para la propia Escuela.
+    document.getElementById('accionesConsulta')?.remove();
+    if (estado.soloLectura) {
+      const caja = document.createElement('span');
+      caja.id = 'accionesConsulta';
+      caja.innerHTML =
+        '<button type="button" class="btn gris" id="btnRepConsulta">Reportar inconsistencia</button> ' +
+        '<button type="button" class="btn gris" id="btnInformeCurso">Informe del curso</button>';
+      $('btnCancelar').after(caja);
+      $('btnRepConsulta').addEventListener('click', () => abrirReporte(a, false));
+      $('btnInformeCurso').addEventListener('click', () => descargarInformeCurso(a));
+    }
     if (!estado.soloLectura) return;
 
     const quien = a.coordinadorEspejo || 'el coordinador de esa área';
     const av = document.createElement('div');
     av.id = 'avisoSoloLectura';
     av.className = 'aviso-consulta';
-    av.innerHTML = '<b>Este curso lo supervisa ' + esc(a.supervisa || 'la otra carrera') + '</b>' +
+    av.innerHTML = '<b>Área padre: ' + esc(a.areaEspejo || a.supervisa || 'la otra carrera') +
+      ' — ' + esc(a.supervisa || '') + '</b>' +
       '<p>Es un curso común: lo llevan alumnos de las dos carreras, pero el Departamento ' +
       'Académico registró la carga en el programa de ' + esc(a.supervisa || 'la otra carrera') +
       ', y allí la supervisa ' + esc(quien) + ' en el área de ' +
       esc(a.areaEspejo || 'su área') + '.</p>' +
       '<p>Por eso aquí no puedes editar ni guardar: la supervisión se registra una sola vez, ' +
       'para que no queden dos evaluaciones distintas del mismo curso. Lo que ves es ' +
-      'exactamente lo que registró ' + esc(quien) + '. Si notas algo que corregir, ' +
-      'repórtalo como inconsistencia.</p>';
+      'exactamente lo que registró ' + esc(quien) + '.</p>' +
+      '<p><b>Que otro lo registre no te quita la responsabilidad.</b> Sigues debiendo el ' +
+      'informe de este curso ante tu Escuela. Descárgalo con «Informe del curso», abajo, con ' +
+      'todo lo supervisado y quién lo hizo.</p>' +
+      '<p>Si algo no cuadra, repórtalo con «Reportar inconsistencia»: le llegará al ' +
+      'coordinador del área padre, que es quien puede corregirlo. Conviene que lo levante ' +
+      'antes de que presentes tu informe.</p>';
     form.prepend(av);
   }
 
@@ -4971,6 +5004,44 @@ label .req{color:var(--falla)}
       ? caja.value.trim() + '\n' + texto
       : texto;
     caja.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+
+  // El informe que cada coordinador debe presentar a su Escuela: todo lo
+  // supervisado del curso, quién lo hizo y qué quedó observado.
+  function descargarInformeCurso(a) {
+    const btn = $('btnInformeCurso');
+    if (btn) { btn.disabled = true; btn.textContent = 'Preparando…'; }
+    api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
+        '&programa=' + encodeURIComponent(a.supervisa || a.programa || ''))
+      .then(d => {
+        const c = d.contexto || {};
+        const cols = ['Formato', 'Revisor', 'Fecha', 'Resultado', 'Porcentaje', 'Observaciones'];
+        const filas = (c.supervisado || []).map(r =>
+          [r.formato, r.revisor, r.fecha, r.estado, r.porcentaje, r.observaciones]);
+        if (!filas.length) filas.push(['Sin registros de supervisión todavía', '', '', '', '', '']);
+
+        const notas = [
+          'Curso: ' + (c.curso || a.asignatura || '') + ' · código ' + (c.codigo || a.codigo || ''),
+          'Carrera que presenta este informe: ' + (a.programa || ''),
+          'Área: ' + (a.area || ''),
+          'Docente: ' + (a.docente || ''),
+          'Ciclo: ' + (a.ciclo || ''),
+          '',
+          'Es un curso común. El Departamento Académico registró la carga en ' +
+            (a.supervisa || '') + ', y allí la supervisa ' +
+            (a.coordinadorEspejo || '') + ' en el área de ' + (a.areaEspejo || '') +
+            ' (área padre). La supervisión se hace una sola vez para que no queden dos ' +
+            'evaluaciones distintas del mismo curso.',
+          'Cada Escuela presenta su propio informe con estos mismos resultados. Si hay ' +
+            'inconsistencias reportadas, deben levantarse antes de presentarlo.',
+          '',
+          'Descargado por ' + (estado.nombre || '') + ' el ' + new Date().toLocaleDateString('es-PE')
+        ];
+        descargarXls('Informe_' + (c.codigo || a.codigo || 'curso'),
+          'Informe del curso — ' + nombreCurso(c.curso || a.asignatura || ''), cols, filas, notas);
+      })
+      .catch(e => alert('No se pudo preparar el informe: ' + e.message))
+      .then(() => { if (btn) { btn.disabled = false; btn.textContent = 'Informe del curso'; } });
   }
 
   function marcarCampos() {
