@@ -2457,7 +2457,9 @@ label .req{color:var(--falla)}
       ? '<span class="sello-comun">Común</span>' +
         (f.compartidoCon ? '<small class="codigo">con ' + esc(f.compartidoCon) + '</small>' : '') +
         '<small class="codigo">' + (f.supervisa
-          ? 'supervisa ' + esc(f.supervisa)
+          ? 'lo supervisa ' + esc(f.supervisa) +
+            (f.areaSupervisa ? ' · área padre: ' + esc(f.areaSupervisa) : '') +
+            (f.coordSupervisa ? ' · ' + esc(f.coordSupervisa) : '')
           : '<b style="color:#8f2418">falta definir quién supervisa</b>') + '</small>'
       : (f.detectado
           ? '<span class="sello-posible">¿Común?</span>' +
