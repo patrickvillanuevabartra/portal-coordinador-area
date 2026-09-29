@@ -219,6 +219,15 @@ tr.sin-leer{background:#fffdf6}
   border-radius:8px;padding:11px 13px;margin:0 0 14px;color:#0c447c}
 .declarado p{margin:4px 0 0;font-size:12.5px;line-height:1.5;max-width:76ch}
 .declarado a{color:#0c447c}
+.respuesta-docente{margin-top:8px}
+.respuesta-docente summary{cursor:pointer;font-size:12.5px;font-weight:600}
+.respuesta-docente dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;
+  margin:8px 0 0;background:#fff;border:1px solid #c3ddf3;border-radius:6px;padding:9px 11px;
+  font-size:12.5px}
+.respuesta-docente dt{color:var(--tinta-media)}
+.respuesta-docente dd{margin:0;font-weight:500}
+@media (max-width:620px){.respuesta-docente dl{grid-template-columns:1fr}
+  .respuesta-docente dd{margin-bottom:6px}}
 .declarado.sin-fuente{background:#fdf4e3;border-color:#e6c86a;border-left-color:#d99a1b;
   color:#6b4c00}
 .declarado.sin-fuente a{color:#6b4c00}
@@ -5124,16 +5133,16 @@ label .req{color:var(--falla)}
             '<p>Se revisaron las ' + (d.total || 0) + ' respuestas del formulario de la ' +
             'Escuela y ninguna corresponde a esta carga. Si sabe que sí respondió, puede ' +
             'que lo hiciera con otro curso o grupo.</p>' +
-            (d.fuente && d.fuente.enlace
-              ? '<p><a href="' + esc(d.fuente.enlace) + '" target="_blank" rel="noopener">' +
-                'Abrir el formulario</a></p>' : '');
+            '';
           return;
         }
 
         // Los encabezados varían entre Escuelas: se emparejan por su texto.
         const cols = Object.keys(r)
           .filter(k => k !== 'fila' && k !== 'fecha')
-          .map(k => ({ enc: sinAcentos(k).replace(/[^a-z0-9 ]/g, ' '), valor: r[k] }));
+          .map(k => ({ titulo: k.replace(/:$/, '').replace(/^Ingrese /i, '').trim(),
+                       enc: sinAcentos(k).replace(/[^a-z0-9 ]/g, ' '),
+                       valor: r[k] }));
 
         let puestos = 0;
         const hechos = [];
@@ -5178,9 +5187,12 @@ label .req{color:var(--falla)}
               '). Revíselo y corrija lo que haga falta.'
             : 'No se completó ningún campo: o ya estaban llenos, o el formulario no trae ' +
               'esos datos. Abra la respuesta para verla.') + '</p>' +
-          (d.fuente && d.fuente.enlace
-            ? '<p><a href="' + esc(enlaceAFila(d.fuente, r.fila)) + '" target="_blank" rel="noopener">' +
-              'Ver esta respuesta en la hoja (fila ' + r.fila + ')</a></p>' : '');
+          '<details class="respuesta-docente"><summary>Ver lo que respondió el docente</summary>' +
+          '<dl>' + cols.filter(x => String(x.valor).trim() &&
+                                    !/^0+$/.test(String(x.valor).trim()) &&
+                                    !/^-+$/.test(String(x.valor).trim()))
+            .map(x => '<dt>' + esc(x.titulo) + '</dt><dd>' + esc(String(x.valor).trim()) + '</dd>')
+            .join('') + '</dl></details>';
         marcarCampos();
         recalcularCompleto(F);
       })
@@ -5191,15 +5203,6 @@ label .req{color:var(--falla)}
   }
 
   // «24/8/2026 13:21:22» → «2026-08-24», que es lo que esperan los campos de fecha.
-  // Abre la hoja en la fila de esa respuesta: mandar al archivo entero, con
-  // ciento cincuenta filas, no sirve de nada.
-  function enlaceAFila(fuente, fila) {
-    if (!fuente || !fuente.enlace) return '';
-    const base = String(fuente.enlace).split('#')[0].split('?')[0];
-    return base + '#gid=' + (fuente.gid !== undefined ? fuente.gid : '') +
-           '&range=A' + fila + ':Z' + fila;
-  }
-
   function fechaDeRespuesta(t) {
     const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (!m) return '';
