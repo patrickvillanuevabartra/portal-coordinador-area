@@ -483,6 +483,9 @@ tbody tr:hover{background:#fafcfb}
 .num-curso{display:inline-block;min-width:24px;font-size:11px;color:var(--brand-oscuro);
   font-family:'IBM Plex Mono',monospace;opacity:.75}
 .curso-cab .codigo{margin-left:24px}
+/* Un destello breve al volver, para reencontrar el curso de un vistazo. */
+.curso-cab.recien-visto td{animation:destello 2.4s ease-out}
+@keyframes destello{0%,35%{background:#fff3c4}100%{background:var(--brand-suave)}}
 
 /* --------- Cursos comunes: los llevan alumnos de dos carreras --------- */
 .curso-cab.comun-cab td{background:#eaf2fb;box-shadow:inset 3px 0 0 #2a6fb0}
@@ -1722,6 +1725,7 @@ label .req{color:var(--falla)}
         // resalta en ámbar para que la Coordinación decida si es común.
         const posible = !esComun && !!c.detectado;
         const cabecera = '<tr class="curso-cab' + (esComun ? ' comun-cab' : (posible ? ' posible-cab' : '')) +
+          '" data-curso="' + esc((c.programa || '') + '¦' + (c.codigo || '') + '¦' + (c.asignatura || '')) +
           '"><td colspan="3">' +
           '<span class="num-curso">' + (iCurso + 1) + '</span>' +
           '<b>' + esc(nombreCurso(c.asignatura)) + '</b>' +
@@ -4049,6 +4053,8 @@ label .req{color:var(--falla)}
 
     estado.actual = a;
     estado.modulo = clave;
+    // Para volver al mismo curso y no al principio de la lista.
+    estado.vueltaA = (a.programa || '') + '¦' + (a.codigo || '') + '¦' + (a.asignatura || '');
     estado.soloLectura = !!a.soloConsulta;
     estado.registro = null;
 
@@ -5161,15 +5167,20 @@ label .req{color:var(--falla)}
 
         caja.className = 'declarado';
         caja.innerHTML = '<b>Respondido por el docente el ' + esc(r.fecha || '') + '</b>' +
-          '<p>' + (puestos
+          '<p>' + (estado.modulo === 'formularios'
+            ? 'Este formulario es el de delegados, así que aquí solo sirve para dar por ' +
+              'presentado el F1 con su fecha. Los datos del delegado y el subdelegado se ' +
+              'llenan solos en el formato de Delegados. '
+            : '') +
+          (puestos
             ? 'Se completó ' + hechos.join(', ').replace(/, ([^,]*)$/, ' y $1') +
               ' con lo que declaró en el formulario de la Escuela (fila ' + r.fila +
               '). Revíselo y corrija lo que haga falta.'
             : 'No se completó ningún campo: o ya estaban llenos, o el formulario no trae ' +
               'esos datos. Abra la respuesta para verla.') + '</p>' +
           (d.fuente && d.fuente.enlace
-            ? '<p><a href="' + esc(d.fuente.enlace) + '" target="_blank" rel="noopener">' +
-              'Ver la respuesta en la hoja</a></p>' : '');
+            ? '<p><a href="' + esc(enlaceAFila(d.fuente, r.fila)) + '" target="_blank" rel="noopener">' +
+              'Ver esta respuesta en la hoja (fila ' + r.fila + ')</a></p>' : '');
         marcarCampos();
         recalcularCompleto(F);
       })
@@ -5180,6 +5191,15 @@ label .req{color:var(--falla)}
   }
 
   // «24/8/2026 13:21:22» → «2026-08-24», que es lo que esperan los campos de fecha.
+  // Abre la hoja en la fila de esa respuesta: mandar al archivo entero, con
+  // ciento cincuenta filas, no sirve de nada.
+  function enlaceAFila(fuente, fila) {
+    if (!fuente || !fuente.enlace) return '';
+    const base = String(fuente.enlace).split('#')[0].split('?')[0];
+    return base + '#gid=' + (fuente.gid !== undefined ? fuente.gid : '') +
+           '&range=A' + fila + ':Z' + fila;
+  }
+
   function fechaDeRespuesta(t) {
     const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (!m) return '';
@@ -5437,8 +5457,24 @@ label .req{color:var(--falla)}
   }
 
   $('volver').addEventListener('click', () => mostrar('tablero'));
-  $('volverArriba').addEventListener('click', () => mostrar('tablero'));
-  $('btnCancelar').addEventListener('click', () => mostrar('tablero'));
+  // Al volver, el tablero se coloca en el curso que se estaba revisando: ir a
+  // parar al principio de la lista obliga a buscarlo otra vez.
+  function volverAlTablero() {
+    mostrar('tablero');
+    const clave = estado.vueltaA;
+    if (!clave) return;
+    setTimeout(() => {
+      const fila = [...$('tableroTabla').querySelectorAll('tr.curso-cab')]
+        .find(tr => tr.dataset.curso === clave);
+      if (!fila) return;
+      fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      fila.classList.add('recien-visto');
+      setTimeout(() => fila.classList.remove('recien-visto'), 2500);
+    }, 60);
+  }
+
+  $('volverArriba').addEventListener('click', volverAlTablero);
+  $('btnCancelar').addEventListener('click', volverAlTablero);
 
   /* --------------------------------------------------------------- guardar */
 
