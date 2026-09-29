@@ -235,7 +235,8 @@ tr.sin-leer{background:#fffdf6}
   color:#6b4c00}
 .declarado.sin-fuente a{color:#6b4c00}
 .chat-asistente{margin:0 0 14px}
-.chat-titulo{font-size:13px;font-weight:600;color:var(--brand-oscuro);margin-bottom:6px}
+.chat-titulo{font-size:13px;font-weight:600;color:var(--brand-oscuro)}
+.chat-sub{font-size:12px;color:var(--tinta-media);margin:2px 0 7px}
 .chat-caja{border:1px solid var(--linea);border-radius:14px;background:var(--papel);
   padding:8px 10px 6px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
 .chat-caja:focus-within{border-color:var(--brand)}
@@ -4375,30 +4376,34 @@ label .req{color:var(--falla)}
       const caja = document.createElement('div');
       caja.className = 'chat-asistente';
       caja.innerHTML =
-        '<div class="chat-titulo">✦ Pídale al asistente que llene este formulario</div>' +
+        '<div class="chat-titulo">Apoyo para la revisión</div>' +
+        '<div class="chat-sub">El asistente compara los documentos y le señala lo que ' +
+        'encuentra. La evaluación y la decisión son suyas.</div>' +
         '<div class="chat-caja">' +
           '<div class="chat-adjuntos" id="trAdjuntos"></div>' +
           '<textarea id="trIndicacion" rows="2" placeholder="' + (esEntrevista
-            ? 'Adjunte la transcripción de la reunión, o cuente qué se trató…'
-            : 'Adjunte el sílabo y los documentos oficiales, o cuente lo que encontró…') +
+            ? 'Adjunte la transcripción de la reunión para analizarla, o anote sus hallazgos…'
+            : 'Adjunte el sílabo y los documentos oficiales para compararlos, o anote sus hallazgos…') +
           '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
               'accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
             '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
-            '<button type="button" class="chat-enviar" id="btnProponer" title="Enviar">Enviar ➤</button>' +
+            '<button type="button" class="chat-enviar" id="btnProponer" title="Analizar">Analizar ➤</button>' +
           '</div>' +
         '</div>' +
         '<details class="chat-ayuda"><summary>¿Cómo funciona?</summary>' +
-          '<p><b>Si adjunta archivos</b>, el asistente los lee y compara: ' + (esEntrevista
-            ? 'la transcripción que descargó de Zoom o Meet.'
-            : 'el sílabo del profesor contra el plan de estudios o el modelo educativo.') +
-          ' Los archivos no se guardan.</p>' +
-          '<p><b>Si solo escribe</b>, pasa al formulario lo que usted le cuenta, sin revisar ' +
-          'nada por su cuenta. Ejemplo: <i>' + (esEntrevista
+          '<p><b>Si adjunta archivos</b>, el asistente ' + (esEntrevista
+            ? 'lee la transcripción de la reunión'
+            : 'compara el sílabo del profesor con el plan de estudios o el modelo educativo') +
+          ' y le presenta, punto por punto, qué coincide, qué difiere y qué no pudo ' +
+          'comprobar. Usted revisa ese análisis y decide cada punto. Los archivos no se guardan.</p>' +
+          '<p><b>Si anota sus hallazgos</b>, el asistente los ordena en el formato para ' +
+          'ahorrarle escribir. Ejemplo: <i>' + (esEntrevista
             ? 'se quejaron de la puntualidad; el profesor quedó en recuperar dos clases'
-            : 'todo bien, salvo la bibliografía que es del 2015') + '</i>.</p>' +
-          '<p>Nada se guarda hasta que usted pulse Guardar, y la revisión sale a su nombre.</p>' +
+            : 'todo conforme, salvo la bibliografía que es del 2015') + '</i>.</p>' +
+          '<p>En ambos casos la revisión es suya: nada se guarda hasta que usted la ' +
+          'confirme con Guardar, y queda registrada a su nombre como revisor.</p>' +
           '<p><b>No confunda con «Enlace de evidencia»</b>, al final: ahí va el respaldo de ' +
           'su revisión, que sí queda guardado.</p>' +
         '</details>';
@@ -4561,7 +4566,7 @@ label .req{color:var(--falla)}
 
       btn.disabled = true;
       const textoAntes = btn.textContent;
-      btn.textContent = 'Leyendo…';
+      btn.textContent = 'Analizando…';
 
       const a = estado.actual || {};
       const URL_ASISTENTE = 'https://asistente-pca.patrick-villanueva.workers.dev';
@@ -4606,7 +4611,7 @@ label .req{color:var(--falla)}
       $('trIndicacion').value = '';
     } catch (e) {
       btn.disabled = false;
-      btn.textContent = 'Enviar ➤';
+      btn.textContent = 'Analizar ➤';
       alert('No se pudo preparar la propuesta: ' + e.message);
     }
   }
@@ -4761,7 +4766,7 @@ label .req{color:var(--falla)}
     });
     if (sinEvaluar.length) console.log('Ítems sin evaluar:', sinEvaluar);
 
-    av.innerHTML = '<b>Propuesta del asistente</b>' +
+    av.innerHTML = '<b>Análisis de apoyo — pendiente de su revisión</b>' +
       '<p>Se completó ' + detalle +
       (p._resumen ? '. ' + esc(p._resumen) : '.') +
       (puestos ? ' Revísalos y corrige lo que haga falta.' : '') +
@@ -5079,7 +5084,7 @@ label .req{color:var(--falla)}
     // docente corregir y al auditor comprobar que la revisión se hizo.
     const informe = Array.isArray(p._informe) ? p._informe : [];
     if (informe.length) {
-      lineas.push('REVISIÓN ASISTIDA — comparación punto por punto');
+      lineas.push('ANÁLISIS COMPARATIVO — punto por punto');
       informe.forEach(r => {
         lineas.push('');
         lineas.push('· ' + (r.item || '') + ' — ' + (r.coincide || 'sin determinar'));
