@@ -5066,23 +5066,26 @@ label .req{color:var(--falla)}
      administra. El portal los lee y trae lo que el docente declaró. */
 
   // De cada formulario, qué columna va a qué campo del formato.
+  // Cada campo se reconoce por las palabras que debe tener el encabezado, y
+  // por las que no: así «del delegado» no se confunde con «del sub delegado»
+  // aunque cada Escuela redacte su formulario a su manera.
   const DE_FORMULARIO = {
     delegados: {
       formato: 'F1',
-      campos: {
-        'codigo del delegado': 'codigoDelegado',
-        'nombre y apellidos del delegado': 'delegado',
-        'e-mail personal del delegado': 'correoDelegado',
-        'celular del delegado': 'celularDelegado',
-        'telefono fijo del delegado': 'fijoDelegado',
-        'codigo del sub delegado': 'codigoSubdelegado',
-        'nombre y apellidos del sub delegado': 'subdelegado',
-        'e-mail personal del sub delegado': 'correoSubdelegado',
-        'celular del sub delegado': 'celularSubdelegado',
-        'telefono fijo del sub delegado': 'fijoSubdelegado'
-      }
+      campos: [
+        { k:'codigoDelegado',     tiene:['codigo'],   sin:['sub'] },
+        { k:'delegado',           tiene:['nombre'],   sin:['sub'] },
+        { k:'correoDelegado',     tiene:['mail'],     sin:['sub'] },
+        { k:'celularDelegado',    tiene:['celular'],  sin:['sub'] },
+        { k:'fijoDelegado',       tiene:['fijo'],     sin:['sub'] },
+        { k:'codigoSubdelegado',  tiene:['codigo','sub'] },
+        { k:'subdelegado',        tiene:['nombre','sub'] },
+        { k:'correoSubdelegado',  tiene:['mail','sub'] },
+        { k:'celularSubdelegado', tiene:['celular','sub'] },
+        { k:'fijoSubdelegado',    tiene:['fijo','sub'] }
+      ]
     },
-    formularios: { formato: 'F1', campos: {} }
+    formularios: { formato: 'F1', campos: [] }
   };
 
   function traerDeclarado(F) {
@@ -5122,13 +5125,23 @@ label .req{color:var(--falla)}
         }
 
         // Los encabezados varían entre Escuelas: se emparejan por su texto.
-        const porClave = {};
-        Object.keys(r).forEach(k => { porClave[sinAcentos(k).replace(/[^a-z0-9 ]/g, '').trim()] = r[k]; });
+        const cols = Object.keys(r)
+          .filter(k => k !== 'fila' && k !== 'fecha')
+          .map(k => ({ enc: sinAcentos(k).replace(/[^a-z0-9 ]/g, ' '), valor: r[k] }));
+
         let puestos = 0;
-        Object.keys(cfg.campos).forEach(col => {
-          const valor = porClave[sinAcentos(col)];
-          const el = $('f_' + cfg.campos[col]);
-          if (el && valor && !String(el.value).trim()) { el.value = valor; puestos++; }
+        const hechos = [];
+        (cfg.campos || []).forEach(c => {
+          const hit = cols.find(x =>
+            c.tiene.every(w => x.enc.includes(w)) &&
+            (c.sin || []).every(w => !x.enc.includes(w)));
+          const el = $('f_' + c.k);
+          if (el && hit && String(hit.valor).trim() && !String(el.value).trim()) {
+            el.value = String(hit.valor).trim();
+            puestos++;
+            const et = el.closest('div') && el.closest('div').querySelector('label');
+            hechos.push(et ? et.textContent.replace('*','').trim() : c.k);
+          }
         });
 
         // El F1 se da por presentado con la fecha en que respondió.
@@ -5136,15 +5149,24 @@ label .req{color:var(--falla)}
         if (estado.modulo === 'formularios' && fecha) {
           if ($('f_fechaF1') && !$('f_fechaF1').value) {
             $('f_fechaF1').value = fecha;
-            $('f_fechaF1').dispatchEvent(new Event('change', { bubbles: true }));
-            puestos++;
+            puestos++; hechos.push('Fecha F1');
           }
+          // Si no hay plazo cargado, al menos queda constancia de que llegó.
+          if ($('f_f1') && !$('f_f1').value) {
+            $('f_f1').value = 'Presentado';
+            puestos++; hechos.push('F1');
+          }
+          if ($('f_fechaF1')) $('f_fechaF1').dispatchEvent(new Event('change', { bubbles: true }));
         }
 
         caja.className = 'declarado';
         caja.innerHTML = '<b>Respondido por el docente el ' + esc(r.fecha || '') + '</b>' +
-          '<p>Se completaron ' + puestos + ' campos con lo que declaró en el formulario de ' +
-          'la Escuela (fila ' + r.fila + '). Revíselos y corrija lo que haga falta.</p>' +
+          '<p>' + (puestos
+            ? 'Se completó ' + hechos.join(', ').replace(/, ([^,]*)$/, ' y $1') +
+              ' con lo que declaró en el formulario de la Escuela (fila ' + r.fila +
+              '). Revíselo y corrija lo que haga falta.'
+            : 'No se completó ningún campo: o ya estaban llenos, o el formulario no trae ' +
+              'esos datos. Abra la respuesta para verla.') + '</p>' +
           (d.fuente && d.fuente.enlace
             ? '<p><a href="' + esc(d.fuente.enlace) + '" target="_blank" rel="noopener">' +
               'Ver la respuesta en la hoja</a></p>' : '');
