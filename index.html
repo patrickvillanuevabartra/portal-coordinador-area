@@ -4993,8 +4993,12 @@ label .req{color:var(--falla)}
                          'descritos, con sus instrumentos o rúbricas. La coincidencia con el ' +
                          'Sistema de Evaluación se comprueba en el formato de Fórmula.',
             falta: SUBIR_SILABO },
-    '11': { de: 'documento', pide: 'la política de bibliografía de la Facultad, o el listado ' +
-            'de referencias que la Escuela considera vigentes' }
+    '11': { de: 'formato', titulo: 'Criterios del formato institucional',
+            texto: () => 'Se verifica en el propio sílabo que las referencias básicas y ' +
+                         'complementarias sean de los últimos cinco años, estén en orden ' +
+                         'alfabético y en estilo APA, y que se promueva el uso de bases de ' +
+                         'datos bibliográficas.',
+            falta: SUBIR_SILABO }
   };
 
   function pintarReferencias(contexto) {
