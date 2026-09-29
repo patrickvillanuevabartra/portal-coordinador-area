@@ -219,6 +219,7 @@ tr.sin-leer{background:#fffdf6}
   border-radius:8px;padding:11px 13px;margin:0 0 14px;color:#0c447c}
 .declarado p{margin:4px 0 0;font-size:12.5px;line-height:1.5;max-width:76ch}
 .declarado a{color:#0c447c}
+.aviso-propuesta .bloqueados{color:#8f2418;background:#fdecea;border-radius:5px;padding:6px 9px}
 .lista-formularios{margin:6px 0 0;padding-left:18px;font-size:12.5px;line-height:1.6}
 .lista-formularios li{margin-bottom:2px}
 .respuesta-docente{margin-top:8px}
@@ -233,6 +234,28 @@ tr.sin-leer{background:#fffdf6}
 .declarado.sin-fuente{background:#fdf4e3;border-color:#e6c86a;border-left-color:#d99a1b;
   color:#6b4c00}
 .declarado.sin-fuente a{color:#6b4c00}
+.chat-asistente{margin:0 0 14px}
+.chat-titulo{font-size:13px;font-weight:600;color:var(--brand-oscuro);margin-bottom:6px}
+.chat-caja{border:1px solid var(--linea);border-radius:14px;background:var(--papel);
+  padding:8px 10px 6px;box-shadow:0 1px 3px rgba(0,0,0,.04)}
+.chat-caja:focus-within{border-color:var(--brand)}
+.chat-caja textarea{width:100%;border:0;outline:none;resize:vertical;font:inherit;
+  font-size:13.5px;background:transparent;padding:4px 2px;min-height:44px}
+.chat-barra{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.chat-clip{border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
+  font-size:12.5px;padding:5px 8px;border-radius:8px}
+.chat-clip:hover{background:var(--fondo)}
+.chat-enviar{border:0;background:var(--brand);color:#fff;cursor:pointer;font:inherit;
+  font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:9px}
+.chat-enviar:disabled{opacity:.5;cursor:wait}
+.chat-adjuntos{display:flex;flex-wrap:wrap;gap:6px}
+.chat-adjuntos:not(:empty){margin-bottom:6px}
+.chat-chip{display:inline-flex;align-items:center;gap:4px;background:var(--fondo);
+  border:1px solid var(--linea);border-radius:7px;padding:3px 8px;font-size:12px}
+.chat-chip button{border:0;background:none;cursor:pointer;color:var(--tinta-media);font-size:14px}
+.chat-ayuda{margin-top:6px;font-size:12px;color:var(--tinta-media)}
+.chat-ayuda summary{cursor:pointer}
+.chat-ayuda p{margin:5px 0 0;line-height:1.5;max-width:74ch}
 .caja-transcripcion{display:flex;gap:16px;align-items:center;justify-content:space-between;
   flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
   padding:14px 16px;margin:0 0 14px}
@@ -4345,63 +4368,47 @@ label .req{color:var(--falla)}
     // la Escuela: así «Fuera de plazo» deja de marcarse a ojo.
     if (F === FORMULARIOS.formularios) prepararPlazos();
 
-    // En los siete formatos: el asistente propone a partir de un archivo o de
-    // una indicación escrita. Nunca guarda: el coordinador revisa y decide.
+    // En los siete formatos, el asistente como un chat: se escribe, se adjunta
+    // si hace falta, y se envía. La explicación queda plegada.
     (function () {
       const esEntrevista = F === FORMULARIOS.entrevistas;
       const caja = document.createElement('div');
-      caja.className = 'caja-transcripcion';
+      caja.className = 'chat-asistente';
       caja.innerHTML =
-        '<div style="flex:1;min-width:280px">' +
-        '<b>¿Quieres que el asistente lo llene por ti?</b>' +
-        '<p>Él completa el formulario y usted revisa. Nada queda guardado hasta que pulse ' +
-        'el botón Guardar, y la revisión sale a su nombre. Hay dos formas:</p>' +
-        '<ul class="como-usar">' +
-        '<li><b>1. Subir archivo patrón</b><br>' +
-        'Use esta si tiene los documentos en su computadora. Suba ' +
-        (esEntrevista
-          ? 'la grabación escrita de la reunión, la que descarga de Zoom o Meet'
-          : 'el sílabo del profesor y, si los tiene, los documentos oficiales: el plan de ' +
-            'estudios, el modelo educativo') +
-        '. Puede elegir varios a la vez. El asistente los lee, los compara y le dice en qué ' +
-        'coinciden y en qué no.<br>' +
-        '<i>Estos archivos no se guardan. Solo los lee para comparar.</i></li>' +
-        '<li><b>2. Proponer</b><br>' +
-        'Use esta si ya revisó usted mismo y solo quiere ahorrarse escribir. Cuente abajo, ' +
-        'con sus palabras, lo que encontró, y él lo pasa al formulario.<br>' +
-        '<i>Aquí el asistente no revisa nada: le cree lo que usted le diga.</i></li>' +
-        '</ul>' +
-        '<p class="ejemplo"><b>Ojo, no confunda con «Enlace de evidencia», al final del ' +
-        'formulario.</b> Ahí se pega el enlace de lo que respalda su revisión —el sílabo ' +
-        'guardado en Drive, una captura de pantalla, el acta— y eso <b>sí queda guardado</b> ' +
-        'para que cualquiera lo abra después.<br>' +
-        'En pocas palabras: <b>arriba</b>, los papeles contra los que compara. ' +
-        '<b>Abajo</b>, los papeles con los que prueba lo que revisó.</p>' +
-        '<p class="ejemplo">Ejemplo de lo que sube aquí: <i>' + (esEntrevista
-          ? 'la grabación escrita de la reunión con los delegados'
-          : 'Silabo_IN1001.pdf y Plan_de_estudios_2015-II.pdf')
-        + '</i></p>' +
-        '<p class="ejemplo">Ejemplo de lo que escribe en Proponer: <i>' + (esEntrevista
-          ? 'se quejaron de la puntualidad y de que faltan laboratorios; el profesor quedó ' +
-            'en recuperar dos clases'
-          : 'revisé todo y está bien, salvo la bibliografía que es del 2015') + '</i></p>' +
-        '<input type="text" id="trIndicacion" style="width:100%;margin-top:8px" ' +
-        'placeholder="Escriba aquí lo que encontró y pulse Proponer"></div>' +
-        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' +
-        '<input type="file" id="trArchivo" multiple ' +
-        'accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf" class="oculto">' +
-        '<button type="button" class="btn gris" id="btnArchivo">Subir archivo patrón</button>' +
-        '<button type="button" class="btn gris" id="btnProponer">Proponer</button></div>';
+        '<div class="chat-titulo">✦ Pídale al asistente que llene este formulario</div>' +
+        '<div class="chat-caja">' +
+          '<div class="chat-adjuntos" id="trAdjuntos"></div>' +
+          '<textarea id="trIndicacion" rows="2" placeholder="' + (esEntrevista
+            ? 'Adjunte la transcripción de la reunión, o cuente qué se trató…'
+            : 'Adjunte el sílabo y los documentos oficiales, o cuente lo que encontró…') +
+          '"></textarea>' +
+          '<div class="chat-barra">' +
+            '<input type="file" id="trArchivo" multiple class="oculto" ' +
+              'accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
+            '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
+            '<button type="button" class="chat-enviar" id="btnProponer" title="Enviar">Enviar ➤</button>' +
+          '</div>' +
+        '</div>' +
+        '<details class="chat-ayuda"><summary>¿Cómo funciona?</summary>' +
+          '<p><b>Si adjunta archivos</b>, el asistente los lee y compara: ' + (esEntrevista
+            ? 'la transcripción que descargó de Zoom o Meet.'
+            : 'el sílabo del profesor contra el plan de estudios o el modelo educativo.') +
+          ' Los archivos no se guardan.</p>' +
+          '<p><b>Si solo escribe</b>, pasa al formulario lo que usted le cuenta, sin revisar ' +
+          'nada por su cuenta. Ejemplo: <i>' + (esEntrevista
+            ? 'se quejaron de la puntualidad; el profesor quedó en recuperar dos clases'
+            : 'todo bien, salvo la bibliografía que es del 2015') + '</i>.</p>' +
+          '<p>Nada se guarda hasta que usted pulse Guardar, y la revisión sale a su nombre.</p>' +
+          '<p><b>No confunda con «Enlace de evidencia»</b>, al final: ahí va el respaldo de ' +
+          'su revisión, que sí queda guardado.</p>' +
+        '</details>';
       $('fichaForm').prepend(caja);
+
       $('btnArchivo').addEventListener('click', () => $('trArchivo').click());
-      $('trArchivo').addEventListener('change', () => {
-        const n = $('trArchivo').files.length;
-        if (n > 1) $('btnArchivo').textContent = 'Leyendo ' + n + ' archivos…';
-        proponer(F, 'archivo');
-      });
-      $('btnProponer').addEventListener('click', () => proponer(F, 'texto'));
+      $('trArchivo').addEventListener('change', pintarAdjuntos);
+      $('btnProponer').addEventListener('click', () => proponer(F));
       $('trIndicacion').addEventListener('keydown', e => {
-        if (e.key === 'Enter') { e.preventDefault(); proponer(F, 'texto'); }
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); proponer(F); }
       });
     })();
 
@@ -4495,13 +4502,42 @@ label .req{color:var(--falla)}
     return texto;
   }
 
-  async function proponer(F, origen) {
-    const btn = origen === 'archivo' ? $('btnArchivo') : $('btnProponer');
+  let ADJUNTOS = [];
+  function pintarAdjuntos() {
+    ADJUNTOS = ADJUNTOS.concat([...$('trArchivo').files]);
+    $('trArchivo').value = '';
+    const c = $('trAdjuntos');
+    c.innerHTML = ADJUNTOS.map((f, i) =>
+      '<span class="chat-chip">📄 ' + esc(f.name) +
+      ' <button type="button" data-q="' + i + '" title="Quitar">×</button></span>').join('');
+    c.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
+      ADJUNTOS.splice(Number(b.dataset.q), 1);
+      const tmp = ADJUNTOS; ADJUNTOS = []; $('trArchivo').value = '';
+      ADJUNTOS = tmp; c.innerHTML = '';
+      pintarAdjuntosDesde();
+    }));
+  }
+  function pintarAdjuntosDesde() {
+    const c = $('trAdjuntos');
+    c.innerHTML = ADJUNTOS.map((f, i) =>
+      '<span class="chat-chip">📄 ' + esc(f.name) +
+      ' <button type="button" data-q="' + i + '" title="Quitar">×</button></span>').join('');
+    c.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
+      ADJUNTOS.splice(Number(b.dataset.q), 1); pintarAdjuntosDesde();
+    }));
+  }
+
+  async function proponer(F, origenForzado) {
+    // Un solo envío: si hay archivos adjuntos se leen, y lo escrito va como
+    // indicación junto a ellos.
+    const origen = origenForzado || (ADJUNTOS.length ? 'archivo' : 'texto');
+    const btn = $('btnProponer');
     let fuente = '';
     try {
       if (origen === 'archivo') {
-        const archivos = [...$('trArchivo').files];
+        const archivos = ADJUNTOS.slice();
         if (!archivos.length) return;
+        estado.ultimosArchivos = archivos.map(f => f.name);
         // Se pueden subir varios: el sílabo y, aparte, el documento oficial
         // contra el que se compara.
         const partes = [];
@@ -4509,6 +4545,8 @@ label .req{color:var(--falla)}
           partes.push('===== ' + arch.name + ' =====\n' + await textoDelArchivo(arch));
         }
         fuente = partes.join('\n\n');
+        const nota = $('trIndicacion').value.trim();
+        if (nota) fuente = 'Indicación del coordinador: ' + nota + '\n\n' + fuente;
         // Los .vtt y .srt traen tiempos y numeración que solo estorban.
         fuente = fuente.replace(/^WEBVTT.*$/gim, '')
                        .replace(/^\d+$/gm, '')
@@ -4516,13 +4554,14 @@ label .req{color:var(--falla)}
                        .replace(/\n{3,}/g, '\n\n').trim();
         if (fuente.length < 40) throw new Error('El archivo parece vacío.');
       } else {
+        estado.ultimosArchivos = [];
         fuente = $('trIndicacion').value.trim();
         if (!fuente) { $('trIndicacion').focus(); return; }
       }
 
       btn.disabled = true;
       const textoAntes = btn.textContent;
-      btn.textContent = 'El asistente está leyendo…';
+      btn.textContent = 'Leyendo…';
 
       const a = estado.actual || {};
       const URL_ASISTENTE = 'https://asistente-pca.patrick-villanueva.workers.dev';
@@ -4537,6 +4576,17 @@ label .req{color:var(--falla)}
         // Si otra carrera tiene otra sumilla para el mismo código, el asistente
         // debe saberlo: compara con la de aquí y deja constancia.
         if (contexto) contexto.otrasSumillas = (d.otras || []).filter(x => x.difiere && x.sumilla);
+        // Lo que cada punto necesita para poder darse por cumplido, y los
+        // archivos que efectivamente se entregaron.
+        if (contexto && estado.modulo === 'silabo') {
+          contexto.requisitos = Object.keys(REFERENCIA_ITEM).map(n => ({
+            item: n,
+            necesita: REFERENCIA_ITEM[n].de === 'documento'
+              ? 'un documento externo: ' + REFERENCIA_ITEM[n].pide
+              : (REFERENCIA_ITEM[n].falta || 'el sílabo del docente')
+          }));
+          contexto.archivos = ADJUNTOS.map(f => f.name);
+        }
       } catch (e) {}
       const r = await fetch(URL_ASISTENTE + '/proponer', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -4552,12 +4602,13 @@ label .req{color:var(--falla)}
       btn.disabled = false; btn.textContent = textoAntes;
       if (d.error) throw new Error(d.error);
       aplicarPropuesta(F, d.propuesta || {});
+      ADJUNTOS = []; if ($('trAdjuntos')) $('trAdjuntos').innerHTML = '';
+      $('trIndicacion').value = '';
     } catch (e) {
       btn.disabled = false;
-      btn.textContent = origen === 'archivo' ? 'Subir archivo patrón' : 'Proponer';
+      btn.textContent = 'Enviar ➤';
       alert('No se pudo preparar la propuesta: ' + e.message);
     }
-    $('trArchivo').value = '';
   }
 
   function aplicarPropuesta(F, p) {
@@ -4565,6 +4616,7 @@ label .req{color:var(--falla)}
     // ayuda a saber qué tocó el asistente.
     const cuenta = { items: 0, obs: 0, temas: 0, campos: 0 };
     const conObservacion = [];   // en qué ítems dejó observación
+    const bloqueados = [];       // «Cumple» que no se aceptó por falta de documento
     const camposPuestos = [];    // qué campos llenó, por su nombre
     const textos = [];           // lo que escribió, para poder leerlo aquí
     let puestos = 0;
@@ -4636,6 +4688,17 @@ label .req{color:var(--falla)}
         if (el && !el.value.trim()) { el.value = v; puestos++; cuenta.temas++; }
       } else if (tipo === 'item') {
         const el = items[indiceDe(ref)];
+        // Segundo seguro, por si el asistente se salta la regla: un punto que
+        // necesita un documento externo no puede quedar «Cumple» si no se
+        // entregó ningún archivo. Se deja sin marcar y se dice por qué.
+        const itRef = listaItems[indiceDe(ref)];
+        const req = itRef && REFERENCIA_ITEM[itRef.n];
+        const sinArchivos = !(estado.ultimosArchivos || []).length;
+        if (req && /^cumple$/i.test(String(v).trim()) && sinArchivos &&
+            (req.de === 'documento' || req.falta)) {
+          bloqueados.push((itRef.n || '') + ' ' + itRef.etiqueta);
+          return;
+        }
         if (el && (!el.value || el.value === 'Seleccione')) {
           el.value = v; puestos++; cuenta.items++;
           el.dispatchEvent(new Event('change', { bubbles: true }));
@@ -4727,6 +4790,12 @@ label .req{color:var(--falla)}
         : '') +
       (p._falta
         ? '<p><b>Para completar lo que falta</b> haría falta ' + esc(p._falta) + '.</p>'
+        : '') +
+      (bloqueados.length
+        ? '<p class="bloqueados"><b>No se aceptó «Cumple» en: ' +
+          esc(bloqueados.join(' · ')) + '.</b> Esos puntos necesitan un documento que no ' +
+          'se entregó —el plan de estudios, el modelo educativo, el sílabo—. Súbalo con ' +
+          'el clip 📎 del asistente, o márquelo usted si ya lo comprobó.</p>'
         : '') +
       (sinEvaluar.length
         ? '<p><b>Sin evaluar:</b> ' + esc(sinEvaluar.join(' · ')) +
@@ -4851,8 +4920,8 @@ label .req{color:var(--falla)}
      tiene se muestra ahí mismo; lo que no, se pide. Así nadie evalúa de
      memoria ni el asistente puede dar por bueno lo que no comprobó. */
 
-  const SUBIR_SILABO = 'Para comprobarlo hace falta el sílabo del docente: súbalo con ' +
-    '«Subir archivo patrón», arriba.';
+  const SUBIR_SILABO = 'Para comprobarlo hace falta el sílabo del docente: adjúntelo con ' +
+    'el clip 📎 del asistente, arriba.';
 
   const REFERENCIA_ITEM = {
     '01': { de: 'portal', titulo: 'Datos de la carga en el portal',
@@ -4892,8 +4961,8 @@ label .req{color:var(--falla)}
               return l.join('\n');
             },
             falta: 'Los créditos, los requisitos y si el curso es obligatorio o electivo no ' +
-                   'se registran en el portal. Suba el plan de estudios de la carrera con ' +
-                   '«Subir archivo patrón» para que se puedan comprobar.' },
+                   'se registran en el portal. Adjunte el plan de estudios de la carrera con ' +
+                   'el clip 📎 del asistente para que se puedan comprobar.' },
     '02': { de: 'portal', titulo: 'Sumilla oficial', texto: c => c.sumilla || '' },
     '03': { de: 'documento', pide: 'el modelo educativo o el perfil de egreso, donde están ' +
             'definidas las competencias genéricas de la Universidad' },
@@ -4943,8 +5012,8 @@ label .req{color:var(--falla)}
         caja.classList.add('sin-referencia');
         caja.innerHTML = '<b>No hay referencia oficial cargada</b>' +
           '<p>Para comprobar este punto hace falta que subas el documento oficial contra el ' +
-          'que se evalúa: ' + esc(r.pide) + '. Se sube arriba, con el botón ' +
-          '<b>«Subir archivo»</b> del recuadro del asistente.</p>';
+          'que se evalúa: ' + esc(r.pide) + '. Adjúntelo arriba con el clip ' +
+          '<b>📎</b> del asistente.</p>';
       } else {
         const texto = contexto ? r.texto(contexto) : '';
         caja.innerHTML = '<b>Se compara contra: ' + esc(r.titulo) +
