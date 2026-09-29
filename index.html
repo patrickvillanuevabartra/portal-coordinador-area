@@ -219,6 +219,8 @@ tr.sin-leer{background:#fffdf6}
   border-radius:8px;padding:11px 13px;margin:0 0 14px;color:#0c447c}
 .declarado p{margin:4px 0 0;font-size:12.5px;line-height:1.5;max-width:76ch}
 .declarado a{color:#0c447c}
+.lista-formularios{margin:6px 0 0;padding-left:18px;font-size:12.5px;line-height:1.6}
+.lista-formularios li{margin-bottom:2px}
 .respuesta-docente{margin-top:8px}
 .respuesta-docente summary{cursor:pointer;font-size:12.5px;font-weight:600}
 .respuesta-docente dl{display:grid;grid-template-columns:auto 1fr;gap:3px 12px;
@@ -4765,7 +4767,8 @@ label .req{color:var(--falla)}
           cont.appendChild(nota);
         }
         nota.textContent = plazo && plazo.fecha
-          ? 'Plazo de la Escuela: ' + plazo.fecha + (plazo.observaciones ? ' · ' + plazo.observaciones : '')
+          ? 'Plazo de la Escuela: ' + fechaCorta(plazo.fecha) +
+            (plazo.observaciones ? ' · ' + plazo.observaciones : '')
           : 'Sin plazo cargado para esta carrera';
 
         if (!plazo || !plazo.fecha) return;
@@ -5103,7 +5106,10 @@ label .req{color:var(--falla)}
     formularios: { formato: 'F1', campos: [] }
   };
 
+  // En el formato F1 a F4 se consultan los cuatro formularios, cada uno en la
+  // hoja que su Escuela registró.
   function traerDeclarado(F) {
+    if (estado.modulo === 'formularios') return traerFormularios(F);
     const a = estado.actual || {};
     const cfg = DE_FORMULARIO[estado.modulo];
     if (!cfg) return;
@@ -5203,6 +5209,64 @@ label .req{color:var(--falla)}
   }
 
   // «24/8/2026 13:21:22» → «2026-08-24», que es lo que esperan los campos de fecha.
+  async function traerFormularios(F) {
+    const a = estado.actual || {};
+    const caja = document.createElement('div');
+    caja.className = 'declarado';
+    caja.innerHTML = '<b>Consultando los formularios de la Escuela…</b>';
+    $('fichaForm').prepend(caja);
+
+    const pedir = (fmt) => api('/declarado?formato=' + fmt +
+      '&programa=' + encodeURIComponent(a.programa || '') +
+      '&ciclo=' + encodeURIComponent(a.ciclo || '') +
+      '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
+      '&grupo=' + encodeURIComponent(a.grupo || '') +
+      '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
+      '&docente=' + encodeURIComponent(a.docente || '')).catch(e => ({ error: e.message }));
+
+    const formatos = ['F1', 'F2', 'F3', 'F4'];
+    const res = await Promise.all(formatos.map(pedir));
+
+    const lineas = [];
+    let puestos = 0;
+    formatos.forEach((fmt, i) => {
+      const d = res[i] || {};
+      const k = fmt.toLowerCase();
+      if (d.error) { lineas.push('<li><b>' + fmt + '</b> — no se pudo consultar: ' + esc(d.error) + '</li>'); return; }
+      if (d.sinFuente) {
+        lineas.push('<li><b>' + fmt + '</b> — sin formulario registrado para esta carrera</li>');
+        return;
+      }
+      const r = (d.coincidencias || [])[0];
+      if (!r) {
+        lineas.push('<li><b>' + fmt + '</b> — el docente aún no lo ha presentado ' +
+          '<small class="codigo">se revisaron ' + (d.total || 0) + ' respuestas</small></li>');
+        return;
+      }
+      const fecha = fechaDeRespuesta(r.fecha);
+      const elF = $('f_' + k), elFecha = $('f_fecha' + fmt);
+      if (elFecha && fecha && !elFecha.value) { elFecha.value = fecha; puestos++; }
+      if (elF && !elF.value) { elF.value = 'Presentado'; puestos++; }
+      if (elFecha) elFecha.dispatchEvent(new Event('change', { bubbles: true }));
+      lineas.push('<li><b>' + fmt + '</b> — presentado el ' + esc(fechaCorta(fecha) || r.fecha) +
+        (elF ? ' · queda como <b>' + esc(elF.value) + '</b>' : '') + '</li>');
+    });
+
+    caja.innerHTML = '<b>Lo que consta en los formularios de la Escuela</b>' +
+      '<ul class="lista-formularios">' + lineas.join('') + '</ul>' +
+      '<p>' + (puestos ? 'Se completaron ' + puestos + ' campos. Revíselos antes de guardar.'
+                       : 'No se completó ningún campo: o ya estaban llenos, o no hay respuestas.') +
+      ' El estado se decide comparando la fecha con el plazo de la Escuela.</p>';
+    marcarCampos();
+    recalcularCompleto(F);
+  }
+
+  // Las fechas se muestran como aquí se leen: 05/09/26.
+  function fechaCorta(iso) {
+    const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : (iso || '');
+  }
+
   function fechaDeRespuesta(t) {
     const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
     if (!m) return '';
