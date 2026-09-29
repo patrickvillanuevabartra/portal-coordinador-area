@@ -5633,13 +5633,19 @@ label .req{color:var(--falla)}
     valores[M.comun.subGrupo]    = a.subGrupo || '';
     valores[M.comun.tipo]        = a.tipo || '';
 
+    // Si todos los ítems están en blanco y ya había un registro, es un
+    // reinicio: los obligatorios no deben impedirlo.
+    const itemsBlanco = !!$('listaItems') &&
+      [...$('listaItems').querySelectorAll('select[data-estado]')].every(x => !x.value);
+    const esReinicio = itemsBlanco && !!estado.registro;
+
     // Campos propios del módulo
     for (const b of F.bloques) {
       for (const c of (b.campos || [])) {
         const el = $('f_' + c.k);
         if (!el) continue;
         const val = String(el.value || '').trim();
-        if (c.req && !val) { return aviso('Falta completar: ' + c.etq + '.', 'error'); }
+        if (c.req && !val && !esReinicio) { return aviso('Falta completar: ' + c.etq + '.', 'error'); }
         if (M.campos[c.k]) valores[M.campos[c.k]] = val;
         // Los modulos sin campo propio de revisor lo guardan en Coordinador de area.
         else if (c.k === 'revisor' && M.comun.coordinador) valores[M.comun.coordinador] = val;
@@ -5658,9 +5664,20 @@ label .req{color:var(--falla)}
       // de color y no tiene valor, así que siempre parecía sin evaluar.
       const selects = [...$('listaItems').querySelectorAll('select[data-estado]')];
       const sinEvaluar = selects.findIndex(s => !s.value);
-      if (sinEvaluar >= 0) {
+      const todosVacios = selects.length && selects.every(s => !s.value);
+
+      // Dejar TODOS los ítems en blanco es reiniciar la revisión a propósito,
+      // no guardarla a medias: se pregunta en lugar de bloquear.
+      if (todosVacios && estado.registro) {
+        if (!confirm('Todos los ítems están en blanco.\n\n¿Quiere reiniciar esta revisión? ' +
+                     'Se borrarán los resultados guardados y el formato quedará en 0 %.')) {
+          return aviso('No se guardó nada.', '');
+        }
+        estado.reiniciando = true;
+      } else if (sinEvaluar >= 0) {
         const it = lista[sinEvaluar];
-        return aviso('Falta evaluar: ' + (it.n ? 'ítem ' + it.n : it.etiqueta) + '.', 'error');
+        return aviso('Falta evaluar: ' + (it.n ? 'ítem ' + it.n : it.etiqueta) +
+          '. Si lo que quiere es reiniciar la revisión, deje todos los ítems en blanco.', 'error');
       }
       if (be.obs) {
         const falta = lista.findIndex((it, i) => {
