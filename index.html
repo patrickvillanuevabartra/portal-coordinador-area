@@ -215,6 +215,13 @@ tr.sin-leer{background:#fffdf6}
 #fichaForm.cargando .resumen::after{content:'Buscando lo registrado…';
   font-size:12.5px;color:var(--tinta-media)}
 #fichaForm.cargando .barra i{width:0 !important;transition:none}
+.declarado{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
+  border-radius:8px;padding:11px 13px;margin:0 0 14px;color:#0c447c}
+.declarado p{margin:4px 0 0;font-size:12.5px;line-height:1.5;max-width:76ch}
+.declarado a{color:#0c447c}
+.declarado.sin-fuente{background:#fdf4e3;border-color:#e6c86a;border-left-color:#d99a1b;
+  color:#6b4c00}
+.declarado.sin-fuente a{color:#6b4c00}
 .caja-transcripcion{display:flex;gap:16px;align-items:center;justify-content:space-between;
   flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
   padding:14px 16px;margin:0 0 14px}
@@ -4313,6 +4320,10 @@ label .req{color:var(--falla)}
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
     if (F === FORMULARIOS.silabo) mostrarReferenciasSilabo();
 
+    // Lo que el docente declaró en el formulario de la Escuela: el portal lo
+    // trae y lo propone, en vez de pedir que se copie a mano.
+    if (F === FORMULARIOS.delegados || F === FORMULARIOS.formularios) traerDeclarado(F);
+
     // En el formato de formularios, la fecha se compara con el plazo que fijó
     // la Escuela: así «Fuera de plazo» deja de marcarse a ojo.
     if (F === FORMULARIOS.formularios) prepararPlazos();
@@ -5048,6 +5059,109 @@ label .req{color:var(--falla)}
       })
       .catch(e => alert('No se pudo preparar el informe: ' + e.message))
       .then(() => { if (btn) { btn.disabled = false; btn.textContent = 'Informe del curso'; } });
+  }
+
+  /* --------------------------- lo declarado en el formulario de la Escuela --
+     Los F1, F2 y F3 se responden en formularios de Google que cada Escuela
+     administra. El portal los lee y trae lo que el docente declaró. */
+
+  // De cada formulario, qué columna va a qué campo del formato.
+  const DE_FORMULARIO = {
+    delegados: {
+      formato: 'F1',
+      campos: {
+        'codigo del delegado': 'codigoDelegado',
+        'nombre y apellidos del delegado': 'delegado',
+        'e-mail personal del delegado': 'correoDelegado',
+        'celular del delegado': 'celularDelegado',
+        'telefono fijo del delegado': 'fijoDelegado',
+        'codigo del sub delegado': 'codigoSubdelegado',
+        'nombre y apellidos del sub delegado': 'subdelegado',
+        'e-mail personal del sub delegado': 'correoSubdelegado',
+        'celular del sub delegado': 'celularSubdelegado',
+        'telefono fijo del sub delegado': 'fijoSubdelegado'
+      }
+    },
+    formularios: { formato: 'F1', campos: {} }
+  };
+
+  function traerDeclarado(F) {
+    const a = estado.actual || {};
+    const cfg = DE_FORMULARIO[estado.modulo];
+    if (!cfg) return;
+
+    const caja = document.createElement('div');
+    caja.className = 'declarado';
+    caja.innerHTML = '<b>Consultando el formulario de la Escuela…</b>';
+    $('fichaForm').prepend(caja);
+
+    api('/declarado?formato=' + cfg.formato +
+        '&programa=' + encodeURIComponent(a.programa || '') +
+        '&ciclo=' + encodeURIComponent(a.ciclo || '') +
+        '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
+        '&grupo=' + encodeURIComponent(a.grupo || '') +
+        '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
+        '&docente=' + encodeURIComponent(a.docente || ''))
+      .then(d => {
+        if (d.sinFuente) {
+          caja.className = 'declarado sin-fuente';
+          caja.innerHTML = '<b>No hay formulario registrado</b><p>' + esc(d.aviso) + '</p>';
+          return;
+        }
+        const r = (d.coincidencias || [])[0];
+        if (!r) {
+          caja.className = 'declarado sin-fuente';
+          caja.innerHTML = '<b>El docente todavía no ha respondido</b>' +
+            '<p>Se revisaron las ' + (d.total || 0) + ' respuestas del formulario de la ' +
+            'Escuela y ninguna corresponde a esta carga. Si sabe que sí respondió, puede ' +
+            'que lo hiciera con otro curso o grupo.</p>' +
+            (d.fuente && d.fuente.enlace
+              ? '<p><a href="' + esc(d.fuente.enlace) + '" target="_blank" rel="noopener">' +
+                'Abrir el formulario</a></p>' : '');
+          return;
+        }
+
+        // Los encabezados varían entre Escuelas: se emparejan por su texto.
+        const porClave = {};
+        Object.keys(r).forEach(k => { porClave[sinAcentos(k).replace(/[^a-z0-9 ]/g, '').trim()] = r[k]; });
+        let puestos = 0;
+        Object.keys(cfg.campos).forEach(col => {
+          const valor = porClave[sinAcentos(col)];
+          const el = $('f_' + cfg.campos[col]);
+          if (el && valor && !String(el.value).trim()) { el.value = valor; puestos++; }
+        });
+
+        // El F1 se da por presentado con la fecha en que respondió.
+        const fecha = fechaDeRespuesta(r.fecha);
+        if (estado.modulo === 'formularios' && fecha) {
+          if ($('f_fechaF1') && !$('f_fechaF1').value) {
+            $('f_fechaF1').value = fecha;
+            $('f_fechaF1').dispatchEvent(new Event('change', { bubbles: true }));
+            puestos++;
+          }
+        }
+
+        caja.className = 'declarado';
+        caja.innerHTML = '<b>Respondido por el docente el ' + esc(r.fecha || '') + '</b>' +
+          '<p>Se completaron ' + puestos + ' campos con lo que declaró en el formulario de ' +
+          'la Escuela (fila ' + r.fila + '). Revíselos y corrija lo que haga falta.</p>' +
+          (d.fuente && d.fuente.enlace
+            ? '<p><a href="' + esc(d.fuente.enlace) + '" target="_blank" rel="noopener">' +
+              'Ver la respuesta en la hoja</a></p>' : '');
+        marcarCampos();
+        recalcularCompleto(F);
+      })
+      .catch(e => {
+        caja.className = 'declarado sin-fuente';
+        caja.innerHTML = '<b>No se pudo consultar el formulario</b><p>' + esc(e.message) + '</p>';
+      });
+  }
+
+  // «24/8/2026 13:21:22» → «2026-08-24», que es lo que esperan los campos de fecha.
+  function fechaDeRespuesta(t) {
+    const m = String(t || '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if (!m) return '';
+    return m[3] + '-' + String(m[2]).padStart(2, '0') + '-' + String(m[1]).padStart(2, '0');
   }
 
   function marcarCampos() {
