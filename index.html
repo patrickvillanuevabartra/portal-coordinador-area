@@ -2897,7 +2897,10 @@ label .req{color:var(--falla)}
       h += '<tr class="' + (c.todosMarcados ? '' : 'fila-comun') + '">' +
         '<td class="mono">' + esc(c.codigo) + '</td>' +
         '<td><b>' + esc(nombreCurso(c.curso)) + '</b></td>' +
-        '<td>' + c.carreras.map(esc).join('<br>') + '</td>' +
+        '<td>' + c.carreras.map(esc).join('<br>') +
+        ((c.docentesComunes || []).length
+          ? '<small class="codigo">mismo docente: ' + esc(c.docentesComunes.join(', ')) + '</small>'
+          : '') + '</td>' +
         '<td>' + dai + '</td>' +
         '<td class="acciones">' + (c.todosMarcados
           ? '<span class="sello-comun">Confirmado</span> ' +
