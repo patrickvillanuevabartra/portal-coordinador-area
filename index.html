@@ -4140,10 +4140,10 @@ label .req{color:var(--falla)}
         ]},
         { tipo:'grid', ancho:true, campos:[
           { k:'estado', etq:'¿Cómo llegaron al cargo estos delegados?', tipo:'select', req:true, full:true,
-            opciones:[ { v:'Vigente',     t:'Elegidos por el aula al inicio del ciclo' },
-                       { v:'Reemplazado', t:'Asumieron después, en reemplazo de otros delegados' } ],
-            nota:'Arriba van siempre los delegados que están hoy en el cargo. Si asumieron en ' +
-                 'reemplazo de otros, anote en Observaciones a quiénes reemplazan y desde qué fecha.' },
+            opciones:[ { v:'Vigente',     t:'Ambos fueron elegidos por el aula al inicio del ciclo' },
+                       { v:'Reemplazado', t:'Hubo un cambio: el delegado, el subdelegado o ambos reemplazan a otro' } ],
+            nota:'Arriba van siempre los que están hoy en el cargo. Si hubo un cambio, anote en ' +
+                 'Observaciones quién cambió (delegado o subdelegado), a quién reemplaza y desde qué fecha.' },
           { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
         ]}
       ]
@@ -5795,7 +5795,7 @@ label .req{color:var(--falla)}
     if (clave === 'delegados' && $('f_estado') && $('f_estado').value === 'Reemplazado' &&
         $('f_observaciones') && !$('f_observaciones').value.trim()) {
       $('f_observaciones').focus();
-      return aviso('Anote en Observaciones a quiénes reemplazan estos delegados y desde qué fecha.', 'error');
+      return aviso('Anote en Observaciones quién cambió (delegado o subdelegado), a quién reemplaza y desde qué fecha.', 'error');
     }
 
     // Escala de criterios o ítems
