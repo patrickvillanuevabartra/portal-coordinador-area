@@ -4141,10 +4141,13 @@ label .req{color:var(--falla)}
         { tipo:'grid', ancho:true, campos:[
           { k:'estado', etq:'¿Cómo llegaron al cargo estos delegados?', tipo:'select', req:true, full:true,
             opciones:[ { v:'Vigente',     t:'Ambos fueron elegidos por el aula al inicio del ciclo' },
-                       { v:'Reemplazado', t:'Hubo un cambio: el delegado, el subdelegado o ambos reemplazan a otro' } ],
-            nota:'Arriba van siempre los que están hoy en el cargo. Si hubo un cambio, anote en ' +
-                 'Observaciones quién cambió (delegado o subdelegado), a quién reemplaza y desde qué fecha.' },
-          { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
+                       { v:'Reemplazado', t:'Hubo un cambio: uno de ellos o ambos reemplazan a quienes estaban antes' } ],
+            nota:'Arriba se escriben siempre los datos de quien está HOY en el cargo. El que salió ' +
+                 'solo se menciona en Observaciones. Ejemplo: si Carlos Ruiz reemplazó a Juan Pérez ' +
+                 'como delegado, arriba se escriben los datos de Carlos Ruiz, y en Observaciones: ' +
+                 '«Desde el 15/09/2026 el delegado Juan Pérez fue reemplazado por Carlos Ruiz».' },
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea',
+            ayuda:'Ejemplo: Desde el 15/09/2026 el delegado Juan Pérez fue reemplazado por Carlos Ruiz.' }
         ]}
       ]
     }
