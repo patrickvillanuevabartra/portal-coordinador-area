@@ -1264,13 +1264,58 @@ label .req{color:var(--falla)}
     return esperandoToken;
   }
 
+  // Una sola renovación a la vez: si varias peticiones fallan juntas, todas
+  // esperan la misma y reintentan con la sesión nueva. Devuelve 'renovada',
+  // 'rechazada' (el servidor dice que la sesión ya no vale) o 'transitorio'
+  // (no se pudo confirmar: red, tiempo, Apps Script saturado). Solo 'rechazada'
+  // justifica sacar al usuario.
+  const TIEMPO_LIMITE_MS = 150000;
+  let renovacionEnCurso = null;
+  function renovarUnaVez() {
+    if (renovacionEnCurso) return renovacionEnCurso;
+    const actual = estado.credential;
+    const corteS = new AbortController();
+    setTimeout(() => corteS.abort(), TIEMPO_LIMITE_MS);
+    renovacionEnCurso = fetch(CFG.PROXY + '/sesion', {
+        headers: { Authorization: 'Bearer ' + actual }, signal: corteS.signal
+      })
+      .then(r2 => r2.json().catch(() => ({})))
+      .then(d2 => {
+        if (d2 && d2.sesion) {
+          estado.credential = d2.sesion;
+          try { localStorage.setItem('pca_sesion', d2.sesion); } catch (e) {}
+          return 'renovada';
+        }
+        return /token (no v|ausente|inv)|venci/i.test((d2 && d2.error) || '')
+          ? 'rechazada' : 'transitorio';
+      })
+      .catch(() => 'transitorio')
+      .then(res => { renovacionEnCurso = null; return res; });
+    return renovacionEnCurso;
+  }
+
   function api(ruta, opciones = {}, reintento = false) {
     const cfg = Object.assign({ headers: {} }, opciones);
-    cfg.headers['Authorization'] = 'Bearer ' + estado.credential;
+    const credEnviada = estado.credential;
+    if (!credEnviada || credEnviada === 'null' || credEnviada === 'undefined') {
+      console.warn('Portal: petición sin sesión descartada →', ruta);
+      return Promise.reject(new Error('La sesión todavía no está lista. Espere un momento y reintente.'));
+    }
+    cfg.headers['Authorization'] = 'Bearer ' + credEnviada;
     if (cfg.body) cfg.headers['Content-Type'] = 'application/json';
-    return fetch(CFG.PROXY + ruta, cfg).catch(() => {
+    // Ninguna petición puede dejar la pantalla en «Cargando…» indefinidamente.
+    const corte = new AbortController();
+    const reloj = setTimeout(() => corte.abort(), TIEMPO_LIMITE_MS);
+    cfg.signal = corte.signal;
+    return fetch(CFG.PROXY + ruta, cfg).catch(e => {
+      clearTimeout(reloj);
+      if (corte.signal.aborted) {
+        console.error('Portal: sin respuesta en ' + (TIEMPO_LIMITE_MS / 1000) + ' s →', ruta);
+        throw new Error('El servidor tardó demasiado en responder. Pulsa Reintentar.');
+      }
       throw new Error('No se pudo contactar al servidor. Revisa tu conexión y reintenta.');
     }).then(async r => {
+      clearTimeout(reloj);
       const data = await r.json().catch(() => ({ error: 'El proxy devolvió una respuesta ilegible' }));
       if (!r.ok) {
         // Solo un fallo real del identificador pide renovar: antes cualquier
@@ -1281,26 +1326,27 @@ label .req{color:var(--falla)}
         // como tal, se pide renovar a Google y este impone diez minutos de
         // espera, que es lo que dejaba el portal bloqueado.
         if (esToken) console.error('Portal: la sesión se cerró por este error →', data.error, '· ruta:', ruta);
-        if (esToken && String(estado.credential || '').indexOf('pca.') === 0 && !reintento) {
-          // Antes de echar a nadie, se intenta renovar la sesión con la que
-          // hay: expulsar al primer tropiezo es lo que hacía insoportable
-          // trabajar. Solo si la renovación también falla se vuelve a entrar.
-          return fetch(CFG.PROXY + '/sesion', {
-              headers: { Authorization: 'Bearer ' + estado.credential }
-            })
-            .then(r2 => r2.json())
-            .then(d2 => {
-              if (!d2 || !d2.sesion) throw new Error('sin sesión nueva');
-              estado.credential = d2.sesion;
-              try { localStorage.setItem('pca_sesion', d2.sesion); } catch (e) {}
+        if (esToken && String(credEnviada || '').indexOf('pca.') === 0 && !reintento) {
+          // Otra petición ya renovó mientras esta viajaba: basta con repetirla.
+          if (estado.credential && estado.credential !== credEnviada) {
+            return api(ruta, opciones, true);
+          }
+          return renovarUnaVez().then(res => {
+            if (res === 'renovada' ||
+                (estado.credential && estado.credential !== credEnviada)) {
               return api(ruta, opciones, true);   // se repite lo que falló
-            })
-            .catch(() => {
-              try { localStorage.removeItem('pca_sesion'); } catch (e) {}
-              estado.credential = null;
-              sesionVencida();
-              throw new Error('Vuelve a entrar con tu cuenta URP.');
-            });
+            }
+            if (res === 'transitorio') {
+              // No se pudo confirmar, pero nada indica que la sesión haya
+              // terminado: se conserva y se avisa, sin expulsar.
+              throw new Error('No se pudo confirmar la sesión con el servidor. ' +
+                              'Reintenta en unos segundos; no necesitas volver a entrar.');
+            }
+            try { localStorage.removeItem('pca_sesion'); } catch (e) {}
+            estado.credential = null;
+            sesionVencida();
+            throw new Error('Vuelve a entrar con tu cuenta URP.');
+          });
         }
         if (esToken && !reintento) {
           return pedirToken()
@@ -1320,15 +1366,8 @@ label .req{color:var(--falla)}
     if (renovando || !estado.credential) return;
     if (String(estado.credential).indexOf('pca.') !== 0) return;
     renovando = true;
-    api('/sesion')
-      .then(d => {
-        if (d && d.sesion) {
-          estado.credential = d.sesion;
-          try { localStorage.setItem('pca_sesion', d.sesion); } catch (e) {}
-        }
-      })
-      .catch(() => {})
-      .then(() => { renovando = false; });
+    estado.ultimaRenovacion = Date.now();
+    renovarUnaVez().then(() => { renovando = false; });
   }
 
   function sesionVencida() {
@@ -1451,6 +1490,7 @@ label .req{color:var(--falla)}
       hd: CFG.DOMINIO,
       auto_select: true,
       callback: (r) => {
+        if (!r || !r.credential) return;
         estado.credential = r.credential;
         estado.tokenDesde = Date.now();
         if (estado.alRenovar) estado.alRenovar(r.credential);
@@ -1463,9 +1503,12 @@ label .req{color:var(--falla)}
   };
 
   function alIngresar(respuesta) {
+    if (estado.ingresando) return;
+    estado.ingresando = true;
     estado.credential = respuesta.credential;
     $('ingresoError').textContent = '';
     api('/sesion')
+      .finally(() => { estado.ingresando = false; })
       .then(datos => {
         // El portal cambia el identificador de Google por su propia sesión de
         // ocho horas: ya no depende de renovaciones que Google limita.
@@ -1511,9 +1554,16 @@ label .req{color:var(--falla)}
         if (!estado.temporizador) {
           estado.temporizador = setInterval(renovarSesion, 30 * 60 * 1000);
         }
-        document.addEventListener('visibilitychange', () => {
-          if (!document.hidden) renovarSesion();
-        });
+        // Al volver a la pestaña se renueva, pero como mucho cada 15 minutos:
+        // renovar en cada cambio de ventana llenaba el servidor de pedidos.
+        if (!estado.escuchaVisible) {
+          estado.escuchaVisible = true;
+          document.addEventListener('visibilitychange', () => {
+            if (document.hidden) return;
+            if (Date.now() - (estado.ultimaRenovacion || 0) < 15 * 60 * 1000) return;
+            renovarSesion();
+          });
+        }
         $('usuarioCaja').classList.remove('oculto');
         $('btnSalir').classList.remove('oculto');
         prepararCiclos();
@@ -2359,10 +2409,25 @@ label .req{color:var(--falla)}
       return pintarDatos();
     }
     $('dtTablaCuerpo').innerHTML = '<div class="vacio">Cargando…</div>';
-    api('/consultar?tabla=' + (estado.vista || 'cursos') +
+    $('dtResumen').classList.add('oculto');   // el resumen era de la pestaña anterior
+    const t0 = Date.now();
+    // La respuesta se guarda bajo la vista que la PIDIÓ (v), no bajo la que esté
+    // activa cuando llega: si el usuario cambió de pestaña mientras tanto, el
+    // catálogo terminaba guardado y pintado como si fuera la carga lectiva.
+    api('/consultar?tabla=' + v +
         '&ciclo=' + encodeURIComponent($('filtroCiclo').value))
-      .then(d => { estado.datos = d; estado.cacheDatos[estado.vista || 'cursos'] = d; pintarDatos(); })
-      .catch(e => { $('dtTablaCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+      .then(d => {
+        estado.cacheDatos[v] = d;
+        console.log('Portal: ' + v + ' respondió en ' + (Date.now() - t0) + ' ms');
+        if ((estado.vista || 'cursos') !== v) return;   // respuesta tardía de otra pestaña
+        estado.datos = d; pintarDatos();
+      })
+      .catch(e => {
+        if ((estado.vista || 'cursos') !== v) return;
+        $('dtTablaCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) +
+          '<br><button class="btn" id="dtReintentar" style="margin-top:12px">Reintentar</button></div>';
+        $('dtReintentar').addEventListener('click', () => cargarDatos(true));
+      });
   }
 
   $('dtMasFiltros').addEventListener('click', () => {
@@ -4056,8 +4121,10 @@ label .req{color:var(--falla)}
     delegados: {
       guardar: 'Guardar delegados',
       bloques: [
+        { tipo:'grid', campos:[
+          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true }
+        ]},
         { tipo:'grid', titulo:'Delegado', campos:[
-          { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
           { k:'codigoDelegado', etq:'Código', col:'Codigo del delegado', tipo:'texto', req:true },
           { k:'delegado', etq:'Apellidos y nombres', col:'Delegado (apellidos y nombres)', tipo:'texto', req:true },
           { k:'correoDelegado', etq:'Correo', col:'Correo del delegado', tipo:'correo', req:true },
@@ -4072,7 +4139,11 @@ label .req{color:var(--falla)}
           { k:'fijoSubdelegado', etq:'Teléfono fijo', col:'Telefono fijo del subdelegado', tipo:'texto' }
         ]},
         { tipo:'grid', ancho:true, campos:[
-          { k:'estado', etq:'Estado', tipo:'select', opciones:['Vigente','Reemplazado'], req:true },
+          { k:'estado', etq:'¿Cómo llegaron al cargo estos delegados?', tipo:'select', req:true, full:true,
+            opciones:[ { v:'Vigente',     t:'Elegidos por el aula al inicio del ciclo' },
+                       { v:'Reemplazado', t:'Asumieron después, en reemplazo de otros delegados' } ],
+            nota:'Arriba van siempre los delegados que están hoy en el cargo. Si asumieron en ' +
+                 'reemplazo de otros, anote en Observaciones a quiénes reemplazan y desde qué fecha.' },
           { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
         ]}
       ]
@@ -4092,6 +4163,7 @@ label .req{color:var(--falla)}
     estado.vueltaA = (a.programa || '') + '¦' + (a.codigo || '') + '¦' + (a.asignatura || '');
     estado.soloLectura = !!a.soloConsulta;
     estado.registro = null;
+    estado.reiniciando = false;
 
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
@@ -4099,8 +4171,14 @@ label .req{color:var(--falla)}
     // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
     // aqui cuales, para que la ficha no parezca cubrir solo una.
     const varias = (partes || '').indexOf(',') > -1;
+    const NOMBRE_TIPO = { Teo: 'teoría', Tal: 'taller', 'Prá': 'práctica', Pra: 'práctica', Lab: 'laboratorio' };
+    const piezas = [...new Set((partes || '').split(',').map(x => x.trim()).filter(Boolean)
+      .map(x => NOMBRE_TIPO[x.split(':')[0]] || x.split(':')[0] || 'otra parte'))];
+    const enLista = (xs) => xs.length > 1 ? xs.slice(0, -1).join(', ') + ' y ' + xs[xs.length - 1] : (xs[0] || '');
     $('fichaAlcance').textContent = varias
-      ? 'Este registro cubre las cargas: ' + partes.replace(/:/g, ' subgrupo ') + '.'
+      ? 'El grupo ' + (a.grupo || '') + ' tiene ' + enLista(piezas) + ' con el mismo docente. ' +
+        'Se supervisan juntos: este registro corresponde a ' +
+        (piezas.length === 2 ? 'ambos' : 'todos') + '.'
       : '';
     $('fichaAlcance').classList.toggle('oculto', !varias);
     $('btnGuardar').textContent = F.guardar;
@@ -4115,9 +4193,10 @@ label .req{color:var(--falla)}
       (a.area ? '<span>Área <b class="marca-area">' + esc(a.area) + '</b></span>' : '') +
       dato('Código', a.codigo) +
       dato('Grupo', a.grupo) +
-      dato('Subgrupo', a.subGrupo) +
-      dato('Tipo', a.tipo) +
-      (horasDe(a.horas).total ? dato('Horas', horasDe(a.horas).total + ' (' + horasDe(a.horas).detalle + ')') : '') +
+      (varias ? metaConjunta(a, partes) :
+        dato('Subgrupo', a.subGrupo) +
+        dato('Tipo', a.tipo) +
+        (horasDe(a.horas).total ? dato('Horas', horasDe(a.horas).total + ' (' + horasDe(a.horas).detalle + ')') : '')) +
       dato('Semestre', a.semestre) +
       dato('Plan de estudio', a.planEstudio) +
       dato('Ciclo', a.ciclo);
@@ -4144,13 +4223,32 @@ label .req{color:var(--falla)}
     cargarRegistro(a, clave);
   }
 
+  // Cuando un registro abarca varias cargas del mismo docente en un grupo, la
+  // cabecera muestra el conjunto (tipos, subgrupos y horas sumadas), no solo
+  // la primera carga: si no, contradice el aviso de alcance.
+  function metaConjunta(a, partes) {
+    const dato = (etq, v) => v ? '<span>' + etq + ' <b>' + esc(v) + '</b></span>' : '';
+    const pares = partes.split(',').map(x => x.trim().split(':'));
+    const del = estado.asignaciones.filter(x =>
+      x.codigo === a.codigo && x.grupo === a.grupo && x.docente === a.docente &&
+      x.ciclo === a.ciclo && pares.some(([t, sg]) => x.tipo === t && String(x.subGrupo) === String(sg)));
+    const h = { teoria: 0, practica: 0, laboratorio: 0, taller: 0 };
+    del.forEach(x => Object.keys(h).forEach(k => { h[k] += parseInt((x.horas || {})[k], 10) || 0; }));
+    const hh = horasDe(h);
+    return dato('Tipos', pares.map(p => p[0]).join(' + ')) +
+           dato('Subgrupos', [...new Set(pares.map(p => p[1]))].join(' y ')) +
+           (hh.total ? dato('Horas', hh.total + ' (' + hh.detalle + ')') : '');
+  }
+
   function campoHTML(c, idx) {
     const id = 'f_' + c.k;
     const req = c.req ? ' <span class="req">*</span>' : '';
     let control;
     if (c.tipo === 'select') {
       control = '<select id="' + id + '"><option value="">Seleccione</option>' +
-        c.opciones.map(o => '<option>' + esc(o) + '</option>').join('') + '</select>';
+        c.opciones.map(o => typeof o === 'object'
+          ? '<option value="' + esc(o.v) + '">' + esc(o.t) + '</option>'
+          : '<option>' + esc(o) + '</option>').join('') + '</select>';
     } else if (c.tipo === 'textarea') {
       control = '<textarea id="' + id + '"' +
         (c.ayuda ? ' placeholder="' + esc(c.ayuda) + '"' : '') + '></textarea>';
@@ -4172,8 +4270,9 @@ label .req{color:var(--falla)}
         '</div>';
     }
 
-    const ancho = (c.tipo === 'textarea') ? ' class="full"' : '';
-    return '<div' + ancho + '><label for="' + id + '">' + esc(c.etq) + req + '</label>' + control + '</div>';
+    const ancho = (c.tipo === 'textarea' || c.full) ? ' class="full"' : '';
+    const nota = c.nota ? '<p class="ayuda" style="margin:6px 0 0">' + esc(c.nota) + '</p>' : '';
+    return '<div' + ancho + '><label for="' + id + '">' + esc(c.etq) + req + '</label>' + control + nota + '</div>';
   }
 
   /* --------------------------------------------------- las evidencias ----
@@ -4453,7 +4552,8 @@ label .req{color:var(--falla)}
         (b.campos || []).forEach(c => {
           if (c.auto || c.soloVista) return;
           lista.push({ clave: 'campo:' + c.k, etiqueta: c.etq, tipo: c.tipo,
-                       opciones: c.opciones || null });
+                       opciones: c.opciones
+                         ? c.opciones.map(o => typeof o === 'object' ? o.v : o) : null });
         });
       }
       if (b.tipo === 'escala') {
@@ -5069,9 +5169,23 @@ label .req{color:var(--falla)}
             '<details><summary>Ver la sumilla de ' + esc(x.programa) + '</summary><p>' +
             esc(textoPlano(x.sumilla)) + '</p></details>').join('') + '</div>');
       })
-      .catch(() => {
+      .catch(e => {
+        // Un fallo de la consulta NO es un curso ausente del catálogo: se dice
+        // lo que pasó y se ofrece reintentar, en lugar del mensaje de «falta».
+        console.error('Portal: no se pudieron traer las referencias del sílabo →', e.message);
         document.querySelectorAll('.referencia-item').forEach(x => x.remove());
-        pintarReferencias(null);
+        const filas = [...$('fichaForm').querySelectorAll('#listaItems .item')];
+        if (!filas[0]) return;
+        const caja = document.createElement('div');
+        caja.className = 'referencia-item sin-referencia';
+        caja.innerHTML = '<b>No se pudieron consultar las referencias oficiales</b>' +
+          '<p>El servidor no respondió a tiempo. La revisión se puede registrar igual; ' +
+          'las referencias solo sirven de apoyo.</p>' +
+          '<button class="btn" type="button" style="margin-top:8px">Reintentar</button>';
+        caja.querySelector('button').addEventListener('click', () => {
+          caja.remove(); mostrarReferenciasSilabo();
+        });
+        filas[0].appendChild(caja);
       });
   }
 
@@ -5300,10 +5414,23 @@ label .req{color:var(--falla)}
       '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
       '&grupo=' + encodeURIComponent(a.grupo || '') +
       '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
-      '&docente=' + encodeURIComponent(a.docente || '')).catch(e => ({ error: e.message }));
+      '&docente=' + encodeURIComponent(a.docente || ''));
 
+    // Uno tras otro y con un reintento: pedir los cuatro a la vez satura Apps
+    // Script, que rechaza parte de las llamadas con una página de error.
+    const pedirSeguro = async (fmt) => {
+      for (let intento = 1; intento <= 2; intento++) {
+        try { return await pedir(fmt); }
+        catch (e) {
+          console.error('Portal: ' + fmt + ' falló (intento ' + intento + ') →', e.message);
+          if (intento === 2) return { error: 'el servidor no respondió; vuelva a abrir el formato para reintentar' };
+          await new Promise(r => setTimeout(r, 1500));
+        }
+      }
+    };
     const formatos = ['F1', 'F2', 'F3', 'F4'];
-    const res = await Promise.all(formatos.map(pedir));
+    const res = [];
+    for (const fmt of formatos) res.push(await pedirSeguro(fmt));
 
     const lineas = [];
     let puestos = 0;
@@ -5665,6 +5792,12 @@ label .req{color:var(--falla)}
       }
     }
 
+    if (clave === 'delegados' && $('f_estado') && $('f_estado').value === 'Reemplazado' &&
+        $('f_observaciones') && !$('f_observaciones').value.trim()) {
+      $('f_observaciones').focus();
+      return aviso('Anote en Observaciones a quiénes reemplazan estos delegados y desde qué fecha.', 'error');
+    }
+
     // Escala de criterios o ítems
     const be = bloqueEscala(F);
     if (be) {
@@ -5735,7 +5868,12 @@ label .req{color:var(--falla)}
         // El avance se actualiza aquí: volver a consultarlo al servidor por un
         // registro obligaría a releer las siete tablas de módulos.
         const hechos = estado.avance[a.idAsignacion] || [];
-        if (!hechos.includes(clave)) estado.avance[a.idAsignacion] = hechos.concat(clave);
+        if (estado.reiniciando) {
+          // Una revisión reiniciada vuelve a quedar pendiente, sin semáforo.
+          estado.avance[a.idAsignacion] = hechos.filter(m => m !== clave);
+          if (estado.nivel && estado.nivel[a.idAsignacion]) delete estado.nivel[a.idAsignacion][clave];
+          estado.reiniciando = false;
+        } else if (!hechos.includes(clave)) estado.avance[a.idAsignacion] = hechos.concat(clave);
         estado.indicadores = null;
         // El resultado del formato recién guardado se pide por detrás, para que
         // su botón en Mis cursos muestre el porcentaje o el estado al volver.
