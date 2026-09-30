@@ -176,6 +176,8 @@ tr.sin-leer{background:#fffdf6}
 .fila-comun td{background:#f2f7fd}
 .fila-posible td{background:#fffaf0}
 .fila-posible td:first-child{box-shadow:inset 3px 0 0 #d99a1b}
+.sello-varios{display:inline-block;margin-left:10px;background:#f3eefc;color:#5b3a9a;
+  border:1px solid #c9b6ef;border-radius:999px;padding:1px 10px;font-size:12px;font-weight:600}
 .sello-posible{display:inline-block;margin-left:10px;background:#fff;color:#8a6400;
   border:1px solid #e6c86a;border-radius:5px;padding:1px 8px;font-size:10.5px;font-weight:600;
   text-transform:uppercase;letter-spacing:.05em;vertical-align:2px}
@@ -1816,6 +1818,13 @@ label .req{color:var(--falla)}
           '<b>' + esc(nombreCurso(c.asignatura)) + '</b>' +
           (esComun ? '<span class="sello-comun">Curso común</span>' : '') +
           (posible ? '<span class="sello-posible">¿Curso común?</span>' : '') +
+          (() => {
+            const l = docentesDelCurso(c);
+            return l.length > 1
+              ? '<span class="sello-varios" title="' + esc(textoDocentesDelCurso(l)) +
+                '">👥 ' + l.length + ' docentes · sílabo único</span>'
+              : '';
+          })() +
           '<small class="codigo">' + esc(c.codigo || 'sin código') +
             ' · sem. ' + esc(c.semestre || '—') + ' · plan ' + esc(c.planEstudio || '—') +
             ' · <span class="marca-area">' + esc(c.area || 'sin área') + '</span>' +
@@ -3910,7 +3919,7 @@ label .req{color:var(--falla)}
   const ESCALA = CFG.ESCALA;
 
   const NOTAS_MODULO = {
-    silabo: 'Verifica que el sílabo cumpla los once requisitos del formato. Los ítems marcados como Parcial o No cumple exigen una observación.',
+    silabo: 'Verifica que el sílabo cumpla los requisitos del formato: once en todos los cursos, y un duodécimo —sílabo único— cuando el curso lo dictan varios docentes. Los ítems marcados como Parcial o No cumple exigen una observación.',
     formularios: 'Deja constancia de la entrega de los formularios F1, F2 y F3, con la fecha de cada uno.',
     aulaVirtual: 'Revisa que el aula virtual tenga los ocho elementos exigidos y anota lo que falte.',
     portafolios: 'Comprueba que el portafolio digital contenga las evidencias de cada tipo de evaluación.',
@@ -4167,6 +4176,16 @@ label .req{color:var(--falla)}
     estado.soloLectura = !!a.soloConsulta;
     estado.registro = null;
     estado.reiniciando = false;
+
+    if (clave === 'silabo') {
+      M._itemsBase = M._itemsBase || (M.items || []).slice();
+      const varios = docentesDelCurso(a);
+      M.items = varios.length > 1
+        ? M._itemsBase.concat([Object.assign({}, ITEM_SILABO_UNICO, {
+            nota: ITEM_SILABO_UNICO.nota + ' Este curso lo dictan: ' +
+                  textoDocentesDelCurso(varios) + '.' })])
+        : M._itemsBase.slice();
+    }
 
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
@@ -4580,6 +4599,41 @@ label .req{color:var(--falla)}
   }
 
   function M_ACTUAL() { return CFG.MODULOS[estado.modulo] || {}; }
+
+  // ---------------------------------------------- sílabo único del curso ----
+  // Un curso (misma carrera, plan, código y ciclo) dictado por más de un
+  // docente —varios grupos, o teoría y laboratorio con profesores distintos—
+  // debe publicar en el aula virtual un único sílabo. Solo en esos cursos se
+  // añade el ítem 12. Los campos existen en la tabla PCA 1 (texto).
+  const ITEM_SILABO_UNICO = {
+    n: '12', etiqueta: 'Sílabo único del curso',
+    nota: 'Todos los docentes del curso publican en el aula virtual el mismo sílabo. ' +
+          'No puede haber dos sílabos distintos para un mismo curso.',
+    estado: 'bPW7pcLmngWRJcVZ8BzCkE', obs: 'ddMZNdHrDdURLDWP07i25o'
+  };
+
+  function docentesDelCurso(a) {
+    if (!a) return [];
+    const mismo = (x) =>
+      (x.programa || '') === (a.programa || '') &&
+      (x.planEstudio || '') === (a.planEstudio || '') &&
+      (x.ciclo || '') === (a.ciclo || '') &&
+      (a.codigo ? x.codigo === a.codigo : x.asignatura === a.asignatura);
+    const porDocente = {};
+    (estado.asignaciones || []).filter(mismo).forEach(x => {
+      const d = (x.docente || '').trim();
+      if (!d) return;
+      const e = porDocente[d] = porDocente[d] || { docente: d, grupos: [] };
+      const g = 'G' + x.grupo + (x.tipo ? ' ' + x.tipo : '');
+      if (e.grupos.indexOf(g) < 0) e.grupos.push(g);
+    });
+    return Object.values(porDocente)
+      .sort((p, q) => p.docente.localeCompare(q.docente, 'es'));
+  }
+
+  function textoDocentesDelCurso(lista) {
+    return lista.map(d => d.docente + ' (' + d.grupos.join(', ') + ')').join(' · ');
+  }
 
   // Un PDF no es texto: hay que extraerlo. Los .vtt y .srt sí lo son, pero
   // traen tiempos que solo estorban y se limpian después.
@@ -5032,6 +5086,15 @@ label .req{color:var(--falla)}
     'el clip 📎 del asistente, arriba.';
 
   const REFERENCIA_ITEM = {
+    '12': { de: 'portal', titulo: 'Los sílabos de los demás grupos del curso',
+            texto: () => {
+              const l = docentesDelCurso(estado.actual);
+              return 'Este curso lo dictan ' + l.length + ' docentes: ' +
+                     textoDocentesDelCurso(l) + '. Abra el sílabo publicado en el aula ' +
+                     'virtual de cada grupo y confirme que es el mismo documento.';
+            },
+            falta: 'los sílabos publicados en el aula virtual por los demás docentes del ' +
+                   'curso; si no se adjuntan, este punto lo verifica el coordinador' },
     '01': { de: 'portal', titulo: 'Datos de la carga en el portal',
             texto: c => {
               const a = estado.actual || {};
