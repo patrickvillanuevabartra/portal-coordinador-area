@@ -1911,8 +1911,10 @@ label .req{color:var(--falla)}
               ((a.faltantes || []).length
                 ? '<div class="pendiente">Falta ' + esc((a.faltantes || []).join(', ')) + '</div>' : '') +
               (a.soloConsulta
-                ? '<div class="comun">Curso común · lo supervisa ' + esc(a.area) +
-                  (a.coordinador ? ' (' + esc(a.coordinador) + ')' : '') + '</div>'
+                ? '<div class="comun">Curso común · lo supervisa ' + esc(a.supervisa || a.area) +
+                  (a.coordinadorEspejo ? ' (' + esc(a.coordinadorEspejo) + ')' : '') +
+                  (a.idInforme ? ' · ' + esc(String(a.programa || '').replace(/^Ingeniería\s+/i, '')) +
+                    ' hace su propio informe' : '') + '</div>'
                 : (a.comun && a.compartidoCon
                    ? '<div class="comun">Curso común · también se dicta en ' + esc(a.compartidoCon) + '</div>'
                    : '')) +
@@ -4228,11 +4230,18 @@ label .req{color:var(--falla)}
     // Si el area no es suya, la ficha queda en consulta.
     // Un curso común solo lo registra la carrera que lo supervisa: para las
     // demás la ficha queda en consulta aunque el área sea suya.
-    const puede = !a.soloConsulta &&
+    // La carrera que no supervisa un curso común hace su propio informe; los
+    // datos de delegados, en cambio, son uno solo y los registra el área padre.
+    const informePropio = !!a.idInforme && clave !== 'delegados';
+    const puede = (!a.soloConsulta || informePropio) &&
                   (estado.admin || (estado.propiasArea || []).includes(a.area));
+    // Solo cambia el modo de los cursos comunes; lo demás queda como estaba.
+    if (a.soloConsulta) estado.soloLectura = !puede;
     $('btnGuardar').classList.toggle('oculto', !puede);
     $('soloConsulta').classList.toggle('oculto', puede);
-    if (!puede) $('soloConsulta').textContent = a.soloConsulta
+    if (!puede) $('soloConsulta').textContent = (a.idInforme && clave === 'delegados')
+      ? 'Solo consulta: los datos de delegados de este curso común los registra ' + (a.supervisa || 'la carrera que lo supervisa') + '.'
+      : a.soloConsulta
       ? 'Solo consulta: este curso común lo supervisa ' + (a.supervisa || 'la otra carrera') + '.'
       : 'Solo consulta: esta carga pertenece al área ' + a.area +
         (a.coordinador ? ', a cargo de ' + a.coordinador : '') + '.';
@@ -5700,61 +5709,128 @@ label .req{color:var(--falla)}
     if (form) form.classList.add('cargando');
     const listo = () => { if (form) form.classList.remove('cargando'); };
 
-    // En un curso común, lo registrado vive en la carga de la carrera que
-    // supervisa: es lo que el otro coordinador tiene derecho a consultar.
-    const idLeer = (a.soloConsulta && a.idEspejo) ? a.idEspejo : a.idAsignacion;
+    const M = CFG.MODULOS[clave];
+    const F = FORMULARIOS[clave];
 
-    api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(idLeer))
-      .then(datos => {
-        if (!datos.registro) { listo(); return; }
-        estado.registro = datos.registro;
-        const v = datos.registro.valores;
-        const M = CFG.MODULOS[clave];
-        const F = FORMULARIOS[clave];
-
-        F.bloques.forEach(b => {
-          (b.campos || []).forEach(c => {
-            const el = $('f_' + c.k);
-            if (!el) return;
-            let val = leer(v, c.col || c.etq);
-            if (!val && c.k === 'fechaRevision') val = leer(v, 'Fecha de revision');
-            if (c.tipo === 'fecha') val = val.slice(0, 10);
-            if (c.tipo === 'fechahora') val = val.replace(' ', 'T').slice(0, 16);
-            if (val) el.value = val;
-          });
-
-          if (b.tipo === 'escala') {
-            (M[b.fuente] || []).forEach((it, i) => {
-              const guardado = it.n ? leerPrefijo(v, it.n + ' ') : leer(v, it.etiqueta);
-              const sel = $('listaItems').querySelector('[data-estado="' + i + '"]');
-              if (guardado && sel) { sel.value = guardado; sel.dispatchEvent(new Event('change')); }
-              if (b.obs && it.n) {
-                const obs = leer(v, 'Obs ' + it.n);
-                const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
-                if (obs && campo) { campo.value = obs; campo.closest('.obs').classList.remove('oculto'); }
-              }
-            });
-          }
-
-          if (b.tipo === 'textos') {
-            (M[b.fuente] || []).forEach((t, i) => {
-              const campo = document.querySelector('[data-tema="' + i + '"]');
-              const val = leer(v, t.etiqueta);
-              if (campo && val) campo.value = val;
-            });
-          }
+    // Pone en el formulario lo que trae un registro. Con «copia», no toca el
+    // revisor ni la fecha: el informe nuevo es de quien lo está haciendo.
+    const rellenar = (v, copia) => {
+      F.bloques.forEach(b => {
+        (b.campos || []).forEach(c => {
+          if (copia && (c.auto || c.k === 'fechaRevision' || c.k === 'revisor')) return;
+          const el = $('f_' + c.k);
+          if (!el) return;
+          let val = leer(v, c.col || c.etq);
+          if (!val && c.k === 'fechaRevision') val = leer(v, 'Fecha de revision');
+          if (c.tipo === 'fecha') val = val.slice(0, 10);
+          if (c.tipo === 'fechahora') val = val.replace(' ', 'T').slice(0, 16);
+          if (val) el.value = val;
         });
 
-        recalcularEscala(F);
-        recalcularConteo(F);
-        prepararEvidencias();
-        recalcularCompleto(F);
-        marcarCampos();
-        // Recién ahora el formulario muestra algo cierto.
-        listo();
-        aviso('Registro existente cargado. Al guardar se actualiza.', 'ok');
+        if (b.tipo === 'escala') {
+          (M[b.fuente] || []).forEach((it, i) => {
+            // Los ítems 01 a 11 se llaman «01 …»; el 12 se llama «Item 12».
+            const guardado = it.n ? (leerPrefijo(v, it.n + ' ') || leer(v, 'Item ' + it.n))
+                                  : leer(v, it.etiqueta);
+            const sel = $('listaItems').querySelector('[data-estado="' + i + '"]');
+            if (guardado && sel) { sel.value = guardado; sel.dispatchEvent(new Event('change')); }
+            if (b.obs && it.n) {
+              const obs = leer(v, 'Obs ' + it.n);
+              const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
+              if (obs && campo) { campo.value = obs; campo.closest('.obs').classList.remove('oculto'); }
+            }
+          });
+        }
+
+        if (b.tipo === 'textos') {
+          (M[b.fuente] || []).forEach((t, i) => {
+            const campo = document.querySelector('[data-tema="' + i + '"]');
+            const val = leer(v, t.etiqueta);
+            if (campo && val) campo.value = val;
+          });
+        }
+      });
+
+      recalcularEscala(F);
+      recalcularConteo(F);
+      prepararEvidencias();
+      recalcularCompleto(F);
+      marcarCampos();
+    };
+
+    // Curso común, carrera que no supervisa: tiene su propio informe. Los
+    // datos de delegados, en cambio, son del curso y se leen del área padre.
+    const propio = !!a.idInforme && clave !== 'delegados';
+    const idLeer = propio ? a.idInforme
+                 : ((a.soloConsulta && a.idEspejo) ? a.idEspejo : a.idAsignacion);
+    const leerModulo = (id) =>
+      api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(id));
+
+    leerModulo(idLeer)
+      .then(datos => {
+        if (datos.registro) {
+          estado.registro = datos.registro;
+          rellenar(datos.registro.valores, false);
+          listo();
+          aviso('Registro existente cargado. Al guardar se actualiza.', 'ok');
+          return;
+        }
+        if (!propio || !a.idEspejo) { listo(); return; }
+
+        // Todavía no hay informe propio: se muestra el del área padre.
+        return leerModulo(a.idEspejo).then(d2 => {
+          listo();
+          if (estado.actual !== a || estado.modulo !== clave) return;
+          mostrarInformePadre(a, d2.registro, () => {
+            rellenar(d2.registro.valores, true);
+            estado.registro = null;   // se guarda como informe nuevo, no encima del otro
+            aviso('Se copió el informe de ' + (a.supervisa || 'la carrera que supervisa') +
+                  '. Ajuste lo que corresponda desde ' + (a.programa || 'su carrera') +
+                  ' y guarde: el informe original no cambia.', 'ok');
+          });
+        });
       })
       .catch(e => { listo(); aviso(e.message, 'error'); });
+  }
+
+  // Recuadro al inicio del formato: qué registró el área padre y el botón
+  // para partir de ese informe.
+  function mostrarInformePadre(a, registro, alCopiar) {
+    const form = $('fichaForm');
+    if (!form || form.querySelector('.informe-padre')) return;
+    const caja = document.createElement('div');
+    caja.className = 'referencia-item informe-padre' + (registro ? '' : ' sin-referencia');
+    caja.style.marginBottom = '16px';
+    const padre = a.supervisa || 'la carrera que supervisa';
+    if (!registro) {
+      caja.innerHTML = '<b>' + esc(padre) + ' aún no registra este formato</b>' +
+        '<p>Este curso común lo supervisa ' + esc(padre) + '. Puede hacer el informe de ' +
+        esc(a.programa || 'su carrera') + ' desde cero, o esperar al de ' + esc(padre) +
+        ' para partir de él.</p>';
+    } else {
+      const v = registro.valores || {};
+      const pct = leer(v, 'Porcentaje de cumplimiento');
+      const rev = leer(v, 'Revisor') || leer(v, 'Coordinador de area') || a.coordinadorEspejo || '';
+      const fec = (leer(v, 'Fecha de revision') || leer(v, 'Fecha de supervision') || '').slice(0, 10);
+      caja.innerHTML = '<b>Informe del área que supervisa: ' + esc(padre) + '</b>' +
+        '<p>' + (rev ? 'Registrado por ' + esc(rev) : 'Registrado') +
+        (fec ? ' el ' + esc(fechaCorta(fec) || fec) : '') +
+        (pct ? ' · <b>' + esc(pct) + ' %</b>' : '') + '.</p>' +
+        '<p>' + esc(a.programa || 'Su carrera') + ' hace su propio informe: puede partir de este y ' +
+        'ajustar lo que, desde los objetivos de su carrera, no se cumplió. El informe de ' +
+        esc(padre) + ' no cambia.</p>' +
+        (estado.soloLectura ? '' :
+          '<button type="button" class="btn">Hacer el informe de ' +
+          esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) +
+          ' a partir de este</button>');
+      const b = caja.querySelector('button');
+      if (b) b.addEventListener('click', () => {
+        alCopiar();
+        b.textContent = 'Copiado: revise, ajuste y guarde';
+        b.disabled = true;
+      });
+    }
+    form.prepend(caja);
   }
 
   // Arma el mensaje reemplazando los marcadores con los datos del registro.
@@ -5986,7 +6062,7 @@ label .req{color:var(--falla)}
       method: 'POST',
       body: JSON.stringify({
         clave,
-        idAsignacion: a.idAsignacion,
+        idAsignacion: (a.idInforme && clave !== 'delegados') ? a.idInforme : a.idAsignacion,
         recordId: estado.registro ? estado.registro.recordId : null,
         valores
       })
