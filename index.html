@@ -4481,6 +4481,7 @@ label .req{color:var(--falla)}
     // La sumilla oficial de la carrera, a la vista: el ítem 02 pide compararla
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
     if (F === FORMULARIOS.silabo) mostrarReferenciasSilabo();
+    if (F === FORMULARIOS.silabo) mostrarSilaboUnicoEnOtrosGrupos(estado.actual);
 
     // Lo que el docente declaró en el formulario de la Escuela: el portal lo
     // trae y lo propone, en vez de pedir que se copie a mano.
@@ -4629,6 +4630,67 @@ label .req{color:var(--falla)}
     });
     return Object.values(porDocente)
       .sort((p, q) => p.docente.localeCompare(q.docente, 'es'));
+  }
+
+  // El ítem 12 es del curso, no del grupo: si ya se verificó en otra carga del
+  // mismo curso, se muestra aquí con la opción de aplicar el mismo resultado.
+  function mostrarSilaboUnicoEnOtrosGrupos(a) {
+    const M = CFG.MODULOS.silabo;
+    const i12 = (M.items || []).findIndex(it => it.n === '12');
+    if (i12 < 0) return;
+    const mismo = (x) =>
+      (x.programa || '') === (a.programa || '') &&
+      (x.planEstudio || '') === (a.planEstudio || '') &&
+      (x.ciclo || '') === (a.ciclo || '') &&
+      (a.codigo ? x.codigo === a.codigo : x.asignatura === a.asignatura);
+    const ids = [...new Set((estado.asignaciones || []).filter(mismo)
+      .map(x => x.idAsignacion).filter(id => id && id !== a.idAsignacion))];
+    if (!ids.length) return;
+
+    api('/silabo-unico?ids=' + encodeURIComponent(ids.join(',')) +
+        '&ciclo=' + encodeURIComponent(a.ciclo || ''))
+      .then(d => {
+        // Si mientras tanto se abrió otro formato, no se pinta nada.
+        if (estado.modulo !== 'silabo' || estado.actual !== a) return;
+        const v = (d && d.verificaciones) || [];
+        if (!v.length) return;
+        const fila = document.querySelector('#listaItems .item[data-i="' + i12 + '"]');
+        if (!fila || fila.querySelector('.silabo-otros')) return;
+
+        const distintos = new Set(v.map(x => x.item12)).size > 1;
+        const caja = document.createElement('div');
+        caja.className = 'referencia-item silabo-otros' + (distintos ? ' sin-referencia' : '');
+        const linea = x => '<li><b>G' + esc(x.grupo) + (x.tipo ? ' ' + esc(x.tipo) : '') +
+          '</b> (' + esc(x.docente) + ')' + (x.fecha ? ' · ' + esc(fechaCorta(x.fecha) || x.fecha) : '') +
+          ' · <b>' + esc(x.item12) + '</b>' +
+          (x.obs12 ? '<br><i>«' + esc(x.obs12) + '»</i>' : '') + '</li>';
+        caja.innerHTML =
+          '<b>' + (distintos
+            ? '⚠ En los otros grupos este punto se evaluó con resultados distintos'
+            : '✔ Ya verificado en otro grupo del curso') + '</b>' +
+          '<ul style="margin:6px 0 0 18px;padding:0">' + v.map(linea).join('') + '</ul>' +
+          (distintos
+            ? '<p>Es el mismo hecho para todo el curso: conviene revisar y dejar un solo resultado.</p>'
+            : '') +
+          (estado.soloLectura ? '' :
+            '<button type="button" class="btn" style="margin-top:8px">Aplicar el mismo resultado' +
+            (distintos ? ' del más reciente' : '') + '</button>');
+        const boton = caja.querySelector('button');
+        if (boton) boton.addEventListener('click', () => {
+          const base = v.slice().sort((p, q) => String(q.fecha).localeCompare(String(p.fecha)))[0];
+          const sel = fila.querySelector('select[data-estado="' + i12 + '"]');
+          if (sel) { sel.value = base.item12; sel.dispatchEvent(new Event('change', { bubbles: true })); }
+          const obs = fila.querySelector('input[data-obs="' + i12 + '"]');
+          if (obs) {
+            obs.value = base.obs12 || ('Verificado en G' + base.grupo + ' (' + base.docente + ').');
+            obs.dispatchEvent(new Event('input', { bubbles: true }));
+          }
+          boton.textContent = 'Aplicado: revise y guarde';
+          boton.disabled = true;
+        });
+        fila.appendChild(caja);
+      })
+      .catch(() => {});   // es una ayuda: si falla, el ítem se evalúa igual
   }
 
   function textoDocentesDelCurso(lista) {
