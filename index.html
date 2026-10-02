@@ -3594,11 +3594,15 @@ label .req{color:var(--falla)}
   /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
   // Los datos los arma el servidor (exactos); aquí solo se da forma al Excel.
   function cargarLibreriaExcel() {
-    if (window.XLSX) return Promise.resolve(window.XLSX);
+    // Variante de SheetJS que admite colores de celda (misma forma de uso).
+    if (window.XLSX && window.__xlsxConEstilos) return Promise.resolve(window.XLSX);
     return new Promise((ok, mal) => {
       const sc = document.createElement('script');
-      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      sc.onload = () => window.XLSX ? ok(window.XLSX) : mal(new Error('No cargó la librería de Excel'));
+      sc.src = 'https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js';
+      sc.onload = () => {
+        if (!window.XLSX) return mal(new Error('No cargó la librería de Excel'));
+        window.__xlsxConEstilos = true; ok(window.XLSX);
+      };
       sc.onerror = () => mal(new Error('No se pudo cargar la librería de Excel. Revise su conexión.'));
       document.head.appendChild(sc);
     });
@@ -3624,7 +3628,38 @@ label .req{color:var(--falla)}
       const exigibles = F.filter(f => d.fuentes[f] && !d.fuentes[f].error);
       const cumple = e => /^Presentado/.test(e) && e !== 'Fuera de plazo';
       const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-      const hoy = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+      // Fechas como dd/mm/aa.
+      const dma = (iso) => {
+        const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+        return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : (iso || '');
+      };
+      const ahora = new Date();
+      const hoy = ('0' + ahora.getDate()).slice(-2) + '/' + ('0' + (ahora.getMonth() + 1)).slice(-2) + '/' +
+                  String(ahora.getFullYear()).slice(2);
+
+      // Semáforo: verde si cumplió todo a tiempo, rojo si nada, amarillo si parte.
+      const ESTILO = {
+        verde:    { fill: { fgColor: { rgb: 'C6EFCE' } }, font: { color: { rgb: '006100' } } },
+        amarillo: { fill: { fgColor: { rgb: 'FFEB9C' } }, font: { color: { rgb: '7A4D00' } } },
+        rojo:     { fill: { fgColor: { rgb: 'FFC7CE' } }, font: { color: { rgb: '9C0006' } } },
+        enc:      { fill: { fgColor: { rgb: '0B3B2E' } }, font: { bold: true, color: { rgb: 'FFFFFF' } },
+                    alignment: { wrapText: true, vertical: 'center' } },
+        titulo:   { font: { bold: true, sz: 13, color: { rgb: '0F8F5E' } } },
+        negrita:  { font: { bold: true } }
+      };
+      const nivel = (ok, total) => !total ? null : (ok >= total ? 'verde' : (ok === 0 ? 'rojo' : 'amarillo'));
+      const KUDO = '😊 ¡Felicitaciones! Cumplió a tiempo';
+      const pintar = (ws, r, ncol, estilo) => {
+        for (let c = 0; c < ncol; c++) {
+          const ref = XLSX.utils.encode_cell({ r, c });
+          if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+          ws[ref].s = Object.assign({}, ws[ref].s || {}, estilo);
+        }
+      };
+      const cabeceras = (ws, filaEnc, ncol) => {
+        pintar(ws, 0, 1, ESTILO.titulo); pintar(ws, 2, 1, ESTILO.negrita);
+        if (filaEnc != null) pintar(ws, filaEnc, ncol, ESTILO.enc);
+      };
       const cab = (titulo) => [
         ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
         ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'],
@@ -3645,7 +3680,7 @@ label .req{color:var(--falla)}
       // 1) Detalle por carga
       const enc1 = ['N°', 'Docente', 'Código', 'Curso', 'Grupo', 'Tipo', 'Semestre', 'Área', 'Coordinador del área']
         .concat(...F.map(f => [f + ' fecha', f + ' estado']))
-        .concat(['Presentados', 'A tiempo', 'Cumplimiento %', 'Nota']);
+        .concat(['Presentados', 'A tiempo', 'Cumplimiento %', 'Reconocimiento', 'Nota']);
       const det = d.detalle.map((x, i) => {
         const pres = exigibles.filter(f => /^Presentado|^Fuera/.test(x[f].estado)).length;
         const ok = exigibles.filter(f => cumple(x[f].estado)).length;
@@ -3653,15 +3688,21 @@ label .req{color:var(--falla)}
         const varias = F.filter(f => x[f] && x[f].veces > 1);
         x._ok = ok; x._pres = pres;
         return [i + 1, x.docente, x.codigo, nombreCurso(x.curso), x.grupo, x.tipos, x.semestre, x.area, x.coordinador]
-          .concat(...F.map(f => [x[f].fecha || '', x[f].estado]))
+          .concat(...F.map(f => [dma(x[f].fecha), x[f].estado]))
           .concat([pres + ' de ' + exigibles.length, ok + ' de ' + exigibles.length, pct(ok, exigibles.length),
+            ok >= exigibles.length && exigibles.length ? KUDO : '',
             [aprox.length ? 'Coincidencia aproximada en ' + aprox.join(', ') + ' (curso o subgrupo escrito distinto)' : '',
              varias.length ? 'Envió más de una vez ' + varias.join(', ') + ' (se toma la primera fecha)' : '']
               .filter(Boolean).join('. ')]);
       });
       const f1 = cab('Cumplimiento de los formularios F1, F2 y F3 — detalle por carga');
       const ws1 = hoja(f1.concat([enc1], det),
-        [5, 34, 10, 38, 7, 10, 9, 28, 30, 11, 22, 11, 22, 11, 22, 12, 11, 14, 50], f1.length);
+        [5, 34, 10, 38, 7, 10, 9, 28, 30, 10, 22, 10, 22, 10, 22, 12, 11, 14, 34, 50], f1.length);
+      cabeceras(ws1, f1.length, enc1.length);
+      d.detalle.forEach((x, i) => {
+        const n = nivel(x._ok, exigibles.length);
+        if (n) pintar(ws1, f1.length + 1 + i, enc1.length, ESTILO[n]);
+      });
 
       // 2) Resumen por docente
       const porDoc = {};
@@ -3676,12 +3717,18 @@ label .req{color:var(--falla)}
         });
       });
       const enc2 = ['Docente', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo', 'Fuera de plazo',
-                    'No presentados', 'Cumplimiento %', 'Presentados %'];
+                    'No presentados', 'Cumplimiento %', 'Presentados %', 'Reconocimiento'];
       const res2 = Object.entries(porDoc).map(([doc, r]) =>
-        [doc, r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig), pct(r.ok + r.fuera, r.exig)])
+        [doc, r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig), pct(r.ok + r.fuera, r.exig),
+         r.exig && r.ok >= r.exig ? KUDO + ' todos sus formularios' : ''])
         .sort((a, b) => a[6] - b[6] || String(a[0]).localeCompare(String(b[0]), 'es'));
       const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
-      const ws2 = hoja(f2.concat([enc2], res2), [36, 8, 12, 12, 12, 12, 14, 14], f2.length);
+      const ws2 = hoja(f2.concat([enc2], res2), [36, 8, 12, 12, 12, 12, 14, 14, 46], f2.length);
+      cabeceras(ws2, f2.length, enc2.length);
+      res2.forEach((r, i) => {
+        const n = nivel(r[3], r[2]);
+        if (n) pintar(ws2, f2.length + 1 + i, enc2.length, ESTILO[n]);
+      });
 
       // 3) Resumen por área
       const porArea = {};
@@ -3703,17 +3750,23 @@ label .req{color:var(--falla)}
         .sort((a, b) => a[7] - b[7]);
       const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
       const ws3 = hoja(f3.concat([enc3], res3), [34, 32, 8, 12, 12, 12, 12, 14], f3.length);
+      cabeceras(ws3, f3.length, enc3.length);
+      res3.forEach((r, i) => {
+        const n = nivel(r[4], r[3]);
+        if (n) pintar(ws3, f3.length + 1 + i, enc3.length, ESTILO[n]);
+      });
 
       // 4) Sin coincidencia
       const enc4 = ['Formato', 'Fila en la hoja', 'Docente (como lo escribió)', 'Curso (como lo escribió)', 'Grupo', 'Fecha'];
       const res4 = [];
       F.forEach(f => (d.sinCoincidencia[f] || []).forEach(x =>
-        res4.push([f, x.fila, x.docente, x.curso, x.grupo, x.fecha])));
+        res4.push([f, x.fila, x.docente, x.curso, x.grupo, dma(x.fecha)])));
       const f4 = cab('Respuestas de los formularios que no coinciden con ninguna carga del ciclo');
       const nota4 = [['Revise estas filas antes de dar a alguien por «No presentado»: suelen ser un curso, ' +
                       'un grupo o un nombre escrito de otra forma, o una carga de otra carrera.'], []];
       const ws4 = hoja(f4.concat(nota4, [enc4], res4.length ? res4 : [['—', '', 'Todas las respuestas coincidieron con una carga', '', '', '']]),
         [9, 12, 36, 44, 8, 12], f4.length + nota4.length);
+      cabeceras(ws4, f4.length + nota4.length, enc4.length);
 
       // 5) Parámetros
       const tot = d.detalle.length * exigibles.length;
@@ -3729,7 +3782,7 @@ label .req{color:var(--falla)}
         ['Presentados a tiempo', totOk + ' (' + pct(totOk, tot) + ' %)'],
         []
       ]).concat(F.map(f => [
-        'Plazo ' + f, d.plazos[f] || 'No fijado para este ciclo'
+        'Plazo ' + f, d.plazos[f] ? dma(d.plazos[f]) : 'No fijado para este ciclo'
       ])).concat([[]]).concat(F.map(f => {
         const fu = d.fuentes[f] || {};
         return ['Hoja ' + f, fu.error ? 'No consultada: ' + fu.error
@@ -3743,9 +3796,19 @@ label .req{color:var(--falla)}
           '«Fuera de plazo»: es posterior. «No presentado»: no hay respuesta que coincida.'],
         ['', 'Si un formulario se envió más de una vez, se toma la primera fecha.'],
         ['', 'Si un formato no tiene plazo fijado, lo presentado se cuenta como cumplido y se indica así.'],
-        ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar.']
+        ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar. Formato dd/mm/aa.'],
+        [],
+        ['Leyenda de colores', ''],
+        ['Verde', 'Presentó a tiempo todos los formularios exigibles (por ejemplo, 3 de 3). Lleva 😊 de felicitación.'],
+        ['Amarillo', 'Presentó a tiempo una parte (1 de 3 o 2 de 3).'],
+        ['Rojo', 'No presentó a tiempo ninguno (0 de 3).']
       ]);
       const ws5 = hoja(par, [40, 110], null);
+      cabeceras(ws5, cab('').length, 2);
+      const fl = par.length;
+      pintar(ws5, fl - 3, 2, ESTILO.verde);
+      pintar(ws5, fl - 2, 2, ESTILO.amarillo);
+      pintar(ws5, fl - 1, 2, ESTILO.rojo);
 
       const libro = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(libro, ws1, 'Detalle por carga');
