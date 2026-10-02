@@ -1307,12 +1307,14 @@ label .req{color:var(--falla)}
     if (cfg.body) cfg.headers['Content-Type'] = 'application/json';
     // Ninguna petición puede dejar la pantalla en «Cargando…» indefinidamente.
     const corte = new AbortController();
-    const reloj = setTimeout(() => corte.abort(), TIEMPO_LIMITE_MS);
+    const limite = cfg.limiteMs || TIEMPO_LIMITE_MS;
+    delete cfg.limiteMs;
+    const reloj = setTimeout(() => corte.abort(), limite);
     cfg.signal = corte.signal;
     return fetch(CFG.PROXY + ruta, cfg).catch(e => {
       clearTimeout(reloj);
       if (corte.signal.aborted) {
-        console.error('Portal: sin respuesta en ' + (TIEMPO_LIMITE_MS / 1000) + ' s →', ruta);
+        console.error('Portal: sin respuesta en ' + (limite / 1000) + ' s →', ruta);
         throw new Error('El servidor tardó demasiado en responder. Pulsa Reintentar.');
       }
       throw new Error('No se pudo contactar al servidor. Revisa tu conexión y reintenta.');
@@ -3564,13 +3566,266 @@ label .req{color:var(--falla)}
         h += '<p class="ayuda">Se muestran los primeros ' + d.atencion.length + ' de ' + d.atencionTotal + '.</p>';
       }
     }
-    h += '<div class="pie" style="margin-top:14px">' +
-      '<button class="btn fantasma" id="btnExpInd">Descargar indicadores</button></div>';
+    // Reporte de F1 a F3 por carrera: administrador y coordinador general.
+    const progsRep = estado.admin
+      ? [...new Set((estado.asignaciones || []).map(x => x.programa).filter(Boolean))].sort()
+      : (estado.general ? (estado.programas || []) : []);
+    h += '<div class="pie" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
+      '<button class="btn fantasma" id="btnExpInd">Descargar indicadores</button>' +
+      (progsRep.length
+        ? '<span style="display:inline-flex;gap:8px;align-items:center">' +
+          '<select id="selRepF" style="padding:8px">' + progsRep.map(p =>
+            '<option' + (/industrial/i.test(p) ? ' selected' : '') + '>' + esc(p) + '</option>').join('') +
+          '</select><button class="btn" id="btnRepF">Reporte F1–F3 (Excel)</button>' +
+          '<button class="btn fantasma" id="btnNotF">Notificar a los docentes</button></span>'
+        : '') +
+      '</div>';
     h += '</div></section>';
 
     $('indCuerpo').innerHTML = h;
     estado.indicadores = d;
     $('btnExpInd').addEventListener('click', () => descargarIndicadores(d));
+    if ($('btnRepF')) $('btnRepF').addEventListener('click', () =>
+      generarReporteFormularios($('selRepF').value, $('btnRepF')));
+    if ($('btnNotF')) $('btnNotF').addEventListener('click', () =>
+      notificarFormularios($('selRepF').value, $('btnNotF')));
+  }
+
+  /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
+  // Los datos los arma el servidor (exactos); aquí solo se da forma al Excel.
+  function cargarLibreriaExcel() {
+    if (window.XLSX) return Promise.resolve(window.XLSX);
+    return new Promise((ok, mal) => {
+      const sc = document.createElement('script');
+      sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      sc.onload = () => window.XLSX ? ok(window.XLSX) : mal(new Error('No cargó la librería de Excel'));
+      sc.onerror = () => mal(new Error('No se pudo cargar la librería de Excel. Revise su conexión.'));
+      document.head.appendChild(sc);
+    });
+  }
+
+  function generarReporteFormularios(programa, boton) {
+    const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
+    const txt = boton ? boton.textContent : '';
+    if (boton) { boton.disabled = true; boton.textContent = 'Preparando reporte…'; }
+    const fin = () => { if (boton) { boton.disabled = false; boton.textContent = txt; } };
+
+    Promise.all([
+      api('/reporte-formularios?programa=' + encodeURIComponent(programa) +
+          '&ciclo=' + encodeURIComponent(ciclo)),
+      cargarLibreriaExcel()
+    ]).then(([d, XLSX]) => {
+      fin();
+      if (!d.detalle || !d.detalle.length) {
+        alert('No se encontraron cargas de ' + programa + ' en el ciclo ' + ciclo + '.');
+        return;
+      }
+      const F = ['F1', 'F2', 'F3'];
+      const exigibles = F.filter(f => d.fuentes[f] && !d.fuentes[f].error);
+      const cumple = e => /^Presentado/.test(e) && e !== 'Fuera de plazo';
+      const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
+      const hoy = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: 'long', year: 'numeric' });
+      const cab = (titulo) => [
+        ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+        ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'],
+        [titulo],
+        ['Carrera: ' + d.programa + ' · Ciclo: ' + d.ciclo + ' · Emitido el ' + hoy + ' por ' + (d.generadoPor || '')],
+        []
+      ];
+      const hoja = (filas, anchos, filaEnc) => {
+        const ws = XLSX.utils.aoa_to_sheet(filas);
+        ws['!cols'] = anchos.map(w => ({ wch: w }));
+        if (filaEnc != null && filas[filaEnc]) {
+          ws['!autofilter'] = { ref: XLSX.utils.encode_range(
+            { s: { r: filaEnc, c: 0 }, e: { r: filas.length - 1, c: filas[filaEnc].length - 1 } }) };
+        }
+        return ws;
+      };
+
+      // 1) Detalle por carga
+      const enc1 = ['N°', 'Docente', 'Código', 'Curso', 'Grupo', 'Tipo', 'Semestre', 'Área', 'Coordinador del área']
+        .concat(...F.map(f => [f + ' fecha', f + ' estado']))
+        .concat(['Presentados', 'A tiempo', 'Cumplimiento %', 'Nota']);
+      const det = d.detalle.map((x, i) => {
+        const pres = exigibles.filter(f => /^Presentado|^Fuera/.test(x[f].estado)).length;
+        const ok = exigibles.filter(f => cumple(x[f].estado)).length;
+        const aprox = F.filter(f => x[f] && x[f].aproximada);
+        const varias = F.filter(f => x[f] && x[f].veces > 1);
+        x._ok = ok; x._pres = pres;
+        return [i + 1, x.docente, x.codigo, nombreCurso(x.curso), x.grupo, x.tipos, x.semestre, x.area, x.coordinador]
+          .concat(...F.map(f => [x[f].fecha || '', x[f].estado]))
+          .concat([pres + ' de ' + exigibles.length, ok + ' de ' + exigibles.length, pct(ok, exigibles.length),
+            [aprox.length ? 'Coincidencia aproximada en ' + aprox.join(', ') + ' (curso o subgrupo escrito distinto)' : '',
+             varias.length ? 'Envió más de una vez ' + varias.join(', ') + ' (se toma la primera fecha)' : '']
+              .filter(Boolean).join('. ')]);
+      });
+      const f1 = cab('Cumplimiento de los formularios F1, F2 y F3 — detalle por carga');
+      const ws1 = hoja(f1.concat([enc1], det),
+        [5, 34, 10, 38, 7, 10, 9, 28, 30, 11, 22, 11, 22, 11, 22, 12, 11, 14, 50], f1.length);
+
+      // 2) Resumen por docente
+      const porDoc = {};
+      d.detalle.forEach(x => {
+        const r = porDoc[x.docente] = porDoc[x.docente] || { cargas: 0, exig: 0, ok: 0, fuera: 0, no: 0 };
+        r.cargas++;
+        exigibles.forEach(f => {
+          r.exig++;
+          if (cumple(x[f].estado)) r.ok++;
+          else if (x[f].estado === 'Fuera de plazo') r.fuera++;
+          else r.no++;
+        });
+      });
+      const enc2 = ['Docente', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo', 'Fuera de plazo',
+                    'No presentados', 'Cumplimiento %', 'Presentados %'];
+      const res2 = Object.entries(porDoc).map(([doc, r]) =>
+        [doc, r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig), pct(r.ok + r.fuera, r.exig)])
+        .sort((a, b) => a[6] - b[6] || String(a[0]).localeCompare(String(b[0]), 'es'));
+      const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
+      const ws2 = hoja(f2.concat([enc2], res2), [36, 8, 12, 12, 12, 12, 14, 14], f2.length);
+
+      // 3) Resumen por área
+      const porArea = {};
+      d.detalle.forEach(x => {
+        const k = x.area || 'Sin área';
+        const r = porArea[k] = porArea[k] || { coord: x.coordinador || '', cargas: 0, exig: 0, ok: 0, fuera: 0, no: 0 };
+        r.cargas++;
+        exigibles.forEach(f => {
+          r.exig++;
+          if (cumple(x[f].estado)) r.ok++;
+          else if (x[f].estado === 'Fuera de plazo') r.fuera++;
+          else r.no++;
+        });
+      });
+      const enc3 = ['Área', 'Coordinador del área', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo',
+                    'Fuera de plazo', 'No presentados', 'Cumplimiento %'];
+      const res3 = Object.entries(porArea).map(([k, r]) =>
+        [k, r.coord, r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig)])
+        .sort((a, b) => a[7] - b[7]);
+      const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
+      const ws3 = hoja(f3.concat([enc3], res3), [34, 32, 8, 12, 12, 12, 12, 14], f3.length);
+
+      // 4) Sin coincidencia
+      const enc4 = ['Formato', 'Fila en la hoja', 'Docente (como lo escribió)', 'Curso (como lo escribió)', 'Grupo', 'Fecha'];
+      const res4 = [];
+      F.forEach(f => (d.sinCoincidencia[f] || []).forEach(x =>
+        res4.push([f, x.fila, x.docente, x.curso, x.grupo, x.fecha])));
+      const f4 = cab('Respuestas de los formularios que no coinciden con ninguna carga del ciclo');
+      const nota4 = [['Revise estas filas antes de dar a alguien por «No presentado»: suelen ser un curso, ' +
+                      'un grupo o un nombre escrito de otra forma, o una carga de otra carrera.'], []];
+      const ws4 = hoja(f4.concat(nota4, [enc4], res4.length ? res4 : [['—', '', 'Todas las respuestas coincidieron con una carga', '', '', '']]),
+        [9, 12, 36, 44, 8, 12], f4.length + nota4.length);
+
+      // 5) Parámetros
+      const tot = d.detalle.length * exigibles.length;
+      const totOk = d.detalle.reduce((s2, x) => s2 + x._ok, 0);
+      const totPres = d.detalle.reduce((s2, x) => s2 + x._pres, 0);
+      const par = cab('Parámetros y criterios del reporte').concat([
+        ['Concepto', 'Valor'],
+        ['Carrera', d.programa],
+        ['Ciclo académico', d.ciclo],
+        ['Cargas evaluadas (docente · grupo · curso)', d.detalle.length],
+        ['Formularios exigibles', tot],
+        ['Presentados', totPres + ' (' + pct(totPres, tot) + ' %)'],
+        ['Presentados a tiempo', totOk + ' (' + pct(totOk, tot) + ' %)'],
+        []
+      ]).concat(F.map(f => [
+        'Plazo ' + f, d.plazos[f] || 'No fijado para este ciclo'
+      ])).concat([[]]).concat(F.map(f => {
+        const fu = d.fuentes[f] || {};
+        return ['Hoja ' + f, fu.error ? 'No consultada: ' + fu.error
+          : (fu.hoja + ' · ' + fu.filas + ' respuestas · ' + fu.enlace)];
+      })).concat([
+        [],
+        ['Criterios', 'Se evalúa cada carga de la carrera en el ciclo, una por docente, grupo y curso ' +
+          '(teoría y laboratorio del mismo docente y grupo cuentan una vez). Incluye a los docentes de ' +
+          'otros departamentos que dictan cursos de la carrera.'],
+        ['', '«Presentado a tiempo»: la fecha del formulario es igual o anterior al plazo de la Escuela. ' +
+          '«Fuera de plazo»: es posterior. «No presentado»: no hay respuesta que coincida.'],
+        ['', 'Si un formulario se envió más de una vez, se toma la primera fecha.'],
+        ['', 'Si un formato no tiene plazo fijado, lo presentado se cuenta como cumplido y se indica así.'],
+        ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar.']
+      ]);
+      const ws5 = hoja(par, [40, 110], null);
+
+      const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, ws1, 'Detalle por carga');
+      XLSX.utils.book_append_sheet(libro, ws2, 'Resumen por docente');
+      XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
+      XLSX.utils.book_append_sheet(libro, ws4, 'Sin coincidencia');
+      XLSX.utils.book_append_sheet(libro, ws5, 'Parámetros');
+      const nombre = 'Cumplimiento_F1-F3_' +
+        String(d.programa).replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' +
+        String(d.ciclo).replace(/\s+/g, '') + '.xlsx';
+      XLSX.writeFile(libro, nombre);
+    }).catch(e => { fin(); alert('No se pudo generar el reporte: ' + e.message); });
+  }
+  window.generarReporteFormularios = generarReporteFormularios;
+
+  // Notificación por correo: primero la vista previa, luego la confirmación.
+  function notificarFormularios(programa, boton) {
+    const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
+    const todos = confirm(
+      '¿A quiénes notificar?\n\n' +
+      'Aceptar: a TODOS los docentes de ' + programa + ' (también a quienes cumplieron, como reconocimiento).\n' +
+      'Cancelar: SOLO a quienes tienen formularios pendientes o fuera de plazo.');
+    const alcance = todos ? 'todos' : 'pendientes';
+    const txt = boton.textContent;
+    boton.disabled = true; boton.textContent = 'Preparando…';
+    const fin = () => { boton.disabled = false; boton.textContent = txt; };
+    const base = '/notificar-formularios?programa=' + encodeURIComponent(programa) +
+                 '&ciclo=' + encodeURIComponent(ciclo) + '&alcance=' + alcance;
+
+    api(base, { limiteMs: 240000 }).then(v => {
+      if (!v.destinatarios) {
+        fin();
+        alert(v.sinCorreo && v.sinCorreo.length
+          ? 'Nadie a quien enviar: ' + v.sinCorreo.length + ' docente(s) no tienen correo registrado.'
+          : 'No hay docentes a quienes notificar con ese criterio.');
+        return;
+      }
+      const sinC = v.sinCorreo || [];
+      const ok = confirm(
+        'Notificación de F1–F3 · ' + programa + ' · ' + ciclo + '\n\n' +
+        'Se enviará un correo a ' + v.destinatarios + ' docente(s)' +
+        (alcance === 'pendientes' ? ' con formularios pendientes o fuera de plazo' : '') + '.\n' +
+        'Docentes de la carrera en el ciclo: ' + v.docentes + ' (con pendientes: ' + v.conPendientes + ').\n' +
+        (sinC.length ? '\nSin correo registrado (' + sinC.length + '), no recibirán nada:\n' +
+          sinC.slice(0, 12).join('\n') + (sinC.length > 12 ? '\n…y ' + (sinC.length - 12) + ' más' : '') + '\n' : '') +
+        (v.cuota >= 0 ? '\nCorreos disponibles hoy en la cuenta del portal: ' + v.cuota + '.\n' : '') +
+        '\nCada docente recibe un solo correo con todas sus cargas. Las respuestas llegan a su correo.\n\n¿Enviar ahora?');
+      if (!ok) { fin(); return; }
+      boton.textContent = 'Enviando…';
+      return api('/notificar-formularios', {
+        method: 'POST', limiteMs: 300000,
+        body: JSON.stringify({ programa, ciclo, alcance, confirmado: true })
+      }).then(r => {
+        fin();
+        alert('Notificación enviada.\n\nEnviados: ' + (r.enviados || []).length +
+              '\nNo se pudieron enviar: ' + (r.fallidos || []).length +
+              '\nSin correo registrado: ' + (r.sinCorreo || []).length +
+              '\n\nSe descargará la constancia en Excel.');
+        return cargarLibreriaExcel().then(XLSX => {
+          const filas = [
+            ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+            ['Constancia de notificación a docentes — formularios F1 a F3'],
+            ['Carrera: ' + r.programa + ' · Ciclo: ' + r.ciclo + ' · Enviado por ' + r.remitente +
+             ' el ' + new Date().toLocaleString('es-PE')],
+            ['Alcance: ' + (r.alcance === 'todos' ? 'todos los docentes' : 'docentes con pendientes')],
+            [],
+            ['Resultado', 'Docente', 'Correo', 'Cumplimiento %', 'Detalle']
+          ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, x.pct, x.cumplidos + ' de ' + x.total]))
+           .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', x.error]))
+           .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', 'Registrar su correo en el directorio de Validar datos']));
+          const ws = XLSX.utils.aoa_to_sheet(filas);
+          ws['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 34 }, { wch: 14 }, { wch: 50 }];
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, 'Constancia');
+          XLSX.writeFile(wb, 'Constancia_notificacion_F1-F3_' +
+            String(r.programa).replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' +
+            String(r.ciclo).replace(/\s+/g, '') + '.xlsx');
+        });
+      });
+    }).catch(e => { fin(); alert('No se pudo notificar: ' + e.message); });
   }
 
   function descargarIndicadores(d) {
