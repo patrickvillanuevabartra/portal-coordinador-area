@@ -3645,7 +3645,7 @@ label .req{color:var(--falla)}
       const F = ['F1', 'F2', 'F3'];
       const META_VERDE = 90, META_AMARILLO = 70;
       const cumple = e => /^Presentado/.test(e || '');
-      const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
+      const pct = (a, b) => b ? Math.round(a / b * 100) : 0;   // sin decimales: más fácil de leer
       const corto = p => String(p).replace(/^Ingeniería\s+(de\s+)?/i, '');
       const dma = (iso) => {
         const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -3741,14 +3741,21 @@ label .req{color:var(--falla)}
           ? Math.round(o.retrasos.reduce((a, b) => a + b, 0) / o.retrasos.length * 10) / 10 : null;
         o.retrasoMax = o.retrasos.length ? Math.max.apply(null, o.retrasos) : null;
         const conF = F.filter(f => o.porF[f].exig);
-        o.tendencia = conF.length >= 2
-          ? Math.round((pct(o.porF[conF[conF.length - 1]].ok, o.porF[conF[conF.length - 1]].exig) -
-                        pct(o.porF[conF[0]].ok, o.porF[conF[0]].exig)) * 10) / 10 : null;
-        o.tendenciaDe = conF.length >= 2 ? conF[0] + ' → ' + conF[conF.length - 1] : '';
+        if (conF.length >= 2) {
+          const fA = conF[0], fB = conF[conF.length - 1];
+          const pA = pct(o.porF[fA].ok, o.porF[fA].exig), pB = pct(o.porF[fB].ok, o.porF[fB].exig);
+          o.tendencia = pB - pA;
+          o.tendenciaTxt = (pB > pA ? 'Mejoró' : (pB < pA ? 'Empeoró' : 'Se mantuvo')) +
+            ': de ' + pA + ' % en ' + fA + ' a ' + pB + ' % en ' + fB;
+        } else { o.tendencia = null; o.tendenciaTxt = '—'; }
         const incumple = docs.map(p => p.exig - p.ok).sort((a, b) => b - a);
         const totInc = incumple.reduce((a, b) => a + b, 0);
         const top = Math.max(1, Math.ceil(docs.length * 0.2));
         o.pareto = totInc ? pct(incumple.slice(0, top).reduce((a, b) => a + b, 0), totInc) : null;
+        o.paretoTxt = totInc
+          ? o.pareto + ' % de lo no cumplido corresponde a ' + top + (top === 1 ? ' docente' : ' docentes') +
+            ' (de ' + docs.length + ')'
+          : 'No hay incumplimientos';
         o.sinCoincidencia = sinCoin;
         return o;
       };
@@ -3774,27 +3781,27 @@ label .req{color:var(--falla)}
         R.push([nombre].concat(ambitos.map(a => f(a.ind))));
         if (semaf) ambitos.forEach((a, i) => marcas.push([R.length - 1, i + 1, 1, ESTILO[semaforo(semaf(a.ind))]]));
       };
-      filaInd('Cargas evaluadas (docente · grupo · curso)', o => o.cargas);
-      filaInd('Formularios exigibles', o => o.exig);
-      filaInd('Índice de cumplimiento oportuno (a tiempo / exigibles)', o => fn(o.oportuno, ' %'), o => o.oportuno);
-      filaInd('Tasa de presentación (a tiempo + fuera de plazo)', o => fn(o.presentacion, ' %'));
-      filaInd('Brecha de puntualidad (presentación − oportuno)', o => fn(Math.round((o.presentacion - o.oportuno) * 10) / 10, ' pp'));
-      filaInd('Docentes evaluados', o => o.docentes);
-      filaInd('Docentes con cumplimiento total (todos a tiempo) 😊', o => nyp(o.total, o.docentes));
-      filaInd('Docentes en riesgo (ninguno a tiempo)', o => nyp(o.riesgo, o.docentes));
-      filaInd('Retraso promedio de lo presentado fuera de plazo', o => o.retrasoProm == null ? '—' : fn(o.retrasoProm, ' días'));
-      filaInd('Retraso máximo', o => o.retrasoMax == null ? '—' : o.retrasoMax + ' días');
-      filaInd('Tendencia del cumplimiento oportuno', o => o.tendencia == null ? '—'
-        : (o.tendencia > 0 ? '▲ +' : (o.tendencia < 0 ? '▼ ' : '= ')) + fn(o.tendencia, ' pp') + ' (' + o.tendenciaDe + ')');
-      filaInd('Concentración: % de incumplimientos en el 20 % de docentes', o => o.pareto == null ? '—' : fn(o.pareto, ' %'));
-      filaInd('Respuestas sin coincidencia (revisar)', o => o.sinCoincidencia);
+      filaInd('Cursos y grupos revisados', o => o.cargas);
+      filaInd('Formularios que debían presentarse', o => o.exig);
+      filaInd('Formularios presentados A TIEMPO (indicador principal)', o => o.oportuno + ' %', o => o.oportuno);
+      filaInd('Formularios presentados TARDE', o => pct(o.fuera, o.exig) + ' %');
+      filaInd('Formularios NO presentados', o => pct(o.no, o.exig) + ' %');
+      filaInd('Docentes revisados', o => o.docentes);
+      filaInd('Docentes que presentaron TODO a tiempo 😊', o => nyp(o.total, o.docentes));
+      filaInd('Docentes que NO presentaron nada a tiempo', o => nyp(o.riesgo, o.docentes));
+      filaInd('Quienes presentaron tarde, ¿cuántos días se atrasaron en promedio?',
+        o => o.retrasoProm == null ? '—' : Math.round(o.retrasoProm) + (Math.round(o.retrasoProm) === 1 ? ' día' : ' días'));
+      filaInd('Mayor atraso', o => o.retrasoMax == null ? '—' : o.retrasoMax + (o.retrasoMax === 1 ? ' día' : ' días'));
+      filaInd('¿Mejoró o empeoró del primer al último formulario?', o => o.tendenciaTxt);
+      filaInd('¿Lo no cumplido se concentra en pocos docentes?', o => o.paretoTxt);
+      filaInd('Respuestas que no se pudieron asociar a un curso (revisar)', o => o.sinCoincidencia);
       filaInd('Docentes sin correo registrado', o => o.sinCorreo);
       R.push([]);
 
       filaSeccion('2. Resultados por formulario');
       R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
       F.forEach(f => {
-        R.push(['Formulario ' + f + ' (total exigibles)'].concat(ambitos.map(a =>
+        R.push(['Formulario ' + f + ' (total que debía presentarse)'].concat(ambitos.map(a =>
           a.ind.porF[f].exig ? a.ind.porF[f].exig : 'Sin hoja')));
         marcas.push([R.length - 1, 0, ncol, ESTILO.negrita]);
         R.push(['   • Presentado a tiempo'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].ok, a.ind.porF[f].exig) : '—')));
@@ -3815,11 +3822,11 @@ label .req{color:var(--falla)}
       });
       const areasOrden = Object.values(porArea).filter(a => a.exig)
         .map(a => Object.assign(a, { p: pct(a.ok, a.exig) })).sort((a, b) => a.p - b.p);
-      filaSeccion('3. Áreas con menor cumplimiento oportuno (las cinco más bajas)');
-      R.push(['Área', 'Carrera', 'Coordinador del área', 'Cargas', 'Cumplimiento oportuno']);
+      filaSeccion('3. Las cinco áreas con menos formularios a tiempo');
+      R.push(['Área', 'Carrera', 'Coordinador del área', 'Cursos y grupos', 'Presentados a tiempo (%)']);
       marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
       areasOrden.slice(0, 5).forEach(a => {
-        R.push([a.area, a.carrera, a.coord, a.cargas, fn(a.p, ' %')]);
+        R.push([a.area, a.carrera, a.coord, a.cargas, a.p + ' %']);
         marcas.push([R.length - 1, 4, 1, ESTILO[semaforo(a.p)]]);
       });
       R.push([]);
@@ -3833,8 +3840,8 @@ label .req{color:var(--falla)}
       });
       const enRiesgo = Object.values(porDocR).filter(p => p.exig && p.ok === 0)
         .sort((a, b) => b.cargas - a.cargas || a.docente.localeCompare(b.docente, 'es'));
-      filaSeccion('4. Docentes en riesgo: ninguno de sus formularios a tiempo (acción inmediata)');
-      R.push(['Docente', 'Carrera(s)', 'Cargas', 'Formularios exigibles', 'A tiempo']);
+      filaSeccion('4. Docentes que no presentaron ningún formulario a tiempo (conviene contactarlos)');
+      R.push(['Docente', 'Carrera(s)', 'Cursos y grupos', 'Formularios que debía presentar', 'Presentados a tiempo']);
       marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
       if (!enRiesgo.length) R.push(['Ningún docente en esta situación. 😊']);
       enRiesgo.slice(0, 40).forEach(p => {
@@ -3845,13 +3852,14 @@ label .req{color:var(--falla)}
       R.push([]);
       filaSeccion('Cómo leer este resumen');
       [
-        'Semáforo del índice de cumplimiento oportuno: verde desde ' + META_VERDE + ' %, amarillo de ' +
-          META_AMARILLO + ' % a ' + (META_VERDE - 0.1).toString().replace('.', ',') + ' %, rojo por debajo de ' + META_AMARILLO + ' %.',
-        'Brecha de puntualidad: si es alta, el problema es que se presenta tarde; si el «No presentado» es alto, el problema es de omisión.',
-        'Retraso promedio corto (pocos días) sugiere revisar el plazo; retraso largo sugiere un problema de compromiso.',
-        'Tendencia: diferencia entre el cumplimiento oportuno del último formulario y el del primero. ▲ mejora, ▼ empeora.',
-        'Concentración alta (por ejemplo, 70 % o más): pocos docentes explican la mayoría de los incumplimientos; conviene una acción individual.',
-        'Respuestas sin coincidencia: si son muchas, el cumplimiento real puede ser mayor que el reportado; revisar esa hoja.'
+        'Colores del indicador principal: verde si se presentó a tiempo el ' + META_VERDE + ' % o más; ' +
+          'amarillo entre ' + META_AMARILLO + ' % y ' + (META_VERDE - 1) + ' %; rojo si es menos de ' + META_AMARILLO + ' %.',
+        'Si hay muchos formularios presentados TARDE, el problema es la puntualidad: un recordatorio antes del plazo suele bastar.',
+        'Si hay muchos formularios NO presentados, el problema es más serio: conviene hablar con cada docente.',
+        'Si el atraso promedio es de pocos días, quizá el plazo es muy ajustado. Si son semanas, hay falta de compromiso.',
+        'Si lo no cumplido se concentra en pocos docentes, basta con conversar con ellos. Si está repartido, conviene una acción para todos.',
+        'Las respuestas que no se pudieron asociar a un curso suelen ser nombres de curso o grupos escritos de otra forma: ' +
+          'revíselas en la hoja «Sin coincidencia» antes de concluir que alguien no presentó.'
       ].forEach(t => R.push([t]));
       const ws0 = XLSX.utils.aoa_to_sheet(R);
       ws0['!cols'] = [{ wch: 58 }].concat(ambitos.map(() => ({ wch: 20 })));
@@ -3862,7 +3870,7 @@ label .req{color:var(--falla)}
       const enc1 = ['N°', 'Carrera', 'Docente', 'Código', 'Curso', 'Grupo', 'Tipo', 'Semestre', 'Área',
                     'Coordinador del área']
         .concat(...F.map(f => [f + ' fecha', f + ' estado']))
-        .concat(['Presentados', 'A tiempo', 'Cumplimiento %', 'Reconocimiento', 'Nota']);
+        .concat(['Presentados (a tiempo o tarde)', 'Presentados a tiempo', 'Cumplimiento a tiempo (%)', 'Reconocimiento', 'Nota']);
       const det = filasTodas.map((x, i) => {
         const n = x._exig.length;
         const aprox = F.filter(f => x[f] && x[f].aproximada);
@@ -3896,8 +3904,9 @@ label .req{color:var(--falla)}
           else r.no++;
         });
       });
-      const enc2 = ['Docente', 'Carrera(s)', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo',
-                    'Fuera de plazo', 'No presentados', 'Cumplimiento %', 'Presentados %', 'Reconocimiento'];
+      const enc2 = ['Docente', 'Carrera(s)', 'Cursos y grupos', 'Formularios que debía presentar', 'Presentados a tiempo',
+                    'Presentados tarde', 'No presentados', 'Cumplimiento a tiempo (%)',
+                    'Presentados, a tiempo o tarde (%)', 'Reconocimiento'];
       const res2 = Object.entries(porDoc).map(([doc, r]) =>
         [doc, [...r.carreras].join(', '), r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig),
          pct(r.ok + r.fuera, r.exig), r.exig && r.ok >= r.exig ? KUDO + ' todos sus formularios' : ''])
@@ -3910,8 +3919,8 @@ label .req{color:var(--falla)}
       });
 
       // ------------------------------------------ hoja 3: resumen por área --
-      const enc3 = ['Carrera', 'Área', 'Coordinador del área', 'Cargas', 'Formularios exigibles',
-                    'Presentados a tiempo', 'Cumplimiento %'];
+      const enc3 = ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Formularios que debían presentarse',
+                    'Presentados a tiempo', 'Cumplimiento a tiempo (%)'];
       const res3 = areasOrden.map(a => [a.carrera, a.area, a.coord, a.cargas, a.exig, a.ok, a.p]);
       const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
       const ws3 = hoja(f3.concat([enc3], res3), [16, 34, 32, 8, 12, 12, 14], f3.length);
@@ -3950,12 +3959,12 @@ label .req{color:var(--falla)}
         ['Criterios', 'Se evalúa cada carga de la carrera en el ciclo, una por docente, grupo y curso ' +
           '(teoría y laboratorio del mismo docente y grupo cuentan una vez). Incluye a los docentes de ' +
           'otros departamentos que dictan cursos de la carrera.'],
-        ['', '«Presentado a tiempo»: la fecha del formulario es igual o anterior al plazo de la Escuela. ' +
-          '«Fuera de plazo»: es posterior. «No presentado»: no hay respuesta que coincida.'],
+        ['', '«Presentado a tiempo»: se envió el día del plazo o antes. «Fuera de plazo»: se envió después. ' +
+          '«No presentado»: no se encontró el formulario.'],
         ['', 'Si un formulario se envió más de una vez, se toma la primera fecha.'],
-        ['', 'Si un formato no tiene plazo fijado, lo presentado se cuenta como cumplido y se indica así.'],
+        ['', 'Si la Escuela no fijó plazo para un formulario, lo presentado se cuenta como cumplido.'],
         ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar. Formato dd/mm/aa.'],
-        ['Meta del índice de cumplimiento oportuno', 'Verde desde ' + META_VERDE + ' %, amarillo desde ' +
+        ['Meta del indicador principal (presentados a tiempo)', 'Verde desde ' + META_VERDE + ' %, amarillo desde ' +
           META_AMARILLO + ' %, rojo por debajo de ' + META_AMARILLO + ' %.'],
         [],
         ['Leyenda de colores por docente y carga', '']
@@ -4040,7 +4049,7 @@ label .req{color:var(--falla)}
              ' el ' + new Date().toLocaleString('es-PE')],
             ['Alcance: ' + (r.alcance === 'todos' ? 'todos los docentes' : 'docentes con pendientes')],
             [],
-            ['Resultado', 'Docente', 'Correo', 'Cumplimiento %', 'Detalle']
+            ['Resultado', 'Docente', 'Correo', 'Cumplimiento a tiempo (%)', 'Presentados a tiempo']
           ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, x.pct, x.cumplidos + ' de ' + x.total]))
            .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', x.error]))
            .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', 'Registrar su correo en el directorio de Validar datos']));
