@@ -3548,7 +3548,7 @@ label .req{color:var(--falla)}
 
     // Lo que exige acción.
     h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
-      '<h2>Requieren atención</h2><p>Sílabos observados sin levantar, entrevistas con alerta ' +
+      '<h2>Requieren atención</h2><p>Sílabos observados sin levantar, entrevistas urgentes ' +
       'y cumplimientos por debajo del 70%.</p></div></header><div class="tarjeta-cuerpo">';
     if (!(d.atencion || []).length) {
       h += '<div class="vacio">Nada pendiente de atención.</div>';
@@ -3622,6 +3622,41 @@ label .req{color:var(--falla)}
     });
   }
 
+  // Recuadro de espera: un indicador que gira, un mensaje claro y los segundos
+  // transcurridos, para que se vea que el sistema está trabajando.
+  function mostrarEspera(titulo, detalle) {
+    if (!document.getElementById('estiloEspera')) {
+      const st = document.createElement('style');
+      st.id = 'estiloEspera';
+      st.textContent = '@keyframes girarEspera{to{transform:rotate(360deg)}}' +
+        '.giro-espera{width:46px;height:46px;border:5px solid #d6e9df;border-top-color:#0f8f5e;' +
+        'border-radius:50%;margin:6px auto 16px;animation:girarEspera 1s linear infinite}';
+      document.head.appendChild(st);
+    }
+    const capa = document.createElement('div');
+    capa.className = 'capa';
+    capa.style.zIndex = 60;
+    capa.innerHTML = '<div class="dialogo" style="width:min(480px,100%);text-align:center;font-size:16px">' +
+      '<div class="giro-espera"></div>' +
+      '<h3 style="font-size:19px">' + esc(titulo) + '</h3>' +
+      '<p style="color:var(--tinta-media);margin:6px 0 10px;line-height:1.5">' + esc(detalle) + '</p>' +
+      '<p style="font-size:15px">Por favor, espere y no cierre esta página.</p>' +
+      '<p class="esp-tiempo" style="font-weight:700;font-size:18px;margin-top:8px">0 segundos</p>' +
+      '<p class="esp-extra" style="color:var(--tinta-media);font-size:14px;min-height:20px"></p></div>';
+    document.body.appendChild(capa);
+    const t0 = Date.now();
+    const reloj = setInterval(() => {
+      const sg = Math.round((Date.now() - t0) / 1000);
+      capa.querySelector('.esp-tiempo').textContent = sg < 60 ? sg + ' segundos'
+        : Math.floor(sg / 60) + ' min ' + (sg % 60) + ' s';
+      if (sg === 45) capa.querySelector('.esp-extra').textContent =
+        'Sigue procesando. Gracias por su paciencia.';
+      if (sg === 120) capa.querySelector('.esp-extra').textContent =
+        'Está tardando más de lo habitual, pero sigue trabajando.';
+    }, 1000);
+    return () => { clearInterval(reloj); capa.remove(); };
+  }
+
   function generarReporteFormularios(carreras, boton) {
     if (!Array.isArray(carreras)) carreras = [carreras];
     carreras = carreras.filter(Boolean);
@@ -3629,7 +3664,10 @@ label .req{color:var(--falla)}
     const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
     const txt = boton ? boton.textContent : '';
     if (boton) { boton.disabled = true; boton.textContent = 'Preparando reporte…'; }
-    const fin = () => { if (boton) { boton.disabled = false; boton.textContent = txt; } };
+    const cerrarEspera = mostrarEspera('Preparando el reporte',
+      'Se están revisando los formularios de ' + carreras.length +
+      (carreras.length === 1 ? ' carrera' : ' carreras') + '. Puede tardar uno o dos minutos.');
+    const fin = () => { cerrarEspera(); if (boton) { boton.disabled = false; boton.textContent = txt; } };
 
     Promise.all([
       api('/reporte-formularios?programas=' + encodeURIComponent(carreras.join('|')) +
@@ -4005,7 +4043,10 @@ label .req{color:var(--falla)}
     const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
     const txt = boton.textContent;
     boton.disabled = true; boton.textContent = 'Preparando…';
-    const fin = () => { boton.disabled = false; boton.textContent = txt; };
+    const cerrarEspera = mostrarEspera('Preparando la notificación',
+      'Se está revisando qué formularios presentó cada docente de ' + programa +
+      '. Puede tardar uno o dos minutos.');
+    const fin = () => { cerrarEspera(); boton.disabled = false; boton.textContent = txt; };
     const corto = String(programa).replace(/^Ingeniería\s+(de\s+)?/i, '');
     const NOMBRE_GRUPO = {
       aTiempo: 'Presentó todos a tiempo', tarde: 'Presentó todos, alguno fuera del plazo',
@@ -4097,11 +4138,14 @@ label .req{color:var(--falla)}
           const bSi = capa.querySelector('#notSi'), bNo = capa.querySelector('#notNo');
           bSi.disabled = true; bNo.disabled = true;
           capa.querySelectorAll('.grpNot').forEach(c => { c.disabled = true; });
-          bSi.textContent = 'Enviando… no cierre esta ventana';
+          bSi.textContent = 'Enviando…';
+          const cerrarEnvio = mostrarEspera('Enviando los correos',
+            'Se está enviando un correo a cada docente. Al terminar verá el resultado aquí mismo.');
           api('/notificar-formularios', {
             method: 'POST', limiteMs: 300000,
             body: JSON.stringify({ programa, ciclo, grupos: grupos.join(','), confirmado: true })
           }).then(r => {
+            cerrarEnvio();
             const env = (r.enviados || []).length, fal = (r.fallidos || []).length, sin = (r.sinCorreo || []).length;
             capa.querySelector('#notResultado').innerHTML =
               '<div style="background:#f1faf4;border-left:4px solid #1b7f4b;padding:12px 14px;border-radius:8px;font-size:15px">' +
@@ -4133,6 +4177,7 @@ label .req{color:var(--falla)}
                 String(r.ciclo).replace(/\s+/g, '') + '.xlsx');
             });
           }).catch(e => {
+            cerrarEnvio();
             capa.querySelector('#notResultado').innerHTML =
               '<div style="background:#fdecec;border-left:4px solid #b42318;padding:12px 14px;border-radius:8px">' +
               '<b>No se pudo completar el envío.</b><br>' + esc(e.message) + '</div>';
@@ -4497,7 +4542,7 @@ label .req{color:var(--falla)}
     aulaVirtual: 'Revisa que el aula virtual tenga los ocho elementos exigidos y anota lo que falte.',
     portafolios: 'Comprueba que el portafolio digital contenga las evidencias de cada tipo de evaluación.',
     delegados: 'Registra a los delegados del curso. Este dato es el que después se usa en la entrevista.',
-    entrevistas: 'Deja constancia de lo tratado con los delegados en cada uno de los ocho temas y de los compromisos acordados.',
+    entrevistas: 'Deja constancia de lo tratado con los delegados en cada uno de los ocho temas y de las sugerencias para la Escuela.',
     formula: 'Verifica que la fórmula de evaluación esté ingresada en el Sistema de Evaluación y que sea idéntica a la del sílabo aprobado. Cualquier diferencia se comunica al docente y a la Escuela para su regularización.'
   };
 
@@ -4584,7 +4629,7 @@ label .req{color:var(--falla)}
       guardar: 'Guardar entrevista',
       // La entrevista es conjunta: los ocho temas se registran una sola vez.
       // Las pestañas separan la reunión, lo tratado y lo acordado.
-      pestanas: ['La reunión', 'Temas tratados', 'Conclusiones'],
+      pestanas: ['La reunión', 'Temas tratados', 'Sugerencias a la Escuela'],
       bloques: [
         { pestana:0, tipo:'grid', campos:[
           { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
@@ -4595,10 +4640,18 @@ label .req{color:var(--falla)}
         ]},
         { pestana:1, tipo:'textos', fuente:'temas' },
         { pestana:2, tipo:'grid', ancho:true, campos:[
-          { k:'compromisos', etq:'Compromisos acordados', tipo:'textarea',
-            ayuda:'Qué se acordó y con qué plazo.' },
-          { k:'alerta', etq:'¿Requiere atención de la Escuela?', col:'Alerta', tipo:'select', opciones:['Si','No'], req:true,
-            ayuda:'Al marcar Sí, se envía el informe de la entrevista al coordinador general y a la Administración.' },
+          // Los coordinadores de área no acuerdan: recogen y sugieren. El campo
+          // en QuintaDB sigue llamándose «Compromisos acordados».
+          { k:'compromisos', etq:'Sugerencias consolidadas para la Escuela', col:'Compromisos acordados', tipo:'textarea',
+            ayuda:'Resuma lo que la Escuela debería atender o considerar, a partir de lo expresado por los delegados.' },
+          // El informe llega siempre a la Escuela: aquí se indica con qué urgencia.
+          // Se guarda en «Alerta»: Si = urgente, No = para conocimiento.
+          { k:'alerta', etq:'Prioridad para la Escuela', col:'Alerta', tipo:'select', req:true, full:true,
+            opciones:[ { v:'Si', t:'Urgente: requiere atención pronta' },
+                       { v:'No', t:'Para conocimiento y seguimiento' } ],
+            nota:'Al guardar, el informe de la entrevista se envía siempre por correo al Director de la Escuela, ' +
+                 'con copia a usted, al coordinador general y a la Administración. Si lo corrige y vuelve a ' +
+                 'guardar, llega como «actualizado».' },
           { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
         ]}
       ]
@@ -5089,7 +5142,7 @@ label .req{color:var(--falla)}
           '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
-              'accept=".pdf,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
+              'accept=".pdf,.docx,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
             '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
             '<button type="button" class="chat-enviar" id="btnProponer" title="Analizar">Analizar ➤</button>' +
           '</div>' +
@@ -5173,7 +5226,9 @@ label .req{color:var(--falla)}
       }
       if (b.tipo === 'textos') {
         (M_ACTUAL().temas || []).forEach((t, i) =>
-          lista.push({ clave: 'tema:' + i, etiqueta: t.etiqueta }));
+          lista.push({ clave: 'tema:' + i,
+            etiqueta: t.etiqueta + ' — redacte en una o dos frases lo que dijeron los delegados sobre: ' +
+                      (t.nota || t.etiqueta) }));
       }
     });
     return lista;
@@ -5281,6 +5336,19 @@ label .req{color:var(--falla)}
   // traen tiempos que solo estorban y se limpian después.
   async function textoDelArchivo(arch) {
     const esPdf = /\.pdf$/i.test(arch.name) || arch.type === 'application/pdf';
+    // Word: la transcripción de Google Meet se descarga como documento de Word.
+    if (/\.docx$/i.test(arch.name)) {
+      if (!window.mammoth) {
+        await new Promise((ok, mal) => {
+          const sc = document.createElement('script');
+          sc.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js';
+          sc.onload = ok; sc.onerror = () => mal(new Error('No se pudo cargar el lector de Word'));
+          document.head.appendChild(sc);
+        });
+      }
+      const r = await window.mammoth.extractRawText({ arrayBuffer: await arch.arrayBuffer() });
+      return r.value || '';
+    }
     if (!esPdf) return await arch.text();
 
     await cargarPdfJs();
@@ -5471,7 +5539,9 @@ label .req{color:var(--falla)}
         const iEt = listaItems.findIndex(it =>
           sinAcentos(it.etiqueta) === sinAcentos(ref) ||
           String(it.n) === String(ref).replace(/\D/g, ''));
+        const iTe = (M_ACTUAL().temas || []).findIndex(t => sinAcentos(t.etiqueta) === sinAcentos(ref));
         if (iEt >= 0) { tipo = 'item'; ref = listaItems[iEt].n || String(iEt); }
+        else if (iTe >= 0) { tipo = 'tema'; ref = String(iTe); }
         else if ($('f_' + ref)) { tipo = 'campo'; }
         else return;
       }
@@ -5488,7 +5558,11 @@ label .req{color:var(--falla)}
           }));
         }
       } else if (tipo === 'tema') {
-        const el = cajas[Number(ref)];
+        // Por número («tema:0») o por nombre («temas»: {«Prerrequisitos»: …}).
+        let iT = /^\d+$/.test(String(ref)) ? Number(ref) : -1;
+        if (iT < 0) iT = (M_ACTUAL().temas || []).findIndex(t =>
+          sinAcentos(t.etiqueta) === sinAcentos(ref) || sinAcentos(ref).indexOf(sinAcentos(t.etiqueta)) === 0);
+        const el = cajas[iT];
         if (el && !el.value.trim()) { el.value = v; puestos++; cuenta.temas++; }
       } else if (tipo === 'item') {
         const el = items[indiceDe(ref)];
@@ -6337,6 +6411,30 @@ label .req{color:var(--falla)}
     const leerModulo = (id) =>
       api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(id));
 
+    // Entrevista: el delegado y el subdelegado salen de «Datos de delegados»
+    // del mismo curso y grupo (en un curso común, del área que lo supervisa).
+    const traerDelegados = () => {
+      if (clave !== 'entrevistas') return;
+      const fD = $('f_delegado'), fS = $('f_subdelegado');
+      if (!fD || (fD.value.trim() && (!fS || fS.value.trim()))) return;
+      const idDel = a.idInforme ? a.idEspejo : a.idAsignacion;
+      api('/modulo?clave=delegados&idAsignacion=' + encodeURIComponent(idDel))
+        .then(d => {
+          if (estado.actual !== a || estado.modulo !== 'entrevistas' || !d.registro) return;
+          const v = d.registro.valores || {};
+          const del = leer(v, 'Delegado (apellidos y nombres)'), sub = leer(v, 'Subdelegado (apellidos y nombres)');
+          let puestos = 0;
+          if (del && !fD.value.trim()) { fD.value = del; puestos++; }
+          if (sub && fS && !fS.value.trim()) { fS.value = sub; puestos++; }
+          if (puestos) {
+            ['input', 'change'].forEach(ev => { fD.dispatchEvent(new Event(ev, { bubbles: true }));
+              if (fS) fS.dispatchEvent(new Event(ev, { bubbles: true })); });
+            marcarCampos();
+            aviso('El delegado y el subdelegado se tomaron de «Datos de delegados». Puede corregirlos si cambiaron.', 'ok');
+          }
+        }).catch(() => {});
+    };
+
     leerModulo(idLeer)
       .then(datos => {
         if (datos.registro) {
@@ -6344,8 +6442,10 @@ label .req{color:var(--falla)}
           rellenar(datos.registro.valores, false);
           listo();
           aviso('Registro existente cargado. Al guardar se actualiza.', 'ok');
+          traerDelegados();
           return;
         }
+        traerDelegados();
         if (!propio || !a.idEspejo) { listo(); return; }
 
         // Todavía no hay informe propio: se muestra el del área padre.
@@ -6653,7 +6753,21 @@ label .req{color:var(--falla)}
         // El resultado del formato recién guardado se pide por detrás, para que
         // su botón en Mis cursos muestre el porcentaje o el estado al volver.
         cargarAvance();
-        aviso('Guardado.', 'ok');
+        // Entrevista: se dice a quién se envió el informe, como constancia.
+        const inf = r.informe;
+        if (clave === 'entrevistas' && inf) {
+          if (inf.enviado && inf.conDirector) {
+            aviso('Guardado. El informe se envió por correo al Director de la Escuela (' + inf.director +
+                  '), con copia a usted, al coordinador general y a la Administración.', 'ok');
+          } else if (inf.enviado) {
+            aviso('Guardado. El informe se envió al coordinador general y a la Administración, con copia a usted. ' +
+                  'No hay Director de Escuela registrado para esta carrera.', 'ok');
+          } else {
+            aviso('Guardado, pero el informe no se pudo enviar por correo: ' + (inf.motivo || 'motivo desconocido') + '.', 'error');
+          }
+        } else {
+          aviso('Guardado.', 'ok');
+        }
         $('btnGuardar').disabled = false;
       })
       .catch(e => { aviso(e.message, 'error'); $('btnGuardar').disabled = false; });
