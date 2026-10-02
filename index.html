@@ -4007,32 +4007,49 @@ label .req{color:var(--falla)}
     boton.disabled = true; boton.textContent = 'Preparando…';
     const fin = () => { boton.disabled = false; boton.textContent = txt; };
     const corto = String(programa).replace(/^Ingeniería\s+(de\s+)?/i, '');
+    const NOMBRE_GRUPO = {
+      aTiempo: 'Presentó todos a tiempo', tarde: 'Presentó todos, alguno fuera del plazo',
+      falta: 'Le falta al menos un formulario', nada: 'No presentó ningún formulario'
+    };
 
     return api('/notificar-formularios?programa=' + encodeURIComponent(programa) +
                '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 240000 })
       .then(v => new Promise(listo => {
         fin();
-        const op = {
-          pendientes: v.pendientes || { conCorreo: v.destinatarios || 0, sinCorreo: v.sinCorreo || [] },
-          todos: v.todos || { conCorreo: v.destinatarios || 0, sinCorreo: v.sinCorreo || [] }
-        };
+        // Los cuatro grupos, cada uno con el mensaje que recibe.
+        const vacio = { conCorreo: 0, sinCorreo: [] };
+        const G = v.grupos || {};
+        const GRUPOS = [
+          { k: 'falta', color: '#d9822b', marca: true, titulo: 'Le falta presentar al menos un formulario',
+            msj: 'Su correo le indica exactamente qué formulario le falta (y de qué curso y grupo) y le pide presentarlo cuanto antes.' },
+          { k: 'nada', color: '#b42318', marca: true, titulo: 'No presentó ningún formulario',
+            msj: 'Su correo le avisa que no se recibió ninguno y le pide presentarlos cuanto antes.' },
+          { k: 'tarde', color: '#c9a200', marca: false, titulo: 'Presentó todos, pero alguno fuera del plazo',
+            msj: 'Su correo le agradece la entrega y le pide presentarlos a tiempo el próximo ciclo.' },
+          { k: 'aTiempo', color: '#1b7f4b', marca: false, titulo: 'Presentó todos a tiempo 😊',
+            msj: 'Su correo es una felicitación, con su tarjeta de reconocimiento.' }
+        ];
         const capa = document.createElement('div');
         capa.className = 'capa';
         capa.innerHTML =
-          '<div class="dialogo" role="dialog" aria-modal="true" style="width:min(620px,100%);font-size:15px">' +
+          '<div class="dialogo" role="dialog" aria-modal="true" style="width:min(660px,100%);font-size:15px">' +
           '<h3 style="font-size:19px">Notificar a los docentes</h3>' +
           '<p class="det" style="color:var(--tinta-media);margin:0 0 12px">' + esc(programa) +
             ' · ciclo ' + esc(ciclo) + ' · formularios F1, F2 y F3</p>' +
           '<div class="cuerpo-dialogo">' +
-          '<p style="font-weight:600;margin:6px 0 8px">¿A quiénes enviar el correo?</p>' +
-          '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;margin-bottom:8px;cursor:pointer">' +
-            '<input type="radio" name="alcNot" value="pendientes" checked style="width:auto;margin-top:4px">' +
-            '<span><b>Solo a quienes tienen formularios pendientes o presentados tarde</b><br>' +
-            '<span style="color:var(--tinta-media)">' + op.pendientes.conCorreo + ' docente(s) recibirán el correo</span></span></label>' +
-          '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;cursor:pointer">' +
-            '<input type="radio" name="alcNot" value="todos" style="width:auto;margin-top:4px">' +
-            '<span><b>A todos los docentes</b>, también a quienes cumplieron (reciben su felicitación 😊)<br>' +
-            '<span style="color:var(--tinta-media)">' + op.todos.conCorreo + ' docente(s) recibirán el correo</span></span></label>' +
+          '<p style="font-weight:600;margin:6px 0 4px">Marque a qué docentes enviar el correo:</p>' +
+          '<p class="nota-dialogo" style="margin:0 0 10px">Cada grupo recibe un mensaje distinto, según su situación.</p>' +
+          GRUPOS.map(g => {
+            const o = G[g.k] || vacio;
+            const n = o.conCorreo + (o.sinCorreo || []).length;
+            return '<label style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;' +
+              'border:1px solid var(--linea);border-left:6px solid ' + g.color + ';border-radius:10px;margin-bottom:8px;' +
+              (n ? 'cursor:pointer' : 'opacity:.55') + '">' +
+              '<input type="checkbox" class="grpNot" value="' + g.k + '"' + (g.marca && n ? ' checked' : '') +
+                (n ? '' : ' disabled') + ' style="width:20px;height:20px;margin-top:2px;flex:none">' +
+              '<span><b>' + g.titulo + '</b> — <b>' + n + (n === 1 ? ' docente' : ' docentes') + '</b><br>' +
+              '<span style="color:var(--tinta-media);font-size:14px">' + g.msj + '</span></span></label>';
+          }).join('') +
           '<div id="notSinCorreo" style="margin-top:12px"></div>' +
           (v.cuota >= 0 ? '<p class="nota-dialogo" style="margin:10px 0 0">Correos disponibles hoy en la cuenta del portal: <b>' +
             v.cuota + '</b>.</p>' : '') +
@@ -4046,42 +4063,44 @@ label .req{color:var(--falla)}
           '</div></div>';
         document.body.appendChild(capa);
 
-        const elegido = () => capa.querySelector('input[name="alcNot"]:checked').value;
+        const marcados = () => [...capa.querySelectorAll('.grpNot:checked')].map(c => c.value);
         const actualizar = () => {
-          const o = op[elegido()];
-          const n = o.conCorreo;
+          const ks = marcados();
+          const n = ks.reduce((t, k) => t + (G[k] || vacio).conCorreo, 0);
+          const sc = [].concat(...ks.map(k => (G[k] || vacio).sinCorreo || []));
           const bSi = capa.querySelector('#notSi');
-          bSi.textContent = n ? 'Enviar ' + n + (n === 1 ? ' correo' : ' correos') : 'No hay a quién enviar';
+          bSi.textContent = !ks.length ? 'Marque al menos un grupo'
+            : (n ? 'Enviar ' + n + (n === 1 ? ' correo' : ' correos') : 'No hay a quién enviar');
           bSi.disabled = !n || (v.cuota >= 0 && n > v.cuota);
-          const sc = o.sinCorreo || [];
           capa.querySelector('#notSinCorreo').innerHTML = sc.length
             ? '<div style="background:#fdf4e3;border-left:4px solid #d99a1b;padding:10px 12px;border-radius:8px">' +
-              '<b>' + sc.length + ' docente(s) sin correo registrado</b> no recibirán nada:' +
-              '<div style="max-height:110px;overflow:auto;margin-top:6px;font-size:13.5px">' +
+              '<b>' + sc.length + (sc.length === 1 ? ' docente no tiene' : ' docentes no tienen') +
+              ' correo registrado</b> y no recibirá' + (sc.length === 1 ? '' : 'n') + ' nada:' +
+              '<div style="max-height:110px;overflow:auto;margin-top:6px;font-size:14px">' +
               sc.map(esc).join('<br>') + '</div>' +
-              '<div style="font-size:12.5px;margin-top:6px;color:var(--tinta-media)">Se registra en Validar datos → Directorio de docentes.</div></div>'
+              '<div style="font-size:13px;margin-top:6px;color:var(--tinta-media)">Se registra en Validar datos → Directorio de docentes.</div></div>'
             : '';
           if (v.cuota >= 0 && n > v.cuota) {
             capa.querySelector('#notSinCorreo').innerHTML +=
               '<p style="color:#b42318;margin-top:8px"><b>La cuota de correos de hoy no alcanza.</b> ' +
-              'Elija la otra opción o envíe mañana.</p>';
+              'Desmarque algún grupo o envíe mañana.</p>';
           }
         };
-        capa.querySelectorAll('input[name="alcNot"]').forEach(r => r.addEventListener('change', actualizar));
+        capa.querySelectorAll('.grpNot').forEach(c => c.addEventListener('change', actualizar));
         actualizar();
 
         const cerrar = () => { capa.remove(); listo(); };
         capa.querySelector('#notNo').addEventListener('click', cerrar);
 
         capa.querySelector('#notSi').addEventListener('click', () => {
-          const alcance = elegido();
+          const grupos = marcados();
           const bSi = capa.querySelector('#notSi'), bNo = capa.querySelector('#notNo');
           bSi.disabled = true; bNo.disabled = true;
-          capa.querySelectorAll('input[name="alcNot"]').forEach(r => { r.disabled = true; });
+          capa.querySelectorAll('.grpNot').forEach(c => { c.disabled = true; });
           bSi.textContent = 'Enviando… no cierre esta ventana';
           api('/notificar-formularios', {
             method: 'POST', limiteMs: 300000,
-            body: JSON.stringify({ programa, ciclo, alcance, confirmado: true })
+            body: JSON.stringify({ programa, ciclo, grupos: grupos.join(','), confirmado: true })
           }).then(r => {
             const env = (r.enviados || []).length, fal = (r.fallidos || []).length, sin = (r.sinCorreo || []).length;
             capa.querySelector('#notResultado').innerHTML =
@@ -4099,14 +4118,15 @@ label .req{color:var(--falla)}
                 ['Constancia de notificación a docentes — formularios F1 a F3'],
                 ['Carrera: ' + r.programa + ' · Ciclo: ' + r.ciclo + ' · Enviado por ' + r.remitente +
                  ' el ' + new Date().toLocaleString('es-PE')],
-                ['Enviado a: ' + (r.alcance === 'todos' ? 'todos los docentes' : 'docentes con formularios pendientes o presentados tarde')],
+                ['Grupos notificados: ' + grupos.map(k => NOMBRE_GRUPO[k]).join(' · ')],
                 [],
-                ['Resultado', 'Docente', 'Correo', 'Cumplimiento a tiempo (%)', 'Presentados a tiempo']
-              ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, x.pct, x.cumplidos + ' de ' + x.total]))
-               .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', x.error]))
-               .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', 'Registrar su correo en el directorio de Validar datos']));
+                ['Resultado', 'Docente', 'Correo', 'Situación', 'Cumplimiento a tiempo (%)', 'Presentados a tiempo']
+              ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, NOMBRE_GRUPO[x.grupo] || '',
+                                                    x.pct, x.cumplidos + ' de ' + x.total]))
+               .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', '', x.error]))
+               .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', '', 'Registrar su correo en el directorio de Validar datos']));
               const ws = XLSX.utils.aoa_to_sheet(filas);
-              ws['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 34 }, { wch: 16 }, { wch: 50 }];
+              ws['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 34 }, { wch: 40 }, { wch: 16 }, { wch: 22 }];
               const wb = XLSX.utils.book_new();
               XLSX.utils.book_append_sheet(wb, ws, 'Constancia');
               XLSX.writeFile(wb, 'Constancia_notificacion_F1-F3_' + corto.replace(/\s+/g, '_') + '_' +
