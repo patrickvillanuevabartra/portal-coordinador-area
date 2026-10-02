@@ -1169,6 +1169,13 @@ label .req{color:var(--falla)}
         </div>
         <div id="compElegir" class="vacio" style="font-size:15px">Elija la carrera y el plan para ver y registrar sus competencias.</div>
         <div id="compContenido" class="oculto">
+          <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#f4f7f5;border:1px solid var(--linea);
+                      border-radius:10px;padding:12px 14px;margin-bottom:14px">
+            <label class="btn" for="compArchivo" style="cursor:pointer;margin:0">📄 Cargar desde un archivo</label>
+            <input type="file" id="compArchivo" accept=".xlsx,.xls,.csv,.docx,.pdf" style="display:none">
+            <span style="font-size:14px;color:var(--tinta-media);flex:1;min-width:260px">Excel, CSV, Word o PDF. Se carga en la
+              carrera elegida arriba y, antes de guardar, verá todo lo encontrado para revisarlo.</span>
+          </div>
           <div class="vistas" style="margin-bottom:14px">
             <button class="vista activa" type="button" data-comp="gen">1. Competencias genéricas</button>
             <button class="vista" type="button" data-comp="esp">2. Competencias específicas</button>
@@ -3181,6 +3188,198 @@ label .req{color:var(--falla)}
         return recargarComp();
       })
       .catch(e => { avisoEn('avisoCompAsig', e.message, 'error'); $('btnCompAsigGuardar').disabled = false; });
+  });
+
+  // ------------------------------------------- cargar desde un archivo --
+  // Excel y CSV se leen directo; en Word se leen las tablas (matriz) y el
+  // asistente identifica las competencias del texto; en PDF, solo el asistente.
+  const planRomano = t => String(t || '').replace(/(20\d\d)\s*[-–]?\s*(II|I|2|1)\b/gi,
+    (m, a, b) => a + '-' + ({ '1': 'I', '2': 'II' }[b] || b.toUpperCase()));
+  const celda = t => sinAcentos(String(t == null ? '' : t)).replace(/\s+/g, ' ').trim();
+  const pareceCodigoCurso = t => /^[A-Z]{2}\s?[-]?\s?[A-Z0-9]{3,4}$/i.test(String(t || '').trim());
+  const pareceCodigoComp = t => /^([a-z]|c\d{1,2})$/i.test(String(t || '').trim());
+
+  // Una tabla (filas de celdas) → competencias o matriz, según sus títulos.
+  function interpretarFilas(filas, planPorDefecto) {
+    const comp = [], matriz = [];
+    let modo = null, col = {}, codigosCols = [];
+    filas.forEach(f => {
+      const c = f.map(celda);
+      // ¿Es una fila de títulos?
+      if (c.some(x => x === 'descripcion' || x === 'descripcion de la competencia')) {
+        modo = 'comp'; col = {};
+        c.forEach((x, i) => {
+          if (/^tipo/.test(x)) col.tipo = i;
+          else if (/^(codigo|letra|numero|letra o numero)/.test(x)) col.codigo = i;
+          else if (/^(nombre|titulo)/.test(x)) col.nombre = i;
+          else if (/^descripcion/.test(x)) col.desc = i;
+          else if (/^plan/.test(x)) col.plan = i;
+        });
+        return;
+      }
+      if (c.some(x => x === 'asignatura' || x === 'curso')) {
+        modo = 'matriz'; col = {}; codigosCols = [];
+        c.forEach((x, i) => {
+          if (x === 'asignatura' || x === 'curso') col.asig = i;
+          else if (/^codigo/.test(x)) col.cod = i;
+          else if (x === 'competencias' || x === 'competencias especificas') col.lista = i;
+          else if (x === 'plan') col.plan = i;
+          else if (pareceCodigoComp(f[i])) codigosCols.push([i, String(f[i]).trim()]);
+        });
+        return;
+      }
+      if (modo === 'comp' && col.desc != null && String(f[col.desc] || '').trim()) {
+        const tipoT = celda(f[col.tipo]);
+        comp.push({ tipo: /^gen/.test(tipoT) ? 'Genérica' : 'Específica',
+          codigo: String(f[col.codigo] || '').trim(), nombre: String(f[col.nombre] || '').trim(),
+          descripcion: String(f[col.desc] || '').trim(),
+          plan: planRomano(f[col.plan]) || planPorDefecto });
+      }
+      if (modo === 'matriz') {
+        const iCod = col.cod != null ? col.cod : f.findIndex(x => pareceCodigoCurso(x));
+        const cod = iCod >= 0 ? String(f[iCod] || '').replace(/\s|-/g, '').toUpperCase() : '';
+        if (!cod || !pareceCodigoCurso(f[iCod])) return;
+        const asig = String(f[col.asig != null ? col.asig : iCod + 1] || '').trim();
+        const marcas = col.lista != null
+          ? String(f[col.lista] || '').split(/[,;\s]+/).filter(Boolean)
+          : [...new Set(codigosCols.filter(([i]) => /^\s*x\s*$/i.test(String(f[i] || ''))).map(([, k]) => k))];
+        matriz.push({ codigo: cod, asignatura: asig, competencias: marcas.join(', '),
+                      plan: planRomano(f[col.plan]) || planPorDefecto });
+      }
+    });
+    return { comp, matriz };
+  }
+
+  async function leerArchivoCompetencias(arch) {
+    const nombre = arch.name.toLowerCase();
+    const plan = $('compPlan').value;
+    const res = { competencias: [], matriz: [], avisos: [] };
+    if (/\.(xlsx|xls|csv)$/.test(nombre)) {
+      const XLSX = await cargarLibreriaExcel();
+      const wb = XLSX.read(await arch.arrayBuffer(), { type: 'array' });
+      wb.SheetNames.forEach(h => {
+        const r = interpretarFilas(XLSX.utils.sheet_to_json(wb.Sheets[h], { header: 1, defval: '' }), plan);
+        res.competencias.push(...r.comp); res.matriz.push(...r.matriz);
+      });
+      if (!res.competencias.length && !res.matriz.length) res.avisos.push('No se reconocieron columnas. ' +
+        'La hoja de competencias debe tener títulos como Tipo, Código, Nombre y Descripción; la de cursos, ' +
+        'Código curso, Asignatura y Competencias (o una columna por competencia marcada con «x»).');
+      return res;
+    }
+    let texto = '';
+    if (/\.docx$/.test(nombre)) {
+      if (!window.mammoth) await new Promise((ok, mal) => {
+        const sc = document.createElement('script');
+        sc.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js';
+        sc.onload = ok; sc.onerror = () => mal(new Error('No se pudo cargar el lector de Word'));
+        document.head.appendChild(sc);
+      });
+      const html = (await window.mammoth.convertToHtml({ arrayBuffer: await arch.arrayBuffer() })).value;
+      const doc = new DOMParser().parseFromString('<div>' + html + '</div>', 'text/html');
+      // Cada tabla toma el plan del último título que lo mencione antes de ella.
+      let planVisto = plan;
+      [...doc.body.firstChild.children].forEach(el => {
+        if (el.tagName === 'TABLE') {
+          const filas = [...el.querySelectorAll('tr')].map(tr => [...tr.children].map(td => td.textContent));
+          const r = interpretarFilas(filas, planVisto);
+          res.matriz.push(...r.matriz); res.competencias.push(...r.comp);
+        } else {
+          const t = el.textContent.trim();
+          const m = t.match(/20\d\d\s*[-–]?\s*(II|I|2|1)\b/i);
+          if (m && /plan/i.test(t)) planVisto = planRomano(m[0]);
+          if (t) texto += t + '\n';
+        }
+      });
+      if (/<img/i.test(html)) res.avisos.push('El documento tiene imágenes: si alguna matriz está pegada ' +
+        'como imagen, no se puede leer. Cárguela aparte en Excel o márquela en la pestaña 3.');
+    } else if (/\.pdf$/.test(nombre)) {
+      texto = await textoDelArchivo(arch);
+      res.avisos.push('En un PDF las tablas no se pueden leer con seguridad: la matriz de cursos ' +
+        'conviene cargarla en Excel o marcarla en la pestaña 3.');
+    } else {
+      throw new Error('Formato no admitido. Use Excel (.xlsx), CSV, Word (.docx) o PDF.');
+    }
+    if (texto.trim() && !res.competencias.length) {
+      const r = await fetch('https://asistente-pca.patrick-villanueva.workers.dev/competencias-documento', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto, carrera: $('compCarrera').value })
+      });
+      const d = await r.json();
+      if (d.error) throw new Error(d.error);
+      res.competencias = (d.competencias || []).map(c => ({
+        tipo: /^gen/i.test(sinAcentos(c.tipo)) ? 'Genérica' : 'Específica',
+        codigo: String(c.codigo || '').trim(), nombre: String(c.nombre || '').trim(),
+        descripcion: String(c.descripcion || '').trim(), plan: planRomano(c.plan) || plan }))
+        .filter(c => c.codigo && c.descripcion);
+    }
+    return res;
+  }
+
+  function vistaPreviaCarga(res, archNombre) {
+    const capa = document.createElement('div');
+    capa.className = 'capa';
+    const tablaHtml = (cab, filas) => '<div class="tabla-envoltura" style="max-height:34vh;overflow:auto;margin:6px 0 12px">' +
+      '<table class="tabla" style="width:100%;border-collapse:collapse;font-size:13.5px"><thead><tr>' +
+      cab.map(c => '<th style="text-align:left;padding:6px 8px;background:var(--fondo);position:sticky;top:0">' + c + '</th>').join('') +
+      '</tr></thead><tbody>' + filas.map(f => '<tr>' + f.map(c => '<td style="padding:6px 8px;border-top:1px solid var(--linea);vertical-align:top">' +
+        esc(c) + '</td>').join('') + '</tr>').join('') + '</tbody></table></div>';
+    capa.innerHTML = '<div class="dialogo" style="width:min(900px,100%);font-size:15px">' +
+      '<h3 style="font-size:19px">Lo que se encontró en «' + esc(archNombre) + '»</h3>' +
+      '<p style="color:var(--tinta-media)">Carrera: <b>' + esc($('compCarrera').value) + '</b>. Revise antes de guardar. ' +
+      'Si una competencia ya existe con la misma letra, se actualiza; no se duplica.</p>' +
+      '<div class="cuerpo-dialogo">' +
+      (res.avisos.length ? '<div style="background:#fdf4e3;border-left:4px solid #d99a1b;padding:10px 12px;border-radius:8px;margin-bottom:10px">' +
+        res.avisos.map(esc).join('<br>') + '</div>' : '') +
+      '<h4>Competencias (' + res.competencias.length + ')</h4>' +
+      (res.competencias.length ? tablaHtml(['Tipo', 'Letra / número', 'Título', 'Descripción', 'Plan'],
+        res.competencias.map(c => [c.tipo, c.codigo, c.nombre, c.descripcion, c.plan])) : '<p class="vacio">Ninguna.</p>') +
+      '<h4>Competencias por curso (' + res.matriz.length + ' cursos)</h4>' +
+      (res.matriz.length ? tablaHtml(['Plan', 'Código', 'Asignatura', 'Competencias'],
+        res.matriz.map(m => [m.plan, m.codigo, m.asignatura, m.competencias || '—'])) : '<p class="vacio">Ninguno.</p>') +
+      '</div><div class="pie" style="display:flex;gap:10px;justify-content:flex-end">' +
+      '<button class="btn gris" type="button" id="cargaNo">No guardar</button>' +
+      '<button class="btn" type="button" id="cargaSi"' + (res.competencias.length || res.matriz.length ? '' : ' disabled') + '>' +
+      'Guardar ' + res.competencias.length + ' competencias y ' + res.matriz.length + ' cursos</button></div></div>';
+    document.body.appendChild(capa);
+    capa.querySelector('#cargaNo').addEventListener('click', () => capa.remove());
+    capa.querySelector('#cargaSi').addEventListener('click', async () => {
+      capa.remove();
+      const cerrar = mostrarEspera('Guardando', 'Se están guardando las competencias en el portal.');
+      try {
+        const car = $('compCarrera').value;
+        let txt = '';
+        if (res.competencias.length) {
+          const r = await api('/competencias', { method: 'POST', limiteMs: 300000, body: JSON.stringify({
+            tabla: 'competencia', lote: res.competencias, datos: { carrera: car, plan: $('compPlan').value } }) });
+          txt += r.nuevas + ' competencias nuevas y ' + r.actualizadas + ' actualizadas. ';
+        }
+        const porPlan = {};
+        res.matriz.forEach(m => (porPlan[m.plan] = porPlan[m.plan] || []).push(m));
+        let cursos = 0;
+        for (const [plan, lote] of Object.entries(porPlan)) {
+          const r = await api('/competencias', { method: 'POST', limiteMs: 300000, body: JSON.stringify({
+            tabla: 'curso', lote, datos: { carrera: car, plan } }) });
+          cursos += r.guardados || 0;
+        }
+        if (res.matriz.length) txt += cursos + ' cursos con sus competencias.';
+        cerrar();
+        avisoEn('compAviso', 'Carga terminada: ' + txt, 'ok');
+        await recargarComp();
+      } catch (e) { cerrar(); alert('No se pudo guardar: ' + e.message); }
+    });
+  }
+
+  $('compArchivo') && $('compArchivo').addEventListener('change', async () => {
+    const arch = $('compArchivo').files[0];
+    $('compArchivo').value = '';
+    if (!arch) return;
+    const cerrar = mostrarEspera('Leyendo el archivo', 'Se están buscando las competencias en «' + arch.name +
+      '». Si es Word o PDF, el asistente lo revisa y puede tardar un minuto.');
+    try {
+      const res = await leerArchivoCompetencias(arch);
+      cerrar();
+      vistaPreviaCarga(res, arch.name);
+    } catch (e) { cerrar(); alert('No se pudo leer el archivo: ' + e.message); }
   });
 
   function carrerasQuePuedeFijar() {
