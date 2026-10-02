@@ -449,6 +449,11 @@ tr.sin-leer{background:#fffdf6}
 .tabla{
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
 }
+/* Tablas de la tarjeta de competencias */
+#tarjetaCompetencias .tabla-envoltura{overflow-x:auto;border:1px solid var(--linea);border-radius:10px}
+#tarjetaCompetencias table.tabla{width:100%;border-collapse:collapse;border:0;border-radius:0;font-size:14px}
+#tarjetaCompetencias table.tabla th{background:var(--fondo);text-align:left;padding:8px 10px;font-size:13px}
+#tarjetaCompetencias table.tabla td{padding:8px 10px;border-top:1px solid var(--linea);vertical-align:top;line-height:1.45}
 /* En Validar datos las tablas son anchas: se desplazan en su propio marco. */
 #datos .tabla{overflow:auto;max-height:64vh;border-top-left-radius:0;border-top-right-radius:0}
 /* Una segunda barra arriba: con tablas anchas, tener que bajar hasta el final
@@ -1145,6 +1150,64 @@ label .req{color:var(--falla)}
         <div class="pie" style="margin-top:14px">
           <button class="btn" id="btnGuardarPlazos" disabled>Guardar los plazos</button>
           <span class="aviso" id="avisoPlazos"></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- D2. Competencias de las carreras -->
+    <section class="tarjeta" id="tarjetaCompetencias">
+      <header class="tarjeta-cab">
+        <div><span class="paso">5</span><h2>Competencias de las carreras</h2>
+          <p>Las competencias genéricas y específicas de cada carrera, y cuáles desarrolla cada
+             curso. El sílabo se compara contra ellas en los ítems 03 y 04.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo">
+        <div class="buscador" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
+          <label for="compCarrera">Carrera</label><select id="compCarrera"></select>
+          <label for="compPlan">Plan</label><select id="compPlan"></select>
+          <span class="conteo" id="compAviso"></span>
+        </div>
+        <div class="vistas" style="margin-bottom:12px">
+          <button class="vista activa" type="button" data-comp="lista">Competencias de la carrera</button>
+          <button class="vista" type="button" data-comp="curso">Competencias de cada curso</button>
+        </div>
+
+        <div id="compPanelLista">
+          <div id="compTabla"><div class="vacio">Elija la carrera y el plan.</div></div>
+          <h3 style="margin:18px 0 8px;font-size:16px" id="compFormTitulo">Registrar una competencia nueva</h3>
+          <div class="rejilla">
+            <div><label for="compTipo">Tipo</label>
+              <select id="compTipo"><option>Genérica</option><option>Específica</option></select></div>
+            <div><label for="compCodigo">Código</label><input type="text" id="compCodigo" placeholder="a, b, C1…">
+              <p class="ayuda">Se propone solo, según la numeración de la carrera. Puede cambiarlo.</p></div>
+            <div><label for="compNombre">Nombre (opcional)</label><input type="text" id="compNombre"
+              placeholder="Por ejemplo: Comportamiento ético"></div>
+            <div class="full"><label for="compDesc">Descripción</label><textarea id="compDesc" rows="3"></textarea></div>
+            <div class="full"><label style="display:flex;gap:8px;align-items:center;font-weight:normal">
+              <input type="checkbox" id="compTodosPlanes" style="width:auto"> Vale para todos los planes de la carrera
+              (lo habitual en las genéricas)</label></div>
+          </div>
+          <div class="pie" style="margin-top:10px">
+            <button class="btn" id="btnCompGuardar" type="button">Guardar competencia</button>
+            <button class="btn gris" id="btnCompNueva" type="button">Limpiar</button>
+            <span class="aviso" id="avisoComp"></span>
+          </div>
+        </div>
+
+        <div id="compPanelCurso" class="oculto">
+          <div class="rejilla">
+            <div class="full"><label for="compCurso">Curso</label><select id="compCurso"></select></div>
+            <div><label>Código del curso</label><input type="text" id="compCursoCodigo" readonly></div>
+            <div><label>Asignatura</label><input type="text" id="compCursoNombre" readonly></div>
+          </div>
+          <p style="margin:12px 0 6px;font-weight:600">Marque las competencias específicas que desarrolla este curso:</p>
+          <div id="compCasillas"><div class="vacio">Elija un curso.</div></div>
+          <div class="pie" style="margin-top:10px">
+            <button class="btn" id="btnCompCursoGuardar" type="button" disabled>Guardar las competencias del curso</button>
+            <span class="aviso" id="avisoCompCurso"></span>
+          </div>
+          <h3 style="margin:18px 0 8px;font-size:16px">Cursos con competencias asignadas en este plan</h3>
+          <div id="compTablaCursos"></div>
         </div>
       </div>
     </section>
@@ -2179,7 +2242,7 @@ label .req{color:var(--falla)}
           }
           cargarDatos(); cargarReportes(); cargarComunes();
         } else if (x.ir === 'coordinadores') {
-          mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas();
+          mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias();
     if (!$('plazoCiclo').value) $('plazoCiclo').value = $('filtroCiclo').value || CFG.CICLO_ACTIVO || '';
         } else if (x.ir === 'indicadores') { mostrar('indicadores'); cargarIndicadores(); }
       });
@@ -2841,6 +2904,197 @@ label .req{color:var(--falla)}
       .then(d => { avisoPl('Se quitaron ' + d.borrados + ' repetidos · quedan ' + d.quedan + '.', 'ok');
                    cargarPlazos(); })
       .catch(e => avisoPl(e.message, 'error'));
+  });
+
+  /* ----------------------------------------- competencias de las carreras -- */
+  // Tipo, carrera, plan y curso se eligen de listas; el código del curso y su
+  // nombre salen del catálogo; el código de la competencia se propone solo.
+  const COMP = { datos: null, catalogo: null, editando: null };
+  const clavePlanC = t => sinAcentos(t).replace(/-|\s/g, '').replace(/2$/, 'ii').replace(/1$/, 'i');
+  const planIncluyeC = (texto, plan) => !plan ||
+    String(texto || '').split(/\s+y\s+|,|\//i).some(p => clavePlanC(p) === clavePlanC(plan));
+  const avisoComp = (t, tipo) => { $('avisoComp').textContent = t; $('avisoComp').className = 'aviso ' + (tipo || ''); };
+  const avisoCompCurso = (t, tipo) => { $('avisoCompCurso').textContent = t; $('avisoCompCurso').className = 'aviso ' + (tipo || ''); };
+
+  function iniciarCompetencias() {
+    if (!$('compCarrera')) return;
+    const carreras = carrerasQuePuedeFijar();
+    $('compCarrera').innerHTML = carreras.map(c => '<option>' + esc(c) + '</option>').join('');
+    $('compAviso').textContent = 'Cargando…';
+    Promise.all([api('/competencias'), api('/consultar?tabla=cursos')]).then(([d, cat]) => {
+      COMP.datos = d; COMP.catalogo = cat.filas || [];
+      $('compAviso').textContent = '';
+      llenarPlanesComp();
+    }).catch(e => { $('compAviso').textContent = e.message; });
+  }
+
+  function llenarPlanesComp() {
+    const car = $('compCarrera').value;
+    const planes = [...new Set((COMP.catalogo || []).filter(x => sinAcentos(x.programa) === sinAcentos(car))
+      .map(x => x.plan).filter(Boolean))].sort();
+    $('compPlan').innerHTML = planes.map(p => '<option>' + esc(p) + '</option>').join('') ||
+      '<option value="">(sin cursos en el catálogo)</option>';
+    pintarComp();
+  }
+
+  function compDeCarrera() {
+    const car = $('compCarrera').value, plan = $('compPlan').value;
+    return ((COMP.datos || {}).competencias || []).filter(c =>
+      sinAcentos(c.carrera) === sinAcentos(car) && planIncluyeC(c.plan, plan));
+  }
+
+  function proponerCodigo() {
+    if (COMP.editando) return;
+    const tipo = $('compTipo').value;
+    const usados = compDeCarrera().filter(c => sinAcentos(c.tipo) === sinAcentos(tipo)).map(c => String(c.codigo).trim());
+    let sug = '';
+    const conC = usados.filter(c => /^C\d+$/i.test(c));
+    if (conC.length) sug = 'C' + (Math.max(...conC.map(c => parseInt(c.slice(1), 10))) + 1);
+    else if (usados.some(c => /^[a-z]$/i.test(c))) {
+      const ult = usados.filter(c => /^[a-z]$/i.test(c)).map(c => c.toLowerCase()).sort().pop();
+      sug = String.fromCharCode(ult.charCodeAt(0) + 1);
+    } else sug = tipo === 'Genérica' ? 'a' : 'C1';
+    $('compCodigo').value = sug;
+  }
+
+  function limpiarFormComp() {
+    COMP.editando = null;
+    $('compFormTitulo').textContent = 'Registrar una competencia nueva';
+    $('compNombre').value = ''; $('compDesc').value = ''; $('compTodosPlanes').checked = false;
+    $('btnCompGuardar').textContent = 'Guardar competencia';
+    proponerCodigo();
+  }
+
+  function pintarComp() {
+    const lista = compDeCarrera();
+    const tabla = tipo => {
+      const l = lista.filter(c => sinAcentos(c.tipo) === sinAcentos(tipo));
+      return '<h4 style="margin:10px 0 6px">' + tipo + 's (' + l.length + ')</h4>' +
+        (l.length ? '<div class="tabla-envoltura"><table class="tabla"><thead><tr><th>Código</th><th>Nombre</th>' +
+          '<th>Descripción</th><th>Plan</th><th></th></tr></thead><tbody>' +
+          l.map(c => '<tr><td><b>' + esc(c.codigo) + '</b></td><td>' + esc(c.nombre || '') + '</td><td>' +
+            esc(c.descripcion) + '</td><td>' + esc(c.plan) + '</td><td style="white-space:nowrap">' +
+            '<button class="btn gris" type="button" data-editar="' + esc(c.recordId) + '">Editar</button> ' +
+            '<button class="btn gris" type="button" data-borrar="' + esc(c.recordId) + '">Quitar</button></td></tr>').join('') +
+          '</tbody></table></div>' : '<div class="vacio">Ninguna registrada.</div>');
+    };
+    $('compTabla').innerHTML = tabla('Genérica') + tabla('Específica');
+    $('compTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => {
+      const c = lista.find(x => x.recordId === b.dataset.editar);
+      if (!c) return;
+      COMP.editando = c.recordId;
+      $('compFormTitulo').textContent = 'Editar la competencia ' + c.codigo;
+      $('compTipo').value = /^esp/i.test(sinAcentos(c.tipo)) ? 'Específica' : 'Genérica';
+      $('compCodigo').value = c.codigo; $('compNombre').value = c.nombre || ''; $('compDesc').value = c.descripcion || '';
+      $('compTodosPlanes').checked = /\s+y\s+/i.test(c.plan);
+      $('btnCompGuardar').textContent = 'Guardar cambios';
+      $('compTipo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }));
+    $('compTabla').querySelectorAll('[data-borrar]').forEach(b => b.addEventListener('click', () => {
+      const c = lista.find(x => x.recordId === b.dataset.borrar);
+      if (!c || !confirm('¿Quitar la competencia ' + c.codigo + '? Los cursos que la tengan asignada la perderán en el sílabo.')) return;
+      api('/competencias', { method: 'POST', body: JSON.stringify({ borrar: true, recordId: c.recordId,
+        datos: { carrera: $('compCarrera').value } }) })
+        .then(() => { avisoComp('Se quitó la competencia ' + c.codigo + '.', 'ok'); recargarComp(); })
+        .catch(e => avisoComp(e.message, 'error'));
+    }));
+    if (!COMP.editando) proponerCodigo();
+    pintarCursosComp();
+  }
+
+  function recargarComp() {
+    return api('/competencias').then(d => { COMP.datos = d; pintarComp(); });
+  }
+
+  $('btnCompGuardar') && $('btnCompGuardar').addEventListener('click', () => {
+    const car = $('compCarrera').value, plan = $('compPlan').value;
+    const planes = [...$('compPlan').options].map(o => o.value).filter(Boolean);
+    const datos = { carrera: car, plan: $('compTodosPlanes').checked ? planes.join(' y ') : plan,
+      tipo: $('compTipo').value, codigo: $('compCodigo').value.trim(),
+      nombre: $('compNombre').value.trim(), descripcion: $('compDesc').value.trim() };
+    if (!datos.codigo || !datos.descripcion) return avisoComp('Complete el código y la descripción.', 'error');
+    $('btnCompGuardar').disabled = true;
+    api('/competencias', { method: 'POST', body: JSON.stringify({ tabla: 'competencia', recordId: COMP.editando, datos }) })
+      .then(r => { avisoComp((r.actualizado ? 'Se actualizó' : 'Se registró') + ' la competencia ' + datos.codigo + '.', 'ok');
+                   limpiarFormComp(); return recargarComp(); })
+      .catch(e => avisoComp(e.message, 'error'))
+      .then(() => { $('btnCompGuardar').disabled = false; });
+  });
+  $('btnCompNueva') && $('btnCompNueva').addEventListener('click', limpiarFormComp);
+  $('compTipo') && $('compTipo').addEventListener('change', proponerCodigo);
+  $('compCarrera') && $('compCarrera').addEventListener('change', () => { COMP.editando = null; llenarPlanesComp(); });
+  $('compPlan') && $('compPlan').addEventListener('change', () => { COMP.editando = null; pintarComp(); });
+  document.querySelectorAll('[data-comp]').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('[data-comp]').forEach(x => x.classList.toggle('activa', x === b));
+    $('compPanelLista').classList.toggle('oculto', b.dataset.comp !== 'lista');
+    $('compPanelCurso').classList.toggle('oculto', b.dataset.comp !== 'curso');
+  }));
+
+  // --- competencias de cada curso
+  function cursosDelPlanComp() {
+    const car = $('compCarrera').value, plan = $('compPlan').value;
+    const vistos = {};
+    return (COMP.catalogo || []).filter(x => sinAcentos(x.programa) === sinAcentos(car) &&
+        clavePlanC(x.plan) === clavePlanC(plan) && x.codigo)
+      .filter(x => { const k = x.codigo; if (vistos[k]) return false; vistos[k] = 1; return true; })
+      .sort((a, b) => String(a.codigo).localeCompare(String(b.codigo)));
+  }
+  const filaDeCurso = (codigo) => {
+    const car = $('compCarrera').value, plan = $('compPlan').value;
+    const k = t => sinAcentos(t).replace(/[^a-z0-9]/g, '');
+    return ((COMP.datos || {}).porCurso || []).find(x => sinAcentos(x.carrera) === sinAcentos(car) &&
+      planIncluyeC(x.plan, plan) && k(x.codigo) === k(codigo));
+  };
+
+  function pintarCursosComp() {
+    if (!$('compCurso')) return;
+    const cursos = cursosDelPlanComp();
+    const previo = $('compCurso').value;
+    $('compCurso').innerHTML = '<option value="">Seleccione un curso</option>' + cursos.map(x =>
+      '<option value="' + esc(x.codigo) + '">' + esc(x.codigo) + ' — ' + esc(nombreCurso(x.curso)) +
+      (filaDeCurso(x.codigo) ? '  ✔' : '') + '</option>').join('');
+    if (previo && cursos.some(x => x.codigo === previo)) $('compCurso').value = previo;
+    elegirCursoComp();
+    const conFila = cursos.filter(x => filaDeCurso(x.codigo));
+    $('compTablaCursos').innerHTML = conFila.length
+      ? '<div class="tabla-envoltura"><table class="tabla"><thead><tr><th>Código</th><th>Curso</th><th>Competencias</th></tr></thead><tbody>' +
+        conFila.map(x => '<tr><td>' + esc(x.codigo) + '</td><td>' + esc(nombreCurso(x.curso)) + '</td><td><b>' +
+          esc(filaDeCurso(x.codigo).competencias || '—') + '</b></td></tr>').join('') + '</tbody></table></div>'
+      : '<div class="vacio">Ningún curso de este plan tiene competencias asignadas todavía.</div>';
+  }
+
+  function elegirCursoComp() {
+    const cod = $('compCurso').value;
+    const x = cursosDelPlanComp().find(c => c.codigo === cod);
+    $('compCursoCodigo').value = x ? x.codigo : '';
+    $('compCursoNombre').value = x ? nombreCurso(x.curso) : '';
+    const esp = compDeCarrera().filter(c => /^esp/i.test(sinAcentos(c.tipo)));
+    if (!x) { $('compCasillas').innerHTML = '<div class="vacio">Elija un curso.</div>'; $('btnCompCursoGuardar').disabled = true; return; }
+    if (!esp.length) {
+      $('compCasillas').innerHTML = '<div class="vacio">Esta carrera no tiene competencias específicas registradas para el plan ' +
+        esc($('compPlan').value) + '. Regístrelas primero en «Competencias de la carrera».</div>';
+      $('btnCompCursoGuardar').disabled = true; return;
+    }
+    const tiene = ((filaDeCurso(cod) || {}).competencias || '').split(/[,;\s]+/).map(t => sinAcentos(t)).filter(Boolean);
+    $('compCasillas').innerHTML = esp.map(c =>
+      '<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--linea);border-radius:8px;margin-bottom:6px;cursor:pointer">' +
+      '<input type="checkbox" class="cas-comp" value="' + esc(c.codigo) + '"' + (tiene.includes(sinAcentos(c.codigo)) ? ' checked' : '') +
+      ' style="width:20px;height:20px;flex:none;margin-top:2px"><span><b>' + esc(c.codigo) + ')</b> ' + esc(c.descripcion) + '</span></label>').join('');
+    $('btnCompCursoGuardar').disabled = false;
+  }
+  $('compCurso') && $('compCurso').addEventListener('change', elegirCursoComp);
+
+  $('btnCompCursoGuardar') && $('btnCompCursoGuardar').addEventListener('click', () => {
+    const marcadas = [...document.querySelectorAll('.cas-comp:checked')].map(c => c.value);
+    const datos = { carrera: $('compCarrera').value, plan: $('compPlan').value,
+      codigo: $('compCursoCodigo').value, asignatura: $('compCursoNombre').value, competencias: marcadas.join(', ') };
+    if (!datos.codigo) return avisoCompCurso('Elija un curso.', 'error');
+    $('btnCompCursoGuardar').disabled = true;
+    api('/competencias', { method: 'POST', body: JSON.stringify({ tabla: 'curso', datos }) })
+      .then(() => { avisoCompCurso('Se guardaron las competencias de ' + datos.asignatura + ': ' + (datos.competencias || 'ninguna') + '.', 'ok');
+                    return recargarComp(); })
+      .catch(e => avisoCompCurso(e.message, 'error'))
+      .then(() => { $('btnCompCursoGuardar').disabled = false; });
   });
 
   function carrerasQuePuedeFijar() {
@@ -4264,7 +4518,7 @@ label .req{color:var(--falla)}
   /* ------------------------------------------- coordinadores y clonado */
 
   $('btnCoord').addEventListener('click', () => {
-    mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas();
+    mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias();
   });
   $('volverCoord').addEventListener('click', () => mostrar('tablero'));
 
@@ -5851,10 +6105,28 @@ label .req{color:var(--falla)}
                    'se registran en el portal. Adjunte el plan de estudios de la carrera con ' +
                    'el clip 📎 del asistente para que se puedan comprobar.' },
     '02': { de: 'portal', titulo: 'Sumilla oficial', texto: c => c.sumilla || '' },
-    '03': { de: 'documento', pide: 'el modelo educativo o el perfil de egreso, donde están ' +
-            'definidas las competencias genéricas de la Universidad' },
-    '04': { de: 'documento', pide: 'el plan de estudios de la carrera, donde constan las ' +
-            'competencias específicas del curso' },
+    // Las competencias salen del módulo de Competencias (Coordinadores).
+    '03': { de: 'portal', titulo: 'Las competencias genéricas',
+            texto: c => {
+              const g = ((c && c.competencias) || {}).genericas || [];
+              return g.length ? 'El sílabo debe declarar las competencias genéricas de la carrera:\n' +
+                g.map(x => x.codigo + ') ' + (x.nombre ? x.nombre + ': ' : '') + x.descripcion).join('\n') : '';
+            },
+            vacio: 'Esta carrera todavía no tiene sus competencias genéricas registradas en el portal ' +
+                   '(Coordinadores → Competencias). Mientras tanto, adjunte el documento de competencias con el clip 📎.' },
+    '04': { de: 'portal', titulo: 'Las competencias específicas del curso',
+            texto: c => {
+              const k = (c && c.competencias) || {};
+              const l = k.delCurso || [];
+              if (l.length) return 'Según la matriz de la carrera, este curso desarrolla:\n' +
+                l.map(x => x.codigo + ') ' + x.descripcion).join('\n');
+              if ((k.especificas || []).length) return 'Este curso no figura en la matriz de competencias por ' +
+                'curso, así que se muestran todas las específicas del plan; verifique cuáles corresponden:\n' +
+                k.especificas.map(x => x.codigo + ') ' + x.descripcion).join('\n');
+              return '';
+            },
+            vacio: 'Esta carrera todavía no tiene sus competencias específicas registradas en el portal ' +
+                   '(Coordinadores → Competencias). Mientras tanto, adjunte el documento de competencias con el clip 📎.' },
     '05': { de: 'documento', pide: 'la directiva de investigación formativa y responsabilidad ' +
             'social, para saber qué componentes exige' },
     '06': { de: 'documento', pide: 'el plan de estudios, donde está el logro previsto de la ' +
@@ -5911,8 +6183,8 @@ label .req{color:var(--falla)}
           (r.de === 'portal' && contexto ? ' de ' + esc(contexto.programa || '') : '') + '</b>' +
           (texto
             ? '<p>' + esc(textoPlano(texto)) + '</p>'
-            : '<p class="falta">No está registrado en el catálogo. Sin esa fuente este punto ' +
-              'no se puede comprobar: súbala o complétela en Validar datos.</p>') +
+            : '<p class="falta">' + esc(r.vacio || ('No está registrado en el catálogo. Sin esa fuente este punto ' +
+              'no se puede comprobar: súbala o complétela en Validar datos.')) + '</p>') +
           (r.falta ? '<p class="pide-archivo">' + esc(r.falta) + '</p>' : '');
       }
       fila.appendChild(caja);
@@ -6420,7 +6692,13 @@ label .req{color:var(--falla)}
       const idDel = a.idInforme ? a.idEspejo : a.idAsignacion;
       api('/modulo?clave=delegados&idAsignacion=' + encodeURIComponent(idDel))
         .then(d => {
-          if (estado.actual !== a || estado.modulo !== 'entrevistas' || !d.registro) return;
+          if (estado.actual !== a || estado.modulo !== 'entrevistas') return;
+          if (!d.registro) {
+            console.log('Portal: sin Datos de delegados para', idDel);
+            aviso('Este curso y grupo todavía no tiene registrado el formato «Datos de delegados». ' +
+                  'Regístrelo primero y los nombres aparecerán aquí solos, o escríbalos a mano.', '');
+            return;
+          }
           const v = d.registro.valores || {};
           const del = leer(v, 'Delegado (apellidos y nombres)'), sub = leer(v, 'Subdelegado (apellidos y nombres)');
           let puestos = 0;
