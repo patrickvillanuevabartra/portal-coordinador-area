@@ -3573,11 +3573,17 @@ label .req{color:var(--falla)}
     h += '<div class="pie" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
       '<button class="btn fantasma" id="btnExpInd">Descargar indicadores</button>' +
       (progsRep.length
-        ? '<span style="display:inline-flex;gap:8px;align-items:center">' +
-          '<select id="selRepF" style="padding:8px">' + progsRep.map(p =>
-            '<option' + (/industrial/i.test(p) ? ' selected' : '') + '>' + esc(p) + '</option>').join('') +
-          '</select><button class="btn" id="btnRepF">Reporte F1–F3 (Excel)</button>' +
-          '<button class="btn fantasma" id="btnNotF">Notificar a los docentes</button></span>'
+        ? '<div style="flex-basis:100%;border:1px solid var(--linea);border-radius:10px;padding:12px 14px">' +
+          '<b>Reporte de formularios F1–F3</b>' +
+          '<div id="casRepF" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 10px">' +
+          (progsRep.length > 1
+            ? '<label style="font-weight:600"><input type="checkbox" id="casTodas"> Todas</label>' : '') +
+          progsRep.map(p => '<label><input type="checkbox" class="cas-carrera" value="' + esc(p) + '"' +
+            (/industrial/i.test(p) || progsRep.length === 1 ? ' checked' : '') + '> ' +
+            esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
+          '</div><div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn" id="btnRepF">Generar reporte (Excel)</button>' +
+          '<button class="btn fantasma" id="btnNotF">Notificar a los docentes</button></div></div>'
         : '') +
       '</div>';
     h += '</div></section>';
@@ -3585,10 +3591,18 @@ label .req{color:var(--falla)}
     $('indCuerpo').innerHTML = h;
     estado.indicadores = d;
     $('btnExpInd').addEventListener('click', () => descargarIndicadores(d));
+    const marcadas = () => [...document.querySelectorAll('.cas-carrera:checked')].map(c => c.value);
+    if ($('casTodas')) {
+      $('casTodas').addEventListener('change', e =>
+        document.querySelectorAll('.cas-carrera').forEach(c => { c.checked = e.target.checked; }));
+      document.querySelectorAll('.cas-carrera').forEach(c => c.addEventListener('change', () => {
+        $('casTodas').checked = [...document.querySelectorAll('.cas-carrera')].every(x => x.checked);
+      }));
+    }
     if ($('btnRepF')) $('btnRepF').addEventListener('click', () =>
-      generarReporteFormularios($('selRepF').value, $('btnRepF')));
+      generarReporteFormularios(marcadas(), $('btnRepF')));
     if ($('btnNotF')) $('btnNotF').addEventListener('click', () =>
-      notificarFormularios($('selRepF').value, $('btnNotF')));
+      notificarVarias(marcadas(), $('btnNotF')));
   }
 
   /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
@@ -3608,63 +3622,68 @@ label .req{color:var(--falla)}
     });
   }
 
-  function generarReporteFormularios(programa, boton) {
+  function generarReporteFormularios(carreras, boton) {
+    if (!Array.isArray(carreras)) carreras = [carreras];
+    carreras = carreras.filter(Boolean);
+    if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
     const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
     const txt = boton ? boton.textContent : '';
     if (boton) { boton.disabled = true; boton.textContent = 'Preparando reporte…'; }
     const fin = () => { if (boton) { boton.disabled = false; boton.textContent = txt; } };
 
     Promise.all([
-      api('/reporte-formularios?programa=' + encodeURIComponent(programa) +
-          '&ciclo=' + encodeURIComponent(ciclo)),
+      api('/reporte-formularios?programas=' + encodeURIComponent(carreras.join('|')) +
+          '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 300000 }),
       cargarLibreriaExcel()
     ]).then(([d, XLSX]) => {
       fin();
-      if (!d.detalle || !d.detalle.length) {
-        alert('No se encontraron cargas de ' + programa + ' en el ciclo ' + ciclo + '.');
+      const reps = (d.carreras || [d]).filter(r => r && r.detalle);
+      if (!reps.some(r => r.detalle.length)) {
+        alert('No se encontraron cargas de ' + carreras.join(', ') + ' en el ciclo ' + ciclo + '.');
         return;
       }
       const F = ['F1', 'F2', 'F3'];
-      const exigibles = F.filter(f => d.fuentes[f] && !d.fuentes[f].error);
-      const cumple = e => /^Presentado/.test(e) && e !== 'Fuera de plazo';
+      const META_VERDE = 90, META_AMARILLO = 70;
+      const cumple = e => /^Presentado/.test(e || '');
       const pct = (a, b) => b ? Math.round(a / b * 1000) / 10 : 0;
-      // Fechas como dd/mm/aa.
+      const corto = p => String(p).replace(/^Ingeniería\s+(de\s+)?/i, '');
       const dma = (iso) => {
         const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
         return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : (iso || '');
       };
+      const dias = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 86400000);
       const ahora = new Date();
       const hoy = ('0' + ahora.getDate()).slice(-2) + '/' + ('0' + (ahora.getMonth() + 1)).slice(-2) + '/' +
                   String(ahora.getFullYear()).slice(2);
+      const nombresCarr = reps.map(r => r.programa);
+      const alcanceTxt = reps.length === 1 ? nombresCarr[0] : nombresCarr.map(corto).join(', ');
 
-      // Semáforo: verde si cumplió todo a tiempo, rojo si nada, amarillo si parte.
       const ESTILO = {
         verde:    { fill: { fgColor: { rgb: 'C6EFCE' } }, font: { color: { rgb: '006100' } } },
         amarillo: { fill: { fgColor: { rgb: 'FFEB9C' } }, font: { color: { rgb: '7A4D00' } } },
         rojo:     { fill: { fgColor: { rgb: 'FFC7CE' } }, font: { color: { rgb: '9C0006' } } },
         enc:      { fill: { fgColor: { rgb: '0B3B2E' } }, font: { bold: true, color: { rgb: 'FFFFFF' } },
                     alignment: { wrapText: true, vertical: 'center' } },
+        seccion:  { fill: { fgColor: { rgb: 'E6F4EE' } }, font: { bold: true, color: { rgb: '0B3B2E' } } },
         titulo:   { font: { bold: true, sz: 13, color: { rgb: '0F8F5E' } } },
         negrita:  { font: { bold: true } }
       };
       const nivel = (ok, total) => !total ? null : (ok >= total ? 'verde' : (ok === 0 ? 'rojo' : 'amarillo'));
+      const semaforo = v => v >= META_VERDE ? 'verde' : (v >= META_AMARILLO ? 'amarillo' : 'rojo');
       const KUDO = '😊 ¡Felicitaciones! Cumplió a tiempo';
-      const pintar = (ws, r, ncol, estilo) => {
-        for (let c = 0; c < ncol; c++) {
+      const pintar = (ws, r, c0, ncol, estilo) => {
+        for (let c = c0; c < c0 + ncol; c++) {
           const ref = XLSX.utils.encode_cell({ r, c });
           if (!ws[ref]) ws[ref] = { t: 's', v: '' };
           ws[ref].s = Object.assign({}, ws[ref].s || {}, estilo);
         }
       };
-      const cabeceras = (ws, filaEnc, ncol) => {
-        pintar(ws, 0, 1, ESTILO.titulo); pintar(ws, 2, 1, ESTILO.negrita);
-        if (filaEnc != null) pintar(ws, filaEnc, ncol, ESTILO.enc);
-      };
       const cab = (titulo) => [
         ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
         ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'],
         [titulo],
-        ['Carrera: ' + d.programa + ' · Ciclo: ' + d.ciclo + ' · Emitido el ' + hoy + ' por ' + (d.generadoPor || '')],
+        ['Carrera(s): ' + alcanceTxt + ' · Ciclo: ' + (d.ciclo || ciclo) + ' · Emitido el ' + hoy +
+         ' por ' + (d.generadoPor || '')],
         []
       ];
       const hoja = (filas, anchos, filaEnc) => {
@@ -3674,121 +3693,260 @@ label .req{color:var(--falla)}
           ws['!autofilter'] = { ref: XLSX.utils.encode_range(
             { s: { r: filaEnc, c: 0 }, e: { r: filas.length - 1, c: filas[filaEnc].length - 1 } }) };
         }
+        pintar(ws, 0, 0, 1, ESTILO.titulo); pintar(ws, 2, 0, 1, ESTILO.negrita);
+        if (filaEnc != null) pintar(ws, filaEnc, 0, filas[filaEnc].length, ESTILO.enc);
         return ws;
       };
 
-      // 1) Detalle por carga
-      const enc1 = ['N°', 'Docente', 'Código', 'Curso', 'Grupo', 'Tipo', 'Semestre', 'Área', 'Coordinador del área']
+      // ---------------------------------------------- datos por carga --
+      const filasTodas = [];
+      reps.forEach(r => {
+        const exig = F.filter(f => r.fuentes[f] && !r.fuentes[f].error);
+        r._exig = exig;
+        r.detalle.forEach(x => {
+          x._carrera = r.programa; x._exig = exig; x._plazos = r.plazos || {};
+          x._ok = exig.filter(f => cumple(x[f].estado)).length;
+          x._pres = exig.filter(f => cumple(x[f].estado) || x[f].estado === 'Fuera de plazo').length;
+          filasTodas.push(x);
+        });
+      });
+
+      // ------------------------------------------- indicadores (un ámbito) --
+      const indicadores = (filas, sinCoin) => {
+        const o = { cargas: filas.length, exig: 0, ok: 0, fuera: 0, no: 0, porF: {}, retrasos: [] };
+        F.forEach(f => { o.porF[f] = { exig: 0, ok: 0, fuera: 0, no: 0 }; });
+        const porDoc = {};
+        filas.forEach(x => {
+          const dk = x.docente;
+          const pd = porDoc[dk] = porDoc[dk] || { exig: 0, ok: 0, correo: false };
+          if (x.correo) pd.correo = true;
+          x._exig.forEach(f => {
+            const e = x[f].estado, pf = o.porF[f];
+            o.exig++; pf.exig++; pd.exig++;
+            if (cumple(e)) { o.ok++; pf.ok++; pd.ok++; }
+            else if (e === 'Fuera de plazo') {
+              o.fuera++; pf.fuera++;
+              if (x[f].fecha && x._plazos[f]) o.retrasos.push(dias(x[f].fecha, x._plazos[f]));
+            } else { o.no++; pf.no++; }
+          });
+        });
+        const docs = Object.values(porDoc).filter(p => p.exig);
+        o.docentes = docs.length;
+        o.total = docs.filter(p => p.ok >= p.exig).length;
+        o.riesgo = docs.filter(p => p.ok === 0).length;
+        o.sinCorreo = docs.filter(p => !p.correo).length;
+        o.oportuno = pct(o.ok, o.exig);
+        o.presentacion = pct(o.ok + o.fuera, o.exig);
+        o.retrasoProm = o.retrasos.length
+          ? Math.round(o.retrasos.reduce((a, b) => a + b, 0) / o.retrasos.length * 10) / 10 : null;
+        o.retrasoMax = o.retrasos.length ? Math.max.apply(null, o.retrasos) : null;
+        const conF = F.filter(f => o.porF[f].exig);
+        o.tendencia = conF.length >= 2
+          ? Math.round((pct(o.porF[conF[conF.length - 1]].ok, o.porF[conF[conF.length - 1]].exig) -
+                        pct(o.porF[conF[0]].ok, o.porF[conF[0]].exig)) * 10) / 10 : null;
+        o.tendenciaDe = conF.length >= 2 ? conF[0] + ' → ' + conF[conF.length - 1] : '';
+        const incumple = docs.map(p => p.exig - p.ok).sort((a, b) => b - a);
+        const totInc = incumple.reduce((a, b) => a + b, 0);
+        const top = Math.max(1, Math.ceil(docs.length * 0.2));
+        o.pareto = totInc ? pct(incumple.slice(0, top).reduce((a, b) => a + b, 0), totInc) : null;
+        o.sinCoincidencia = sinCoin;
+        return o;
+      };
+      const sinCoinDe = r => F.reduce((n, f) => n + ((r.sinCoincidencia || {})[f] || []).length, 0);
+      const ambitos = reps.map(r => ({ nombre: corto(r.programa),
+        ind: indicadores(filasTodas.filter(x => x._carrera === r.programa), sinCoinDe(r)) }));
+      if (reps.length > 1) {
+        ambitos.push({ nombre: 'TOTAL', ind: indicadores(filasTodas, reps.reduce((n, r) => n + sinCoinDe(r), 0)) });
+      }
+
+      // ------------------------------------------ hoja 0: resumen ejecutivo --
+      const ncol = 1 + ambitos.length;
+      const R = cab('Resumen ejecutivo — cumplimiento de los formularios F1, F2 y F3');
+      const marcas = [];     // [fila, columna, estilo] para pintar después
+      const encR = ['Indicador'].concat(ambitos.map(a => a.nombre));
+      const filaSeccion = (t) => { R.push([t]); marcas.push([R.length - 1, 0, ncol, ESTILO.seccion]); };
+      const fn = (v, suf) => v == null ? '—' : String(v).replace('.', ',') + (suf || '');
+      const nyp = (n, t) => n + ' (' + fn(pct(n, t), ' %') + ')';
+
+      filaSeccion('1. Indicadores globales');
+      R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
+      const filaInd = (nombre, f, semaf) => {
+        R.push([nombre].concat(ambitos.map(a => f(a.ind))));
+        if (semaf) ambitos.forEach((a, i) => marcas.push([R.length - 1, i + 1, 1, ESTILO[semaforo(semaf(a.ind))]]));
+      };
+      filaInd('Cargas evaluadas (docente · grupo · curso)', o => o.cargas);
+      filaInd('Formularios exigibles', o => o.exig);
+      filaInd('Índice de cumplimiento oportuno (a tiempo / exigibles)', o => fn(o.oportuno, ' %'), o => o.oportuno);
+      filaInd('Tasa de presentación (a tiempo + fuera de plazo)', o => fn(o.presentacion, ' %'));
+      filaInd('Brecha de puntualidad (presentación − oportuno)', o => fn(Math.round((o.presentacion - o.oportuno) * 10) / 10, ' pp'));
+      filaInd('Docentes evaluados', o => o.docentes);
+      filaInd('Docentes con cumplimiento total (todos a tiempo) 😊', o => nyp(o.total, o.docentes));
+      filaInd('Docentes en riesgo (ninguno a tiempo)', o => nyp(o.riesgo, o.docentes));
+      filaInd('Retraso promedio de lo presentado fuera de plazo', o => o.retrasoProm == null ? '—' : fn(o.retrasoProm, ' días'));
+      filaInd('Retraso máximo', o => o.retrasoMax == null ? '—' : o.retrasoMax + ' días');
+      filaInd('Tendencia del cumplimiento oportuno', o => o.tendencia == null ? '—'
+        : (o.tendencia > 0 ? '▲ +' : (o.tendencia < 0 ? '▼ ' : '= ')) + fn(o.tendencia, ' pp') + ' (' + o.tendenciaDe + ')');
+      filaInd('Concentración: % de incumplimientos en el 20 % de docentes', o => o.pareto == null ? '—' : fn(o.pareto, ' %'));
+      filaInd('Respuestas sin coincidencia (revisar)', o => o.sinCoincidencia);
+      filaInd('Docentes sin correo registrado', o => o.sinCorreo);
+      R.push([]);
+
+      filaSeccion('2. Resultados por formulario');
+      R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
+      F.forEach(f => {
+        R.push(['Formulario ' + f + ' (total exigibles)'].concat(ambitos.map(a =>
+          a.ind.porF[f].exig ? a.ind.porF[f].exig : 'Sin hoja')));
+        marcas.push([R.length - 1, 0, ncol, ESTILO.negrita]);
+        R.push(['   • Presentado a tiempo'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].ok, a.ind.porF[f].exig) : '—')));
+        ambitos.forEach((a, i) => { if (a.ind.porF[f].exig)
+          marcas.push([R.length - 1, i + 1, 1, ESTILO[semaforo(pct(a.ind.porF[f].ok, a.ind.porF[f].exig))]]); });
+        R.push(['   • Fuera de plazo'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].fuera, a.ind.porF[f].exig) : '—')));
+        R.push(['   • No presentado'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].no, a.ind.porF[f].exig) : '—')));
+      });
+      R.push([]);
+
+      // áreas con menor cumplimiento
+      const porArea = {};
+      filasTodas.forEach(x => {
+        const k = x._carrera + '¦' + (x.area || 'Sin área');
+        const a = porArea[k] = porArea[k] || { carrera: corto(x._carrera), area: x.area || 'Sin área',
+                                               coord: x.coordinador || '', exig: 0, ok: 0, cargas: 0 };
+        a.cargas++; a.exig += x._exig.length; a.ok += x._ok;
+      });
+      const areasOrden = Object.values(porArea).filter(a => a.exig)
+        .map(a => Object.assign(a, { p: pct(a.ok, a.exig) })).sort((a, b) => a.p - b.p);
+      filaSeccion('3. Áreas con menor cumplimiento oportuno (las cinco más bajas)');
+      R.push(['Área', 'Carrera', 'Coordinador del área', 'Cargas', 'Cumplimiento oportuno']);
+      marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
+      areasOrden.slice(0, 5).forEach(a => {
+        R.push([a.area, a.carrera, a.coord, a.cargas, fn(a.p, ' %')]);
+        marcas.push([R.length - 1, 4, 1, ESTILO[semaforo(a.p)]]);
+      });
+      R.push([]);
+
+      // docentes en riesgo
+      const porDocR = {};
+      filasTodas.forEach(x => {
+        const p = porDocR[x.docente] = porDocR[x.docente] ||
+          { docente: x.docente, carreras: new Set(), exig: 0, ok: 0, cargas: 0 };
+        p.carreras.add(corto(x._carrera)); p.cargas++; p.exig += x._exig.length; p.ok += x._ok;
+      });
+      const enRiesgo = Object.values(porDocR).filter(p => p.exig && p.ok === 0)
+        .sort((a, b) => b.cargas - a.cargas || a.docente.localeCompare(b.docente, 'es'));
+      filaSeccion('4. Docentes en riesgo: ninguno de sus formularios a tiempo (acción inmediata)');
+      R.push(['Docente', 'Carrera(s)', 'Cargas', 'Formularios exigibles', 'A tiempo']);
+      marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
+      if (!enRiesgo.length) R.push(['Ningún docente en esta situación. 😊']);
+      enRiesgo.slice(0, 40).forEach(p => {
+        R.push([p.docente, [...p.carreras].join(', '), p.cargas, p.exig, 0]);
+        marcas.push([R.length - 1, 0, 5, ESTILO.rojo]);
+      });
+      if (enRiesgo.length > 40) R.push(['…y ' + (enRiesgo.length - 40) + ' más (ver «Resumen por docente»).']);
+      R.push([]);
+      filaSeccion('Cómo leer este resumen');
+      [
+        'Semáforo del índice de cumplimiento oportuno: verde desde ' + META_VERDE + ' %, amarillo de ' +
+          META_AMARILLO + ' % a ' + (META_VERDE - 0.1).toString().replace('.', ',') + ' %, rojo por debajo de ' + META_AMARILLO + ' %.',
+        'Brecha de puntualidad: si es alta, el problema es que se presenta tarde; si el «No presentado» es alto, el problema es de omisión.',
+        'Retraso promedio corto (pocos días) sugiere revisar el plazo; retraso largo sugiere un problema de compromiso.',
+        'Tendencia: diferencia entre el cumplimiento oportuno del último formulario y el del primero. ▲ mejora, ▼ empeora.',
+        'Concentración alta (por ejemplo, 70 % o más): pocos docentes explican la mayoría de los incumplimientos; conviene una acción individual.',
+        'Respuestas sin coincidencia: si son muchas, el cumplimiento real puede ser mayor que el reportado; revisar esa hoja.'
+      ].forEach(t => R.push([t]));
+      const ws0 = XLSX.utils.aoa_to_sheet(R);
+      ws0['!cols'] = [{ wch: 58 }].concat(ambitos.map(() => ({ wch: 20 })));
+      pintar(ws0, 0, 0, 1, ESTILO.titulo); pintar(ws0, 2, 0, 1, ESTILO.negrita);
+      marcas.forEach(([r, c, n, e]) => pintar(ws0, r, c, n, e));
+
+      // ------------------------------------------ hoja 1: detalle por carga --
+      const enc1 = ['N°', 'Carrera', 'Docente', 'Código', 'Curso', 'Grupo', 'Tipo', 'Semestre', 'Área',
+                    'Coordinador del área']
         .concat(...F.map(f => [f + ' fecha', f + ' estado']))
         .concat(['Presentados', 'A tiempo', 'Cumplimiento %', 'Reconocimiento', 'Nota']);
-      const det = d.detalle.map((x, i) => {
-        const pres = exigibles.filter(f => /^Presentado|^Fuera/.test(x[f].estado)).length;
-        const ok = exigibles.filter(f => cumple(x[f].estado)).length;
+      const det = filasTodas.map((x, i) => {
+        const n = x._exig.length;
         const aprox = F.filter(f => x[f] && x[f].aproximada);
         const varias = F.filter(f => x[f] && x[f].veces > 1);
-        x._ok = ok; x._pres = pres;
-        return [i + 1, x.docente, x.codigo, nombreCurso(x.curso), x.grupo, x.tipos, x.semestre, x.area, x.coordinador]
+        return [i + 1, corto(x._carrera), x.docente, x.codigo, nombreCurso(x.curso), x.grupo, x.tipos, x.semestre,
+                x.area, x.coordinador]
           .concat(...F.map(f => [dma(x[f].fecha), x[f].estado]))
-          .concat([pres + ' de ' + exigibles.length, ok + ' de ' + exigibles.length, pct(ok, exigibles.length),
-            ok >= exigibles.length && exigibles.length ? KUDO : '',
+          .concat([x._pres + ' de ' + n, x._ok + ' de ' + n, pct(x._ok, n), n && x._ok >= n ? KUDO : '',
             [aprox.length ? 'Coincidencia aproximada en ' + aprox.join(', ') + ' (curso o subgrupo escrito distinto)' : '',
              varias.length ? 'Envió más de una vez ' + varias.join(', ') + ' (se toma la primera fecha)' : '']
               .filter(Boolean).join('. ')]);
       });
       const f1 = cab('Cumplimiento de los formularios F1, F2 y F3 — detalle por carga');
       const ws1 = hoja(f1.concat([enc1], det),
-        [5, 34, 10, 38, 7, 10, 9, 28, 30, 10, 22, 10, 22, 10, 22, 12, 11, 14, 34, 50], f1.length);
-      cabeceras(ws1, f1.length, enc1.length);
-      d.detalle.forEach((x, i) => {
-        const n = nivel(x._ok, exigibles.length);
-        if (n) pintar(ws1, f1.length + 1 + i, enc1.length, ESTILO[n]);
+        [5, 14, 34, 10, 38, 7, 10, 9, 28, 30, 10, 22, 10, 22, 10, 22, 12, 11, 14, 34, 50], f1.length);
+      filasTodas.forEach((x, i) => {
+        const n = nivel(x._ok, x._exig.length);
+        if (n) pintar(ws1, f1.length + 1 + i, 0, enc1.length, ESTILO[n]);
       });
 
-      // 2) Resumen por docente
+      // ------------------------------------------ hoja 2: resumen por docente --
       const porDoc = {};
-      d.detalle.forEach(x => {
-        const r = porDoc[x.docente] = porDoc[x.docente] || { cargas: 0, exig: 0, ok: 0, fuera: 0, no: 0 };
-        r.cargas++;
-        exigibles.forEach(f => {
+      filasTodas.forEach(x => {
+        const r = porDoc[x.docente] = porDoc[x.docente] ||
+          { carreras: new Set(), cargas: 0, exig: 0, ok: 0, fuera: 0, no: 0 };
+        r.carreras.add(corto(x._carrera)); r.cargas++;
+        x._exig.forEach(f => {
           r.exig++;
           if (cumple(x[f].estado)) r.ok++;
           else if (x[f].estado === 'Fuera de plazo') r.fuera++;
           else r.no++;
         });
       });
-      const enc2 = ['Docente', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo', 'Fuera de plazo',
-                    'No presentados', 'Cumplimiento %', 'Presentados %', 'Reconocimiento'];
+      const enc2 = ['Docente', 'Carrera(s)', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo',
+                    'Fuera de plazo', 'No presentados', 'Cumplimiento %', 'Presentados %', 'Reconocimiento'];
       const res2 = Object.entries(porDoc).map(([doc, r]) =>
-        [doc, r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig), pct(r.ok + r.fuera, r.exig),
-         r.exig && r.ok >= r.exig ? KUDO + ' todos sus formularios' : ''])
-        .sort((a, b) => a[6] - b[6] || String(a[0]).localeCompare(String(b[0]), 'es'));
+        [doc, [...r.carreras].join(', '), r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig),
+         pct(r.ok + r.fuera, r.exig), r.exig && r.ok >= r.exig ? KUDO + ' todos sus formularios' : ''])
+        .sort((a, b) => a[7] - b[7] || String(a[0]).localeCompare(String(b[0]), 'es'));
       const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
-      const ws2 = hoja(f2.concat([enc2], res2), [36, 8, 12, 12, 12, 12, 14, 14, 46], f2.length);
-      cabeceras(ws2, f2.length, enc2.length);
+      const ws2 = hoja(f2.concat([enc2], res2), [36, 20, 8, 12, 12, 12, 12, 14, 14, 46], f2.length);
       res2.forEach((r, i) => {
-        const n = nivel(r[3], r[2]);
-        if (n) pintar(ws2, f2.length + 1 + i, enc2.length, ESTILO[n]);
-      });
-
-      // 3) Resumen por área
-      const porArea = {};
-      d.detalle.forEach(x => {
-        const k = x.area || 'Sin área';
-        const r = porArea[k] = porArea[k] || { coord: x.coordinador || '', cargas: 0, exig: 0, ok: 0, fuera: 0, no: 0 };
-        r.cargas++;
-        exigibles.forEach(f => {
-          r.exig++;
-          if (cumple(x[f].estado)) r.ok++;
-          else if (x[f].estado === 'Fuera de plazo') r.fuera++;
-          else r.no++;
-        });
-      });
-      const enc3 = ['Área', 'Coordinador del área', 'Cargas', 'Formularios exigibles', 'Presentados a tiempo',
-                    'Fuera de plazo', 'No presentados', 'Cumplimiento %'];
-      const res3 = Object.entries(porArea).map(([k, r]) =>
-        [k, r.coord, r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig)])
-        .sort((a, b) => a[7] - b[7]);
-      const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
-      const ws3 = hoja(f3.concat([enc3], res3), [34, 32, 8, 12, 12, 12, 12, 14], f3.length);
-      cabeceras(ws3, f3.length, enc3.length);
-      res3.forEach((r, i) => {
         const n = nivel(r[4], r[3]);
-        if (n) pintar(ws3, f3.length + 1 + i, enc3.length, ESTILO[n]);
+        if (n) pintar(ws2, f2.length + 1 + i, 0, enc2.length, ESTILO[n]);
       });
 
-      // 4) Sin coincidencia
-      const enc4 = ['Formato', 'Fila en la hoja', 'Docente (como lo escribió)', 'Curso (como lo escribió)', 'Grupo', 'Fecha'];
+      // ------------------------------------------ hoja 3: resumen por área --
+      const enc3 = ['Carrera', 'Área', 'Coordinador del área', 'Cargas', 'Formularios exigibles',
+                    'Presentados a tiempo', 'Cumplimiento %'];
+      const res3 = areasOrden.map(a => [a.carrera, a.area, a.coord, a.cargas, a.exig, a.ok, a.p]);
+      const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
+      const ws3 = hoja(f3.concat([enc3], res3), [16, 34, 32, 8, 12, 12, 14], f3.length);
+      res3.forEach((r, i) => {
+        const n = nivel(r[5], r[4]);
+        if (n) pintar(ws3, f3.length + 1 + i, 0, enc3.length, ESTILO[n]);
+      });
+
+      // ------------------------------------------ hoja 4: sin coincidencia --
+      const enc4 = ['Carrera', 'Formato', 'Fila en la hoja', 'Docente (como lo escribió)',
+                    'Curso (como lo escribió)', 'Grupo', 'Fecha'];
       const res4 = [];
-      F.forEach(f => (d.sinCoincidencia[f] || []).forEach(x =>
-        res4.push([f, x.fila, x.docente, x.curso, x.grupo, dma(x.fecha)])));
+      reps.forEach(r => F.forEach(f => ((r.sinCoincidencia || {})[f] || []).forEach(x =>
+        res4.push([corto(r.programa), f, x.fila, x.docente, x.curso, x.grupo, dma(x.fecha)]))));
       const f4 = cab('Respuestas de los formularios que no coinciden con ninguna carga del ciclo');
       const nota4 = [['Revise estas filas antes de dar a alguien por «No presentado»: suelen ser un curso, ' +
                       'un grupo o un nombre escrito de otra forma, o una carga de otra carrera.'], []];
-      const ws4 = hoja(f4.concat(nota4, [enc4], res4.length ? res4 : [['—', '', 'Todas las respuestas coincidieron con una carga', '', '', '']]),
-        [9, 12, 36, 44, 8, 12], f4.length + nota4.length);
-      cabeceras(ws4, f4.length + nota4.length, enc4.length);
+      const ws4 = hoja(f4.concat(nota4, [enc4],
+        res4.length ? res4 : [['—', '', '', 'Todas las respuestas coincidieron con una carga', '', '', '']]),
+        [14, 9, 12, 36, 44, 8, 10], f4.length + nota4.length);
 
-      // 5) Parámetros
-      const tot = d.detalle.length * exigibles.length;
-      const totOk = d.detalle.reduce((s2, x) => s2 + x._ok, 0);
-      const totPres = d.detalle.reduce((s2, x) => s2 + x._pres, 0);
-      const par = cab('Parámetros y criterios del reporte').concat([
-        ['Concepto', 'Valor'],
-        ['Carrera', d.programa],
-        ['Ciclo académico', d.ciclo],
-        ['Cargas evaluadas (docente · grupo · curso)', d.detalle.length],
-        ['Formularios exigibles', tot],
-        ['Presentados', totPres + ' (' + pct(totPres, tot) + ' %)'],
-        ['Presentados a tiempo', totOk + ' (' + pct(totOk, tot) + ' %)'],
-        []
-      ]).concat(F.map(f => [
-        'Plazo ' + f, d.plazos[f] ? dma(d.plazos[f]) : 'No fijado para este ciclo'
-      ])).concat([[]]).concat(F.map(f => {
-        const fu = d.fuentes[f] || {};
-        return ['Hoja ' + f, fu.error ? 'No consultada: ' + fu.error
-          : (fu.hoja + ' · ' + fu.filas + ' respuestas · ' + fu.enlace)];
-      })).concat([
-        [],
+      // ------------------------------------------ hoja 5: parámetros --
+      const par = cab('Parámetros y criterios del reporte').concat([['Concepto', 'Valor'], ['Ciclo académico', d.ciclo || ciclo]]);
+      reps.forEach(r => {
+        par.push([]);
+        par.push(['Carrera', r.programa]);
+        F.forEach(f => par.push(['   Plazo ' + f, r.plazos && r.plazos[f] ? dma(r.plazos[f]) : 'No fijado para este ciclo']));
+        F.forEach(f => {
+          const fu = r.fuentes[f] || {};
+          par.push(['   Hoja ' + f, fu.error ? 'No consultada: ' + fu.error
+            : (fu.hoja + ' · ' + fu.filas + ' respuestas · ' + fu.enlace)]);
+        });
+      });
+      par.push([]);
+      [
         ['Criterios', 'Se evalúa cada carga de la carrera en el ciclo, una por docente, grupo y curso ' +
           '(teoría y laboratorio del mismo docente y grupo cuentan una vez). Incluye a los docentes de ' +
           'otros departamentos que dictan cursos de la carrera.'],
@@ -3797,32 +3955,39 @@ label .req{color:var(--falla)}
         ['', 'Si un formulario se envió más de una vez, se toma la primera fecha.'],
         ['', 'Si un formato no tiene plazo fijado, lo presentado se cuenta como cumplido y se indica así.'],
         ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar. Formato dd/mm/aa.'],
+        ['Meta del índice de cumplimiento oportuno', 'Verde desde ' + META_VERDE + ' %, amarillo desde ' +
+          META_AMARILLO + ' %, rojo por debajo de ' + META_AMARILLO + ' %.'],
         [],
-        ['Leyenda de colores', ''],
-        ['Verde', 'Presentó a tiempo todos los formularios exigibles (por ejemplo, 3 de 3). Lleva 😊 de felicitación.'],
-        ['Amarillo', 'Presentó a tiempo una parte (1 de 3 o 2 de 3).'],
-        ['Rojo', 'No presentó a tiempo ninguno (0 de 3).']
-      ]);
-      const ws5 = hoja(par, [40, 110], null);
-      cabeceras(ws5, cab('').length, 2);
+        ['Leyenda de colores por docente y carga', '']
+      ].forEach(x => par.push(x));
+      par.push(['Verde', 'Presentó a tiempo todos los formularios exigibles (por ejemplo, 3 de 3). Lleva 😊 de felicitación.']);
+      par.push(['Amarillo', 'Presentó a tiempo una parte (1 de 3 o 2 de 3).']);
+      par.push(['Rojo', 'No presentó a tiempo ninguno (0 de 3).']);
+      const ws5 = hoja(par, [40, 110], 5);
       const fl = par.length;
-      pintar(ws5, fl - 3, 2, ESTILO.verde);
-      pintar(ws5, fl - 2, 2, ESTILO.amarillo);
-      pintar(ws5, fl - 1, 2, ESTILO.rojo);
+      pintar(ws5, fl - 3, 0, 2, ESTILO.verde);
+      pintar(ws5, fl - 2, 0, 2, ESTILO.amarillo);
+      pintar(ws5, fl - 1, 0, 2, ESTILO.rojo);
 
       const libro = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
       XLSX.utils.book_append_sheet(libro, ws1, 'Detalle por carga');
       XLSX.utils.book_append_sheet(libro, ws2, 'Resumen por docente');
       XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
       XLSX.utils.book_append_sheet(libro, ws4, 'Sin coincidencia');
       XLSX.utils.book_append_sheet(libro, ws5, 'Parámetros');
-      const nombre = 'Cumplimiento_F1-F3_' +
-        String(d.programa).replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' +
-        String(d.ciclo).replace(/\s+/g, '') + '.xlsx';
-      XLSX.writeFile(libro, nombre);
+      const etiqueta = reps.length === 1 ? corto(reps[0].programa).replace(/\s+/g, '_')
+                     : (reps.length + '_carreras');
+      XLSX.writeFile(libro, 'Cumplimiento_F1-F3_' + etiqueta + '_' + String(d.ciclo || ciclo).replace(/\s+/g, '') + '.xlsx');
     }).catch(e => { fin(); alert('No se pudo generar el reporte: ' + e.message); });
   }
   window.generarReporteFormularios = generarReporteFormularios;
+
+  // Varias carreras: se notifican una tras otra, cada una con su vista previa.
+  async function notificarVarias(lista, boton) {
+    if (!lista.length) { alert('Marque al menos una carrera.'); return; }
+    for (const p of lista) await notificarFormularios(p, boton);
+  }
 
   // Notificación por correo: primero la vista previa, luego la confirmación.
   function notificarFormularios(programa, boton) {
@@ -3838,7 +4003,7 @@ label .req{color:var(--falla)}
     const base = '/notificar-formularios?programa=' + encodeURIComponent(programa) +
                  '&ciclo=' + encodeURIComponent(ciclo) + '&alcance=' + alcance;
 
-    api(base, { limiteMs: 240000 }).then(v => {
+    return api(base, { limiteMs: 240000 }).then(v => {
       if (!v.destinatarios) {
         fin();
         alert(v.sinCorreo && v.sinCorreo.length
