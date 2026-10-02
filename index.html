@@ -1167,22 +1167,25 @@ label .req{color:var(--falla)}
           <label for="compPlan">Plan</label><select id="compPlan"></select>
           <span class="conteo" id="compAviso"></span>
         </div>
+        <div id="compElegir" class="vacio" style="font-size:15px">Elija la carrera y el plan para ver y registrar sus competencias.</div>
+        <div id="compContenido" class="oculto">
         <div class="vistas" style="margin-bottom:12px">
-          <button class="vista activa" type="button" data-comp="lista">Competencias de la carrera</button>
-          <button class="vista" type="button" data-comp="curso">Competencias de cada curso</button>
+          <button class="vista activa" type="button" data-comp="lista">1. Competencias de la carrera</button>
+          <button class="vista" type="button" data-comp="curso">2. Competencias de cada curso</button>
         </div>
 
         <div id="compPanelLista">
-          <div id="compTabla"><div class="vacio">Elija la carrera y el plan.</div></div>
-          <h3 style="margin:18px 0 8px;font-size:16px" id="compFormTitulo">Registrar una competencia nueva</h3>
+          <div id="compTabla"></div>
+          <h3 style="margin:18px 0 8px;font-size:16px" id="compFormTitulo">Registrar una competencia nueva de la carrera</h3>
           <div class="rejilla">
-            <div><label for="compTipo">Tipo</label>
+            <div><label for="compTipo">Tipo de competencia</label>
               <select id="compTipo"><option>Genérica</option><option>Específica</option></select></div>
-            <div><label for="compCodigo">Código</label><input type="text" id="compCodigo" placeholder="a, b, C1…">
-              <p class="ayuda">Se propone solo, según la numeración de la carrera. Puede cambiarlo.</p></div>
-            <div><label for="compNombre">Nombre (opcional)</label><input type="text" id="compNombre"
+            <div><label for="compCodigo">Letra o número de la competencia</label><input type="text" id="compCodigo" placeholder="a, b, C1…">
+              <p class="ayuda">Es la identificación de la competencia en el documento de la carrera (a, b, c… o C1, C2…).
+                 El portal propone la que sigue; puede cambiarla.</p></div>
+            <div><label for="compNombre">Título de la competencia (opcional)</label><input type="text" id="compNombre"
               placeholder="Por ejemplo: Comportamiento ético"></div>
-            <div class="full"><label for="compDesc">Descripción</label><textarea id="compDesc" rows="3"></textarea></div>
+            <div class="full"><label for="compDesc">Descripción de la competencia</label><textarea id="compDesc" rows="3"></textarea></div>
             <div class="full"><label style="display:flex;gap:8px;align-items:center;font-weight:normal">
               <input type="checkbox" id="compTodosPlanes" style="width:auto"> Vale para todos los planes de la carrera
               (lo habitual en las genéricas)</label></div>
@@ -1196,9 +1199,12 @@ label .req{color:var(--falla)}
 
         <div id="compPanelCurso" class="oculto">
           <div class="rejilla">
-            <div class="full"><label for="compCurso">Curso</label><select id="compCurso"></select></div>
-            <div><label>Código del curso</label><input type="text" id="compCursoCodigo" readonly></div>
-            <div><label>Asignatura</label><input type="text" id="compCursoNombre" readonly></div>
+            <div class="full"><label for="compCurso">Curso</label><select id="compCurso"></select>
+              <p class="ayuda">Solo aparecen los cursos de la carrera y el plan elegidos arriba.</p></div>
+            <div><label>Código del curso</label><input type="text" id="compCursoCodigo" readonly
+              placeholder="Se llena solo al elegir el curso"></div>
+            <div><label>Asignatura</label><input type="text" id="compCursoNombre" readonly
+              placeholder="Se llena solo al elegir el curso"></div>
           </div>
           <p style="margin:12px 0 6px;font-weight:600">Marque las competencias específicas que desarrolla este curso:</p>
           <div id="compCasillas"><div class="vacio">Elija un curso.</div></div>
@@ -1208,6 +1214,7 @@ label .req{color:var(--falla)}
           </div>
           <h3 style="margin:18px 0 8px;font-size:16px">Cursos con competencias asignadas en este plan</h3>
           <div id="compTablaCursos"></div>
+        </div>
         </div>
       </div>
     </section>
@@ -2919,7 +2926,8 @@ label .req{color:var(--falla)}
   function iniciarCompetencias() {
     if (!$('compCarrera')) return;
     const carreras = carrerasQuePuedeFijar();
-    $('compCarrera').innerHTML = carreras.map(c => '<option>' + esc(c) + '</option>').join('');
+    $('compCarrera').innerHTML = '<option value="">Seleccione la carrera</option>' +
+      carreras.map(c => '<option>' + esc(c) + '</option>').join('');
     $('compAviso').textContent = 'Cargando…';
     Promise.all([api('/competencias'), api('/consultar?tabla=cursos')]).then(([d, cat]) => {
       COMP.datos = d; COMP.catalogo = cat.filas || [];
@@ -2932,8 +2940,10 @@ label .req{color:var(--falla)}
     const car = $('compCarrera').value;
     const planes = [...new Set((COMP.catalogo || []).filter(x => sinAcentos(x.programa) === sinAcentos(car))
       .map(x => x.plan).filter(Boolean))].sort();
-    $('compPlan').innerHTML = planes.map(p => '<option>' + esc(p) + '</option>').join('') ||
-      '<option value="">(sin cursos en el catálogo)</option>';
+    $('compPlan').innerHTML = !car ? '<option value="">Primero elija la carrera</option>'
+      : (planes.length ? '<option value="">Seleccione el plan</option>' + planes.map(p => '<option>' + esc(p) + '</option>').join('')
+                       : '<option value="">(esta carrera no tiene cursos en el catálogo)</option>');
+    $('compPlan').disabled = !car || !planes.length;
     pintarComp();
   }
 
@@ -2944,7 +2954,7 @@ label .req{color:var(--falla)}
   }
 
   function proponerCodigo() {
-    if (COMP.editando) return;
+    if (COMP.editando || !$('compCarrera').value || !$('compPlan').value) return;
     const tipo = $('compTipo').value;
     const usados = compDeCarrera().filter(c => sinAcentos(c.tipo) === sinAcentos(tipo)).map(c => String(c.codigo).trim());
     let sug = '';
@@ -2959,18 +2969,22 @@ label .req{color:var(--falla)}
 
   function limpiarFormComp() {
     COMP.editando = null;
-    $('compFormTitulo').textContent = 'Registrar una competencia nueva';
+    $('compFormTitulo').textContent = 'Registrar una competencia nueva de la carrera';
     $('compNombre').value = ''; $('compDesc').value = ''; $('compTodosPlanes').checked = false;
     $('btnCompGuardar').textContent = 'Guardar competencia';
     proponerCodigo();
   }
 
   function pintarComp() {
+    const listo = !!($('compCarrera').value && $('compPlan').value);
+    $('compElegir').classList.toggle('oculto', listo);
+    $('compContenido').classList.toggle('oculto', !listo);
+    if (!listo) return;
     const lista = compDeCarrera();
     const tabla = tipo => {
       const l = lista.filter(c => sinAcentos(c.tipo) === sinAcentos(tipo));
-      return '<h4 style="margin:10px 0 6px">' + tipo + 's (' + l.length + ')</h4>' +
-        (l.length ? '<div class="tabla-envoltura"><table class="tabla"><thead><tr><th>Código</th><th>Nombre</th>' +
+      return '<h4 style="margin:10px 0 6px">Competencias ' + tipo.toLowerCase() + 's (' + l.length + ')</h4>' +
+        (l.length ? '<div class="tabla-envoltura"><table class="tabla"><thead><tr><th>Letra / número</th><th>Título</th>' +
           '<th>Descripción</th><th>Plan</th><th></th></tr></thead><tbody>' +
           l.map(c => '<tr><td><b>' + esc(c.codigo) + '</b></td><td>' + esc(c.nombre || '') + '</td><td>' +
             esc(c.descripcion) + '</td><td>' + esc(c.plan) + '</td><td style="white-space:nowrap">' +
@@ -3050,7 +3064,7 @@ label .req{color:var(--falla)}
     if (!$('compCurso')) return;
     const cursos = cursosDelPlanComp();
     const previo = $('compCurso').value;
-    $('compCurso').innerHTML = '<option value="">Seleccione un curso</option>' + cursos.map(x =>
+    $('compCurso').innerHTML = '<option value="">Seleccione el curso</option>' + cursos.map(x =>
       '<option value="' + esc(x.codigo) + '">' + esc(x.codigo) + ' — ' + esc(nombreCurso(x.curso)) +
       (filaDeCurso(x.codigo) ? '  ✔' : '') + '</option>').join('');
     if (previo && cursos.some(x => x.codigo === previo)) $('compCurso').value = previo;
