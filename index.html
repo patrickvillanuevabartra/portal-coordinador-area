@@ -3579,7 +3579,7 @@ label .req{color:var(--falla)}
           (progsRep.length > 1
             ? '<label style="font-weight:600"><input type="checkbox" id="casTodas"> Todas</label>' : '') +
           progsRep.map(p => '<label><input type="checkbox" class="cas-carrera" value="' + esc(p) + '"' +
-            (/industrial/i.test(p) || progsRep.length === 1 ? ' checked' : '') + '> ' +
+            (progsRep.length === 1 ? ' checked' : '') + '> ' +
             esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
           '</div><div style="display:flex;gap:10px;flex-wrap:wrap">' +
           '<button class="btn" id="btnRepF">Generar reporte (Excel)</button>' +
