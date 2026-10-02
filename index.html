@@ -3097,7 +3097,9 @@ label .req{color:var(--falla)}
     $('compCursoCodigo').value = x ? x.codigo : '';
     $('compCursoNombre').value = x ? nombreCurso(x.curso) : '';
     $('compCursoSemestre').value = x ? (x.semestre || '') : '';
-    $('compCursoArea').value = x ? (x.area || '') : '';
+    // Si el catálogo no tiene el dato, se dice: un campo vacío parece un error.
+    $('compCursoArea').value = x ? (x.area || 'Sin área en el catálogo') : '';
+    $('compCursoSemestre').value = x ? (x.semestre || 'Sin semestre en el catálogo') : '';
 
     // genéricas del curso elegido
     const gen = compDe('Genérica');
