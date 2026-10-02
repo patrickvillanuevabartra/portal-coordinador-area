@@ -3998,71 +3998,130 @@ label .req{color:var(--falla)}
     for (const p of lista) await notificarFormularios(p, boton);
   }
 
-  // Notificación por correo: primero la vista previa, luego la confirmación.
+  // Notificación por correo: un recuadro con todo a la vista y botones que
+  // dicen exactamente lo que hacen. Devuelve una promesa que se resuelve al
+  // cerrarlo, para poder notificar varias carreras una tras otra.
   function notificarFormularios(programa, boton) {
     const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
-    const todos = confirm(
-      '¿A quiénes notificar?\n\n' +
-      'Aceptar: a TODOS los docentes de ' + programa + ' (también a quienes cumplieron, como reconocimiento).\n' +
-      'Cancelar: SOLO a quienes tienen formularios pendientes o fuera de plazo.');
-    const alcance = todos ? 'todos' : 'pendientes';
     const txt = boton.textContent;
     boton.disabled = true; boton.textContent = 'Preparando…';
     const fin = () => { boton.disabled = false; boton.textContent = txt; };
-    const base = '/notificar-formularios?programa=' + encodeURIComponent(programa) +
-                 '&ciclo=' + encodeURIComponent(ciclo) + '&alcance=' + alcance;
+    const corto = String(programa).replace(/^Ingeniería\s+(de\s+)?/i, '');
 
-    return api(base, { limiteMs: 240000 }).then(v => {
-      if (!v.destinatarios) {
+    return api('/notificar-formularios?programa=' + encodeURIComponent(programa) +
+               '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 240000 })
+      .then(v => new Promise(listo => {
         fin();
-        alert(v.sinCorreo && v.sinCorreo.length
-          ? 'Nadie a quien enviar: ' + v.sinCorreo.length + ' docente(s) no tienen correo registrado.'
-          : 'No hay docentes a quienes notificar con ese criterio.');
-        return;
-      }
-      const sinC = v.sinCorreo || [];
-      const ok = confirm(
-        'Notificación de F1–F3 · ' + programa + ' · ' + ciclo + '\n\n' +
-        'Se enviará un correo a ' + v.destinatarios + ' docente(s)' +
-        (alcance === 'pendientes' ? ' con formularios pendientes o fuera de plazo' : '') + '.\n' +
-        'Docentes de la carrera en el ciclo: ' + v.docentes + ' (con pendientes: ' + v.conPendientes + ').\n' +
-        (sinC.length ? '\nSin correo registrado (' + sinC.length + '), no recibirán nada:\n' +
-          sinC.slice(0, 12).join('\n') + (sinC.length > 12 ? '\n…y ' + (sinC.length - 12) + ' más' : '') + '\n' : '') +
-        (v.cuota >= 0 ? '\nCorreos disponibles hoy en la cuenta del portal: ' + v.cuota + '.\n' : '') +
-        '\nCada docente recibe un solo correo con todas sus cargas. Las respuestas llegan a su correo.\n\n¿Enviar ahora?');
-      if (!ok) { fin(); return; }
-      boton.textContent = 'Enviando…';
-      return api('/notificar-formularios', {
-        method: 'POST', limiteMs: 300000,
-        body: JSON.stringify({ programa, ciclo, alcance, confirmado: true })
-      }).then(r => {
-        fin();
-        alert('Notificación enviada.\n\nEnviados: ' + (r.enviados || []).length +
-              '\nNo se pudieron enviar: ' + (r.fallidos || []).length +
-              '\nSin correo registrado: ' + (r.sinCorreo || []).length +
-              '\n\nSe descargará la constancia en Excel.');
-        return cargarLibreriaExcel().then(XLSX => {
-          const filas = [
-            ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
-            ['Constancia de notificación a docentes — formularios F1 a F3'],
-            ['Carrera: ' + r.programa + ' · Ciclo: ' + r.ciclo + ' · Enviado por ' + r.remitente +
-             ' el ' + new Date().toLocaleString('es-PE')],
-            ['Alcance: ' + (r.alcance === 'todos' ? 'todos los docentes' : 'docentes con pendientes')],
-            [],
-            ['Resultado', 'Docente', 'Correo', 'Cumplimiento a tiempo (%)', 'Presentados a tiempo']
-          ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, x.pct, x.cumplidos + ' de ' + x.total]))
-           .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', x.error]))
-           .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', 'Registrar su correo en el directorio de Validar datos']));
-          const ws = XLSX.utils.aoa_to_sheet(filas);
-          ws['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 34 }, { wch: 14 }, { wch: 50 }];
-          const wb = XLSX.utils.book_new();
-          XLSX.utils.book_append_sheet(wb, ws, 'Constancia');
-          XLSX.writeFile(wb, 'Constancia_notificacion_F1-F3_' +
-            String(r.programa).replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' +
-            String(r.ciclo).replace(/\s+/g, '') + '.xlsx');
+        const op = {
+          pendientes: v.pendientes || { conCorreo: v.destinatarios || 0, sinCorreo: v.sinCorreo || [] },
+          todos: v.todos || { conCorreo: v.destinatarios || 0, sinCorreo: v.sinCorreo || [] }
+        };
+        const capa = document.createElement('div');
+        capa.className = 'capa';
+        capa.innerHTML =
+          '<div class="dialogo" role="dialog" aria-modal="true" style="width:min(620px,100%);font-size:15px">' +
+          '<h3 style="font-size:19px">Notificar a los docentes</h3>' +
+          '<p class="det" style="color:var(--tinta-media);margin:0 0 12px">' + esc(programa) +
+            ' · ciclo ' + esc(ciclo) + ' · formularios F1, F2 y F3</p>' +
+          '<div class="cuerpo-dialogo">' +
+          '<p style="font-weight:600;margin:6px 0 8px">¿A quiénes enviar el correo?</p>' +
+          '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;margin-bottom:8px;cursor:pointer">' +
+            '<input type="radio" name="alcNot" value="pendientes" checked style="width:auto;margin-top:4px">' +
+            '<span><b>Solo a quienes tienen formularios pendientes o presentados tarde</b><br>' +
+            '<span style="color:var(--tinta-media)">' + op.pendientes.conCorreo + ' docente(s) recibirán el correo</span></span></label>' +
+          '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;cursor:pointer">' +
+            '<input type="radio" name="alcNot" value="todos" style="width:auto;margin-top:4px">' +
+            '<span><b>A todos los docentes</b>, también a quienes cumplieron (reciben su felicitación 😊)<br>' +
+            '<span style="color:var(--tinta-media)">' + op.todos.conCorreo + ' docente(s) recibirán el correo</span></span></label>' +
+          '<div id="notSinCorreo" style="margin-top:12px"></div>' +
+          (v.cuota >= 0 ? '<p class="nota-dialogo" style="margin:10px 0 0">Correos disponibles hoy en la cuenta del portal: <b>' +
+            v.cuota + '</b>.</p>' : '') +
+          '<p class="nota-dialogo" style="margin:6px 0 0">Cada docente recibe un solo correo con todos sus cursos. ' +
+            'Si un docente responde, la respuesta le llega a usted.</p>' +
+          '<div id="notResultado" style="margin-top:12px"></div>' +
+          '</div>' +
+          '<div class="pie" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">' +
+            '<button type="button" class="btn gris" id="notNo">No enviar</button>' +
+            '<button type="button" class="btn" id="notSi"></button>' +
+          '</div></div>';
+        document.body.appendChild(capa);
+
+        const elegido = () => capa.querySelector('input[name="alcNot"]:checked').value;
+        const actualizar = () => {
+          const o = op[elegido()];
+          const n = o.conCorreo;
+          const bSi = capa.querySelector('#notSi');
+          bSi.textContent = n ? 'Enviar ' + n + (n === 1 ? ' correo' : ' correos') : 'No hay a quién enviar';
+          bSi.disabled = !n || (v.cuota >= 0 && n > v.cuota);
+          const sc = o.sinCorreo || [];
+          capa.querySelector('#notSinCorreo').innerHTML = sc.length
+            ? '<div style="background:#fdf4e3;border-left:4px solid #d99a1b;padding:10px 12px;border-radius:8px">' +
+              '<b>' + sc.length + ' docente(s) sin correo registrado</b> no recibirán nada:' +
+              '<div style="max-height:110px;overflow:auto;margin-top:6px;font-size:13.5px">' +
+              sc.map(esc).join('<br>') + '</div>' +
+              '<div style="font-size:12.5px;margin-top:6px;color:var(--tinta-media)">Se registra en Validar datos → Directorio de docentes.</div></div>'
+            : '';
+          if (v.cuota >= 0 && n > v.cuota) {
+            capa.querySelector('#notSinCorreo').innerHTML +=
+              '<p style="color:#b42318;margin-top:8px"><b>La cuota de correos de hoy no alcanza.</b> ' +
+              'Elija la otra opción o envíe mañana.</p>';
+          }
+        };
+        capa.querySelectorAll('input[name="alcNot"]').forEach(r => r.addEventListener('change', actualizar));
+        actualizar();
+
+        const cerrar = () => { capa.remove(); listo(); };
+        capa.querySelector('#notNo').addEventListener('click', cerrar);
+
+        capa.querySelector('#notSi').addEventListener('click', () => {
+          const alcance = elegido();
+          const bSi = capa.querySelector('#notSi'), bNo = capa.querySelector('#notNo');
+          bSi.disabled = true; bNo.disabled = true;
+          capa.querySelectorAll('input[name="alcNot"]').forEach(r => { r.disabled = true; });
+          bSi.textContent = 'Enviando… no cierre esta ventana';
+          api('/notificar-formularios', {
+            method: 'POST', limiteMs: 300000,
+            body: JSON.stringify({ programa, ciclo, alcance, confirmado: true })
+          }).then(r => {
+            const env = (r.enviados || []).length, fal = (r.fallidos || []).length, sin = (r.sinCorreo || []).length;
+            capa.querySelector('#notResultado').innerHTML =
+              '<div style="background:#f1faf4;border-left:4px solid #1b7f4b;padding:12px 14px;border-radius:8px;font-size:15px">' +
+              '<b>✔ Listo: se enviaron ' + env + (env === 1 ? ' correo' : ' correos') + '.</b>' +
+              (fal ? '<br><span style="color:#b42318">No se pudieron enviar: ' + fal + '.</span>' : '') +
+              (sin ? '<br>Sin correo registrado: ' + sin + '.' : '') +
+              '<br><span style="color:var(--tinta-media);font-size:13px">Se descargó la constancia en Excel.</span></div>';
+            bSi.style.display = 'none';
+            bNo.disabled = false; bNo.textContent = 'Cerrar';
+            bNo.classList.remove('gris');
+            return cargarLibreriaExcel().then(XLSX => {
+              const filas = [
+                ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+                ['Constancia de notificación a docentes — formularios F1 a F3'],
+                ['Carrera: ' + r.programa + ' · Ciclo: ' + r.ciclo + ' · Enviado por ' + r.remitente +
+                 ' el ' + new Date().toLocaleString('es-PE')],
+                ['Enviado a: ' + (r.alcance === 'todos' ? 'todos los docentes' : 'docentes con formularios pendientes o presentados tarde')],
+                [],
+                ['Resultado', 'Docente', 'Correo', 'Cumplimiento a tiempo (%)', 'Presentados a tiempo']
+              ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, x.pct, x.cumplidos + ' de ' + x.total]))
+               .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', x.error]))
+               .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', 'Registrar su correo en el directorio de Validar datos']));
+              const ws = XLSX.utils.aoa_to_sheet(filas);
+              ws['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 34 }, { wch: 16 }, { wch: 50 }];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, 'Constancia');
+              XLSX.writeFile(wb, 'Constancia_notificacion_F1-F3_' + corto.replace(/\s+/g, '_') + '_' +
+                String(r.ciclo).replace(/\s+/g, '') + '.xlsx');
+            });
+          }).catch(e => {
+            capa.querySelector('#notResultado').innerHTML =
+              '<div style="background:#fdecec;border-left:4px solid #b42318;padding:12px 14px;border-radius:8px">' +
+              '<b>No se pudo completar el envío.</b><br>' + esc(e.message) + '</div>';
+            bNo.disabled = false; bNo.textContent = 'Cerrar';
+            bSi.textContent = 'No enviado';
+          });
         });
-      });
-    }).catch(e => { fin(); alert('No se pudo notificar: ' + e.message); });
+      }))
+      .catch(e => { fin(); alert('No se pudo preparar la notificación: ' + e.message); });
   }
 
   function descargarIndicadores(d) {
