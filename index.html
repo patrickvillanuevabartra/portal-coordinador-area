@@ -1511,6 +1511,47 @@ label .req{color:var(--falla)}
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
 
+  /* ------------------------------------------------ datos en vivo ---- */
+  // Cada 15 segundos el portal pregunta al servidor si cambió algo (en QuintaDB
+  // o desde otro portal). Si cambió, vuelve a pintar la pantalla con lo nuevo,
+  // sin recargar. Mientras se llena un formato no se toca nada: se actualiza al
+  // salir de él, para no borrar lo que se está escribiendo.
+  function iniciarVivo() {
+    if (estado.vivo) return;
+    estado.vivo = setInterval(revisarCambios, 15000);
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarCambios(); });
+  }
+
+  const pantallaVisible = id => $(id) && !$(id).classList.contains('oculto');
+
+  async function revisarCambios() {
+    if (document.hidden || !estado.credential || estado.revisandoCambios) return;
+    if (pantallaVisible('ficha') || pantallaVisible('ingreso')) return;   // no interrumpir
+    estado.revisandoCambios = true;
+    try {
+      const d = await api('/version-datos');
+      if (estado.versionDatos === undefined) estado.versionDatos = d.v;
+      else if (d.v && d.v !== estado.versionDatos) {
+        estado.versionDatos = d.v;
+        await refrescarVista();
+      }
+    } catch (e) {} finally { estado.revisandoCambios = false; }
+  }
+
+  async function refrescarVista() {
+    try {
+      const da = await api('/asignaciones?conAvance=1&ciclo=' + encodeURIComponent($('filtroCiclo').value));
+      estado.asignaciones = da.asignaciones || [];
+      if (da.avance) { estado.avance = da.avance; estado.nivel = da.nivel || {}; estado.avanceListo = true; }
+      prepararFiltros(); pintarTablero(); guardarLocal();
+    } catch (e) {}
+    if (pantallaVisible('datos')) { estado.cacheDatos = {}; cargarDatos(true); }
+    if (pantallaVisible('coordinadores') && typeof iniciarCompetencias === 'function' && !Object.keys(COMP.cambios || {}).length) {
+      iniciarCompetencias();
+    }
+    aviso('Los datos se actualizaron con los últimos cambios.', 'ok');
+  }
+
   function mostrar(seccion) {
     ['ingreso','tablero','ficha','coordinadores','indicadores','datos','ciclo'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
     window.scrollTo(0, 0);
@@ -1652,6 +1693,7 @@ label .req{color:var(--falla)}
         prepararCiclos();
         estado.cacheDatos = {};
         cargarAsignaciones();
+        iniciarVivo();
         if (estado.admin || estado.general) cargarAreas();
         api('/plantillas').then(d => { estado.plantillas = d.plantillas || []; }).catch(() => {});
       })
