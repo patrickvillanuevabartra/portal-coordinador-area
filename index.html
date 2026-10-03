@@ -1911,6 +1911,9 @@ label .req{color:var(--falla)}
             ' · <span class="marca-area">' + esc(c.area || 'sin área') + '</span>' +
             (c.coordinador ? ' · coordina ' + esc(c.coordinador) : '') +
           '</small>' +
+          // El catálogo tiene este código en otro curso: se avisa para corregirlo.
+          (c.alertaCatalogo ? '<div style="margin-top:6px;background:#fdf4e3;border-left:4px solid #d99a1b;' +
+            'padding:6px 10px;border-radius:6px;font-size:13.5px">⚠ ' + esc(c.alertaCatalogo) + '</div>' : '') +
           (esComun ? '<div class="nota-comun">' + (c.soloConsulta
             ? '<b>Área padre: ' + esc(c.areaEspejo || c.supervisa || 'otra carrera') + '.</b> ' +
               'Lo llevan alumnos de tu carrera y de ' + esc(c.supervisa || 'otra') +
@@ -2500,7 +2503,13 @@ label .req{color:var(--falla)}
     $('dtNuevoCurso').classList.toggle('oculto', !puedeEditar());
   });
   $('volverDatos').addEventListener('click', () => mostrar('tablero'));
-  $('dtRecargar').addEventListener('click', () => { estado.cacheDatos = {}; cargarDatos(true); });
+  // «Actualizar» relee QuintaDB de verdad (el servidor descarta su memoria) y
+  // refresca también Mis cursos, para ver al instante lo editado allá.
+  $('dtRecargar').addEventListener('click', () => {
+    estado.cacheDatos = {}; estado.releerServidor = true;
+    cargarDatos(true);
+    aviso('Releyendo las tablas desde QuintaDB…', '');
+  });
 
   document.querySelectorAll('.vista').forEach(b => {
     b.addEventListener('click', () => {
@@ -2523,11 +2532,24 @@ label .req{color:var(--falla)}
     // La respuesta se guarda bajo la vista que la PIDIÓ (v), no bajo la que esté
     // activa cuando llega: si el usuario cambió de pestaña mientras tanto, el
     // catálogo terminaba guardado y pintado como si fuera la carga lectiva.
+    const releer = !!estado.releerServidor;
+    estado.releerServidor = false;
     api('/consultar?tabla=' + v +
-        '&ciclo=' + encodeURIComponent($('filtroCiclo').value))
+        '&ciclo=' + encodeURIComponent($('filtroCiclo').value) + (releer ? '&recargar=1' : ''))
       .then(d => {
         estado.cacheDatos[v] = d;
         console.log('Portal: ' + v + ' respondió en ' + (Date.now() - t0) + ' ms');
+        // Tras releer, Mis cursos también se pone al día.
+        // Tras releer, Mis cursos también se pone al día, sin cambiar de pantalla.
+        if (releer) {
+          api('/asignaciones?conAvance=1&ciclo=' + encodeURIComponent($('filtroCiclo').value))
+            .then(da => {
+              estado.asignaciones = da.asignaciones || [];
+              if (da.avance) { estado.avance = da.avance; estado.nivel = da.nivel || {}; estado.avanceListo = true; }
+              prepararFiltros(); pintarTablero(); guardarLocal();
+            }).catch(() => {});
+          aviso('Datos releídos desde QuintaDB.', 'ok');
+        }
         if ((estado.vista || 'cursos') !== v) return;   // respuesta tardía de otra pestaña
         estado.datos = d; pintarDatos();
       })
