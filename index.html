@@ -2381,7 +2381,9 @@ label .req{color:var(--falla)}
       }
       const ci = ts.findIndex((t, k) => k >= 2 && COD_PDF.test(t) && !/^\d+$/.test(t));
       if (ci < 0) return;
-      if (!/^\d{2}$/.test(ts[ci-2]) || !/^\d{3}$/.test(ts[ci-1])) return;
+      // Antes del código van dos datos: números («05», «052») o el plan con letra («P24»).
+      const PREV = /^(\d{2,3}|P\d{2})$/i;
+      if (!PREV.test(ts[ci-2]) || !PREV.test(ts[ci-1])) return;
       let gi = -1;
       for (let k = ci + 1; k < ts.length - 2; k++) {
         if (/^\d{1,2}$/.test(ts[k]) && ts[k+1] === '-' && /^\d$/.test(ts[k+2])) { gi = k; break; }
@@ -2390,7 +2392,7 @@ label .req{color:var(--falla)}
       const nums = ts.slice(gi + 3).filter(t => /^\d+$/.test(t)).map(Number);
       if (nums.length < 4) return;
       const [T, P, L, O] = nums;
-      out.push({ car: ts[ci-2], codigo: ts[ci].replace(/-/g, ''),
+      out.push({ car: ts[ci-2], num2: ts[ci-2], num3: ts[ci-1], codigo: ts[ci].replace(/-/g, ''),
                  curso: ts.slice(ci + 1, gi).join(' '),
                  grupo: String(Number(ts[gi])), subgrupo: ts[gi+2], docente, T, P, L, O,
                  tipo: T > 0 ? 'Teo' : (O > 0 ? 'Tal' : (L > 0 ? 'Lab' : (P > 0 ? 'Prá' : 'Teo'))) });
@@ -2434,6 +2436,21 @@ label .req{color:var(--falla)}
           (d.ejemplosSinArea || []).forEach(x => logPdf('    ' + x));
         }
         if (d.yaExisten) logPdf('  ya existen y se saltarán: ' + d.yaExisten);
+        if (d.nombreDistinto) {
+          logPdf('');
+          logPdf('  ⚠ CÓDIGO CON OTRO NOMBRE EN EL CATÁLOGO: ' + d.nombreDistinto + '. NO se importarán.');
+          logPdf('    El código del Departamento está puesto en otro curso del catálogo. Corrija el');
+          logPdf('    catálogo (Validar datos → Catálogo de cursos) y vuelva a cruzar:');
+          (d.ejemplosNombreDistinto || []).forEach(x => logPdf('    ' + x));
+          logPdf('');
+        }
+        if (d.planDistinto) {
+          logPdf('  ⚠ CURSO EN OTRO PLAN EN EL CATÁLOGO: ' + d.planDistinto + '. NO se importarán.');
+          logPdf('    El Departamento registra la carga en un plan, pero en el catálogo ese código está');
+          logPdf('    en el otro. Corrija el plan o cree el curso en el plan que corresponde:');
+          (d.ejemplosPlanDistinto || []).forEach(x => logPdf('    ' + x));
+          logPdf('');
+        }
         if (d.seImportarian) { logPdf('  Revisa y pulsa Importar.'); $('btnImportarPdf').disabled = false; }
         else logPdf('  No hay nada que importar.');
         $('btnCruzarPdf').disabled = false;
