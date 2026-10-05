@@ -1555,13 +1555,35 @@ label .req{color:var(--falla)}
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '05/10/2026';
+  // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
+  const VERSION_INTERNA = '2026-10-05.4';
+
+  // GitHub Pages entrega durante unos minutos una copia guardada de la página,
+  // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
+  // dirección única (que no puede venir de esa copia) y compara la versión:
+  // si hay una más nueva, se recarga solo con ella.
+  (function comprobarVersionNueva() {
+    try {
+      const ultimo = Number(sessionStorage.getItem('pca_recargado') || '0');
+      if (Date.now() - ultimo < 60000) return;            // evita recargas en cadena
+      fetch(location.pathname + '?comprobar=' + Date.now(), { cache: 'no-store' })
+        .then(r => r.text())
+        .then(t => {
+          const m = t.match(/const VERSION_INTERNA = '([^']+)'/);
+          if (m && m[1] !== VERSION_INTERNA) {
+            sessionStorage.setItem('pca_recargado', String(Date.now()));
+            location.replace(location.pathname + '?v=' + encodeURIComponent(m[1]) + location.hash);
+          }
+        }).catch(() => {});
+    } catch (e) {}
+  })();
   document.addEventListener('DOMContentLoaded', () => {
     const v = document.createElement('div');
     v.id = 'versionPortal';
     v.textContent = 'Portal del Coordinador de Área · Facultad de Ingeniería · URP — Actualizado el ' + VERSION_PORTAL;
     v.style.cssText = 'text-align:center;font-size:12px;color:#8a948f;padding:18px 0 28px';
     document.body.appendChild(v);
-    console.log('Portal del Coordinador de Área · versión', VERSION_PORTAL);
+    console.log('Portal del Coordinador de Área · versión', VERSION_INTERNA);
   });
 
   function mostrar(seccion) {
