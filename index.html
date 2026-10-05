@@ -1512,13 +1512,13 @@ label .req{color:var(--falla)}
   }
 
   /* ------------------------------------------------ datos en vivo ---- */
-  // Cada 15 segundos el portal pregunta al servidor si cambió algo (en QuintaDB
+  // Cada 8 segundos el portal pregunta al servidor si cambió algo (en QuintaDB
   // o desde otro portal). Si cambió, vuelve a pintar la pantalla con lo nuevo,
   // sin recargar. Mientras se llena un formato no se toca nada: se actualiza al
   // salir de él, para no borrar lo que se está escribiendo.
   function iniciarVivo() {
     if (estado.vivo) return;
-    estado.vivo = setInterval(revisarCambios, 15000);
+    estado.vivo = setInterval(revisarCambios, 8000);
     document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarCambios(); });
   }
 
