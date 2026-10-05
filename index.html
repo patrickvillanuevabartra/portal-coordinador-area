@@ -1554,11 +1554,11 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '05/10/2026 · cursos en orden alfabético';
+  const VERSION_PORTAL = '05/10/2026';
   document.addEventListener('DOMContentLoaded', () => {
     const v = document.createElement('div');
     v.id = 'versionPortal';
-    v.textContent = 'Versión del portal: ' + VERSION_PORTAL;
+    v.textContent = 'Portal del Coordinador de Área · Facultad de Ingeniería · URP — Actualizado el ' + VERSION_PORTAL;
     v.style.cssText = 'text-align:center;font-size:12px;color:#8a948f;padding:18px 0 28px';
     document.body.appendChild(v);
     console.log('Portal del Coordinador de Área · versión', VERSION_PORTAL);
@@ -1931,10 +1931,17 @@ label .req{color:var(--falla)}
     // (sin tildes ni mayúsculas que alteren el orden); a igual nombre, por código.
     // Se ignoran espacios, comillas y caracteres invisibles al inicio: un
     // espacio delante del nombre haría que ese curso quedara primero.
-    const paraOrdenar = t => nombreCurso(t || '').replace(/^[\s\u00a0\u200b\u200e\ufeff"'«“]+/, '').trim();
+    // Se descarta todo lo que no sea letra o número al inicio (incluidos los
+    // espacios invisibles que se pegan al copiar desde Word o PDF).
+    const paraOrdenar = t => nombreCurso(t || '').normalize('NFC')
+      .replace(/^[^0-9A-Za-zÀ-ÖØ-öø-ÿ]+/, '').trim();
     carreras.forEach(c => c.cursos.sort((x, y) =>
       paraOrdenar(x.a.asignatura).localeCompare(paraOrdenar(y.a.asignatura), 'es', { sensitivity: 'base' }) ||
       (x.a.codigo || '').localeCompare(y.a.codigo || '', 'es')));
+    // Para revisar en la consola (F12) cómo se ordenó y si algún nombre trae
+    // caracteres raros al inicio.
+    console.log('Portal · orden de cursos:', carreras.map(c => c.programa + ': ' +
+      c.cursos.slice(0, 6).map(g => JSON.stringify(String(g.a.asignatura || '').slice(0, 25))).join(', ')).join(' | '));
 
     const totalMod = ORDEN_MODULOS.length;
 
