@@ -1915,7 +1915,10 @@ label .req{color:var(--falla)}
       c.cursos.push(g);
     });
     carreras.sort((a, b) => a.programa.localeCompare(b.programa, 'es'));
+    // Dentro de cada carrera, los cursos en orden alfabético por su nombre
+    // (sin tildes ni mayúsculas que alteren el orden); a igual nombre, por código.
     carreras.forEach(c => c.cursos.sort((x, y) =>
+      nombreCurso(x.a.asignatura || '').localeCompare(nombreCurso(y.a.asignatura || ''), 'es', { sensitivity: 'base' }) ||
       (x.a.codigo || '').localeCompare(y.a.codigo || '', 'es')));
 
     const totalMod = ORDEN_MODULOS.length;
