@@ -2437,14 +2437,22 @@ label .req{color:var(--falla)}
       const nums = ts.slice(gi + 3).filter(t => /^\d+$/.test(t)).map(Number);
       if (nums.length < 4) return;
       const [T, P, L, O] = nums;
-      out.push({ car: ts[ci-2], num2: ts[ci-2], num3: ts[ci-1], codigo: ts[ci].replace(/-/g, ''),
+      const base = { car: ts[ci-2], num2: ts[ci-2], num3: ts[ci-1], codigo: ts[ci].replace(/-/g, ''),
                  curso: ts.slice(ci + 1, gi).join(' '),
-                 grupo: String(Number(ts[gi])), subgrupo: ts[gi+2], docente, T, P, L, O,
-                 tipo: T > 0 ? 'Teo' : (O > 0 ? 'Tal' : (L > 0 ? 'Lab' : (P > 0 ? 'Prá' : 'Teo'))) });
+                 grupo: String(Number(ts[gi])), subgrupo: ts[gi+2], docente };
+      // Una línea del Departamento puede traer teoría y taller (o laboratorio)
+      // juntos: en QuintaDB cada tipo va en su propia fila, con sus horas.
+      const tipos = [['Teo', 'T', T], ['Prá', 'P', P], ['Lab', 'L', L], ['Tal', 'O', O]].filter(x => x[2] > 0);
+      if (!tipos.length) tipos.push(['Teo', 'T', 0]);
+      tipos.forEach(([tipo, letra, horas]) => {
+        const fila = Object.assign({}, base, { T: 0, P: 0, L: 0, O: 0, tipo });
+        fila[letra] = horas;
+        out.push(fila);
+      });
     });
     const vistas = {}, limpias = [];
     out.forEach(c => {
-      const k = [c.codigo, c.grupo, c.subgrupo, c.docente].join('|');
+      const k = [c.codigo, c.grupo, c.subgrupo, c.docente, c.tipo].join('|');
       if (vistas[k]) return;
       vistas[k] = 1; limpias.push(c);
     });
