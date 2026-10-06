@@ -1690,7 +1690,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '06/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-06.2';
+  const VERSION_INTERNA = '2026-10-06.3';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5729,6 +5729,7 @@ label .req{color:var(--falla)}
     estado.registro = null;
     estado.reiniciando = false;
     estado.hallazgos = {};          // hallazgos del asistente por ítem, para esta ficha
+    estado.idBorrador = '';         // borrador del asistente vinculado a esta ficha
 
     if (clave === 'silabo') {
       M._itemsBase = M._itemsBase || (M.items || []).slice();
@@ -6045,7 +6046,7 @@ label .req{color:var(--falla)}
 
     // Lo que el docente declaró en el formulario de la Escuela: el portal lo
     // trae y lo propone, en vez de pedir que se copie a mano.
-    if (F === FORMULARIOS.delegados || F === FORMULARIOS.formularios) traerDeclarado(F);
+    if (F === FORMULARIOS.delegados || F === FORMULARIOS.formularios || F === FORMULARIOS.portafolios) traerDeclarado(F);
 
     // En el formato de formularios, la fecha se compara con el plazo que fijó
     // la Escuela: así «Fuera de plazo» deja de marcarse a ojo.
@@ -6994,16 +6995,22 @@ label .req{color:var(--falla)}
     const a = estado.actual;
     if (!a || !texto) return;
     const listaItems = M_ACTUAL().items || M_ACTUAL().criterios || [];
-    const hallazgos = Object.keys(estado.hallazgos || {}).map(i => {
+    // Mismo formato que el asistente del aula virtual: un objeto por punto.
+    // «para_docente» es lo único que puede llegar al docente.
+    const hallazgos = {};
+    Object.keys(estado.hallazgos || {}).forEach(i => {
       const it = listaItems[i] || {}, h = estado.hallazgos[i];
-      return (it.n ? it.n + ' ' : '') + (it.etiqueta || '') + ' — sugerencia: ' + (h.sugerencia || '—') +
-             (h.texto ? ' — ' + h.texto : '');
-    }).join('\n');
+      hallazgos[it.n || String(Number(i) + 1).padStart(2, '0')] = {
+        sugerido: h.sugerencia || '', certeza: h.certeza || '', para_docente: h.texto || '', nota_interna: h.nota || ''
+      };
+    });
     api('/borrador', { method: 'POST', body: JSON.stringify({
       modulo: estado.modulo, idAsignacion: (a.idInforme && estado.modulo !== 'delegados') ? a.idInforme : a.idAsignacion,
+      idRegistro: a.recordId || '',
       curso: [a.codigo, nombreCurso(a.asignatura), 'G' + a.grupo, a.docente].filter(Boolean).join(' · '),
-      archivos: (estado.ultimosArchivos || []).join(', '), borrador: texto, hallazgos
-    }) }).catch(e => console.warn('Portal: no se guardó el borrador →', e.message));
+      archivos: (estado.ultimosArchivos || []).join(', '), borrador: texto, hallazgos: JSON.stringify(hallazgos)
+    }) }).then(r => { estado.idBorrador = r.idBorrador || ''; })
+      .catch(e => console.warn('Portal: no se guardó el borrador →', e.message));
   }
 
   // Al marcar Parcial o No cumple, la observación del ítem toma el hallazgo.
@@ -7087,8 +7094,51 @@ label .req{color:var(--falla)}
 
   // En el formato F1 a F4 se consultan los cuatro formularios, cada uno en la
   // hoja que su Escuela registró.
+  // Punto 01 del portafolio: según la guía FI-GCA-GUI-001, la prueba de
+  // entrada se acredita con el formulario F3 (informe de la prueba de entrada).
+  function traerPruebaEntrada() {
+    const a = estado.actual || {};
+    const caja = document.createElement('div');
+    caja.className = 'declarado';
+    caja.innerHTML = '<b>Punto 01 · Consultando el F3 (informe de la prueba de entrada)…</b>';
+    const sel = document.querySelector('#listaItems select[data-estado="0"]');
+    const fila = sel && sel.closest('.item');
+    if (fila) { caja.style.gridColumn = '1 / -1'; caja.style.marginTop = '8px'; fila.appendChild(caja); }
+    else $('fichaForm').prepend(caja);
+    api('/declarado?formato=F3' +
+        '&programa=' + encodeURIComponent(a.programa || '') +
+        '&ciclo=' + encodeURIComponent(a.ciclo || '') +
+        '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
+        '&grupo=' + encodeURIComponent(a.grupo || '') +
+        '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
+        '&docente=' + encodeURIComponent(a.docente || ''))
+      .then(d => {
+        if (estado.actual !== a || estado.modulo !== 'portafolios') return;
+        if (d.sinFuente) {
+          caja.className = 'declarado sin-fuente';
+          caja.innerHTML = '<b>Punto 01 · No hay hoja registrada para el F3 de esta carrera</b><p>' + esc(d.aviso) + '</p>';
+          return;
+        }
+        const r = (d.coincidencias || [])[0];
+        if (!r) {
+          caja.className = 'declarado sin-fuente';
+          caja.innerHTML = '<b>Punto 01 · El docente no ha presentado el F3 (informe de la prueba de entrada)</b>' +
+            '<p>Según la guía para coordinadores (FI-GCA-GUI-001), la prueba de entrada se acredita con ese formulario. ' +
+            'Se revisaron ' + (d.total || 0) + ' respuestas y ninguna corresponde a esta carga.</p>';
+          return;
+        }
+        const f = String(r.fecha || '').slice(0, 10);
+        caja.innerHTML = '<b>Punto 01 · El docente presentó el F3 (informe de la prueba de entrada)' +
+          (f ? ' el ' + esc(f.split('-').reverse().join('/')) : '') + '</b>' +
+          '<p>Según la guía para coordinadores (FI-GCA-GUI-001), es la evidencia oficial de que aplicó la prueba de entrada. ' +
+          'Si la Escuela pide además la prueba en el portafolio, verifíquela allí.</p>';
+      })
+      .catch(e => { caja.className = 'declarado sin-fuente'; caja.innerHTML = '<b>Punto 01 · No se pudo consultar el F3</b><p>' + esc(e.message) + '</p>'; });
+  }
+
   function traerDeclarado(F) {
     if (estado.modulo === 'formularios') return traerFormularios(F);
+    if (estado.modulo === 'portafolios') return traerPruebaEntrada();
     const a = estado.actual || {};
     const cfg = DE_FORMULARIO[estado.modulo];
     if (!cfg) return;
@@ -7640,7 +7690,9 @@ label .req{color:var(--falla)}
       bSi.textContent = canal === 'correo' ? 'Enviando…' : 'Registrando…';
       api('/notificar-docente', { method: 'POST', body: JSON.stringify({
         canal, destinatario: destino, asunto: canal === 'correo' ? capa.querySelector('#notAsunto').value : '',
-        texto, modulo: estado.modulo, idAsignacion: idRegistroActual(), docente: a.docente, estados: estadosActuales()
+        texto, modulo: estado.modulo, idAsignacion: idRegistroActual(), docente: a.docente, estados: estadosActuales(),
+        idRegistro: a.recordId || '', idBorrador: estado.idBorrador || '',
+        items: JSON.parse(estadosActuales()).filter(x => /^(parcial|no cumple)$/i.test(x.valor)).map(x => x.n).join(', ')
       }) }).then(r => {
         capa.remove();
         aviso(canal === 'correo'
@@ -7685,7 +7737,8 @@ label .req{color:var(--falla)}
           const malos = antes.filter(x => /^(parcial|no cumple)$/i.test(x.valor));
           const ok = malos.filter(x => /^(cumple|no aplica)$/i.test(ahora[x.n] || ''));
           const sigue = malos.filter(x => !/^(cumple|no aplica)$/i.test(ahora[x.n] || ''));
-          if (ok.length) html += '<div class="subsanados"><b>Subsanado desde el aviso del ' + esc(fmt(ultimo.fecha)) + ':</b> ' +
+          if (ok.length) html += '<div class="subsanados"><b>Posible subsanación desde el aviso del ' + esc(fmt(ultimo.fecha)) +
+            ' (confírmela al revisar):</b> ' +
             ok.map(x => esc(x.n + ' ' + x.etiqueta) + ' (antes ' + esc(x.valor) + ', ahora ' + esc(ahora[x.n]) + ')').join('; ') + '.</div>';
           if (sigue.length) html += '<div class="pendientes"><b>Sigue pendiente desde ese aviso:</b> ' +
             sigue.map(x => esc(x.n + ' ' + x.etiqueta) + ' (' + esc(ahora[x.n] || 'sin marcar') + ')').join('; ') + '.</div>';
