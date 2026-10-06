@@ -6,7 +6,7 @@
 <title>Portal del Coordinador de Área — URP</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Serif:wght@500;600&display=swap" rel="stylesheet">
 <style>
 :root{
   --brand:#0f8f5e;
@@ -449,6 +449,84 @@ tr.sin-leer{background:#fffdf6}
 .tabla{
   background:var(--papel);border:1px solid var(--linea);border-radius:10px;overflow:hidden;
 }
+/* ================= Mapa de competencias (Coordinadores) ================= */
+#tarjetaCompetencias{--gen:#2b6a8c;--gen-suave:#e9f2f7;--esp:var(--brand);--esp-suave:var(--brand-suave)}
+#tarjetaCompetencias h3{font-size:17px;letter-spacing:-.01em}
+.comp-ficha{display:none;position:relative;margin:4px 0 22px;padding:18px 22px 18px 26px;background:var(--papel);
+  border:1px solid var(--linea);border-radius:14px}
+.comp-ficha::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:5px;border-radius:0 4px 4px 0;background:var(--brand)}
+.comp-ficha.visible{display:block;animation:fichaEntra .35s ease-out}
+@keyframes fichaEntra{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.comp-ficha .titulo{font-family:'IBM Plex Serif',Georgia,serif;font-weight:600;font-size:26px;line-height:1.2;color:var(--tinta);margin:0 0 10px}
+.comp-ficha .datos{display:flex;flex-wrap:wrap;gap:8px}
+.comp-ficha .dato{background:var(--fondo);border:1px solid var(--linea);border-radius:999px;padding:4px 12px;font-size:14px;color:var(--tinta-media)}
+.comp-ficha .dato b{color:var(--tinta);font-weight:600}
+.comp-ficha .comp-resumen{margin:12px 0 0;font-size:15px;color:var(--tinta-media)}
+.comp-ficha .comp-resumen b{color:var(--tinta);font-weight:600}
+.comp-datos-ocultos{display:none}
+/* tarjetas de competencia */
+.comp-tarjetas{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:10px;margin-bottom:6px;align-items:start}
+.comp-tarjeta{position:relative;display:flex;gap:14px;align-items:flex-start;padding:14px 16px;border:1.5px solid var(--linea);
+  border-radius:12px;background:var(--papel);cursor:pointer;transition:border-color .15s,background .15s,box-shadow .15s}
+.comp-tarjeta:hover{border-color:#b9c8c0}
+.comp-tarjeta input{position:absolute;opacity:0;pointer-events:none}
+.comp-tarjeta .letra{flex:none;width:38px;height:38px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:16px;
+  background:var(--fondo);color:var(--tinta-media);border:1.5px solid var(--linea);transition:all .15s}
+.comp-tarjeta{font-weight:400}
+.comp-tarjeta .texto{font-size:15px;line-height:1.55;color:var(--tinta);font-weight:400}
+.comp-tarjeta .texto b{display:block;margin-bottom:3px;font-weight:600}
+.comp-tarjeta .marca{position:absolute;top:10px;right:12px;font-size:15px;font-weight:700;opacity:0;transform:scale(.6);transition:all .15s}
+.comp-tarjeta:has(input:focus-visible){outline:3px solid #9fd3bb;outline-offset:2px}
+.comp-tarjeta.esp:has(input:checked){border-color:var(--esp);background:var(--esp-suave);box-shadow:0 0 0 1px var(--esp) inset}
+.comp-tarjeta.esp:has(input:checked) .letra{background:var(--esp);border-color:var(--esp);color:#fff}
+.comp-tarjeta.esp:has(input:checked) .marca{opacity:1;transform:none;color:var(--esp)}
+.comp-tarjeta.gen:has(input:checked){border-color:var(--gen);background:var(--gen-suave);box-shadow:0 0 0 1px var(--gen) inset}
+.comp-tarjeta.gen:has(input:checked) .letra{background:var(--gen);border-color:var(--gen);color:#fff}
+.comp-tarjeta.gen:has(input:checked) .marca{opacity:1;transform:none;color:var(--gen)}
+.comp-seccion-cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:24px 0 10px}
+.comp-seccion-cab .cuenta{font-size:14px;color:var(--tinta-media)}
+/* el mapa (matriz) */
+.comp-info{min-height:52px;margin:0 0 10px;padding:12px 16px;border-radius:12px;background:var(--tinta);color:#fff;font-size:15px;line-height:1.45;
+  display:flex;gap:12px;align-items:center}
+.comp-info .letra{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:700;background:var(--brand);color:#fff}
+.comp-info.vacia{background:var(--fondo);color:var(--tinta-media);border:1px dashed var(--linea)}
+.comp-mapa{overflow:auto;max-height:64vh;border:1px solid var(--linea);border-radius:12px;background:var(--papel)}
+.comp-mapa table{border-collapse:separate;border-spacing:0;width:100%;font-size:14px}
+.comp-mapa thead th{position:sticky;top:0;z-index:2;background:var(--papel);border-bottom:1px solid var(--linea);padding:10px 4px 8px;vertical-align:bottom;
+  text-transform:none;letter-spacing:normal;font-size:14px}
+.comp-mapa thead th.curso{left:0;z-index:3;text-align:left;padding-left:14px;min-width:280px;font-weight:600;color:var(--tinta-media)}
+.comp-mapa .col-cab{display:flex;flex-direction:column;align-items:center;gap:6px;cursor:help}
+.comp-mapa .barra{width:10px;height:44px;border-radius:5px;background:var(--fondo);position:relative;overflow:hidden}
+.comp-mapa .barra i{position:absolute;left:0;right:0;bottom:0;background:var(--brand);border-radius:5px;transition:height .25s}
+.comp-mapa .col-cab .letra{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font-weight:700;
+  border:1.5px solid var(--linea);background:var(--papel)}
+.comp-mapa .col-cab small{font-size:11.5px;color:var(--tinta-tenue);white-space:nowrap}
+.comp-mapa td{border-bottom:1px solid #eef1ef;text-align:center;padding:0}
+.comp-mapa td.curso{position:sticky;left:0;z-index:1;background:var(--papel);text-align:left;padding:9px 14px;min-width:280px}
+.comp-mapa td.curso b{font-weight:600;margin-right:8px;color:var(--tinta-tenue);font-size:13px}
+.comp-mapa td.curso{white-space:nowrap}
+.comp-mapa td.total{font-weight:600;color:var(--tinta-media);padding:0 12px}
+.comp-mapa tr.semestre td{background:var(--fondo);text-align:left;padding:7px 14px;font-weight:700;color:var(--tinta-media);position:sticky;left:0}
+.comp-mapa label.celda{display:grid;place-items:center;height:42px;cursor:pointer}
+.comp-mapa label.celda input{position:absolute;opacity:0;pointer-events:none}
+.comp-mapa .punto{width:18px;height:18px;border-radius:50%;border:2px solid #c9d3ce;background:var(--papel);transition:all .12s}
+.comp-mapa label.celda:hover .punto{border-color:var(--brand);transform:scale(1.15)}
+.comp-mapa label.celda input:checked + .punto{background:var(--brand);border-color:var(--brand);box-shadow:0 0 0 4px rgba(15,143,94,.15)}
+.comp-mapa label.celda input:focus-visible + .punto{outline:3px solid #9fd3bb;outline-offset:2px}
+.comp-mapa tbody tr:hover td{background:#f3f8f5}
+.comp-mapa tbody tr:hover td.curso{background:#eaf4ee}
+.comp-mapa td.col-activa,.comp-mapa th.col-activa{background:#f3f8f5}
+.comp-mapa th.col-activa .letra{border-color:var(--brand);color:var(--brand)}
+.comp-mapa tr.elegido td{background:#fff7d9 !important}
+.comp-mapa tr.elegido td.curso{box-shadow:inset 5px 0 0 #e0b100}
+/* barra de guardado */
+.comp-guardar{position:sticky;bottom:0;z-index:4;margin-top:14px;padding:12px 16px;border-radius:12px;background:var(--papel);
+  border:1px solid var(--linea);display:flex;gap:14px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.comp-guardar.con-cambios{border-color:var(--brand);box-shadow:0 -6px 18px rgba(21,32,27,.08)}
+.comp-guardar .estado{margin-right:auto;font-size:15px;color:var(--tinta-media)}
+.comp-guardar.con-cambios .estado{color:var(--tinta);font-weight:600}
+@media (prefers-reduced-motion: reduce){.comp-ficha.visible{animation:none}.comp-tarjeta,.comp-mapa .punto,.comp-mapa .barra i{transition:none}}
+
 /* Tablas de la tarjeta de competencias */
 #tarjetaCompetencias .tabla-envoltura{overflow-x:auto;border:1px solid var(--linea);border-radius:10px}
 #tarjetaCompetencias table.tabla{width:100%;border-collapse:collapse;border:0;border-radius:0;font-size:14px}
@@ -1205,23 +1283,30 @@ label .req{color:var(--falla)}
 
           <!-- 3: asignación a cursos -->
           <div id="compPanelAsig" class="oculto">
-            <div class="rejilla">
-              <div class="full"><label for="compCurso">Curso</label><select id="compCurso"></select>
-                <p class="ayuda">Solo aparecen los cursos de la carrera y el plan elegidos arriba.</p></div>
-              <div><label>Código del curso</label><input type="text" id="compCursoCodigo" readonly placeholder="Se llena solo"></div>
-              <div><label>Asignatura</label><input type="text" id="compCursoNombre" readonly placeholder="Se llena solo"></div>
-              <div><label>Semestre</label><input type="text" id="compCursoSemestre" readonly placeholder="Se llena solo"></div>
-              <div><label>Área</label><input type="text" id="compCursoArea" readonly placeholder="Se llena solo"></div>
+            <label for="compCurso" style="font-weight:600;font-size:15px">Curso</label>
+            <select id="compCurso" style="font-size:15px;padding:10px 12px;margin-top:4px"></select>
+            <p class="ayuda" style="margin:4px 0 14px">Solo aparecen los cursos de la carrera y el plan elegidos arriba.</p>
+            <div class="comp-datos-ocultos">
+              <input type="text" id="compCursoCodigo" readonly><input type="text" id="compCursoNombre" readonly>
+              <input type="text" id="compCursoSemestre" readonly><input type="text" id="compCursoArea" readonly>
             </div>
-            <h3 style="margin:18px 0 6px;font-size:16px">Competencias genéricas que desarrolla este curso</h3>
+            <div class="comp-ficha" id="compFicha"></div>
+
+            <div class="comp-seccion-cab"><h3>Competencias genéricas de este curso</h3><span class="cuenta" id="compGenCuenta"></span></div>
             <div id="compGenCasillas"><div class="vacio">Elija un curso.</div></div>
-            <h3 style="margin:18px 0 6px;font-size:16px">Competencias específicas: matriz de cursos</h3>
-            <p class="ayuda" style="margin:0 0 8px">Marque en cada fila las competencias específicas que desarrolla ese curso.
-               La fila del curso elegido se resalta. Pase el mouse sobre la letra para ver la competencia.</p>
+
+            <div class="comp-seccion-cab"><h3>Competencias específicas de este curso</h3><span class="cuenta" id="compEspCuenta"></span></div>
+            <div id="compEspCasillas"><div class="vacio">Elija un curso.</div></div>
+
+            <div class="comp-seccion-cab"><h3>Mapa de competencias específicas de la carrera</h3></div>
+            <p class="ayuda" style="margin:-4px 0 10px;font-size:14px">Cada fila es un curso y cada columna una competencia. La barra de
+               cada columna muestra cuántos cursos la desarrollan. Pase el mouse sobre una celda para ver la competencia.</p>
             <div id="compMatriz"></div>
-            <div class="pie" style="margin-top:12px">
-              <button class="btn" id="btnCompAsigGuardar" type="button" disabled>Guardar cambios</button>
+
+            <div class="comp-guardar" id="compGuardarBarra">
+              <span class="estado" id="compGuardarEstado">Sin cambios por guardar.</span>
               <span class="aviso" id="avisoCompAsig"></span>
+              <button class="btn" id="btnCompAsigGuardar" type="button" disabled>Guardar cambios</button>
             </div>
           </div>
         </div>
@@ -1556,7 +1641,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '05/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-05.4';
+  const VERSION_INTERNA = '2026-10-05.6';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3219,9 +3304,11 @@ label .req{color:var(--falla)}
     const k = sinAcentos(cod);
     nuevo[tipo] = marcado ? [...new Set(nuevo[tipo].concat(k))] : nuevo[tipo].filter(x => x !== k);
     COMP.cambios[codigo] = nuevo;
+    const nC = Object.keys(COMP.cambios).length;
     $('btnCompAsigGuardar').disabled = false;
-    $('btnCompAsigGuardar').textContent = 'Guardar cambios (' + Object.keys(COMP.cambios).length +
-      (Object.keys(COMP.cambios).length === 1 ? ' curso)' : ' cursos)');
+    $('btnCompAsigGuardar').textContent = 'Guardar cambios';
+    $('compGuardarEstado').textContent = nC === 1 ? '1 curso con cambios sin guardar.' : nC + ' cursos con cambios sin guardar.';
+    $('compGuardarBarra').classList.add('con-cambios');
   };
 
   function pintarAsignacion() {
@@ -3234,34 +3321,98 @@ label .req{color:var(--falla)}
     elegirCursoComp();
   }
 
+  // Tarjeta seleccionable de una competencia (genérica o específica).
+  const tarjetaComp = (c, clase, tipo, marcada) =>
+    '<label class="comp-tarjeta ' + tipo + '"><input type="checkbox" class="' + clase + '" value="' + esc(c.codigo) + '"' +
+    (marcada ? ' checked' : '') + '><span class="letra">' + esc(c.codigo) + '</span><span class="texto">' +
+    (c.nombre ? '<b>' + esc(c.nombre) + '</b>' : '') + esc(c.descripcion) + '</span><span class="marca">✓</span></label>';
+
+  function contarSeleccion() {
+    const nG = document.querySelectorAll('.cas-gen:checked').length, tG = document.querySelectorAll('.cas-gen').length;
+    const nE = document.querySelectorAll('.cas-esp-curso:checked').length, tE = document.querySelectorAll('.cas-esp-curso').length;
+    $('compGenCuenta').textContent = tG ? nG + ' de ' + tG + ' marcadas' : '';
+    $('compEspCuenta').textContent = tE ? nE + ' de ' + tE + ' marcadas' : '';
+    const r = $('compFicha').querySelector('.comp-resumen');
+    if (r) r.innerHTML = 'Desarrolla <b>' + nG + (nG === 1 ? ' competencia genérica' : ' competencias genéricas') +
+      '</b> y <b>' + nE + (nE === 1 ? ' específica' : ' específicas') + '</b>.';
+  }
+
   function elegirCursoComp() {
     const cod = $('compCurso').value;
     const x = cursosDelPlanComp().find(c => c.codigo === cod);
     $('compCursoCodigo').value = x ? x.codigo : '';
     $('compCursoNombre').value = x ? nombreCurso(x.curso) : '';
     $('compCursoSemestre').value = x ? (x.semestre || '') : '';
-    // Si el catálogo no tiene el dato, se dice: un campo vacío parece un error.
-    $('compCursoArea').value = x ? (x.area || 'Sin área en el catálogo') : '';
-    $('compCursoSemestre').value = x ? (x.semestre || 'Sin semestre en el catálogo') : '';
+    $('compCursoArea').value = x ? (x.area || '') : '';
 
-    // genéricas del curso elegido
+    // ficha del curso
+    const ficha = $('compFicha');
+    if (x) {
+      ficha.innerHTML = '<p class="titulo">' + esc(nombreCurso(x.curso)) + '</p><div class="datos">' +
+        '<span class="dato">Código <b>' + esc(x.codigo) + '</b></span>' +
+        '<span class="dato">Semestre <b>' + esc(x.semestre || 'sin dato') + '</b></span>' +
+        '<span class="dato">Plan <b>' + esc($('compPlan').value) + '</b></span>' +
+        '<span class="dato">Área <b>' + esc(x.area || 'sin área en el catálogo') + '</b></span>' +
+        '</div><p class="comp-resumen"></p>';
+      ficha.classList.remove('visible'); void ficha.offsetWidth; ficha.classList.add('visible');
+    } else { ficha.classList.remove('visible'); ficha.innerHTML = ''; }
+
+    // genéricas
     const gen = compDe('Genérica');
-    if (!x) $('compGenCasillas').innerHTML = '<div class="vacio">Elija un curso para marcar sus competencias genéricas.</div>';
+    if (!x) $('compGenCasillas').innerHTML = '<div class="vacio">Elija un curso para marcar sus competencias.</div>';
     else if (!gen.length) $('compGenCasillas').innerHTML = '<div class="vacio">No hay competencias genéricas registradas: ' +
       'regístrelas en la pestaña «1. Competencias genéricas».</div>';
     else {
       const tiene = asignado(cod).gen;
-      $('compGenCasillas').innerHTML = gen.map(c =>
-        '<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border:1px solid var(--linea);border-radius:8px;margin-bottom:6px;cursor:pointer">' +
-        '<input type="checkbox" class="cas-gen" value="' + esc(c.codigo) + '"' + (tiene.includes(sinAcentos(c.codigo)) ? ' checked' : '') +
-        ' style="width:20px;height:20px;flex:none;margin-top:2px"><span><b>' + esc(c.codigo) + ')</b> ' +
-        (c.nombre ? '<b>' + esc(c.nombre) + ':</b> ' : '') + esc(c.descripcion) + '</span></label>').join('');
-      $('compGenCasillas').querySelectorAll('.cas-gen').forEach(cb => cb.addEventListener('change', () =>
-        marcarCambio(cod, 'gen', cb.value, cb.checked)));
+      $('compGenCasillas').innerHTML = '<div class="comp-tarjetas">' +
+        gen.map(c => tarjetaComp(c, 'cas-gen', 'gen', tiene.includes(sinAcentos(c.codigo)))).join('') + '</div>';
+      $('compGenCasillas').querySelectorAll('.cas-gen').forEach(cb => cb.addEventListener('change', () => {
+        marcarCambio(cod, 'gen', cb.value, cb.checked); contarSeleccion();
+      }));
     }
+
+    // específicas, sincronizadas con el mapa
+    const espC = compDe('Específica');
+    if (!x) $('compEspCasillas').innerHTML = '<div class="vacio">Elija un curso para marcar sus competencias.</div>';
+    else if (!espC.length) $('compEspCasillas').innerHTML = '<div class="vacio">No hay competencias específicas registradas: ' +
+      'regístrelas en la pestaña «2. Competencias específicas».</div>';
+    else {
+      const tieneE = asignado(cod).esp;
+      $('compEspCasillas').innerHTML = '<div class="comp-tarjetas">' +
+        espC.map(c => tarjetaComp(c, 'cas-esp-curso', 'esp', tieneE.includes(sinAcentos(c.codigo)))).join('') + '</div>';
+      $('compEspCasillas').querySelectorAll('.cas-esp-curso').forEach(cb => cb.addEventListener('change', () => {
+        marcarCambio(cod, 'esp', cb.value, cb.checked);
+        const enMapa = $('compMatriz').querySelector('tr[data-curso="' + cod + '"] .cas-esp[value="' + cb.value + '"]');
+        if (enMapa) enMapa.checked = cb.checked;
+        actualizarCobertura(); contarSeleccion();
+      }));
+    }
+    contarSeleccion();
     pintarMatriz(cod);
   }
   $('compCurso') && $('compCurso').addEventListener('change', elegirCursoComp);
+
+  // Cuántos cursos desarrollan cada competencia (barra de cada columna) y
+  // cuántas competencias tiene cada curso (última columna).
+  function actualizarCobertura() {
+    const esp = compDe('Específica'), cursos = cursosDelPlanComp();
+    const cuenta = {};
+    esp.forEach(c => { const k = sinAcentos(c.codigo); cuenta[c.codigo] = cursos.filter(x => asignado(x.codigo).esp.includes(k)).length; });
+    // La competencia más cubierta llena la barra: así se comparan entre sí.
+    const max = Math.max(1, ...Object.values(cuenta));
+    esp.forEach(c => {
+      const cuantos = cuenta[c.codigo];
+      const th = $('compMatriz').querySelector('th[data-col="' + c.codigo + '"]');
+      if (!th) return;
+      th.querySelector('.barra i').style.height = Math.round(cuantos / max * 100) + '%';
+      th.querySelector('small').textContent = cuantos + (cuantos === 1 ? ' curso' : ' cursos');
+      th.dataset.cuantos = cuantos;
+    });
+    cursos.forEach(x => {
+      const td = $('compMatriz').querySelector('tr[data-curso="' + x.codigo + '"] td.total');
+      if (td) td.textContent = asignado(x.codigo).esp.length || '';
+    });
+  }
 
   function pintarMatriz(codElegido) {
     const esp = compDe('Específica');
@@ -3272,30 +3423,71 @@ label .req{color:var(--falla)}
       return;
     }
     let semAnt = null;
-    $('compMatriz').innerHTML = '<div class="tabla-envoltura" style="max-height:60vh;overflow:auto">' +
-      '<table class="tabla matriz-comp"><thead><tr><th style="position:sticky;top:0;left:0;z-index:2;background:var(--fondo)">Curso</th>' +
-      esp.map(c => '<th title="' + esc(c.descripcion) + '" style="position:sticky;top:0;background:var(--fondo);text-align:center;cursor:help">' +
-        esc(c.codigo) + '</th>').join('') + '</tr></thead><tbody>' +
+    const nCol = esp.length + 2;
+    $('compMatriz').innerHTML =
+      '<div class="comp-info vacia" id="compMatrizInfo">Pase el mouse sobre una columna o una celda para ver de qué competencia se trata.</div>' +
+      '<div class="comp-mapa"><table class="matriz-comp"><thead><tr><th class="curso">Curso</th>' +
+      esp.map(c => '<th data-col="' + esc(c.codigo) + '"><div class="col-cab"><div class="barra"><i style="height:0"></i></div>' +
+        '<span class="letra">' + esc(c.codigo) + '</span><small></small></div></th>').join('') +
+      '<th title="Competencias específicas del curso">Total</th></tr></thead><tbody>' +
       cursos.map(x => {
         const tiene = asignado(x.codigo).esp;
         const sem = x.semestre || '';
-        const cabSem = sem !== semAnt ? (semAnt = sem, '<tr><td colspan="' + (esp.length + 1) +
-          '" style="background:#eef6f1;font-weight:700">Semestre ' + esc(sem || '—') + '</td></tr>') : '';
-        const elegido = x.codigo === codElegido;
-        return cabSem + '<tr data-curso="' + esc(x.codigo) + '"' + (elegido ? ' style="background:#fff6d6;outline:2px solid #e6b800"' : '') + '>' +
-          '<td style="position:sticky;left:0;background:' + (elegido ? '#fff6d6' : 'var(--papel)') + ';min-width:260px">' +
-          '<b>' + esc(x.codigo) + '</b> ' + esc(nombreCurso(x.curso)) + '</td>' +
-          esp.map(c => '<td style="text-align:center"><input type="checkbox" class="cas-esp" data-curso="' + esc(x.codigo) +
-            '" value="' + esc(c.codigo) + '"' + (tiene.includes(sinAcentos(c.codigo)) ? ' checked' : '') +
-            ' title="' + esc(c.codigo + ') ' + c.descripcion) + '" style="width:20px;height:20px"></td>').join('') + '</tr>';
-      }).join('') + '</tbody></table></div>' +
-      '<details style="margin-top:8px"><summary style="cursor:pointer">Ver qué significa cada letra</summary>' +
-      '<div style="margin-top:6px;font-size:14px;line-height:1.5">' + esp.map(c => '<b>' + esc(c.codigo) + ')</b> ' + esc(c.descripcion)).join('<br>') +
-      '</div></details>';
-    $('compMatriz').querySelectorAll('.cas-esp').forEach(cb => cb.addEventListener('change', () =>
-      marcarCambio(cb.dataset.curso, 'esp', cb.value, cb.checked)));
+        const cabSem = sem !== semAnt ? (semAnt = sem, '<tr class="semestre"><td colspan="' + nCol + '">Semestre ' +
+          esc(sem || 'sin dato') + '</td></tr>') : '';
+        return cabSem + '<tr data-curso="' + esc(x.codigo) + '"' + (x.codigo === codElegido ? ' class="elegido"' : '') + '>' +
+          '<td class="curso"><b>' + esc(x.codigo) + '</b>' + esc(nombreCurso(x.curso)) + '</td>' +
+          esp.map(c => '<td data-col="' + esc(c.codigo) + '"><label class="celda" title="' + esc(c.codigo + ') ' + c.descripcion) + '">' +
+            '<input type="checkbox" class="cas-esp" data-curso="' + esc(x.codigo) + '" value="' + esc(c.codigo) + '"' +
+            (tiene.includes(sinAcentos(c.codigo)) ? ' checked' : '') + ' aria-label="' + esc(nombreCurso(x.curso) + ', competencia ' + c.codigo) + '">' +
+            '<span class="punto"></span></label></td>').join('') +
+          '<td class="total"></td></tr>';
+      }).join('') + '</tbody></table></div>';
+
+    // Al pasar sobre una celda o cabecera: se ilumina la columna y se muestra la competencia.
+    const info = $('compMatrizInfo');
+    const porCodigo = {}; esp.forEach(c => { porCodigo[c.codigo] = c; });
+    let colActiva = null;
+    const activar = (col) => {
+      if (col === colActiva) return;
+      $('compMatriz').querySelectorAll('.col-activa').forEach(e => e.classList.remove('col-activa'));
+      colActiva = col;
+      if (!col || !porCodigo[col]) {
+        info.className = 'comp-info vacia';
+        info.textContent = 'Pase el mouse sobre una columna o una celda para ver de qué competencia se trata.';
+        return;
+      }
+      $('compMatriz').querySelectorAll('[data-col="' + col + '"]').forEach(e => e.classList.add('col-activa'));
+      const c = porCodigo[col], th = $('compMatriz').querySelector('th[data-col="' + col + '"]');
+      info.className = 'comp-info';
+      info.innerHTML = '<span class="letra">' + esc(c.codigo) + '</span><span>' + (c.nombre ? '<b>' + esc(c.nombre) + ':</b> ' : '') +
+        esc(c.descripcion) + ' <span style="opacity:.7">— la desarrollan ' + (th ? th.dataset.cuantos : 0) + ' cursos.</span></span>';
+    };
+    $('compMatriz').querySelector('.comp-mapa').addEventListener('mouseover', e => {
+      const celda = e.target.closest('[data-col]');
+      if (celda) activar(celda.dataset.col);
+    });
+    $('compMatriz').querySelector('.comp-mapa').addEventListener('mouseleave', () => activar(null));
+
+    $('compMatriz').querySelectorAll('.cas-esp').forEach(cb => {
+      cb.addEventListener('focus', () => activar(cb.value));
+      cb.addEventListener('change', () => {
+        marcarCambio(cb.dataset.curso, 'esp', cb.value, cb.checked);
+        if (cb.dataset.curso === $('compCurso').value) {
+          const arriba = $('compEspCasillas').querySelector('.cas-esp-curso[value="' + cb.value + '"]');
+          if (arriba) arriba.checked = cb.checked;
+          contarSeleccion();
+        }
+        actualizarCobertura();
+        activar(null); activar(cb.value);
+      });
+    });
+    actualizarCobertura();
+    // Se lleva a la vista la fila del curso elegido, moviendo solo el mapa
+    // (no la página entera, que desorienta).
     const fila = codElegido && $('compMatriz').querySelector('tr[data-curso="' + codElegido + '"]');
-    if (fila) fila.scrollIntoView({ block: 'nearest' });
+    const caja = $('compMatriz').querySelector('.comp-mapa');
+    if (fila && caja) caja.scrollTop = Math.max(0, fila.offsetTop - caja.clientHeight / 2 + fila.offsetHeight);
   }
 
   $('btnCompAsigGuardar') && $('btnCompAsigGuardar').addEventListener('click', () => {
@@ -3321,6 +3513,8 @@ label .req{color:var(--falla)}
         }
         COMP.cambios = {};
         $('btnCompAsigGuardar').textContent = 'Guardar cambios';
+        $('compGuardarEstado').textContent = 'Cambios guardados.';
+        $('compGuardarBarra').classList.remove('con-cambios');
         return recargarComp();
       })
       .catch(e => { avisoEn('avisoCompAsig', e.message, 'error'); $('btnCompAsigGuardar').disabled = false; });
