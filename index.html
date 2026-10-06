@@ -527,6 +527,23 @@ tr.sin-leer{background:#fffdf6}
 .comp-guardar.con-cambios .estado{color:var(--tinta);font-weight:600}
 @media (prefers-reduced-motion: reduce){.comp-ficha.visible{animation:none}.comp-tarjeta,.comp-mapa .punto,.comp-mapa .barra i{transition:none}}
 
+/* hallazgo del asistente bajo cada ítem de la escala */
+.hallazgo-ia{grid-column:1 / -1;margin:8px 0 2px;padding:8px 12px;border-left:4px solid #6b8fc2;background:#f2f6fc;
+  border-radius:6px;font-size:13.5px;line-height:1.5;color:var(--tinta)}
+.hallazgo-ia b{color:#2d4f80}
+/* ventana para notificar al docente e historial */
+.notif-campo{margin-bottom:12px}
+.notif-campo label{display:block;font-weight:600;margin-bottom:4px}
+.notif-campo input,.notif-campo textarea{width:100%;font-size:15px;padding:10px 12px;font-family:inherit}
+.notif-campo textarea{min-height:260px;line-height:1.5}
+.historial-com{margin:0 0 16px;padding:14px 16px;border:1px solid var(--linea);border-radius:12px;background:var(--papel)}
+.historial-com h4{margin:0 0 8px;font-size:15.5px}
+.historial-com .linea-com{padding:8px 0;border-top:1px solid #eef1ef;font-size:14px}
+.historial-com .linea-com:first-of-type{border-top:0}
+.historial-com details summary{cursor:pointer;color:var(--tinta-media)}
+.historial-com pre{white-space:pre-wrap;font-family:inherit;font-size:13.5px;background:var(--fondo);padding:10px;border-radius:8px;margin:6px 0 0}
+.historial-com .subsanados{margin-top:10px;padding:10px 12px;border-radius:8px;background:#eef8f2;font-size:14px}
+.historial-com .pendientes{margin-top:8px;padding:10px 12px;border-radius:8px;background:#fdf4e3;font-size:14px}
 /* pestañas 1 y 2: lista de competencias y formulario */
 .comp-lista-cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:4px 0 12px}
 .comp-lista-cab h3{margin:0}
@@ -1673,7 +1690,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '06/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-06.1';
+  const VERSION_INTERNA = '2026-10-06.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5711,6 +5728,7 @@ label .req{color:var(--falla)}
     estado.soloLectura = !!a.soloConsulta;
     estado.registro = null;
     estado.reiniciando = false;
+    estado.hallazgos = {};          // hallazgos del asistente por ítem, para esta ficha
 
     if (clave === 'silabo') {
       M._itemsBase = M._itemsBase || (M.items || []).slice();
@@ -6456,6 +6474,14 @@ label .req{color:var(--falla)}
       }
       if (tipo === 'campo') {
         const el = $('f_' + ref);
+        // Las listas desplegables las marca el coordinador: la propuesta del
+        // asistente queda solo como sugerencia en el borrador.
+        if (el && el.tagName === 'SELECT') {
+          (F.bloques || []).forEach(b => (b.campos || []).forEach(c => {
+            if (c.k === ref) textos.push({ donde: c.etq, que: 'el asistente sugiere «' + v + '»' });
+          }));
+          return;
+        }
         if (el && !String(el.value).trim()) {
           el.value = v; puestos++; cuenta.campos++;
           // Se busca su etiqueta para poder nombrarlo en el aviso.
@@ -6486,18 +6512,20 @@ label .req{color:var(--falla)}
           bloqueados.push((itRef.n || '') + ' ' + itRef.etiqueta);
           return;
         }
-        if (el && (!el.value || el.value === 'Seleccione')) {
-          el.value = v; puestos++; cuenta.items++;
-          el.dispatchEvent(new Event('change', { bubbles: true }));
+        // El ítem no se marca: la calificación es del coordinador. Se guarda
+        // como sugerencia junto al hallazgo.
+        const iS = indiceDe(ref);
+        if (iS >= 0) {
+          const h = estado.hallazgos[iS] = estado.hallazgos[iS] || {};
+          h.sugerencia = String(v); cuenta.items++;
         }
       } else if (tipo === 'obs') {
         const i = indiceDe(ref);
-        const fila = items[i] && items[i].closest('.item');
-        const obs = fila && fila.querySelector('.obs textarea, textarea.obs');
-        if (obs && !obs.value.trim()) {
-          obs.value = v; puestos++; cuenta.obs++;
-          const it = listaItems[indiceDe(ref)];
-          if (it) { conObservacion.push(it.etiqueta); textos.push({ donde: it.etiqueta, que: v }); }
+        const it = listaItems[i];
+        if (i >= 0) {
+          const h = estado.hallazgos[i] = estado.hallazgos[i] || {};
+          h.texto = String(v); cuenta.obs++;
+          if (it) { conObservacion.push(it.etiqueta); textos.push({ donde: (it.n ? it.n + ' ' : '') + it.etiqueta, que: v }); }
         }
       }
     });
@@ -6505,7 +6533,9 @@ label .req{color:var(--falla)}
     // Todo lo observado se consolida en el campo de observaciones: es el que
     // viaja en el correo y en el WhatsApp al docente. Si se queda solo dentro
     // de cada ítem, el docente nunca se entera del detalle.
-    volcarObservaciones(F, p, textos);
+    const textoBorrador = volcarObservaciones(F, p, textos);
+    mostrarHallazgos();
+    guardarBorrador(textoBorrador);
 
     marcarCampos();
     recalcularEscala(F);
@@ -6520,11 +6550,8 @@ label .req{color:var(--falla)}
     }
     const partes = [];
     const plural = (n, uno, varios) => n + ' ' + (n === 1 ? uno : varios);
-    if (cuenta.items)  partes.push(plural(cuenta.items, 'ítem evaluado', 'ítems evaluados'));
-    if (cuenta.obs)    partes.push(plural(cuenta.obs, 'observación', 'observaciones') +
-                        (conObservacion.length
-                          ? ' (en ' + conObservacion.join(', ').replace(/, ([^,]*)$/, ' y $1') + ')'
-                          : ''));
+    const nHall = Object.keys(estado.hallazgos || {}).length;
+    if (nHall)         partes.push('hallazgos en ' + plural(nHall, 'ítem', 'ítems'));
     if (cuenta.temas)  partes.push(plural(cuenta.temas, 'tema tratado', 'temas tratados'));
     if (cuenta.campos) partes.push(plural(cuenta.campos, 'campo', 'campos') +
                         (camposPuestos.length
@@ -6548,10 +6575,12 @@ label .req{color:var(--falla)}
     });
     if (sinEvaluar.length) console.log('Ítems sin evaluar:', sinEvaluar);
 
-    av.innerHTML = '<b>Análisis de apoyo — pendiente de su revisión</b>' +
-      '<p>Se completó ' + detalle +
+    av.innerHTML = '<b>Borrador del asistente — pendiente de su revisión</b>' +
+      '<p>El asistente redactó ' + detalle +
       (p._resumen ? '. ' + esc(p._resumen) : '.') +
-      (puestos ? ' Revísalos y corrige lo que haga falta.' : '') +
+      ' El borrador está en Observaciones: léalo, corríjalo o bórrelo. ' +
+      '<b>Las calificaciones de cada punto las marca usted</b> en las listas desplegables; ' +
+      'al marcar Parcial o No cumple, la observación del punto se llena con el hallazgo del asistente.' +
       '</p>' +
       (textos.length
         ? '<div class="lo-escrito"><b>Lo que escribió:</b><ul>' +
@@ -6934,13 +6963,62 @@ label .req{color:var(--falla)}
     sin.forEach(x => lineas.push('• Sin verificar — ' + String(x).trim()));
     if (p._falta) lineas.push('• Para completar la revisión haría falta: ' + String(p._falta).trim());
 
-    if (!lineas.length) return;
-    const texto = lineas.join('\n');
+    if (!lineas.length) return '';
+    const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' + lineas.join('\n');
     caja.value = caja.value.trim()
-      ? caja.value.trim() + '\n' + texto
+      ? caja.value.trim() + '\n\n' + texto
       : texto;
     caja.dispatchEvent(new Event('input', { bubbles: true }));
+    return texto;
   }
+
+  // Bajo cada ítem, el hallazgo del asistente y su sugerencia. Al marcar el
+  // ítem como Parcial o No cumple, la observación se llena con el hallazgo.
+  function mostrarHallazgos() {
+    const listaItems = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    document.querySelectorAll('.hallazgo-ia').forEach(x => x.remove());
+    Object.keys(estado.hallazgos || {}).forEach(i => {
+      const h = estado.hallazgos[i];
+      const sel = document.querySelector('#listaItems select[data-estado="' + i + '"]');
+      const fila = sel && sel.closest('.item');
+      if (!fila || !(h.texto || h.sugerencia)) return;
+      const d = document.createElement('div');
+      d.className = 'hallazgo-ia';
+      d.innerHTML = '<b>Hallazgo del asistente' + (h.sugerencia ? ' (sugiere «' + esc(h.sugerencia) + '»)' : '') + ':</b> ' +
+        esc(h.texto || 'sin detalle.');
+      fila.appendChild(d);
+    });
+  }
+
+  function guardarBorrador(texto) {
+    const a = estado.actual;
+    if (!a || !texto) return;
+    const listaItems = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    const hallazgos = Object.keys(estado.hallazgos || {}).map(i => {
+      const it = listaItems[i] || {}, h = estado.hallazgos[i];
+      return (it.n ? it.n + ' ' : '') + (it.etiqueta || '') + ' — sugerencia: ' + (h.sugerencia || '—') +
+             (h.texto ? ' — ' + h.texto : '');
+    }).join('\n');
+    api('/borrador', { method: 'POST', body: JSON.stringify({
+      modulo: estado.modulo, idAsignacion: (a.idInforme && estado.modulo !== 'delegados') ? a.idInforme : a.idAsignacion,
+      curso: [a.codigo, nombreCurso(a.asignatura), 'G' + a.grupo, a.docente].filter(Boolean).join(' · '),
+      archivos: (estado.ultimosArchivos || []).join(', '), borrador: texto, hallazgos
+    }) }).catch(e => console.warn('Portal: no se guardó el borrador →', e.message));
+  }
+
+  // Al marcar Parcial o No cumple, la observación del ítem toma el hallazgo.
+  document.addEventListener('change', e => {
+    const sel = e.target;
+    if (!sel.matches || !sel.matches('#listaItems select[data-estado]')) return;
+    const h = (estado.hallazgos || {})[sel.dataset.estado];
+    if (!h || !h.texto || !/^(parcial|no cumple)$/i.test(sel.value)) return;
+    const campo = document.querySelector('#listaItems [data-obs="' + sel.dataset.estado + '"]');
+    if (campo && !campo.value.trim()) {
+      campo.value = h.texto;
+      const caja = campo.closest('.obs'); if (caja) caja.classList.remove('oculto');
+      campo.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  });
 
   // El informe que cada coordinador debe presentar a su Escuela: todo lo
   // supervisado del curso, quién lo hizo y qué quedó observado.
@@ -7394,7 +7472,8 @@ label .req{color:var(--falla)}
           });
         });
       })
-      .catch(e => { listo(); aviso(e.message, 'error'); });
+      .catch(e => { listo(); aviso(e.message, 'error'); })
+      .then(() => cargarHistorial(a, clave));
   }
 
   // Recuadro al inicio del formato: qué registró el área padre y el botón
@@ -7504,31 +7583,117 @@ label .req{color:var(--falla)}
     return { asunto: sustituir(pl.asunto), cuerpo: sustituir(pl.mensaje) };
   }
 
-  $('btnCorreo').addEventListener('click', () => {
+  // ------------------------------------------ notificar al docente --
+  // El coordinador revisa el mensaje (con las observaciones copiadas) y lo
+  // envía. Por correo lo envía el portal en su nombre, con copia a él; por
+  // WhatsApp se abre su WhatsApp con el texto. Cada envío queda en el historial.
+  const idRegistroActual = () => {
     const a = estado.actual;
-    if (!a.correoDocente) return aviso('Este docente no tiene correo registrado en Docentes DAI.', 'error');
-    // La ventana se abre con el clic; si se abriera despues, el navegador la bloquea.
-    const win = window.open('about:blank', '_blank');
-    const m = armarMensaje(estado.modulo);
-    const gmail = 'https://mail.google.com/mail/?view=cm&fs=1' +
-      '&to=' + encodeURIComponent(a.correoDocente) +
-      '&su=' + encodeURIComponent(m.asunto) +
-      '&body=' + encodeURIComponent(m.cuerpo);
-    if (win) win.location.href = gmail;
-    else window.location.href = 'mailto:' + encodeURIComponent(a.correoDocente) +
-      '?subject=' + encodeURIComponent(m.asunto) + '&body=' + encodeURIComponent(m.cuerpo);
-  });
+    return (a.idInforme && estado.modulo !== 'delegados') ? a.idInforme : a.idAsignacion;
+  };
+  function estadosActuales() {
+    const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    return JSON.stringify([...document.querySelectorAll('#listaItems select[data-estado]')].map((el, i) => ({
+      n: (lista[i] && lista[i].n) || String(i + 1), etiqueta: (lista[i] && lista[i].etiqueta) || '', valor: el.value || ''
+    })));
+  }
 
-  $('btnWasap').addEventListener('click', () => {
+  function ventanaNotificar(canal) {
     const a = estado.actual;
-    let tel = String(a.celularDocente || '').replace(/\D/g, '');
-    if (!tel) return aviso('Este docente no tiene celular registrado en Docentes DAI.', 'error');
-    if (tel.length === 9) tel = '51' + tel;
-    const win = window.open('about:blank', '_blank');
+    let destino = '';
+    if (canal === 'correo') {
+      destino = a.correoDocente || '';
+      if (!destino) return aviso('Este docente no tiene correo registrado en Docentes DAI.', 'error');
+    } else {
+      destino = String(a.celularDocente || '').replace(/\D/g, '');
+      if (!destino) return aviso('Este docente no tiene celular registrado en Docentes DAI.', 'error');
+      if (destino.length === 9) destino = '51' + destino;
+    }
     const m = armarMensaje(estado.modulo);
-    const url = 'https://wa.me/' + tel + '?text=' + encodeURIComponent(m.cuerpo);
-    if (win) win.location.href = url; else window.location.href = url;
-  });
+    const capa = document.createElement('div');
+    capa.className = 'capa';
+    capa.innerHTML = '<div class="dialogo" role="dialog" aria-modal="true" style="width:min(760px,100%);font-size:15px">' +
+      '<h3 style="font-size:19px">' + (canal === 'correo' ? 'Enviar por correo al docente' : 'Enviar por WhatsApp al docente') + '</h3>' +
+      '<p style="color:var(--tinta-media);margin:0 0 14px">' + esc(a.docente) + ' · ' + esc(nombreCurso(a.asignatura)) +
+      ' · grupo ' + esc(a.grupo) + '. Revise el mensaje: puede corregirlo antes de enviarlo.</p>' +
+      '<div class="cuerpo-dialogo">' +
+      '<div class="notif-campo"><label>Para</label><input type="text" readonly value="' + esc(canal === 'correo' ? destino : '+' + destino) + '"></div>' +
+      (canal === 'correo' ? '<div class="notif-campo"><label for="notAsunto">Asunto</label><input type="text" id="notAsunto" value="' + esc(m.asunto) + '"></div>' : '') +
+      '<div class="notif-campo"><label for="notTexto">Mensaje</label><textarea id="notTexto">' + esc(m.cuerpo) + '</textarea></div>' +
+      '<p class="nota-dialogo" style="margin:0">' + (canal === 'correo'
+        ? 'El portal envía el correo en su nombre, con copia a usted. Si el docente responde, le llega a usted.'
+        : 'Se abrirá WhatsApp con este texto; usted lo envía desde ahí.') +
+      ' El envío queda registrado en el historial de este formato.</p>' +
+      '<div id="notResultadoDoc" style="margin-top:10px"></div></div>' +
+      '<div class="pie" style="display:flex;gap:10px;justify-content:flex-end">' +
+      '<button type="button" class="btn gris" id="notDocNo">No enviar</button>' +
+      '<button type="button" class="btn" id="notDocSi">' + (canal === 'correo' ? 'Enviar al docente' : 'Abrir WhatsApp') + '</button></div></div>';
+    document.body.appendChild(capa);
+    capa.querySelector('#notDocNo').addEventListener('click', () => capa.remove());
+    capa.querySelector('#notDocSi').addEventListener('click', () => {
+      const texto = capa.querySelector('#notTexto').value.trim();
+      if (!texto) return;
+      const bSi = capa.querySelector('#notDocSi');
+      bSi.disabled = true;
+      // WhatsApp se abre en el mismo clic (si no, el navegador lo bloquea).
+      if (canal === 'whatsapp') window.open('https://wa.me/' + destino + '?text=' + encodeURIComponent(texto), '_blank');
+      bSi.textContent = canal === 'correo' ? 'Enviando…' : 'Registrando…';
+      api('/notificar-docente', { method: 'POST', body: JSON.stringify({
+        canal, destinatario: destino, asunto: canal === 'correo' ? capa.querySelector('#notAsunto').value : '',
+        texto, modulo: estado.modulo, idAsignacion: idRegistroActual(), docente: a.docente, estados: estadosActuales()
+      }) }).then(r => {
+        capa.remove();
+        aviso(canal === 'correo'
+          ? 'Correo enviado a ' + destino + ', con copia a usted. Quedó registrado en el historial.'
+          : 'WhatsApp abierto con el mensaje. Quedó registrado en el historial.' + (r.aviso ? ' ' + r.aviso : ''), 'ok');
+        cargarHistorial(a, estado.modulo);
+      }).catch(e => {
+        bSi.disabled = false; bSi.textContent = canal === 'correo' ? 'Enviar al docente' : 'Abrir WhatsApp';
+        capa.querySelector('#notResultadoDoc').innerHTML = '<div style="background:#fdecec;border-left:4px solid #b42318;' +
+          'padding:10px 12px;border-radius:8px"><b>No se pudo enviar.</b> ' + esc(e.message) + '</div>';
+      });
+    });
+  }
+
+  $('btnCorreo').addEventListener('click', () => ventanaNotificar('correo'));
+  $('btnWasap').addEventListener('click', () => ventanaNotificar('whatsapp'));
+
+  // Historial de lo comunicado al docente en este formato, y qué se subsanó
+  // desde el último envío (comparando los puntos de entonces con los de ahora).
+  function cargarHistorial(a, clave) {
+    const id = (a.idInforme && clave !== 'delegados') ? a.idInforme : a.idAsignacion;
+    api('/comunicaciones?idAsignacion=' + encodeURIComponent(id) + '&modulo=' + encodeURIComponent(clave))
+      .then(d => {
+        if (estado.actual !== a || estado.modulo !== clave) return;
+        document.querySelectorAll('.historial-com').forEach(x => x.remove());
+        const lista = d.comunicaciones || [];
+        if (!lista.length) return;
+        const caja = document.createElement('section');
+        caja.className = 'historial-com';
+        const fmt = f => { const m = String(f).match(/^(\d{4})-(\d{2})-(\d{2})\s*(.*)$/); return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) + ' ' + m[4] : f; };
+        let html = '<h4>Comunicaciones con el docente sobre este formato (' + lista.length + ')</h4>' +
+          lista.map(c => '<div class="linea-com"><b>' + esc(fmt(c.fecha)) + '</b> · ' + esc(c.canal) + ' · ' + esc(c.estado) +
+            (c.coordinador ? ' · por ' + esc(c.coordinador) : '') +
+            '<details><summary>Ver lo que se envió</summary><pre>' + esc(c.texto) + '</pre></details></div>').join('');
+        // Subsanado: puntos que en el último envío estaban en Parcial o No cumple.
+        const ultimo = lista.find(c => c.estados);
+        if (ultimo) {
+          let antes = [];
+          try { antes = JSON.parse(ultimo.estados); } catch (e) {}
+          const ahora = {};
+          JSON.parse(estadosActuales()).forEach(x => { ahora[x.n] = x.valor; });
+          const malos = antes.filter(x => /^(parcial|no cumple)$/i.test(x.valor));
+          const ok = malos.filter(x => /^(cumple|no aplica)$/i.test(ahora[x.n] || ''));
+          const sigue = malos.filter(x => !/^(cumple|no aplica)$/i.test(ahora[x.n] || ''));
+          if (ok.length) html += '<div class="subsanados"><b>Subsanado desde el aviso del ' + esc(fmt(ultimo.fecha)) + ':</b> ' +
+            ok.map(x => esc(x.n + ' ' + x.etiqueta) + ' (antes ' + esc(x.valor) + ', ahora ' + esc(ahora[x.n]) + ')').join('; ') + '.</div>';
+          if (sigue.length) html += '<div class="pendientes"><b>Sigue pendiente desde ese aviso:</b> ' +
+            sigue.map(x => esc(x.n + ' ' + x.etiqueta) + ' (' + esc(ahora[x.n] || 'sin marcar') + ')').join('; ') + '.</div>';
+        }
+        caja.innerHTML = html;
+        $('fichaForm').prepend(caja);
+      }).catch(() => {});
+  }
 
   function aviso(texto, tipo) {
     const el = $('fichaAviso');
