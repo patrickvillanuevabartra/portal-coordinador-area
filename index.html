@@ -527,6 +527,36 @@ tr.sin-leer{background:#fffdf6}
 .comp-guardar.con-cambios .estado{color:var(--tinta);font-weight:600}
 @media (prefers-reduced-motion: reduce){.comp-ficha.visible{animation:none}.comp-tarjeta,.comp-mapa .punto,.comp-mapa .barra i{transition:none}}
 
+/* pestañas 1 y 2: lista de competencias y formulario */
+.comp-lista-cab{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin:4px 0 12px}
+.comp-lista-cab h3{margin:0}
+.comp-lista-cab .cuenta{font-size:14px;color:var(--tinta-media)}
+.comp-lista{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:12px;align-items:start}
+.comp-item{display:flex;gap:14px;padding:16px 16px 12px;border:1.5px solid var(--linea);border-radius:12px;background:var(--papel)}
+.comp-item.editando{border-color:var(--brand);box-shadow:0 0 0 1px var(--brand) inset}
+.comp-item .letra{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:16px;color:#fff}
+.comp-item.gen .letra{background:var(--gen)}
+.comp-item.esp .letra{background:var(--esp)}
+.comp-item .cuerpo{flex:1;min-width:0}
+.comp-item .titulo{font-weight:600;font-size:15.5px;margin:0 0 3px;color:var(--tinta)}
+.comp-item .desc{font-size:15px;line-height:1.55;color:var(--tinta);margin:0}
+.comp-item .pie-item{display:flex;align-items:center;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid #eef1ef}
+.comp-item .plan{font-size:13px;color:var(--tinta-media);background:var(--fondo);border:1px solid var(--linea);border-radius:999px;padding:2px 10px}
+.comp-item .acciones{margin-left:auto;display:flex;gap:4px}
+.comp-item .acciones button{background:none;border:0;font:inherit;font-size:14px;color:var(--tinta-media);padding:4px 8px;border-radius:6px}
+.comp-item .acciones button:hover{background:var(--fondo);color:var(--tinta)}
+.comp-item .acciones button.quitar:hover{color:var(--falla)}
+.comp-item .acciones button:focus-visible{outline:3px solid #9fd3bb}
+.comp-form-caja{margin-top:22px;padding:18px 20px;border-radius:14px;background:var(--fondo);border:1px solid var(--linea)}
+.comp-form-caja h3{margin:0 0 12px;font-size:17px}
+.comp-form-caja .rejilla{margin:0;display:grid;grid-template-columns:minmax(220px,1fr) minmax(280px,2fr);gap:14px 18px}
+.comp-form-caja .rejilla .full{grid-column:1 / -1}
+.comp-form-caja label{font-size:14.5px}
+.comp-form-caja input[type=text],.comp-form-caja textarea{font-size:15px;padding:10px 12px;width:100%}
+.comp-form-caja textarea{min-height:96px}
+.comp-form-caja .ayuda{font-size:13.5px}
+@media (max-width:720px){.comp-form-caja .rejilla{grid-template-columns:1fr}}
+.comp-vacia{padding:28px;text-align:center;border:1.5px dashed var(--linea);border-radius:12px;color:var(--tinta-media);font-size:15px}
 /* Tablas de la tarjeta de competencias */
 #tarjetaCompetencias .tabla-envoltura{overflow-x:auto;border:1px solid var(--linea);border-radius:10px}
 #tarjetaCompetencias table.tabla{width:100%;border-collapse:collapse;border:0;border-radius:0;font-size:14px}
@@ -1263,7 +1293,8 @@ label .req{color:var(--falla)}
           <!-- 1 y 2: lista y registro (el tipo lo da la pestaña) -->
           <div id="compPanelLista">
             <div id="compTabla"></div>
-            <h3 style="margin:18px 0 8px;font-size:16px" id="compFormTitulo"></h3>
+            <div class="comp-form-caja" id="compFormCaja">
+            <h3 id="compFormTitulo"></h3>
             <div class="rejilla">
               <div><label for="compCodigo">Letra o número de la competencia</label><input type="text" id="compCodigo" placeholder="a, b, C1…">
                 <p class="ayuda">La identificación de la competencia en el documento de la carrera (a, b, c… o C1, C2…).
@@ -1278,6 +1309,7 @@ label .req{color:var(--falla)}
               <button class="btn" id="btnCompGuardar" type="button">Guardar competencia</button>
               <button class="btn gris" id="btnCompNueva" type="button">Limpiar</button>
               <span class="aviso" id="avisoComp"></span>
+            </div>
             </div>
           </div>
 
@@ -1639,9 +1671,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '05/10/2026';
+  const VERSION_PORTAL = '06/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-05.6';
+  const VERSION_INTERNA = '2026-10-06.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3197,15 +3229,21 @@ label .req{color:var(--falla)}
   function pintarListaComp() {
     const tipo = TIPO_DE[COMP.pestana];
     const l = compDe(tipo);
-    $('compTabla').innerHTML = '<h4 style="margin:4px 0 8px">Competencias ' + tipo.toLowerCase() + 's de ' +
-      esc($('compCarrera').value) + ', plan ' + esc($('compPlan').value) + ' (' + l.length + ')</h4>' +
-      (l.length ? '<div class="tabla-envoltura"><table class="tabla"><thead><tr><th>Letra / número</th><th>Título</th>' +
-        '<th>Descripción</th><th>Plan</th><th></th></tr></thead><tbody>' +
-        l.map(c => '<tr><td><b>' + esc(c.codigo) + '</b></td><td>' + esc(c.nombre || '') + '</td><td>' +
-          esc(c.descripcion) + '</td><td>' + esc(c.plan) + '</td><td style="white-space:nowrap">' +
-          '<button class="btn gris" type="button" data-editar="' + esc(c.recordId) + '">Editar</button> ' +
-          '<button class="btn gris" type="button" data-borrar="' + esc(c.recordId) + '">Quitar</button></td></tr>').join('') +
-        '</tbody></table></div>' : '<div class="vacio">Ninguna registrada.</div>');
+    const clase = COMP.pestana === 'gen' ? 'gen' : 'esp';
+    $('compTabla').innerHTML = '<div class="comp-lista-cab"><h3>Competencias ' + tipo.toLowerCase() + 's de ' +
+      esc($('compCarrera').value) + '</h3><span class="cuenta">' + l.length + (l.length === 1 ? ' competencia' : ' competencias') +
+      ' en el plan ' + esc($('compPlan').value) + '</span></div>' +
+      (l.length ? '<div class="comp-lista">' +
+        l.map(c => '<article class="comp-item ' + clase + (COMP.editando === c.recordId ? ' editando' : '') + '">' +
+          '<span class="letra">' + esc(c.codigo) + '</span><div class="cuerpo">' +
+          (c.nombre ? '<p class="titulo">' + esc(c.nombre) + '</p>' : '') +
+          '<p class="desc">' + esc(c.descripcion) + '</p>' +
+          '<div class="pie-item"><span class="plan">' + (/\s+y\s+/i.test(c.plan) ? 'Todos los planes' : 'Plan ' + esc(c.plan)) + '</span>' +
+          '<span class="acciones"><button type="button" data-editar="' + esc(c.recordId) + '">Editar</button>' +
+          '<button type="button" class="quitar" data-borrar="' + esc(c.recordId) + '">Quitar</button></span></div>' +
+          '</div></article>').join('') + '</div>'
+        : '<div class="comp-vacia">Todavía no hay competencias ' + tipo.toLowerCase() + 's registradas para esta carrera y plan.<br>' +
+          'Regístrelas abajo, una por una, o cárguelas desde un archivo con el botón de arriba.</div>');
     $('compTabla').querySelectorAll('[data-editar]').forEach(b => b.addEventListener('click', () => {
       const c = l.find(x => x.recordId === b.dataset.editar);
       if (!c) return;
@@ -3214,7 +3252,9 @@ label .req{color:var(--falla)}
       $('compCodigo').value = c.codigo; $('compNombre').value = c.nombre || ''; $('compDesc').value = c.descripcion || '';
       $('compTodosPlanes').checked = /\s+y\s+/i.test(c.plan);
       $('btnCompGuardar').textContent = 'Guardar cambios';
-      $('compCodigo').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      $('compTabla').querySelectorAll('.comp-item').forEach(x => x.classList.remove('editando'));
+      b.closest('.comp-item').classList.add('editando');
+      $('compFormCaja').scrollIntoView({ behavior: 'smooth', block: 'center' });
     }));
     $('compTabla').querySelectorAll('[data-borrar]').forEach(b => b.addEventListener('click', () => {
       const c = l.find(x => x.recordId === b.dataset.borrar);
