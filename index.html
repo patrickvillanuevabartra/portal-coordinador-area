@@ -679,6 +679,20 @@ tbody tr:hover{background:#fafcfb}
 .ficha-cab{position:relative}
 .ficha-cab h2{font-size:17px;padding-right:170px}
 .volver-panel{position:absolute;top:14px;right:16px}
+/* Banda con el título del formato: deja claro en qué formato se está */
+.ficha-modulo{display:flex;gap:16px;align-items:flex-start;padding:18px 20px;background:var(--brand-oscuro);color:#fff;
+  border-radius:var(--radio) var(--radio) 0 0}
+.ficha-modulo .fm-num{flex:none;width:44px;height:44px;border-radius:50%;display:grid;place-items:center;
+  background:rgba(255,255,255,.16);border:2px solid rgba(255,255,255,.55);font-weight:700;font-size:18px}
+.ficha-modulo .fm-textos{flex:1;min-width:0}
+.ficha-modulo .fm-eti{margin:0;font-size:12.5px;letter-spacing:.06em;text-transform:uppercase;opacity:.8}
+.ficha-modulo .fm-titulo{margin:2px 0 4px;font-size:23px;line-height:1.25;font-weight:700;letter-spacing:-.01em}
+.ficha-modulo .fm-desc{margin:0;font-size:14.5px;line-height:1.5;opacity:.92;max-width:90ch}
+.ficha-modulo .fm-volver{flex:none;background:#fff;color:var(--brand-oscuro);border-color:#fff;font-weight:600}
+.ficha-modulo .fm-volver:hover{background:#eaf4ee}
+.fm-curso-eti{margin:0 0 2px;font-size:12.5px;color:var(--tinta-media);text-transform:uppercase;letter-spacing:.05em}
+.ficha-cab h2{padding-right:0}
+@media (max-width:760px){.ficha-modulo{flex-wrap:wrap}.ficha-modulo .fm-volver{width:100%}}
 @media (max-width:760px){.ficha-cab h2{padding-right:0}.volver-panel{position:static;margin-bottom:10px}}
 .ficha-cab .meta{display:flex;gap:18px;flex-wrap:wrap;margin-top:8px;font-size:12px;color:var(--tinta-media)}
 .ficha-cab .meta span b{color:var(--tinta);font-weight:600}
@@ -1391,8 +1405,17 @@ label .req{color:var(--falla)}
   <section id="ficha" class="oculto">
     <div class="migas"><button id="volver">Mis cursos</button> / <span id="fichaModulo"></span></div>
     <div class="ficha">
+      <div class="ficha-modulo" id="fichaModuloBanda">
+        <span class="fm-num" id="fichaModNum"></span>
+        <div class="fm-textos">
+          <p class="fm-eti" id="fichaModEti"></p>
+          <h1 class="fm-titulo" id="fichaModTitulo"></h1>
+          <p class="fm-desc" id="fichaModDesc"></p>
+        </div>
+        <button class="btn fm-volver" id="volverArriba">‹ Volver a mis cursos</button>
+      </div>
       <div class="ficha-cab">
-        <button class="btn fantasma volver-panel" id="volverArriba">‹ Volver a mis cursos</button>
+        <p class="fm-curso-eti">Curso que se supervisa</p>
         <h2 id="fichaCurso"></h2>
         <p class="ayuda" id="fichaNota" style="margin:6px 0 0"></p>
         <p class="solo-consulta oculto" id="fichaAlcance" style="display:inline-block;margin:8px 0 0"></p>
@@ -1690,7 +1713,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '06/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-06.3';
+  const VERSION_INTERNA = '2026-10-06.4';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5743,7 +5766,13 @@ label .req{color:var(--falla)}
 
     mostrar('ficha');
     $('fichaModulo').textContent = M.nombre;
-    $('fichaNota').textContent = NOTAS_MODULO[clave] || '';
+    // Banda del formato: número, nombre y para qué sirve.
+    const nMod = ORDEN_MODULOS.indexOf(clave) + 1;
+    $('fichaModNum').textContent = nMod > 0 ? nMod : '';
+    $('fichaModEti').textContent = 'Formato ' + (nMod > 0 ? nMod + ' de ' + ORDEN_MODULOS.length : '') + ' · Supervisión del coordinador';
+    $('fichaModTitulo').textContent = M.nombre;
+    $('fichaModDesc').textContent = NOTAS_MODULO[clave] || '';
+    $('fichaNota').textContent = '';
     // Si la fila del tablero agrupaba varias cargas del mismo docente, se dice
     // aqui cuales, para que la ficha no parezca cubrir solo una.
     const varias = (partes || '').indexOf(',') > -1;
