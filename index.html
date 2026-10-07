@@ -554,6 +554,14 @@ tr.sin-leer{background:#fffdf6}
 .porta-tabla .f3-ok{color:var(--brand-oscuro);font-weight:600}
 .porta-tabla .mas{color:var(--tinta-media);font-size:13px}
 .porta-nota{margin:0;padding:10px 16px;font-size:13px;color:var(--tinta-media)}
+/* entrevista de la carrera, en Coordinadores */
+.entrev-fila{display:flex;align-items:center;gap:16px;padding:14px 16px;border:1px solid var(--linea);border-left:5px solid #d99a1b;
+  border-radius:10px;margin-bottom:10px;background:var(--papel)}
+.entrev-fila.hecha{border-left-color:var(--brand)}
+.entrev-texto{flex:1;display:flex;flex-direction:column;gap:2px}
+.entrev-texto b{font-size:16px}
+.entrev-texto span{font-size:14px;color:var(--tinta-media)}
+.entrev-texto .urg{color:#b42318}
 /* ventana para notificar al docente e historial */
 .notif-campo{margin-bottom:12px}
 .notif-campo label{display:block;font-weight:600;margin-bottom:4px}
@@ -1399,6 +1407,16 @@ label .req{color:var(--falla)}
       </div>
     </section>
 
+    <!-- D3. Entrevista con los delegados de la carrera -->
+    <section class="tarjeta" id="tarjetaEntrevistas">
+      <header class="tarjeta-cab">
+        <div><span class="paso">6</span><h2>Entrevista con los delegados de la carrera</h2>
+          <p>Una por carrera en cada ciclo, a cargo del coordinador general. Al guardarla, el informe se envía
+             al Director de la Escuela con copia a usted.</p></div>
+      </header>
+      <div class="tarjeta-cuerpo"><div id="listaEntrevistas"><div class="vacio">Cargando…</div></div></div>
+    </section>
+
     <!-- E. Plantillas -->
     <section class="tarjeta">
       <header class="tarjeta-cab">
@@ -1736,7 +1754,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.3';
+  const VERSION_INTERNA = '2026-10-07.4';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -1927,7 +1945,9 @@ label .req{color:var(--falla)}
   });
 
   // Secuencia en que el coordinador hace el trabajo, no el orden del config.
-  const ORDEN_MODULOS = ['silabo','formularios','aulaVirtual','portafolios','formula','delegados','entrevistas'];
+  // La entrevista con delegados ya no es por curso sino por carrera: se
+  // registra en Coordinadores (una por ciclo), no en cada fila de Mis cursos.
+  const ORDEN_MODULOS = ['silabo','formularios','aulaVirtual','portafolios','formula','delegados'];
 
   /* ---------------------------------------------------------------- tablero */
 
@@ -2217,7 +2237,7 @@ label .req{color:var(--falla)}
           // otra carrera tiene derecho a ver cómo se calificó su curso.
           const bloqueada = (a.faltantes || []).length > 0;
           const hechos = new Set();
-          partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => hechos.add(m)));
+          partes.forEach(p => (estado.avance[p.a.idAsignacion] || []).forEach(m => { if (ORDEN_MODULOS.includes(m)) hechos.add(m); }));
 
           // Si el avance todavía no llegó, no se muestra un conteo: decir 0/7
           // cuando puede haber siete registrados es peor que no decir nada.
@@ -2530,7 +2550,7 @@ label .req{color:var(--falla)}
           }
           cargarDatos(); cargarReportes(); cargarComunes();
         } else if (x.ir === 'coordinadores') {
-          mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias();
+          mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
     if (!$('plazoCiclo').value) $('plazoCiclo').value = $('filtroCiclo').value || CFG.CICLO_ACTIVO || '';
         } else if (x.ir === 'indicadores') { mostrar('indicadores'); cargarIndicadores(); }
       });
@@ -3815,6 +3835,34 @@ label .req{color:var(--falla)}
     } catch (e) { cerrar(); alert('No se pudo leer el archivo: ' + e.message); }
   });
 
+  /* -------------------------------- entrevista de la carrera (Coordinadores) -- */
+  function cargarEntrevistasCarrera() {
+    if (!$('listaEntrevistas')) return;
+    const ciclo = $('filtroCiclo').value;
+    $('listaEntrevistas').innerHTML = '<div class="vacio">Cargando…</div>';
+    api('/entrevistas-carrera?ciclo=' + encodeURIComponent(ciclo)).then(d => {
+      const l = d.entrevistas || [];
+      if (!l.length) { $('listaEntrevistas').innerHTML = '<div class="vacio">No hay carreras a su cargo en el ciclo ' + esc(ciclo) + '.</div>'; return; }
+      const fmt = f => { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : f; };
+      $('listaEntrevistas').innerHTML = l.map((e, i) =>
+        '<div class="entrev-fila' + (e.registrada ? ' hecha' : '') + '">' +
+        '<div class="entrev-texto"><b>' + esc(e.carrera) + '</b><span>Ciclo ' + esc(e.ciclo) + ' · ' +
+        (e.registrada
+          ? 'registrada' + (e.fecha ? ' (reunión del ' + esc(fmt(e.fecha)) + ')' : '') +
+            (e.prioridad === 'Si' ? ' · <b class="urg">urgente</b>' : '')
+          : 'pendiente') +
+        ' · ' + e.delegados.length + (e.delegados.length === 1 ? ' delegado registrado' : ' delegados registrados') + ' en los cursos</span></div>' +
+        '<button type="button" class="btn' + (e.registrada ? ' gris' : '') + '" data-entrev="' + i + '">' +
+        (e.registrada ? 'Abrir entrevista' : 'Registrar entrevista') + '</button></div>').join('');
+      $('listaEntrevistas').querySelectorAll('[data-entrev]').forEach(b => b.addEventListener('click', () => {
+        const e = l[Number(b.dataset.entrev)];
+        abrirModulo({ esCarrera: true, idAsignacion: e.id, programa: e.carrera, ciclo: e.ciclo,
+          asignatura: 'Entrevista de la carrera', codigo: '', grupo: '', docente: '', area: '', delegados: e.delegados },
+          'entrevistas');
+      }));
+    }).catch(err => { $('listaEntrevistas').innerHTML = '<div class="vacio">' + esc(err.message) + '</div>'; });
+  }
+
   function carrerasQuePuedeFijar() {
     if (estado.admin) {
       return [...new Set((estado.asignaciones || []).map(a => a.programa).filter(Boolean))]
@@ -4499,6 +4547,19 @@ label .req{color:var(--falla)}
         '<span class="barrota' + clasePorc(p) + '"><i style="width:' + p + '%"></i></span>' +
         '<span class="val">' + n + ' / ' + d.totalCargas + '</span></div>';
     });
+    // Entrevista con los delegados: una por carrera y ciclo (se registra en Coordinadores).
+    if (estado.admin || estado.general) {
+      h += '<div class="subtitulo">Entrevista con los delegados de la carrera</div><div id="indEntrevistas"><div class="vacio">Cargando…</div></div>';
+      setTimeout(() => {
+        api('/entrevistas-carrera?ciclo=' + encodeURIComponent($('filtroCiclo').value)).then(r => {
+          const caja = $('indEntrevistas'); if (!caja) return;
+          caja.innerHTML = (r.entrevistas || []).map(e => '<div class="fila-mod"><span>' + esc(e.carrera) + '</span>' +
+            '<span class="barrota' + (e.registrada ? '' : ' critica') + '"><i style="width:' + (e.registrada ? 100 : 4) + '%"></i></span>' +
+            '<span class="val">' + (e.registrada ? 'Realizada' + (e.prioridad === 'Si' ? ' · urgente' : '') : 'Pendiente') + '</span></div>').join('') ||
+            '<div class="vacio">Sin carreras a cargo.</div>';
+        }).catch(() => { const caja = $('indEntrevistas'); if (caja) caja.innerHTML = ''; });
+      }, 50);
+    }
     h += '</div></section>';
 
     // Por área: lo que mira el coordinador general y la auditoría.
@@ -5236,7 +5297,7 @@ label .req{color:var(--falla)}
   /* ------------------------------------------- coordinadores y clonado */
 
   $('btnCoord').addEventListener('click', () => {
-    mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias();
+    mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
   });
   $('volverCoord').addEventListener('click', () => mostrar('tablero'));
 
@@ -5514,7 +5575,7 @@ label .req{color:var(--falla)}
     aulaVirtual: 'Revisa que el aula virtual tenga los ocho elementos exigidos y anota lo que falte.',
     portafolios: 'Comprueba que el portafolio digital contenga las evidencias de cada tipo de evaluación.',
     delegados: 'Registra a los delegados del curso. Este dato es el que después se usa en la entrevista.',
-    entrevistas: 'Deja constancia de lo tratado con los delegados en cada uno de los ocho temas y de las sugerencias para la Escuela.',
+    entrevistas: 'Una por carrera y ciclo. Deja constancia de lo tratado con los delegados de la carrera en los ocho temas y de las sugerencias para la Escuela; al guardar, el informe se envía al Director con copia a usted.',
     formula: 'Verifica que la fórmula de evaluación esté ingresada en el Sistema de Evaluación y que sea idéntica a la del sílabo aprobado. Cualquier diferencia se comunica al docente y a la Escuela para su regularización.'
   };
 
@@ -5607,8 +5668,8 @@ label .req{color:var(--falla)}
           { k:'revisor', etq:'Revisor del área', tipo:'texto', req:true, auto:'nombre', soloVista:true },
           { k:'fechaHora', etq:'Fecha y hora de reunión', tipo:'fechahora', req:true },
           { k:'modalidad', etq:'Modalidad', tipo:'select', opciones:['Presencial','Virtual','Mixta'], req:true },
-          { k:'delegado', etq:'Delegado', tipo:'texto', req:true },
-          { k:'subdelegado', etq:'Subdelegado', tipo:'texto' }
+          { k:'delegado', etq:'Delegados participantes', tipo:'textarea', req:true, full:true,
+            ayuda:'Uno por línea. Se propone la lista de delegados registrados en los cursos de la carrera: deje solo a quienes participaron.' }
         ]},
         { pestana:1, tipo:'textos', fuente:'temas' },
         { pestana:2, tipo:'grid', ancho:true, campos:[
@@ -5791,8 +5852,10 @@ label .req{color:var(--falla)}
     $('fichaModulo').textContent = M.nombre;
     // Banda del formato: número, nombre y para qué sirve.
     const nMod = ORDEN_MODULOS.indexOf(clave) + 1;
-    $('fichaModNum').textContent = nMod > 0 ? nMod : '';
-    $('fichaModEti').textContent = 'Formato ' + (nMod > 0 ? nMod + ' de ' + ORDEN_MODULOS.length : '') + ' · Supervisión del coordinador';
+    $('fichaModNum').textContent = a.esCarrera ? '★' : (nMod > 0 ? nMod : '');
+    $('fichaModEti').textContent = a.esCarrera ? 'Entrevista de la carrera · una por ciclo · coordinador general'
+      : 'Formato ' + (nMod > 0 ? nMod + ' de ' + ORDEN_MODULOS.length : '') + ' · Supervisión del coordinador';
+    document.querySelector('.fm-curso-eti').textContent = a.esCarrera ? 'Carrera entrevistada' : 'Curso que se supervisa';
     $('fichaModTitulo').textContent = M.nombre;
     $('fichaModDesc').textContent = NOTAS_MODULO[clave] || '';
     $('fichaNota').textContent = '';
@@ -5811,7 +5874,7 @@ label .req{color:var(--falla)}
     $('fichaAlcance').classList.toggle('oculto', !varias);
     $('btnGuardar').textContent = F.guardar;
     $('btnGuardar').disabled = false;
-    $('fichaCurso').textContent = nombreCurso(a.asignatura);
+    $('fichaCurso').textContent = a.esCarrera ? a.programa + ' · ciclo ' + a.ciclo : nombreCurso(a.asignatura);
 
     const dato = (etq, v) => v ? '<span>' + etq + ' <b>' + esc(v) + '</b></span>' : '';
     $('fichaMeta').innerHTML =
@@ -5837,7 +5900,9 @@ label .req{color:var(--falla)}
     // La carrera que no supervisa un curso común hace su propio informe; los
     // datos de delegados, en cambio, son uno solo y los registra el área padre.
     const informePropio = !!a.idInforme && clave !== 'delegados';
-    const puede = (!a.soloConsulta || informePropio) &&
+    const puede = a.esCarrera
+      ? (estado.admin || (estado.general && (estado.programas || []).some(x => sinAcentos(x) === sinAcentos(a.programa))))
+      : (!a.soloConsulta || informePropio) &&
                   (estado.admin || (estado.propiasArea || []).includes(a.area));
     // Solo cambia el modo de los cursos comunes; lo demás queda como estaba.
     if (a.soloConsulta) estado.soloLectura = !puede;
@@ -7675,6 +7740,17 @@ label .req{color:var(--falla)}
     // del mismo curso y grupo (en un curso común, del área que lo supervisa).
     const traerDelegados = () => {
       if (clave !== 'entrevistas') return;
+      if (a.esCarrera) {
+        const fD = $('f_delegado');
+        if (fD && !fD.value.trim() && (a.delegados || []).length) {
+          fD.value = a.delegados.join('\n');
+          fD.dispatchEvent(new Event('input', { bubbles: true }));
+          marcarCampos();
+          aviso('Se propuso la lista de ' + a.delegados.length + ' delegados registrados en los cursos de la carrera. ' +
+                'Deje solo a quienes participaron.', 'ok');
+        }
+        return;
+      }
       const fD = $('f_delegado'), fS = $('f_subdelegado');
       if (!fD || (fD.value.trim() && (!fS || fS.value.trim()))) return;
       const idDel = a.idInforme ? a.idEspejo : a.idAsignacion;
@@ -7966,6 +8042,13 @@ label .req{color:var(--falla)}
   // Al volver, el tablero se coloca en el curso que se estaba revisando: ir a
   // parar al principio de la lista obliga a buscarlo otra vez.
   function volverAlTablero() {
+    if (estado.actual && estado.actual.esCarrera) {
+      estado.actual = null;
+      mostrar('coordinadores');
+      cargarEntrevistasCarrera();
+      setTimeout(() => $('tarjetaEntrevistas').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+      return;
+    }
     mostrar('tablero');
     const clave = estado.vueltaA;
     if (!clave) return;
