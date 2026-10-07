@@ -531,6 +531,28 @@ tr.sin-leer{background:#fffdf6}
 .hallazgo-ia{grid-column:1 / -1;margin:8px 0 2px;padding:8px 12px;border-left:4px solid #6b8fc2;background:#f2f6fc;
   border-radius:6px;font-size:13.5px;line-height:1.5;color:var(--tinta)}
 .hallazgo-ia b{color:#2d4f80}
+.hallazgo-ia .nota-interna{display:block;margin-top:4px;color:#6a5a1e;font-size:13px}
+/* panel del portafolio en Drive */
+.porta-panel{margin:0 0 16px;border:1px solid var(--linea);border-radius:12px;background:var(--papel);overflow:hidden}
+.porta-cab{padding:14px 16px;background:#f2f6fc;border-bottom:1px solid var(--linea);display:flex;flex-direction:column;gap:4px}
+.porta-cab b{font-size:15.5px}
+.porta-cab.aviso-porta{background:#fdf4e3;border-bottom:0}
+.porta-sub{font-size:13.5px;color:var(--tinta-media)}
+.porta-sub a{color:#1f5fa8}
+.porta-sub .ojo{color:#9a5b00}
+.btn-enlace{background:none;border:0;padding:0;color:#1f5fa8;text-decoration:underline;font:inherit;cursor:pointer}
+.porta-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.porta-tabla th{text-align:left;font-size:12.5px;color:var(--tinta-media);padding:8px 12px;border-bottom:1px solid var(--linea);text-transform:none;letter-spacing:normal}
+.porta-tabla td{padding:9px 12px;border-bottom:1px solid #eef1ef;vertical-align:top}
+.porta-tabla td.pn{width:38px;color:var(--tinta-tenue);font-weight:600}
+.porta-tabla td.pt{width:200px;font-weight:600}
+.porta-tabla td.pc{width:80px;text-align:center;font-weight:700}
+.porta-tabla tr.con td.pc{color:var(--brand)}
+.porta-tabla tr.sin td.pc{color:#b42318}
+.porta-tabla td.pa a{display:inline-block;margin:0 10px 4px 0;color:#1f5fa8;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+.porta-tabla .vacia{color:#9a5b00}
+.porta-tabla .mas{color:var(--tinta-media);font-size:13px}
+.porta-nota{margin:0;padding:10px 16px;font-size:13px;color:var(--tinta-media)}
 /* ventana para notificar al docente e historial */
 .notif-campo{margin-bottom:12px}
 .notif-campo label{display:block;font-weight:600;margin-bottom:4px}
@@ -1711,9 +1733,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '06/10/2026';
+  const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-06.4';
+  const VERSION_INTERNA = '2026-10-07.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5625,7 +5647,7 @@ label .req{color:var(--falla)}
           { k:'f4', etq:'F4', tipo:'select', opciones:['No aplica','Presentado','Pendiente','Fuera de plazo'],
             ayuda:'Se presenta al finalizar el ciclo.' },
           { k:'fechaF4', etq:'Fecha F4', tipo:'fecha' }
-        ], contar:{ desde:['f1','f2','f3'], valor:'Presentado', campo:'presentados', rotulo:'formularios presentados' } },
+        ], contar:{ desde:['f1','f2','f3'], valor:['Presentado','Fuera de plazo'], campo:'presentados', rotulo:'formularios presentados' } },
         { tipo:'grid', ancho:true, campos:[
           { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
         ]}
@@ -7015,7 +7037,8 @@ label .req{color:var(--falla)}
       const d = document.createElement('div');
       d.className = 'hallazgo-ia';
       d.innerHTML = '<b>Hallazgo del asistente' + (h.sugerencia ? ' (sugiere «' + esc(h.sugerencia) + '»)' : '') + ':</b> ' +
-        esc(h.texto || 'sin detalle.');
+        esc(h.texto || 'sin detalle.') +
+        (h.nota ? '<span class="nota-interna">Nota para usted (no se envía al docente): ' + esc(h.nota) + '</span>' : '');
       fila.appendChild(d);
     });
   }
@@ -7123,6 +7146,85 @@ label .req{color:var(--falla)}
 
   // En el formato F1 a F4 se consultan los cuatro formularios, cada uno en la
   // hoja que su Escuela registró.
+  // ------------------------------------------ portafolio en Drive ----
+  // El servidor recorre la carpeta del docente en el portafolio de la Escuela,
+  // hace el inventario por punto y propone. El coordinador decide y marca.
+  const NOMBRE_PUNTO_P = { '01': 'Prueba de entrada', '02': 'Prácticas', '03': 'Laboratorio y talleres',
+    '04': 'Investigación', '05': 'Proyectos', '06': 'Trabajos y tareas', '07': 'Exámenes' };
+
+  function revisarPortafolioDrive(recargar) {
+    const a = estado.actual || {};
+    let caja = document.querySelector('.porta-panel');
+    if (!caja) {
+      caja = document.createElement('section');
+      caja.className = 'porta-panel';
+      $('fichaForm').prepend(caja);
+    }
+    caja.innerHTML = '<div class="porta-cab"><b>Revisando el portafolio del docente en Drive…</b>' +
+      '<span class="porta-sub">Se recorre su carpeta en el portafolio de la Escuela. Puede tardar unos segundos.</span></div>';
+    const id = a.idInforme || a.idAsignacion;
+    api('/portafolio?idAsignacion=' + encodeURIComponent(id) + '&ciclo=' + encodeURIComponent(a.ciclo || '') +
+        (recargar ? '&recargar=1' : ''), { limiteMs: 150000 })
+      .then(d => {
+        if (estado.actual !== a || estado.modulo !== 'portafolios') return;
+        if (d.error) throw new Error(d.error);
+        if (!d.encontrado) {
+          caja.innerHTML = '<div class="porta-cab aviso-porta"><b>' + esc(d.mensaje) + '</b>' +
+            (d.carpetas && d.carpetas.length ? '<span class="porta-sub">Carpetas que hay en el curso: ' + esc(d.carpetas.join(' · ')) + '</span>' : '') +
+            '<span class="porta-sub">' + (d.cursoUrl ? '<a href="' + esc(d.cursoUrl) + '" target="_blank" rel="noopener">Abrir la carpeta del curso</a>'
+              : (d.raizUrl ? '<a href="' + esc(d.raizUrl) + '" target="_blank" rel="noopener">Abrir el portafolio de la Escuela</a>' : '')) +
+            ' · <button type="button" class="btn-enlace" id="portaOtraVez">Volver a revisar</button></span></div>';
+          $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
+          return;
+        }
+        const filas = Object.keys(NOMBRE_PUNTO_P).map(k => {
+          const p = (d.puntos || {})[k] || { n: 0, archivos: [], carpetasVacias: [] };
+          const enlaces = p.archivos.slice(0, 4).map(x => '<a href="' + esc(x.url) + '" target="_blank" rel="noopener" title="' +
+            esc((x.ruta ? x.ruta + ' / ' : '') + x.nombre) + '">' + esc(x.nombre) + '</a>').join('');
+          return '<tr class="' + (p.n ? 'con' : 'sin') + '"><td class="pn">' + k + '</td><td class="pt">' + NOMBRE_PUNTO_P[k] + '</td>' +
+            '<td class="pc">' + (p.n ? p.n : '—') + '</td><td class="pa">' + (enlaces ||
+              (p.carpetasVacias.length ? '<span class="vacia">Carpeta «' + esc(p.carpetasVacias[0]) + '» vacía</span>' : '<span class="vacia">Sin evidencia</span>')) +
+            (p.n > 4 ? '<span class="mas">y ' + (p.n - 4) + ' más</span>' : '') + '</td></tr>';
+        }).join('');
+        caja.innerHTML = '<div class="porta-cab"><b>Portafolio del docente en Drive</b>' +
+          '<span class="porta-sub"><a href="' + esc(d.carpetaUrl) + '" target="_blank" rel="noopener">' + esc(d.carpetaNombre) + '</a>' +
+          ' · ' + d.total + (d.total === 1 ? ' archivo' : ' archivos') + ' · revisado el ' + esc(d.revisado) +
+          (d.certeza === 'baja' ? ' · <b class="ojo">confirme que es la carpeta de este docente</b>' : '') +
+          (d.publica ? ' · <b class="ojo">la carpeta está compartida públicamente</b>' : '') +
+          ' · <button type="button" class="btn-enlace" id="portaOtraVez">Volver a revisar</button></span></div>' +
+          '<table class="porta-tabla"><thead><tr><th></th><th>Punto</th><th>Archivos</th><th>Evidencia encontrada</th></tr></thead><tbody>' +
+          filas + '</tbody></table>' +
+          '<p class="porta-nota">El inventario se hace por el nombre de las carpetas y archivos; no se lee el contenido de los trabajos de los estudiantes. ' +
+          'Las sugerencias aparecen bajo cada punto: <b>usted marca la calificación</b>.</p>';
+        $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
+
+        // Hallazgos bajo cada punto y borrador en Observaciones.
+        const h = d.hallazgos || {};
+        estado.hallazgos = {};
+        Object.keys(h).forEach(k => {
+          const x = h[k], i = parseInt(k, 10) - 1;
+          if (!x || !(x.sugerido || x.para_docente || x.nota_interna)) return;
+          estado.hallazgos[i] = { sugerencia: x.sugerido, texto: x.para_docente, nota: x.nota_interna, certeza: x.certeza };
+        });
+        mostrarHallazgos();
+        const obs = $('f_observaciones') || $('f_observacionesGenerales');
+        const lineas = Object.keys(h).filter(k => h[k] && h[k].para_docente && h[k].sugerido !== 'Cumple')
+          .map(k => '• ' + k + ' ' + NOMBRE_PUNTO_P[k] + ': ' + h[k].para_docente);
+        const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' +
+          'Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + '):\n' +
+          (lineas.length ? lineas.join('\n') : '• Se encontró evidencia en todos los puntos revisados.');
+        if (obs && !obs.value.trim()) { obs.value = texto; obs.dispatchEvent(new Event('input', { bubbles: true })); }
+        estado.ultimosArchivos = [d.carpetaNombre];
+        guardarBorrador(texto);
+        marcarCampos();
+      })
+      .catch(e => {
+        caja.innerHTML = '<div class="porta-cab aviso-porta"><b>No se pudo revisar el portafolio</b><span class="porta-sub">' + esc(e.message) +
+          ' · <button type="button" class="btn-enlace" id="portaOtraVez">Reintentar</button></span></div>';
+        $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
+      });
+  }
+
   // Punto 01 del portafolio: según la guía FI-GCA-GUI-001, la prueba de
   // entrada se acredita con el formulario F3 (informe de la prueba de entrada).
   function traerPruebaEntrada() {
@@ -7167,7 +7269,7 @@ label .req{color:var(--falla)}
 
   function traerDeclarado(F) {
     if (estado.modulo === 'formularios') return traerFormularios(F);
-    if (estado.modulo === 'portafolios') return traerPruebaEntrada();
+    if (estado.modulo === 'portafolios') { revisarPortafolioDrive(false); return traerPruebaEntrada(); }
     const a = estado.actual || {};
     const cfg = DE_FORMULARIO[estado.modulo];
     if (!cfg) return;
@@ -7327,9 +7429,51 @@ label .req{color:var(--falla)}
       '<ul class="lista-formularios">' + lineas.join('') + '</ul>' +
       '<p>' + (puestos ? 'Se completaron ' + puestos + ' campos. Revíselos antes de guardar.'
                        : 'No se completó ningún campo: o ya estaban llenos, o no hay respuestas.') +
-      ' El estado se decide comparando la fecha con el plazo de la Escuela.</p>';
+      ' El estado se decide comparando la fecha con el plazo de la Escuela.' +
+      ' El resultado quedó redactado en Observaciones, listo para enviarlo al docente: revíselo antes.</p>';
     marcarCampos();
     recalcularCompleto(F);
+    // Se espera un instante: los plazos se comparan al cambiar las fechas.
+    setTimeout(() => redactarObservacionFormularios(formatos, res, a), 400);
+  }
+
+  // Redacta en Observaciones el resultado de F1 a F4, en lenguaje claro para
+  // el docente. No pisa lo que el coordinador ya haya escrito.
+  function redactarObservacionFormularios(formatos, res, a) {
+    if (estado.actual !== a || estado.modulo !== 'formularios') return;
+    const caja = $('f_observaciones') || $('f_observacionesGenerales');
+    if (!caja || caja.value.trim()) return;
+    const hoyISO = new Date().toISOString().slice(0, 10);
+    const plazoDe = (fmt) => {
+      const n = document.querySelector('#f_fecha' + fmt);
+      const t = n && n.parentElement.querySelector('.nota-plazo');
+      const m = t && t.textContent.match(/(\d{2})\/(\d{2})\/(\d{2})/);
+      return m ? { corto: m[0], iso: '20' + m[3] + '-' + m[2] + '-' + m[1] } : null;
+    };
+    const lineas = [];
+    formatos.forEach((fmt, i) => {
+      const d = res[i] || {};
+      if (d.error || d.sinFuente) return;          // lo interno no se comunica al docente
+      const p = plazoDe(fmt);
+      const r = (d.coincidencias || [])[0];
+      if (r) {
+        const f = fechaDeRespuesta(r.fecha);
+        const tarde = p && f && f > p.iso;
+        lineas.push('• ' + fmt + ': presentado el ' + fechaCorta(f) +
+          (p ? (tarde ? ', fuera del plazo de la Escuela (' + p.corto + ').' : ', dentro del plazo (' + p.corto + ').') : '.'));
+      } else if (p && p.iso < hoyISO) {
+        lineas.push('• ' + fmt + ': no se encuentra presentado. El plazo de la Escuela venció el ' + p.corto +
+          '; se le solicita presentarlo a la brevedad.');
+      } else if (p) {
+        lineas.push('• ' + fmt + ': aún no presentado; el plazo de la Escuela vence el ' + p.corto + '.');
+      } else {
+        lineas.push('• ' + fmt + ': no se encuentra presentado.');
+      }
+    });
+    if (!lineas.length) return;
+    caja.value = 'Revisión de los formularios de la Escuela al ' + fechaCorta(hoyISO) + ':\n' + lineas.join('\n');
+    caja.dispatchEvent(new Event('input', { bubbles: true }));
+    marcarCampos();
   }
 
   // Las fechas se muestran como aquí se leen: 05/09/26.
@@ -7422,7 +7566,8 @@ label .req{color:var(--falla)}
       if (!b.contar) return;
       const n = b.contar.desde.filter(k => {
         const el = $('f_' + k);
-        return el && el.value === b.contar.valor;
+        const validos = [].concat(b.contar.valor);
+        return el && validos.indexOf(el.value) >= 0;
       }).length;
       const c = $('b' + bi + '_cifra');
       if (c) c.textContent = n;
@@ -7622,7 +7767,8 @@ label .req{color:var(--falla)}
         return c && c.value.trim() ? '• ' + x.etiqueta + ': ' + c.value.trim() : '';
       }).filter(Boolean).join('\n');
     }
-    if (!obs && clave === 'formularios') {
+    const yaRedactado = ($('f_observaciones') || {}).value;
+    if (!obs && clave === 'formularios' && !(yaRedactado && yaRedactado.trim())) {
       obs = ['f1','f2','f3'].map(k => {
         const el = $('f_' + k);
         return el && el.value ? '• ' + k.toUpperCase() + ': ' + el.value : '';
@@ -7631,7 +7777,9 @@ label .req{color:var(--falla)}
     // Lo escrito en Observaciones también viaja: es donde queda el detalle de
     // la revisión, y el docente debe recibirlo, no solo los ítems no conformes.
     const campoObs = $('f_observaciones') || $('f_observacionesGenerales');
-    const textoObs = campoObs && campoObs.value.trim() ? campoObs.value.trim() : '';
+    // El encabezado del borrador es solo para el coordinador: no llega al docente.
+    const textoObs = campoObs && campoObs.value.trim()
+      ? campoObs.value.trim().replace(/^BORRADOR DEL ASISTENTE[^\n]*\n+/, '').trim() : '';
     if (textoObs && textoObs !== obs) {
       obs = obs ? obs + '\n' + textoObs : textoObs;
     }
@@ -7842,7 +7990,7 @@ label .req{color:var(--falla)}
         else if (c.k === 'revisor' && M.comun.coordinador) valores[M.comun.coordinador] = val;
       }
       if (b.contar) {
-        const n = b.contar.desde.filter(k => $('f_' + k) && $('f_' + k).value === b.contar.valor).length;
+        const n = b.contar.desde.filter(k => $('f_' + k) && [].concat(b.contar.valor).indexOf($('f_' + k).value) >= 0).length;
         if (M.campos[b.contar.campo]) valores[M.campos[b.contar.campo]] = n;
       }
     }
