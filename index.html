@@ -551,6 +551,7 @@ tr.sin-leer{background:#fffdf6}
 .porta-tabla tr.sin td.pc{color:#b42318}
 .porta-tabla td.pa a{display:inline-block;margin:0 10px 4px 0;color:#1f5fa8;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
 .porta-tabla .vacia{color:#9a5b00}
+.porta-tabla .f3-ok{color:var(--brand-oscuro);font-weight:600}
 .porta-tabla .mas{color:var(--tinta-media);font-size:13px}
 .porta-nota{margin:0;padding:10px 16px;font-size:13px;color:var(--tinta-media)}
 /* ventana para notificar al docente e historial */
@@ -1735,7 +1736,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.2';
+  const VERSION_INTERNA = '2026-10-07.3';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7181,7 +7182,7 @@ label .req{color:var(--falla)}
           const p = (d.puntos || {})[k] || { n: 0, archivos: [], carpetasVacias: [] };
           const enlaces = p.archivos.slice(0, 4).map(x => '<a href="' + esc(x.url) + '" target="_blank" rel="noopener" title="' +
             esc((x.ruta ? x.ruta + ' / ' : '') + x.nombre) + '">' + esc(x.nombre) + '</a>').join('');
-          return '<tr class="' + (p.n ? 'con' : 'sin') + '"><td class="pn">' + k + '</td><td class="pt">' + NOMBRE_PUNTO_P[k] + '</td>' +
+          return '<tr data-punto="' + k + '" class="' + (p.n ? 'con' : 'sin') + '"><td class="pn">' + k + '</td><td class="pt">' + NOMBRE_PUNTO_P[k] + '</td>' +
             '<td class="pc">' + (p.n ? p.n : '—') + '</td><td class="pa">' + (enlaces ||
               (p.carpetasVacias.length ? '<span class="vacia">Carpeta «' + esc(p.carpetasVacias[0]) + '» vacía</span>' : '<span class="vacia">Sin evidencia</span>')) +
             (p.n > 4 ? '<span class="mas">y ' + (p.n - 4) + ' más</span>' : '') + '</td></tr>';
@@ -7207,9 +7208,13 @@ label .req{color:var(--falla)}
           estado.hallazgos[i] = { sugerencia: x.sugerido, texto: x.para_docente, nota: x.nota_interna, certeza: x.certeza };
         });
         mostrarHallazgos();
+        aplicarF3Portafolio();
         const obs = $('f_observaciones') || $('f_observacionesGenerales');
-        const lineas = Object.keys(h).filter(k => h[k] && h[k].para_docente && h[k].sugerido !== 'Cumple')
+        const lineas = Object.keys(h).filter(k => k !== '01' && h[k] && h[k].para_docente && h[k].sugerido !== 'Cumple')
           .map(k => '• ' + k + ' ' + NOMBRE_PUNTO_P[k] + ': ' + h[k].para_docente);
+        if (estado.f3Portafolio && !estado.f3Portafolio.presentado) {
+          lineas.unshift('• 01 Prueba de entrada: no se encuentra presentado el F3 (informe de la prueba de entrada).');
+        }
         const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' +
           'Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + '):\n' +
           (lineas.length ? lineas.join('\n') : '• Se encontró evidencia en todos los puntos revisados.');
@@ -7227,8 +7232,31 @@ label .req{color:var(--falla)}
 
   // Punto 01 del portafolio: según la guía FI-GCA-GUI-001, la prueba de
   // entrada se acredita con el formulario F3 (informe de la prueba de entrada).
+  // El punto 01 se acredita con el F3: la tabla del portafolio y la sugerencia
+  // del punto dicen lo mismo que el recuadro del F3, sea cual sea el que llegue antes.
+  function aplicarF3Portafolio() {
+    const f3 = estado.f3Portafolio;
+    if (!f3 || estado.modulo !== 'portafolios') return;
+    const celda = document.querySelector('.porta-tabla tr[data-punto="01"]');
+    if (celda) {
+      celda.className = f3.presentado ? 'con' : 'sin';
+      celda.querySelector('.pc').textContent = f3.presentado ? 'F3' : '—';
+      celda.querySelector('.pa').innerHTML = f3.presentado
+        ? '<span class="f3-ok">Acreditada con el F3 (informe de la prueba de entrada), presentado el ' + esc(f3.fecha) + '</span>'
+        : '<span class="vacia">El docente no ha presentado el F3 (informe de la prueba de entrada)</span>';
+    }
+    estado.hallazgos = estado.hallazgos || {};
+    estado.hallazgos[0] = f3.presentado
+      ? { sugerencia: 'Cumple', certeza: 'alta', texto: 'Presentó el F3 (informe de la prueba de entrada) el ' + f3.fecha + '.',
+          nota: 'Según la guía FI-GCA-GUI-001, el F3 es la evidencia oficial de la prueba de entrada.' }
+      : { sugerencia: 'No cumple', certeza: 'alta', texto: 'No se encuentra presentado el F3 (informe de la prueba de entrada).',
+          nota: 'Según la guía FI-GCA-GUI-001, la prueba de entrada se acredita con el F3.' };
+    mostrarHallazgos();
+  }
+
   function traerPruebaEntrada() {
     const a = estado.actual || {};
+    estado.f3Portafolio = null;
     const caja = document.createElement('div');
     caja.className = 'declarado';
     caja.innerHTML = '<b>Punto 01 · Consultando el F3 (informe de la prueba de entrada)…</b>';
@@ -7251,6 +7279,9 @@ label .req{color:var(--falla)}
           return;
         }
         const r = (d.coincidencias || [])[0];
+        const fF3 = r ? String(r.fecha || '').slice(0, 10) : '';
+        estado.f3Portafolio = { presentado: !!r, fecha: fF3 ? fF3.split(/[-\/]/).length === 3 && /^\d{4}/.test(fF3) ? fF3.split('-').reverse().join('/') : fF3 : '' };
+        aplicarF3Portafolio();
         if (!r) {
           caja.className = 'declarado sin-fuente';
           caja.innerHTML = '<b>Punto 01 · El docente no ha presentado el F3 (informe de la prueba de entrada)</b>' +
