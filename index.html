@@ -1754,7 +1754,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.5';
+  const VERSION_INTERNA = '2026-10-07.6';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4789,20 +4789,23 @@ label .req{color:var(--falla)}
     const SIT = {
       completo: { txt: '✔ Completo y a tiempo',           color: 'verde' },
       tarde:    { txt: '▲ Completo, con atraso',          color: 'amarillo' },
-      falta:    { txt: '✘ Incompleto',                    color: 'naranja' },
+      falta:    { txt: '✘ Le faltan formularios',         color: 'naranja' },
       nada:     { txt: '✘ No presentó ninguno',           color: 'rojo' },
       sinDatos: { txt: '— Sin hojas que consultar',       color: 'gris' }
     };
     const situacionDe = (ok, tarde, no) => !(ok + tarde + no) ? 'sinDatos'
       : (no === 0 && tarde === 0 ? 'completo' : (no === 0 ? 'tarde' : (ok + tarde > 0 ? 'falta' : 'nada')));
     // Resumen de UN formulario cuando hay varios cursos (por docente).
-    const resumenF = (ok, tarde, no) => {
+    // Sin fracciones ni paréntesis: se dice en cuántos cursos falta. Solo tres
+    // colores, como en el resto: verde presentó, amarillo tarde, rojo falta.
+    const resumenF = (ok, tarde, no, unidad) => {
       const n = ok + tarde + no;
+      const cuantos = k => k + ' ' + unidad + (k === 1 ? '' : 's');
       if (!n) return { txt: '—', color: null };
-      if (no === 0 && tarde === 0) return { txt: EST.aTiempo.txt + (n > 1 ? ' (' + n + ' de ' + n + ')' : ''), color: 'verde' };
-      if (no === 0) return { txt: n > 1 ? '▲ Presentó los ' + n + '; ' + tarde + ' fuera de plazo' : EST.tarde.txt, color: 'amarillo' };
-      if (no === n) return { txt: EST.no.txt + (n > 1 ? ' (0 de ' + n + ')' : ''), color: 'rojo' };
-      return { txt: '✘ Falta ' + no + ' de ' + n, color: 'naranja' };
+      if (no === 0 && tarde === 0) return { txt: EST.aTiempo.txt, color: 'verde' };
+      if (no === 0) return { txt: tarde === n ? EST.tarde.txt : '▲ Presentó; tarde en ' + cuantos(tarde), color: 'amarillo' };
+      if (no === n) return { txt: EST.no.txt, color: 'rojo' };
+      return { txt: '✘ Falta en ' + cuantos(no), color: 'rojo' };
     };
     const semaforo = v => v >= META_VERDE ? 'verde' : (v >= META_AMARILLO ? 'amarillo' : 'rojo');
 
@@ -4877,7 +4880,9 @@ label .req{color:var(--falla)}
         x._pres = x._ok + x._tarde;
         x._falta = falta;
         x._sit = situacionDe(x._ok, x._tarde, x._no);
-        x._sitTxt = x._sit === 'falta' ? SIT.falta.txt + ': falta ' + falta.join(' y ') : SIT[x._sit].txt;
+        x._sitTxt = x._sit === 'falta'
+          ? (falta.length === 1 ? '✘ Le falta ' + falta[0] : '✘ Le faltan ' + falta.join(' y '))
+          : SIT[x._sit].txt;
         x._queFalta = [falta.length ? 'Falta presentar ' + falta.join(', ').replace(/, ([^,]+)$/, ' y $1') : '']
           .concat(tardes).filter(Boolean).join('. ');
         if (x._queFalta) x._queFalta += '.';
@@ -4891,8 +4896,9 @@ label .req{color:var(--falla)}
     const porDoc = {};
     filasTodas.forEach(x => {
       const p = porDoc[x.docente] = porDoc[x.docente] || { docente: x.docente, carreras: new Set(), areas: new Set(),
-        cargas: 0, exig: 0, ok: 0, tarde: 0, no: 0, correo: false, f: {}, falta: {} };
+        cargas: 0, exig: 0, ok: 0, tarde: 0, no: 0, correo: false, f: {}, falta: {}, cursos: new Set() };
       p.carreras.add(corto(x._carrera)); p.areas.add(x._area); p.cargas++;
+      p.cursos.add(x._carrera + '¦' + (x.codigo || x.curso));
       if (x.correo) p.correo = true;
       x._exig.forEach(f => {
         const q = p.f[f] = p.f[f] || { ok: 0, tarde: 0, no: 0 };
@@ -4908,6 +4914,10 @@ label .req{color:var(--falla)}
     const docentes = Object.values(porDoc).filter(p => p.exig);
     docentes.forEach(p => {
       p.sit = situacionDe(p.ok, p.tarde, p.no);
+      p.sitTxt = p.sit === 'falta'
+        ? (p.no === 1 ? '✘ Le falta 1 formulario' : '✘ Le faltan ' + p.no + ' formularios')
+        : SIT[p.sit].txt;
+      p.unidad = p.cursos.size === p.cargas ? 'curso' : 'grupo';
       p.queFalta = F.filter(f => p.falta[f]).map(f => f + ': ' + p.falta[f].join('; ')).join('. ');
     });
     const ORDEN_SIT = { nada: 0, falta: 1, tarde: 2, completo: 3, sinDatos: 4 };
@@ -5017,7 +5027,7 @@ label .req{color:var(--falla)}
     filaInd('Docentes revisados', o => o.docentes);
     filaInd('   • ' + SIT.completo.txt + ' 😊', o => nyp(o.sit.completo, o.docentes), o => o.sit.completo ? 'verde' : null);
     filaInd('   • ' + SIT.tarde.txt + ' (presentó todo, alguno tarde)', o => nyp(o.sit.tarde, o.docentes), o => o.sit.tarde ? 'amarillo' : null);
-    filaInd('   • ' + SIT.falta.txt + ' (le falta al menos uno)', o => nyp(o.sit.falta, o.docentes), o => o.sit.falta ? 'naranja' : null);
+    filaInd('   • ' + SIT.falta.txt + ' (presentó alguno, no todos)', o => nyp(o.sit.falta, o.docentes), o => o.sit.falta ? 'naranja' : null);
     filaInd('   • ' + SIT.nada.txt, o => nyp(o.sit.nada, o.docentes), o => o.sit.nada ? 'rojo' : null);
     filaInd('Quienes presentaron tarde, ¿cuántos días se atrasaron en promedio?',
       o => o.retrasoProm == null ? '—' : nDias(o.retrasoProm));
@@ -5152,11 +5162,11 @@ label .req{color:var(--falla)}
                   'Cumplimiento a tiempo (%)', 'Reconocimiento'];
     const docsOrden = docentes.slice().sort((a, b) => ORDEN_SIT[a.sit] - ORDEN_SIT[b.sit] || es(a.docente, b.docente));
     const res2 = docsOrden.map(p => {
-      const rf = F.map(f => p.f[f] ? resumenF(p.f[f].ok, p.f[f].tarde, p.f[f].no) : { txt: '— Sin hoja', color: 'gris' });
+      const rf = F.map(f => p.f[f] ? resumenF(p.f[f].ok, p.f[f].tarde, p.f[f].no, p.unidad) : { txt: '— Sin hoja', color: 'gris' });
       p._rf = rf;
       return [p.docente, [...p.areas].join(', '), [...p.carreras].join(', '), p.cargas]
         .concat(rf.map(x => x.txt),
-          [SIT[p.sit].txt, p.queFalta, p.exig, p.ok, p.tarde, p.no, pct(p.ok, p.exig),
+          [p.sitTxt, p.queFalta, p.exig, p.ok, p.tarde, p.no, pct(p.ok, p.exig),
            p.sit === 'completo' ? '😊 ¡Felicitaciones! Presentó a tiempo todos sus formularios' : '']);
     });
     const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
