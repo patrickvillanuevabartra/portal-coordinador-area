@@ -1754,7 +1754,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.8';
+  const VERSION_INTERNA = '2026-10-07.9';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -1784,9 +1784,37 @@ label .req{color:var(--falla)}
     console.log('Portal del Coordinador de Área · versión', VERSION_INTERNA);
   });
 
-  function mostrar(seccion) {
+  // «Volver» regresa a la página de la que se vino, no siempre a Mis cursos:
+  // si se entró a Validar datos desde Preparar el ciclo, se vuelve a Preparar
+  // el ciclo; si se abrió la entrevista desde Coordinadores, a Coordinadores.
+  const NOMBRE_VISTA = { tablero: 'Mis cursos', ciclo: 'Preparar el ciclo', datos: 'Validar datos',
+                         indicadores: 'Indicadores', coordinadores: 'Coordinadores' };
+  const MIGA_VISTA = { ciclo: 'volverCiclo', datos: 'volverDatos', indicadores: 'volverInd',
+                       coordinadores: 'volverCoord', ficha: 'volver' };
+  const origenVista = {};
+  let vistaActual = null;
+  function mostrar(seccion, regresando) {
+    const previa = vistaActual;
+    if (seccion === 'tablero' || seccion === 'ingreso') {
+      Object.keys(origenVista).forEach(k => delete origenVista[k]);
+    } else if (!regresando && previa && previa !== seccion && NOMBRE_VISTA[previa] &&
+               origenVista[previa] !== seccion) {
+      // Ir a la página de la que se vino cuenta como volver: no se reescribe.
+      origenVista[seccion] = previa;
+    }
+    vistaActual = seccion;
     ['ingreso','tablero','ficha','coordinadores','indicadores','datos','ciclo'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
+    const miga = MIGA_VISTA[seccion] && $(MIGA_VISTA[seccion]);
+    const destino = NOMBRE_VISTA[origenVista[seccion] || 'tablero'];
+    if (miga) miga.textContent = destino;
+    if (seccion === 'ficha' && $('volverArriba')) $('volverArriba').textContent = '‹ Volver a ' + (destino === 'Mis cursos' ? 'mis cursos' : destino);
     window.scrollTo(0, 0);
+  }
+  // Vuelve a la página de origen de «desde» (o a Mis cursos).
+  function regresar(desde) {
+    const a = origenVista[desde] || 'tablero';
+    mostrar(a, true);
+    return a;
   }
 
   // QuintaDB devuelve los valores por nombre de columna, y a veces el propio
@@ -2457,7 +2485,7 @@ label .req{color:var(--falla)}
     if (!$('cicloPrep').value) $('cicloPrep').value = $('filtroCiclo').value || CFG.CICLO_ACTIVO || '';
     verEstadoCiclo();
   });
-  $('volverCiclo').addEventListener('click', () => mostrar('tablero'));
+  $('volverCiclo').addEventListener('click', () => regresar('ciclo'));
   $('btnVerCiclo').addEventListener('click', verEstadoCiclo);
 
   function verEstadoCiclo() {
@@ -2799,7 +2827,7 @@ label .req{color:var(--falla)}
     $('dtNueva').classList.toggle('oculto', !puedeEditar());
     $('dtNuevoCurso').classList.toggle('oculto', !puedeEditar());
   });
-  $('volverDatos').addEventListener('click', () => mostrar('tablero'));
+  $('volverDatos').addEventListener('click', () => regresar('datos'));
   // «Actualizar» relee QuintaDB de verdad (el servidor descarta su memoria) y
   // refresca también Mis cursos, para ver al instante lo editado allá.
   $('dtRecargar').addEventListener('click', () => {
@@ -4504,7 +4532,7 @@ label .req{color:var(--falla)}
   /* ------------------------------------------------- indicadores */
 
   $('btnTablero').addEventListener('click', () => { mostrar('indicadores'); cargarIndicadores(); });
-  $('volverInd').addEventListener('click', () => mostrar('tablero'));
+  $('volverInd').addEventListener('click', () => regresar('indicadores'));
 
   function cargarIndicadores() {
     const ciclo = $('filtroCiclo').value;
@@ -5547,7 +5575,7 @@ label .req{color:var(--falla)}
   $('btnCoord').addEventListener('click', () => {
     mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
   });
-  $('volverCoord').addEventListener('click', () => mostrar('tablero'));
+  $('volverCoord').addEventListener('click', () => regresar('coordinadores'));
 
   function cargarCoordinadores() {
     $('tablaCoord').innerHTML = '<div class="vacio">Cargando…</div>';
@@ -8286,15 +8314,19 @@ label .req{color:var(--falla)}
     el.className = 'aviso ' + (tipo || '');
   }
 
-  $('volver').addEventListener('click', () => mostrar('tablero'));
+  $('volver').addEventListener('click', () => volverAlTablero());
   // Al volver, el tablero se coloca en el curso que se estaba revisando: ir a
   // parar al principio de la lista obliga a buscarlo otra vez.
   function volverAlTablero() {
-    if (estado.actual && estado.actual.esCarrera) {
+    const esCarrera = estado.actual && estado.actual.esCarrera;
+    const origen = origenVista.ficha || (esCarrera ? 'coordinadores' : 'tablero');
+    if (origen !== 'tablero') {
       estado.actual = null;
-      mostrar('coordinadores');
-      cargarEntrevistasCarrera();
-      setTimeout(() => $('tarjetaEntrevistas').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+      mostrar(origen, true);
+      if (origen === 'coordinadores' && esCarrera) {
+        cargarEntrevistasCarrera();
+        setTimeout(() => $('tarjetaEntrevistas').scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+      }
       return;
     }
     mostrar('tablero');
