@@ -1754,7 +1754,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.4';
+  const VERSION_INTERNA = '2026-10-07.5';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4600,14 +4600,24 @@ label .req{color:var(--falla)}
       }
     }
     // Reporte de F1 a F3 por carrera: administrador y coordinador general.
+    // El coordinador de área también lo genera, limitado a sus áreas: es el
+    // informe que presenta a su Escuela.
+    const propiasRep = estado.propiasArea || [];
     const progsRep = estado.admin
       ? [...new Set((estado.asignaciones || []).map(x => x.programa).filter(Boolean))].sort()
-      : (estado.general ? (estado.programas || []) : []);
+      : [...new Set((estado.general ? (estado.programas || []) : []).concat(
+          (estado.asignaciones || []).filter(x => propiasRep.includes(x.area) && !x.soloConsulta)
+            .map(x => x.programa).filter(Boolean)))].sort();
+    const puedeNotificarRep = estado.admin || estado.general;
     h += '<div class="pie" style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">' +
       '<button class="btn fantasma" id="btnExpInd">Descargar indicadores</button>' +
       (progsRep.length
         ? '<div style="flex-basis:100%;border:1px solid var(--linea);border-radius:10px;padding:12px 14px">' +
           '<b>Reporte de formularios F1–F3</b>' +
+          '<div style="color:var(--tinta-media);font-size:14px;margin-top:4px">Dice, por área y por curso y grupo, ' +
+          'qué formulario falta (F1, F2 o F3), cuál llegó fuera de plazo y cuál a tiempo.' +
+          (!puedeNotificarRep && propiasRep.length ? ' Incluye solo ' +
+            (propiasRep.length === 1 ? 'su área: ' : 'sus áreas: ') + esc(propiasRep.join(', ')) + '.' : '') + '</div>' +
           '<div id="casRepF" style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 10px">' +
           (progsRep.length > 1
             ? '<label style="font-weight:600"><input type="checkbox" id="casTodas"> Todas</label>' : '') +
@@ -4616,7 +4626,8 @@ label .req{color:var(--falla)}
             esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
           '</div><div style="display:flex;gap:10px;flex-wrap:wrap">' +
           '<button class="btn" id="btnRepF">Generar reporte (Excel)</button>' +
-          '<button class="btn fantasma" id="btnNotF">Notificar a los docentes</button></div></div>'
+          (puedeNotificarRep ? '<button class="btn fantasma" id="btnNotF">Notificar a los docentes</button>' : '') +
+          '</div></div>'
         : '') +
       '</div>';
     h += '</div></section>';
@@ -4713,355 +4724,579 @@ label .req{color:var(--falla)}
         alert('No se encontraron cargas de ' + carreras.join(', ') + ' en el ciclo ' + ciclo + '.');
         return;
       }
-      const F = ['F1', 'F2', 'F3'];
-      const META_VERDE = 90, META_AMARILLO = 70;
-      const cumple = e => /^Presentado/.test(e || '');
-      const pct = (a, b) => b ? Math.round(a / b * 100) : 0;   // sin decimales: más fácil de leer
-      const corto = p => String(p).replace(/^Ingeniería\s+(de\s+)?/i, '');
-      const dma = (iso) => {
-        const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
-        return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : (iso || '');
-      };
-      const dias = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 86400000);
-      const ahora = new Date();
-      const hoy = ('0' + ahora.getDate()).slice(-2) + '/' + ('0' + (ahora.getMonth() + 1)).slice(-2) + '/' +
-                  String(ahora.getFullYear()).slice(2);
-      const nombresCarr = reps.map(r => r.programa);
-      const alcanceTxt = reps.length === 1 ? nombresCarr[0] : nombresCarr.map(corto).join(', ');
-
-      const ESTILO = {
-        verde:    { fill: { fgColor: { rgb: 'C6EFCE' } }, font: { color: { rgb: '006100' } } },
-        amarillo: { fill: { fgColor: { rgb: 'FFEB9C' } }, font: { color: { rgb: '7A4D00' } } },
-        rojo:     { fill: { fgColor: { rgb: 'FFC7CE' } }, font: { color: { rgb: '9C0006' } } },
-        enc:      { fill: { fgColor: { rgb: '0B3B2E' } }, font: { bold: true, color: { rgb: 'FFFFFF' } },
-                    alignment: { wrapText: true, vertical: 'center' } },
-        seccion:  { fill: { fgColor: { rgb: 'E6F4EE' } }, font: { bold: true, color: { rgb: '0B3B2E' } } },
-        titulo:   { font: { bold: true, sz: 13, color: { rgb: '0F8F5E' } } },
-        negrita:  { font: { bold: true } }
-      };
-      const nivel = (ok, total) => !total ? null : (ok >= total ? 'verde' : (ok === 0 ? 'rojo' : 'amarillo'));
-      const semaforo = v => v >= META_VERDE ? 'verde' : (v >= META_AMARILLO ? 'amarillo' : 'rojo');
-      const KUDO = '😊 ¡Felicitaciones! Cumplió a tiempo';
-      const pintar = (ws, r, c0, ncol, estilo) => {
-        for (let c = c0; c < c0 + ncol; c++) {
-          const ref = XLSX.utils.encode_cell({ r, c });
-          if (!ws[ref]) ws[ref] = { t: 's', v: '' };
-          ws[ref].s = Object.assign({}, ws[ref].s || {}, estilo);
-        }
-      };
-      const cab = (titulo) => [
-        ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
-        ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'],
-        [titulo],
-        ['Carrera(s): ' + alcanceTxt + ' · Ciclo: ' + (d.ciclo || ciclo) + ' · Emitido el ' + hoy +
-         ' por ' + (d.generadoPor || '')],
-        []
-      ];
-      const hoja = (filas, anchos, filaEnc) => {
-        const ws = XLSX.utils.aoa_to_sheet(filas);
-        ws['!cols'] = anchos.map(w => ({ wch: w }));
-        if (filaEnc != null && filas[filaEnc]) {
-          ws['!autofilter'] = { ref: XLSX.utils.encode_range(
-            { s: { r: filaEnc, c: 0 }, e: { r: filas.length - 1, c: filas[filaEnc].length - 1 } }) };
-        }
-        pintar(ws, 0, 0, 1, ESTILO.titulo); pintar(ws, 2, 0, 1, ESTILO.negrita);
-        if (filaEnc != null) pintar(ws, filaEnc, 0, filas[filaEnc].length, ESTILO.enc);
-        return ws;
-      };
-
-      // ---------------------------------------------- datos por carga --
-      const filasTodas = [];
-      reps.forEach(r => {
-        const exig = F.filter(f => r.fuentes[f] && !r.fuentes[f].error);
-        r._exig = exig;
-        r.detalle.forEach(x => {
-          x._carrera = r.programa; x._exig = exig; x._plazos = r.plazos || {};
-          x._ok = exig.filter(f => cumple(x[f].estado)).length;
-          x._pres = exig.filter(f => cumple(x[f].estado) || x[f].estado === 'Fuera de plazo').length;
-          filasTodas.push(x);
-        });
-      });
-
-      // ------------------------------------------- indicadores (un ámbito) --
-      const indicadores = (filas, sinCoin) => {
-        const o = { cargas: filas.length, exig: 0, ok: 0, fuera: 0, no: 0, porF: {}, retrasos: [] };
-        F.forEach(f => { o.porF[f] = { exig: 0, ok: 0, fuera: 0, no: 0 }; });
-        const porDoc = {};
-        filas.forEach(x => {
-          const dk = x.docente;
-          const pd = porDoc[dk] = porDoc[dk] || { exig: 0, ok: 0, correo: false };
-          if (x.correo) pd.correo = true;
-          x._exig.forEach(f => {
-            const e = x[f].estado, pf = o.porF[f];
-            o.exig++; pf.exig++; pd.exig++;
-            if (cumple(e)) { o.ok++; pf.ok++; pd.ok++; }
-            else if (e === 'Fuera de plazo') {
-              o.fuera++; pf.fuera++;
-              if (x[f].fecha && x._plazos[f]) o.retrasos.push(dias(x[f].fecha, x._plazos[f]));
-            } else { o.no++; pf.no++; }
-          });
-        });
-        const docs = Object.values(porDoc).filter(p => p.exig);
-        o.docentes = docs.length;
-        o.total = docs.filter(p => p.ok >= p.exig).length;
-        o.riesgo = docs.filter(p => p.ok === 0).length;
-        o.sinCorreo = docs.filter(p => !p.correo).length;
-        o.oportuno = pct(o.ok, o.exig);
-        o.presentacion = pct(o.ok + o.fuera, o.exig);
-        o.retrasoProm = o.retrasos.length
-          ? Math.round(o.retrasos.reduce((a, b) => a + b, 0) / o.retrasos.length * 10) / 10 : null;
-        o.retrasoMax = o.retrasos.length ? Math.max.apply(null, o.retrasos) : null;
-        const conF = F.filter(f => o.porF[f].exig);
-        if (conF.length >= 2) {
-          const fA = conF[0], fB = conF[conF.length - 1];
-          const pA = pct(o.porF[fA].ok, o.porF[fA].exig), pB = pct(o.porF[fB].ok, o.porF[fB].exig);
-          o.tendencia = pB - pA;
-          o.tendenciaTxt = (pB > pA ? 'Mejoró' : (pB < pA ? 'Empeoró' : 'Se mantuvo')) +
-            ': de ' + pA + ' % en ' + fA + ' a ' + pB + ' % en ' + fB;
-        } else { o.tendencia = null; o.tendenciaTxt = '—'; }
-        const incumple = docs.map(p => p.exig - p.ok).sort((a, b) => b - a);
-        const totInc = incumple.reduce((a, b) => a + b, 0);
-        const top = Math.max(1, Math.ceil(docs.length * 0.2));
-        o.pareto = totInc ? pct(incumple.slice(0, top).reduce((a, b) => a + b, 0), totInc) : null;
-        o.paretoTxt = totInc
-          ? o.pareto + ' % de lo no cumplido corresponde a ' + top + (top === 1 ? ' docente' : ' docentes') +
-            ' (de ' + docs.length + ')'
-          : 'No hay incumplimientos';
-        o.sinCoincidencia = sinCoin;
-        return o;
-      };
-      const sinCoinDe = r => F.reduce((n, f) => n + ((r.sinCoincidencia || {})[f] || []).length, 0);
-      const ambitos = reps.map(r => ({ nombre: corto(r.programa),
-        ind: indicadores(filasTodas.filter(x => x._carrera === r.programa), sinCoinDe(r)) }));
-      if (reps.length > 1) {
-        ambitos.push({ nombre: 'TOTAL', ind: indicadores(filasTodas, reps.reduce((n, r) => n + sinCoinDe(r), 0)) });
-      }
-
-      // ------------------------------------------ hoja 0: resumen ejecutivo --
-      const ncol = 1 + ambitos.length;
-      const R = cab('Resumen ejecutivo — cumplimiento de los formularios F1, F2 y F3');
-      const marcas = [];     // [fila, columna, estilo] para pintar después
-      const encR = ['Indicador'].concat(ambitos.map(a => a.nombre));
-      const filaSeccion = (t) => { R.push([t]); marcas.push([R.length - 1, 0, ncol, ESTILO.seccion]); };
-      const fn = (v, suf) => v == null ? '—' : String(v).replace('.', ',') + (suf || '');
-      const nyp = (n, t) => n + ' (' + fn(pct(n, t), ' %') + ')';
-
-      filaSeccion('1. Indicadores globales');
-      R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
-      const filaInd = (nombre, f, semaf) => {
-        R.push([nombre].concat(ambitos.map(a => f(a.ind))));
-        if (semaf) ambitos.forEach((a, i) => marcas.push([R.length - 1, i + 1, 1, ESTILO[semaforo(semaf(a.ind))]]));
-      };
-      filaInd('Cursos y grupos revisados', o => o.cargas);
-      filaInd('Formularios que debían presentarse', o => o.exig);
-      filaInd('Formularios presentados A TIEMPO (indicador principal)', o => o.oportuno + ' %', o => o.oportuno);
-      filaInd('Formularios presentados TARDE', o => pct(o.fuera, o.exig) + ' %');
-      filaInd('Formularios NO presentados', o => pct(o.no, o.exig) + ' %');
-      filaInd('Docentes revisados', o => o.docentes);
-      filaInd('Docentes que presentaron TODO a tiempo 😊', o => nyp(o.total, o.docentes));
-      filaInd('Docentes que NO presentaron nada a tiempo', o => nyp(o.riesgo, o.docentes));
-      filaInd('Quienes presentaron tarde, ¿cuántos días se atrasaron en promedio?',
-        o => o.retrasoProm == null ? '—' : Math.round(o.retrasoProm) + (Math.round(o.retrasoProm) === 1 ? ' día' : ' días'));
-      filaInd('Mayor atraso', o => o.retrasoMax == null ? '—' : o.retrasoMax + (o.retrasoMax === 1 ? ' día' : ' días'));
-      filaInd('¿Mejoró o empeoró del primer al último formulario?', o => o.tendenciaTxt);
-      filaInd('¿Lo no cumplido se concentra en pocos docentes?', o => o.paretoTxt);
-      filaInd('Respuestas que no se pudieron asociar a un curso (revisar)', o => o.sinCoincidencia);
-      filaInd('Docentes sin correo registrado', o => o.sinCorreo);
-      R.push([]);
-
-      filaSeccion('2. Resultados por formulario');
-      R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
-      F.forEach(f => {
-        R.push(['Formulario ' + f + ' (total que debía presentarse)'].concat(ambitos.map(a =>
-          a.ind.porF[f].exig ? a.ind.porF[f].exig : 'Sin hoja')));
-        marcas.push([R.length - 1, 0, ncol, ESTILO.negrita]);
-        R.push(['   • Presentado a tiempo'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].ok, a.ind.porF[f].exig) : '—')));
-        ambitos.forEach((a, i) => { if (a.ind.porF[f].exig)
-          marcas.push([R.length - 1, i + 1, 1, ESTILO[semaforo(pct(a.ind.porF[f].ok, a.ind.porF[f].exig))]]); });
-        R.push(['   • Fuera de plazo'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].fuera, a.ind.porF[f].exig) : '—')));
-        R.push(['   • No presentado'].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f].no, a.ind.porF[f].exig) : '—')));
-      });
-      R.push([]);
-
-      // áreas con menor cumplimiento
-      const porArea = {};
-      filasTodas.forEach(x => {
-        const k = x._carrera + '¦' + (x.area || 'Sin área');
-        const a = porArea[k] = porArea[k] || { carrera: corto(x._carrera), area: x.area || 'Sin área',
-                                               coord: x.coordinador || '', exig: 0, ok: 0, cargas: 0 };
-        a.cargas++; a.exig += x._exig.length; a.ok += x._ok;
-      });
-      const areasOrden = Object.values(porArea).filter(a => a.exig)
-        .map(a => Object.assign(a, { p: pct(a.ok, a.exig) })).sort((a, b) => a.p - b.p);
-      filaSeccion('3. Las cinco áreas con menos formularios a tiempo');
-      R.push(['Área', 'Carrera', 'Coordinador del área', 'Cursos y grupos', 'Presentados a tiempo (%)']);
-      marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
-      areasOrden.slice(0, 5).forEach(a => {
-        R.push([a.area, a.carrera, a.coord, a.cargas, a.p + ' %']);
-        marcas.push([R.length - 1, 4, 1, ESTILO[semaforo(a.p)]]);
-      });
-      R.push([]);
-
-      // docentes en riesgo
-      const porDocR = {};
-      filasTodas.forEach(x => {
-        const p = porDocR[x.docente] = porDocR[x.docente] ||
-          { docente: x.docente, carreras: new Set(), exig: 0, ok: 0, cargas: 0 };
-        p.carreras.add(corto(x._carrera)); p.cargas++; p.exig += x._exig.length; p.ok += x._ok;
-      });
-      const enRiesgo = Object.values(porDocR).filter(p => p.exig && p.ok === 0)
-        .sort((a, b) => b.cargas - a.cargas || a.docente.localeCompare(b.docente, 'es'));
-      filaSeccion('4. Docentes que no presentaron ningún formulario a tiempo (conviene contactarlos)');
-      R.push(['Docente', 'Carrera(s)', 'Cursos y grupos', 'Formularios que debía presentar', 'Presentados a tiempo']);
-      marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
-      if (!enRiesgo.length) R.push(['Ningún docente en esta situación. 😊']);
-      enRiesgo.slice(0, 40).forEach(p => {
-        R.push([p.docente, [...p.carreras].join(', '), p.cargas, p.exig, 0]);
-        marcas.push([R.length - 1, 0, 5, ESTILO.rojo]);
-      });
-      if (enRiesgo.length > 40) R.push(['…y ' + (enRiesgo.length - 40) + ' más (ver «Resumen por docente»).']);
-      R.push([]);
-      filaSeccion('Cómo leer este resumen');
-      [
-        'Colores del indicador principal: verde si se presentó a tiempo el ' + META_VERDE + ' % o más; ' +
-          'amarillo entre ' + META_AMARILLO + ' % y ' + (META_VERDE - 1) + ' %; rojo si es menos de ' + META_AMARILLO + ' %.',
-        'Si hay muchos formularios presentados TARDE, el problema es la puntualidad: un recordatorio antes del plazo suele bastar.',
-        'Si hay muchos formularios NO presentados, el problema es más serio: conviene hablar con cada docente.',
-        'Si el atraso promedio es de pocos días, quizá el plazo es muy ajustado. Si son semanas, hay falta de compromiso.',
-        'Si lo no cumplido se concentra en pocos docentes, basta con conversar con ellos. Si está repartido, conviene una acción para todos.',
-        'Las respuestas que no se pudieron asociar a un curso suelen ser nombres de curso o grupos escritos de otra forma: ' +
-          'revíselas en la hoja «Sin coincidencia» antes de concluir que alguien no presentó.'
-      ].forEach(t => R.push([t]));
-      const ws0 = XLSX.utils.aoa_to_sheet(R);
-      ws0['!cols'] = [{ wch: 58 }].concat(ambitos.map(() => ({ wch: 20 })));
-      pintar(ws0, 0, 0, 1, ESTILO.titulo); pintar(ws0, 2, 0, 1, ESTILO.negrita);
-      marcas.forEach(([r, c, n, e]) => pintar(ws0, r, c, n, e));
-
-      // ------------------------------------------ hoja 1: detalle por carga --
-      const enc1 = ['N°', 'Carrera', 'Docente', 'Código', 'Curso', 'Grupo', 'Tipo', 'Semestre', 'Área',
-                    'Coordinador del área']
-        .concat(...F.map(f => [f + ' fecha', f + ' estado']))
-        .concat(['Presentados (a tiempo o tarde)', 'Presentados a tiempo', 'Cumplimiento a tiempo (%)', 'Reconocimiento', 'Nota']);
-      const det = filasTodas.map((x, i) => {
-        const n = x._exig.length;
-        const aprox = F.filter(f => x[f] && x[f].aproximada);
-        const varias = F.filter(f => x[f] && x[f].veces > 1);
-        return [i + 1, corto(x._carrera), x.docente, x.codigo, nombreCurso(x.curso), x.grupo, x.tipos, x.semestre,
-                x.area, x.coordinador]
-          .concat(...F.map(f => [dma(x[f].fecha), x[f].estado]))
-          .concat([x._pres + ' de ' + n, x._ok + ' de ' + n, pct(x._ok, n), n && x._ok >= n ? KUDO : '',
-            [aprox.length ? 'Coincidencia aproximada en ' + aprox.join(', ') + ' (curso o subgrupo escrito distinto)' : '',
-             varias.length ? 'Envió más de una vez ' + varias.join(', ') + ' (se toma la primera fecha)' : '']
-              .filter(Boolean).join('. ')]);
-      });
-      const f1 = cab('Cumplimiento de los formularios F1, F2 y F3 — detalle por carga');
-      const ws1 = hoja(f1.concat([enc1], det),
-        [5, 14, 34, 10, 38, 7, 10, 9, 28, 30, 10, 22, 10, 22, 10, 22, 12, 11, 14, 34, 50], f1.length);
-      filasTodas.forEach((x, i) => {
-        const n = nivel(x._ok, x._exig.length);
-        if (n) pintar(ws1, f1.length + 1 + i, 0, enc1.length, ESTILO[n]);
-      });
-
-      // ------------------------------------------ hoja 2: resumen por docente --
-      const porDoc = {};
-      filasTodas.forEach(x => {
-        const r = porDoc[x.docente] = porDoc[x.docente] ||
-          { carreras: new Set(), cargas: 0, exig: 0, ok: 0, fuera: 0, no: 0 };
-        r.carreras.add(corto(x._carrera)); r.cargas++;
-        x._exig.forEach(f => {
-          r.exig++;
-          if (cumple(x[f].estado)) r.ok++;
-          else if (x[f].estado === 'Fuera de plazo') r.fuera++;
-          else r.no++;
-        });
-      });
-      const enc2 = ['Docente', 'Carrera(s)', 'Cursos y grupos', 'Formularios que debía presentar', 'Presentados a tiempo',
-                    'Presentados tarde', 'No presentados', 'Cumplimiento a tiempo (%)',
-                    'Presentados, a tiempo o tarde (%)', 'Reconocimiento'];
-      const res2 = Object.entries(porDoc).map(([doc, r]) =>
-        [doc, [...r.carreras].join(', '), r.cargas, r.exig, r.ok, r.fuera, r.no, pct(r.ok, r.exig),
-         pct(r.ok + r.fuera, r.exig), r.exig && r.ok >= r.exig ? KUDO + ' todos sus formularios' : ''])
-        .sort((a, b) => a[7] - b[7] || String(a[0]).localeCompare(String(b[0]), 'es'));
-      const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
-      const ws2 = hoja(f2.concat([enc2], res2), [36, 20, 8, 12, 12, 12, 12, 14, 14, 46], f2.length);
-      res2.forEach((r, i) => {
-        const n = nivel(r[4], r[3]);
-        if (n) pintar(ws2, f2.length + 1 + i, 0, enc2.length, ESTILO[n]);
-      });
-
-      // ------------------------------------------ hoja 3: resumen por área --
-      const enc3 = ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Formularios que debían presentarse',
-                    'Presentados a tiempo', 'Cumplimiento a tiempo (%)'];
-      const res3 = areasOrden.map(a => [a.carrera, a.area, a.coord, a.cargas, a.exig, a.ok, a.p]);
-      const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
-      const ws3 = hoja(f3.concat([enc3], res3), [16, 34, 32, 8, 12, 12, 14], f3.length);
-      res3.forEach((r, i) => {
-        const n = nivel(r[5], r[4]);
-        if (n) pintar(ws3, f3.length + 1 + i, 0, enc3.length, ESTILO[n]);
-      });
-
-      // ------------------------------------------ hoja 4: sin coincidencia --
-      const enc4 = ['Carrera', 'Formato', 'Fila en la hoja', 'Docente (como lo escribió)',
-                    'Curso (como lo escribió)', 'Grupo', 'Fecha'];
-      const res4 = [];
-      reps.forEach(r => F.forEach(f => ((r.sinCoincidencia || {})[f] || []).forEach(x =>
-        res4.push([corto(r.programa), f, x.fila, x.docente, x.curso, x.grupo, dma(x.fecha)]))));
-      const f4 = cab('Respuestas de los formularios que no coinciden con ninguna carga del ciclo');
-      const nota4 = [['Revise estas filas antes de dar a alguien por «No presentado»: suelen ser un curso, ' +
-                      'un grupo o un nombre escrito de otra forma, o una carga de otra carrera.'], []];
-      const ws4 = hoja(f4.concat(nota4, [enc4],
-        res4.length ? res4 : [['—', '', '', 'Todas las respuestas coincidieron con una carga', '', '', '']]),
-        [14, 9, 12, 36, 44, 8, 10], f4.length + nota4.length);
-
-      // ------------------------------------------ hoja 5: parámetros --
-      const par = cab('Parámetros y criterios del reporte').concat([['Concepto', 'Valor'], ['Ciclo académico', d.ciclo || ciclo]]);
-      reps.forEach(r => {
-        par.push([]);
-        par.push(['Carrera', r.programa]);
-        F.forEach(f => par.push(['   Plazo ' + f, r.plazos && r.plazos[f] ? dma(r.plazos[f]) : 'No fijado para este ciclo']));
-        F.forEach(f => {
-          const fu = r.fuentes[f] || {};
-          par.push(['   Hoja ' + f, fu.error ? 'No consultada: ' + fu.error
-            : (fu.hoja + ' · ' + fu.filas + ' respuestas · ' + fu.enlace)]);
-        });
-      });
-      par.push([]);
-      [
-        ['Criterios', 'Se evalúa cada carga de la carrera en el ciclo, una por docente, grupo y curso ' +
-          '(teoría y laboratorio del mismo docente y grupo cuentan una vez). Incluye a los docentes de ' +
-          'otros departamentos que dictan cursos de la carrera.'],
-        ['', '«Presentado a tiempo»: se envió el día del plazo o antes. «Fuera de plazo»: se envió después. ' +
-          '«No presentado»: no se encontró el formulario.'],
-        ['', 'Si un formulario se envió más de una vez, se toma la primera fecha.'],
-        ['', 'Si la Escuela no fijó plazo para un formulario, lo presentado se cuenta como cumplido.'],
-        ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar. Formato dd/mm/aa.'],
-        ['Meta del indicador principal (presentados a tiempo)', 'Verde desde ' + META_VERDE + ' %, amarillo desde ' +
-          META_AMARILLO + ' %, rojo por debajo de ' + META_AMARILLO + ' %.'],
-        [],
-        ['Leyenda de colores por docente y carga', '']
-      ].forEach(x => par.push(x));
-      par.push(['Verde', 'Presentó a tiempo todos los formularios exigibles (por ejemplo, 3 de 3). Lleva 😊 de felicitación.']);
-      par.push(['Amarillo', 'Presentó a tiempo una parte (1 de 3 o 2 de 3).']);
-      par.push(['Rojo', 'No presentó a tiempo ninguno (0 de 3).']);
-      const ws5 = hoja(par, [40, 110], 5);
-      const fl = par.length;
-      pintar(ws5, fl - 3, 0, 2, ESTILO.verde);
-      pintar(ws5, fl - 2, 0, 2, ESTILO.amarillo);
-      pintar(ws5, fl - 1, 0, 2, ESTILO.rojo);
-
-      const libro = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
-      XLSX.utils.book_append_sheet(libro, ws1, 'Detalle por carga');
-      XLSX.utils.book_append_sheet(libro, ws2, 'Resumen por docente');
-      XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
-      XLSX.utils.book_append_sheet(libro, ws4, 'Sin coincidencia');
-      XLSX.utils.book_append_sheet(libro, ws5, 'Parámetros');
-      const etiqueta = reps.length === 1 ? corto(reps[0].programa).replace(/\s+/g, '_')
-                     : (reps.length + '_carreras');
-      XLSX.writeFile(libro, 'Cumplimiento_F1-F3_' + etiqueta + '_' + String(d.ciclo || ciclo).replace(/\s+/g, '') + '.xlsx');
+      const libro = armarLibroFormularios(d, XLSX, ciclo);
+      XLSX.writeFile(libro.libro, libro.nombre);
     }).catch(e => { fin(); alert('No se pudo generar el reporte: ' + e.message); });
   }
   window.generarReporteFormularios = generarReporteFormularios;
+
+  // Da forma al Excel. Cada formulario (F1, F2 y F3) va por separado y su
+  // estado se dice con palabras, un símbolo y un color: así se entiende
+  // también impreso en blanco y negro y se puede filtrar por texto.
+  function armarLibroFormularios(d, XLSX, ciclo) {
+    const reps = (d.carreras || [d]).filter(r => r && r.detalle);
+    const F = ['F1', 'F2', 'F3'];
+    const META_VERDE = 90, META_AMARILLO = 70;
+    const pct = (a, b) => b ? Math.round(a / b * 100) : 0;   // sin decimales: más fácil de leer
+    const corto = p => String(p).replace(/^Ingeniería\s+(de\s+)?/i, '');
+    const dma = (iso) => {
+      const m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+      return m ? m[3] + '/' + m[2] + '/' + m[1].slice(2) : (iso || '');
+    };
+    const dias = (a, b) => Math.round((new Date(a + 'T00:00:00') - new Date(b + 'T00:00:00')) / 86400000);
+    const nDias = n => n + (n === 1 ? ' día' : ' días');
+    const dos = n => ('0' + n).slice(-2);
+    const ahora = new Date();
+    const hoy = dos(ahora.getDate()) + '/' + dos(ahora.getMonth() + 1) + '/' + String(ahora.getFullYear()).slice(2);
+    const hora = dos(ahora.getHours()) + ':' + dos(ahora.getMinutes());
+    const nombresCarr = reps.map(r => r.programa);
+    const alcanceTxt = reps.length === 1 ? nombresCarr[0] : nombresCarr.map(corto).join(', ');
+    const soloAreas = d.soloAreas || [];        // reporte limitado a las áreas de un coordinador
+    const es = (a, b) => String(a || '').localeCompare(String(b || ''), 'es', { numeric: true });
+
+    const borde = { style: 'thin', color: { rgb: 'B7C4BD' } };
+    const BORDES = { top: borde, bottom: borde, left: borde, right: borde };
+    const ESTILO = {
+      verde:    { fill: { fgColor: { rgb: 'C6EFCE' } }, font: { color: { rgb: '006100' } } },
+      amarillo: { fill: { fgColor: { rgb: 'FFEB9C' } }, font: { color: { rgb: '7A4D00' } } },
+      naranja:  { fill: { fgColor: { rgb: 'FCD5B4' } }, font: { color: { rgb: '843C0C' } } },
+      rojo:     { fill: { fgColor: { rgb: 'FFC7CE' } }, font: { color: { rgb: '9C0006' } } },
+      gris:     { fill: { fgColor: { rgb: 'EDEDED' } }, font: { color: { rgb: '595959' } } },
+      enc:      { fill: { fgColor: { rgb: '0B3B2E' } }, font: { bold: true, color: { rgb: 'FFFFFF' } },
+                  alignment: { wrapText: true, vertical: 'center', horizontal: 'center' } },
+      seccion:  { fill: { fgColor: { rgb: 'E6F4EE' } }, font: { bold: true, color: { rgb: '0B3B2E' } } },
+      titulo:   { font: { bold: true, sz: 13, color: { rgb: '0F8F5E' } } },
+      negrita:  { font: { bold: true } }
+    };
+    const negr = e => Object.assign({}, e, { font: Object.assign({}, e.font, { bold: true }) });
+
+    // ---- los estados, con palabras ---------------------------------------
+    // Cada formulario de cada curso y grupo queda en uno de estos estados.
+    const EST = {
+      aTiempo:  { txt: '✔ Presentó a tiempo',              color: 'verde',    cumple: true,  presento: true },
+      sinPlazo: { txt: '✔ Presentó (sin plazo fijado)',    color: 'verde',    cumple: true,  presento: true },
+      sinFecha: { txt: '✔ Presentó (sin fecha registrada)', color: 'verde',   cumple: true,  presento: true },
+      tarde:    { txt: '▲ Presentó fuera de plazo',        color: 'amarillo', cumple: false, presento: true },
+      no:       { txt: '✘ No presentó',                    color: 'rojo',     cumple: false, presento: false },
+      sinHoja:  { txt: '— No se consultó (sin hoja)',      color: 'gris',     cumple: false, presento: false }
+    };
+    const claseDe = e => e === 'Presentado a tiempo' ? 'aTiempo'
+      : (e === 'Fuera de plazo' ? 'tarde'
+      : (e === 'No presentado' ? 'no'
+      : (/sin plazo/i.test(e || '') ? 'sinPlazo'
+      : (/sin fecha/i.test(e || '') ? 'sinFecha' : 'sinHoja'))));
+    // La situación de un curso y grupo, o de un docente, sumando sus formularios.
+    const SIT = {
+      completo: { txt: '✔ Completo y a tiempo',           color: 'verde' },
+      tarde:    { txt: '▲ Completo, con atraso',          color: 'amarillo' },
+      falta:    { txt: '✘ Incompleto',                    color: 'naranja' },
+      nada:     { txt: '✘ No presentó ninguno',           color: 'rojo' },
+      sinDatos: { txt: '— Sin hojas que consultar',       color: 'gris' }
+    };
+    const situacionDe = (ok, tarde, no) => !(ok + tarde + no) ? 'sinDatos'
+      : (no === 0 && tarde === 0 ? 'completo' : (no === 0 ? 'tarde' : (ok + tarde > 0 ? 'falta' : 'nada')));
+    // Resumen de UN formulario cuando hay varios cursos (por docente).
+    const resumenF = (ok, tarde, no) => {
+      const n = ok + tarde + no;
+      if (!n) return { txt: '—', color: null };
+      if (no === 0 && tarde === 0) return { txt: EST.aTiempo.txt + (n > 1 ? ' (' + n + ' de ' + n + ')' : ''), color: 'verde' };
+      if (no === 0) return { txt: n > 1 ? '▲ Presentó los ' + n + '; ' + tarde + ' fuera de plazo' : EST.tarde.txt, color: 'amarillo' };
+      if (no === n) return { txt: EST.no.txt + (n > 1 ? ' (0 de ' + n + ')' : ''), color: 'rojo' };
+      return { txt: '✘ Falta ' + no + ' de ' + n, color: 'naranja' };
+    };
+    const semaforo = v => v >= META_VERDE ? 'verde' : (v >= META_AMARILLO ? 'amarillo' : 'rojo');
+
+    // ---- utilidades de hoja ----------------------------------------------
+    const pintar = (ws, r, c0, ncol, estilo) => {
+      for (let c = c0; c < c0 + ncol; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = Object.assign({}, ws[ref].s || {}, estilo);
+      }
+    };
+    // Bordes y texto ajustado en una tabla (cabecera incluida).
+    const cuadricula = (ws, r0, r1, ncol) => {
+      for (let r = r0; r <= r1; r++) {
+        for (let c = 0; c < ncol; c++) {
+          const ref = XLSX.utils.encode_cell({ r, c });
+          if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+          const s = ws[ref].s = Object.assign({}, ws[ref].s || {});
+          s.border = BORDES;
+          if (r > r0) s.alignment = Object.assign({ vertical: 'top', wrapText: true }, s.alignment || {});
+        }
+      }
+    };
+    const cab = (titulo) => [
+      ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+      ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'],
+      [titulo],
+      ['Carrera(s): ' + alcanceTxt + (soloAreas.length ? ' · Área(s): ' + soloAreas.join(', ') : '') +
+       ' · Ciclo: ' + (d.ciclo || ciclo) + ' · Corte de consulta: ' + hoy + ' a las ' + hora +
+       ' · Emitido por ' + (d.generadoPor || '')],
+      []
+    ];
+    // Hoja con una sola tabla al final: cabecera institucional, notas y tabla.
+    const hoja = (filas, anchos, filaEnc) => {
+      const ws = XLSX.utils.aoa_to_sheet(filas);
+      ws['!cols'] = anchos.map(w => ({ wch: w }));
+      pintar(ws, 0, 0, 1, ESTILO.titulo); pintar(ws, 2, 0, 1, ESTILO.negrita);
+      if (filaEnc != null && filas[filaEnc]) {
+        const ncol = filas[filaEnc].length;
+        ws['!autofilter'] = { ref: XLSX.utils.encode_range(
+          { s: { r: filaEnc, c: 0 }, e: { r: filas.length - 1, c: ncol - 1 } }) };
+        cuadricula(ws, filaEnc, filas.length - 1, ncol);
+        pintar(ws, filaEnc, 0, ncol, ESTILO.enc);
+        ws['!rows'] = []; ws['!rows'][filaEnc] = { hpt: 32 };
+      }
+      return ws;
+    };
+
+    // ---------------------------------------------- datos por curso y grupo --
+    const filasTodas = [];
+    reps.forEach(r => {
+      const exig = F.filter(f => r.fuentes[f] && !r.fuentes[f].error);
+      r._exig = exig;
+      r.detalle.forEach(x => {
+        x._carrera = r.programa; x._exig = exig; x._plazos = r.plazos || {};
+        x._area = x.area || 'Sin área';
+        x._cl = {}; x._atraso = {};
+        x._ok = 0; x._tarde = 0; x._no = 0;
+        const falta = [], tardes = [];
+        F.forEach(f => {
+          const cl = exig.indexOf(f) < 0 ? 'sinHoja' : claseDe((x[f] || {}).estado);
+          x._cl[f] = cl;
+          if (exig.indexOf(f) < 0) return;
+          if (EST[cl].cumple) x._ok++;
+          else if (cl === 'tarde') {
+            x._tarde++;
+            if (x[f].fecha && x._plazos[f]) x._atraso[f] = dias(x[f].fecha, x._plazos[f]);
+            tardes.push(f + ' llegó ' + (x._atraso[f] != null ? nDias(x._atraso[f]) + ' después del plazo' : 'fuera de plazo') +
+              (x[f].fecha ? ' (' + dma(x[f].fecha) + ')' : ''));
+          } else { x._no++; falta.push(f); }
+        });
+        x._pres = x._ok + x._tarde;
+        x._falta = falta;
+        x._sit = situacionDe(x._ok, x._tarde, x._no);
+        x._sitTxt = x._sit === 'falta' ? SIT.falta.txt + ': falta ' + falta.join(' y ') : SIT[x._sit].txt;
+        x._queFalta = [falta.length ? 'Falta presentar ' + falta.join(', ').replace(/, ([^,]+)$/, ' y $1') : '']
+          .concat(tardes).filter(Boolean).join('. ');
+        if (x._queFalta) x._queFalta += '.';
+        filasTodas.push(x);
+      });
+    });
+    filasTodas.sort((a, b) => es(a._carrera, b._carrera) || es(a._area, b._area) ||
+      es(nombreCurso(a.curso), nombreCurso(b.curso)) || es(a.grupo, b.grupo) || es(a.docente, b.docente));
+
+    // ------------------------------------------------ resumen por docente --
+    const porDoc = {};
+    filasTodas.forEach(x => {
+      const p = porDoc[x.docente] = porDoc[x.docente] || { docente: x.docente, carreras: new Set(), areas: new Set(),
+        cargas: 0, exig: 0, ok: 0, tarde: 0, no: 0, correo: false, f: {}, falta: {} };
+      p.carreras.add(corto(x._carrera)); p.areas.add(x._area); p.cargas++;
+      if (x.correo) p.correo = true;
+      x._exig.forEach(f => {
+        const q = p.f[f] = p.f[f] || { ok: 0, tarde: 0, no: 0 };
+        p.exig++;
+        if (EST[x._cl[f]].cumple) { p.ok++; q.ok++; }
+        else if (x._cl[f] === 'tarde') { p.tarde++; q.tarde++; }
+        else {
+          p.no++; q.no++;
+          (p.falta[f] = p.falta[f] || []).push(nombreCurso(x.curso) + ' (grupo ' + x.grupo + ')');
+        }
+      });
+    });
+    const docentes = Object.values(porDoc).filter(p => p.exig);
+    docentes.forEach(p => {
+      p.sit = situacionDe(p.ok, p.tarde, p.no);
+      p.queFalta = F.filter(f => p.falta[f]).map(f => f + ': ' + p.falta[f].join('; ')).join('. ');
+    });
+    const ORDEN_SIT = { nada: 0, falta: 1, tarde: 2, completo: 3, sinDatos: 4 };
+
+    // --------------------------------------------------- resumen por área --
+    const porArea = {};
+    filasTodas.forEach(x => {
+      const k = x._carrera + '¦' + x._area;
+      const a = porArea[k] = porArea[k] || { carrera: corto(x._carrera), area: x._area, coord: x.coordinador || '',
+        cargas: 0, completas: 0, conPend: 0, exig: 0, ok: 0, tarde: 0, no: 0, docs: new Set(), f: {} };
+      a.cargas++; a.docs.add(x.docente);
+      if (x._sit === 'completo') a.completas++;
+      if (x._no > 0) a.conPend++;
+      x._exig.forEach(f => {
+        const q = a.f[f] = a.f[f] || { ok: 0, tarde: 0, no: 0 };
+        a.exig++;
+        if (EST[x._cl[f]].cumple) { a.ok++; q.ok++; }
+        else if (x._cl[f] === 'tarde') { a.tarde++; q.tarde++; }
+        else { a.no++; q.no++; }
+      });
+    });
+    const areasOrden = Object.values(porArea).filter(a => a.exig)
+      .map(a => Object.assign(a, { p: pct(a.ok, a.exig), pp: pct(a.ok + a.tarde, a.exig) }))
+      .sort((a, b) => a.p - b.p || es(a.area, b.area));
+
+    // ------------------------------------------- indicadores (un ámbito) --
+    const indicadores = (filas, sinCoin) => {
+      const o = { cargas: filas.length, exig: 0, ok: 0, fuera: 0, no: 0, porF: {}, retrasos: [] };
+      F.forEach(f => { o.porF[f] = { exig: 0, ok: 0, fuera: 0, no: 0 }; });
+      const pd = {};
+      filas.forEach(x => {
+        const p = pd[x.docente] = pd[x.docente] || { exig: 0, ok: 0, tarde: 0, no: 0, correo: false };
+        if (x.correo) p.correo = true;
+        x._exig.forEach(f => {
+          const cl = x._cl[f], pf = o.porF[f];
+          o.exig++; pf.exig++; p.exig++;
+          if (EST[cl].cumple) { o.ok++; pf.ok++; p.ok++; }
+          else if (cl === 'tarde') {
+            o.fuera++; pf.fuera++; p.tarde++;
+            if (x._atraso[f] != null) o.retrasos.push(x._atraso[f]);
+          } else { o.no++; pf.no++; p.no++; }
+        });
+      });
+      const docs = Object.values(pd).filter(p => p.exig);
+      o.docentes = docs.length;
+      o.sit = { completo: 0, tarde: 0, falta: 0, nada: 0, sinDatos: 0 };
+      docs.forEach(p => { o.sit[situacionDe(p.ok, p.tarde, p.no)]++; });
+      o.sinCorreo = docs.filter(p => !p.correo).length;
+      o.completas = filas.filter(x => x._sit === 'completo').length;
+      o.conPend = filas.filter(x => x._no > 0).length;
+      o.oportuno = pct(o.ok, o.exig);
+      o.retrasoProm = o.retrasos.length
+        ? Math.round(o.retrasos.reduce((a, b) => a + b, 0) / o.retrasos.length) : null;
+      o.retrasoMax = o.retrasos.length ? Math.max.apply(null, o.retrasos) : null;
+      const conF = F.filter(f => o.porF[f].exig);
+      if (conF.length >= 2) {
+        const fA = conF[0], fB = conF[conF.length - 1];
+        const pA = pct(o.porF[fA].ok, o.porF[fA].exig), pB = pct(o.porF[fB].ok, o.porF[fB].exig);
+        o.tendenciaTxt = (pB > pA ? 'Mejoró' : (pB < pA ? 'Empeoró' : 'Se mantuvo')) +
+          ': de ' + pA + ' % en ' + fA + ' a ' + pB + ' % en ' + fB;
+      } else { o.tendenciaTxt = '—'; }
+      const incumple = docs.map(p => p.exig - p.ok).sort((a, b) => b - a);
+      const totInc = incumple.reduce((a, b) => a + b, 0);
+      const top = Math.max(1, Math.ceil(docs.length * 0.2));
+      o.paretoTxt = totInc
+        ? pct(incumple.slice(0, top).reduce((a, b) => a + b, 0), totInc) +
+          ' % de lo no cumplido corresponde a ' + top + (top === 1 ? ' docente' : ' docentes') +
+          ' (de ' + docs.length + ')'
+        : 'No hay incumplimientos';
+      o.sinCoincidencia = sinCoin;
+      return o;
+    };
+    const sinCoinDe = r => F.reduce((n, f) => n + ((r.sinCoincidencia || {})[f] || []).length, 0);
+    const ambitos = reps.map(r => ({ nombre: corto(r.programa),
+      ind: indicadores(filasTodas.filter(x => x._carrera === r.programa), sinCoinDe(r)) }));
+    if (reps.length > 1) {
+      ambitos.push({ nombre: 'TOTAL', ind: indicadores(filasTodas, reps.reduce((n, r) => n + sinCoinDe(r), 0)) });
+    }
+    const total = ambitos[ambitos.length - 1].ind;
+
+    // ------------------------------------------ hoja 0: resumen ejecutivo --
+    const ncol = 1 + ambitos.length;
+    const R = cab('Resumen ejecutivo — cumplimiento de los formularios F1, F2 y F3');
+    const marcas = [];     // [fila, columna, cuántas, estilo] para pintar después
+    const tablas = [];     // [fila inicial, fila final, columnas] para la cuadrícula
+    const encR = ['Indicador'].concat(ambitos.map(a => a.nombre));
+    const filaSeccion = (t) => { R.push([t]); marcas.push([R.length - 1, 0, Math.max(ncol, 8), ESTILO.seccion]); };
+    const nyp = (n, t) => n + ' (' + pct(n, t) + ' %)';
+
+    filaSeccion('1. Indicadores globales');
+    let t0 = R.length;
+    R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
+    const filaInd = (nombre, f, color) => {
+      R.push([nombre].concat(ambitos.map(a => f(a.ind))));
+      if (color) ambitos.forEach((a, i) => {
+        const c = color(a.ind); if (c) marcas.push([R.length - 1, i + 1, 1, ESTILO[c]]);
+      });
+    };
+    filaInd('Cursos y grupos revisados', o => o.cargas);
+    filaInd('   • Con todos sus formularios presentados a tiempo', o => nyp(o.completas, o.cargas));
+    filaInd('   • Con algún formulario pendiente (no presentado)', o => nyp(o.conPend, o.cargas),
+      o => o.conPend ? 'rojo' : null);
+    filaInd('Formularios que debían presentarse', o => o.exig);
+    filaInd('Formularios presentados A TIEMPO (indicador principal)', o => o.oportuno + ' %', o => semaforo(o.oportuno));
+    filaInd('Formularios presentados FUERA DE PLAZO', o => nyp(o.fuera, o.exig));
+    filaInd('Formularios NO presentados', o => nyp(o.no, o.exig));
+    filaInd('Docentes revisados', o => o.docentes);
+    filaInd('   • ' + SIT.completo.txt + ' 😊', o => nyp(o.sit.completo, o.docentes), o => o.sit.completo ? 'verde' : null);
+    filaInd('   • ' + SIT.tarde.txt + ' (presentó todo, alguno tarde)', o => nyp(o.sit.tarde, o.docentes), o => o.sit.tarde ? 'amarillo' : null);
+    filaInd('   • ' + SIT.falta.txt + ' (le falta al menos uno)', o => nyp(o.sit.falta, o.docentes), o => o.sit.falta ? 'naranja' : null);
+    filaInd('   • ' + SIT.nada.txt, o => nyp(o.sit.nada, o.docentes), o => o.sit.nada ? 'rojo' : null);
+    filaInd('Quienes presentaron tarde, ¿cuántos días se atrasaron en promedio?',
+      o => o.retrasoProm == null ? '—' : nDias(o.retrasoProm));
+    filaInd('Mayor atraso', o => o.retrasoMax == null ? '—' : nDias(o.retrasoMax));
+    filaInd('¿Mejoró o empeoró del primer al último formulario?', o => o.tendenciaTxt);
+    filaInd('¿Lo no cumplido se concentra en pocos docentes?', o => o.paretoTxt);
+    filaInd('Respuestas que no se pudieron asociar a un curso (revisar)', o => o.sinCoincidencia);
+    filaInd('Docentes sin correo registrado', o => o.sinCorreo);
+    tablas.push([t0, R.length - 1, ncol]);
+    R.push([]);
+
+    filaSeccion('2. Resultados por formulario');
+    t0 = R.length;
+    R.push(encR); marcas.push([R.length - 1, 0, ncol, ESTILO.enc]);
+    F.forEach(f => {
+      R.push(['Formulario ' + f + ' (total que debía presentarse)'].concat(ambitos.map(a =>
+        a.ind.porF[f].exig ? a.ind.porF[f].exig : 'Sin hoja')));
+      marcas.push([R.length - 1, 0, ncol, ESTILO.negrita]);
+      [['ok', EST.aTiempo.txt, 'verde'], ['fuera', EST.tarde.txt, 'amarillo'], ['no', EST.no.txt, 'rojo']].forEach(([k, t, c]) => {
+        R.push(['   ' + t].concat(ambitos.map(a => a.ind.porF[f].exig ? nyp(a.ind.porF[f][k], a.ind.porF[f].exig) : '—')));
+        ambitos.forEach((a, i) => {
+          if (a.ind.porF[f].exig && (k === 'ok' || a.ind.porF[f][k] > 0)) marcas.push([R.length - 1, i + 1, 1, ESTILO[c]]);
+        });
+      });
+    });
+    tablas.push([t0, R.length - 1, ncol]);
+    R.push([]);
+
+    filaSeccion('3. Resultados por área: qué formulario falta en cada una');
+    t0 = R.length;
+    R.push(['Área', 'Carrera', 'Coordinador del área', 'Cursos y grupos', 'F1 no presentados', 'F2 no presentados',
+            'F3 no presentados', 'Presentados a tiempo (%)']);
+    marcas.push([R.length - 1, 0, 8, ESTILO.enc]);
+    areasOrden.forEach(a => {
+      R.push([a.area, a.carrera, a.coord, a.cargas].concat(F.map(f => a.f[f] ? a.f[f].no : '—'), [a.p + ' %']));
+      F.forEach((f, i) => { if (a.f[f] && a.f[f].no > 0) marcas.push([R.length - 1, 4 + i, 1, ESTILO.rojo]); });
+      marcas.push([R.length - 1, 7, 1, ESTILO[semaforo(a.p)]]);
+    });
+    tablas.push([t0, R.length - 1, 8]);
+    R.push([]);
+
+    const sinNada = docentes.filter(p => p.sit === 'nada')
+      .sort((a, b) => b.cargas - a.cargas || es(a.docente, b.docente));
+    filaSeccion('4. Docentes que no presentaron ninguno de sus formularios (conviene contactarlos)');
+    t0 = R.length;
+    R.push(['Docente', 'Área(s)', 'Carrera(s)', 'Cursos y grupos', 'Formularios que debía presentar']);
+    marcas.push([R.length - 1, 0, 5, ESTILO.enc]);
+    if (!sinNada.length) R.push(['Ningún docente en esta situación. 😊']);
+    sinNada.slice(0, 40).forEach(p => {
+      R.push([p.docente, [...p.areas].join(', '), [...p.carreras].join(', '), p.cargas, p.exig]);
+      marcas.push([R.length - 1, 0, 1, ESTILO.rojo]);
+    });
+    tablas.push([t0, R.length - 1, 5]);
+    if (sinNada.length > 40) R.push(['…y ' + (sinNada.length - 40) + ' más (ver «Resumen por docente»).']);
+    R.push([]);
+    filaSeccion('Cómo leer este resumen');
+    [
+      'Cada estado se dice con palabras, un símbolo y un color: ✔ verde = presentó a tiempo; ▲ amarillo = presentó ' +
+        'fuera de plazo; ✘ rojo = no presentó. La lista completa está en la hoja «Parámetros».',
+      'Indicador principal: verde si se presentó a tiempo el ' + META_VERDE + ' % o más; ' +
+        'amarillo entre ' + META_AMARILLO + ' % y ' + (META_VERDE - 1) + ' %; rojo si es menos de ' + META_AMARILLO + ' %.',
+      'La hoja «Pendientes» lista, por área, los cursos y grupos a los que les falta algún formulario y dice cuál (F1, F2 o F3).',
+      'Si hay muchos formularios presentados FUERA DE PLAZO, el problema es la puntualidad: un recordatorio antes del plazo suele bastar.',
+      'Si hay muchos formularios NO presentados, el problema es más serio: conviene hablar con cada docente.',
+      'Las respuestas que no se pudieron asociar a un curso suelen ser nombres de curso o grupos escritos de otra forma: ' +
+        'revíselas en la hoja «Sin coincidencia» antes de concluir que alguien no presentó.'
+    ].forEach(t => R.push([t]));
+    const ws0 = XLSX.utils.aoa_to_sheet(R);
+    ws0['!cols'] = [{ wch: 60 }, { wch: 24 }, { wch: 32 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
+      .concat(ambitos.slice(7).map(() => ({ wch: 18 })));
+    tablas.forEach(([a, b, n]) => cuadricula(ws0, a, b, n));
+    pintar(ws0, 0, 0, 1, ESTILO.titulo); pintar(ws0, 2, 0, 1, ESTILO.negrita);
+    marcas.forEach(([r, c, n, e]) => pintar(ws0, r, c, n, e));
+
+    // -------------------------- hoja 1: pendientes (por área y formulario) --
+    // Lo que el coordinador de área presenta a su Escuela: qué curso y grupo
+    // debe qué formulario.
+    const pend = filasTodas.filter(x => x._no > 0);
+    const areasPend = [...new Set(filasTodas.map(x => x._area))];
+    const tituloPend = areasPend.length === 1
+      ? (/^[áa]rea/i.test(areasPend[0]) ? '' : 'Área de ') + areasPend[0] + ' — formularios pendientes F1, F2 y F3'
+      : 'Formularios pendientes F1, F2 y F3 — por área';
+    const conTodo = filasTodas.filter(x => x._no === 0 && x._exig.length).length;
+    const fP = cab(tituloPend).concat([
+      [filasTodas.length + ' cursos y grupos revisados; ' + conTodo + ' con todos sus formularios presentados. ' +
+       (pend.length ? 'Se muestran los ' + pend.length + ' restantes.' : 'No hay pendientes. 😊')],
+      ['Pendientes por formulario — ' + F.map(f => f + ': ' + (total.porF[f].exig ? total.porF[f].no : 'sin hoja')).join(' · ') +
+       '. Fuera de plazo — ' + F.map(f => f + ': ' + (total.porF[f].exig ? total.porF[f].fuera : '—')).join(' · ') + '.'],
+      ['«No presentó» quiere decir que no se encontró el formulario de ese curso, grupo y docente en la hoja de respuestas. ' +
+       'Antes de reclamarlo, revise la hoja «Sin coincidencia».'],
+      []
+    ]);
+    const encP = ['Carrera', 'Área', 'Código', 'Currícula', 'Curso', 'Grupo', 'Docente', 'F1', 'F2', 'F3', 'Qué falta'];
+    const detP = pend.map(x => [corto(x._carrera), x._area, x.codigo, x.plan || '', nombreCurso(x.curso), x.grupo, x.docente]
+      .concat(F.map(f => EST[x._cl[f]].txt), [x._queFalta]));
+    const wsP = hoja(fP.concat([encP], detP.length ? detP
+      : [['—', '', '', '', 'Ningún curso y grupo tiene formularios pendientes', '', '', '', '', '', '']]),
+      [13, 26, 10, 10, 38, 7, 34, 25, 25, 25, 58], fP.length);
+    pintar(wsP, 5, 0, 1, ESTILO.negrita); pintar(wsP, 6, 0, 1, ESTILO.negrita);
+    pend.forEach((x, i) => F.forEach((f, j) =>
+      pintar(wsP, fP.length + 1 + i, 7 + j, 1, x._cl[f] === 'no' ? negr(ESTILO.rojo) : ESTILO[EST[x._cl[f]].color])));
+
+    // --------------------------------- hoja 2: detalle por curso y grupo --
+    const enc1 = ['N°', 'Carrera', 'Área', 'Coordinador del área', 'Docente', 'Código', 'Currícula', 'Curso', 'Grupo',
+                  'Tipo', 'Semestre']
+      .concat(...F.map(f => [f + ' estado', f + ' fecha']))
+      .concat(['Situación', 'Qué falta', 'Presentados (a tiempo o tarde)', 'Presentados a tiempo', 'Nota']);
+    const det = filasTodas.map((x, i) => {
+      const n = x._exig.length;
+      const aprox = F.filter(f => x[f] && x[f].aproximada);
+      const varias = F.filter(f => x[f] && x[f].veces > 1);
+      return [i + 1, corto(x._carrera), x._area, x.coordinador || '', x.docente, x.codigo, x.plan || '',
+              nombreCurso(x.curso), x.grupo, x.tipos, x.semestre]
+        .concat(...F.map(f => [EST[x._cl[f]].txt, dma((x[f] || {}).fecha)]))
+        .concat([x._sitTxt, x._queFalta, x._pres + ' de ' + n, x._ok + ' de ' + n,
+          [aprox.length ? 'Coincidencia aproximada en ' + aprox.join(', ') + ' (curso o subgrupo escrito distinto)' : '',
+           varias.length ? 'Envió más de una vez ' + varias.join(', ') + ' (se toma la primera fecha)' : '']
+            .filter(Boolean).join('. ')]);
+    });
+    const f1 = cab('Cumplimiento de los formularios F1, F2 y F3 — detalle por curso y grupo');
+    const ws1 = hoja(f1.concat([enc1], det),
+      [5, 13, 26, 30, 34, 10, 10, 38, 7, 10, 9, 25, 10, 25, 10, 25, 10, 30, 50, 12, 12, 46], f1.length);
+    filasTodas.forEach((x, i) => {
+      const r = f1.length + 1 + i;
+      F.forEach((f, j) => pintar(ws1, r, 11 + j * 2, 2, ESTILO[EST[x._cl[f]].color]));
+      pintar(ws1, r, 17, 1, negr(ESTILO[SIT[x._sit].color]));
+    });
+
+    // ------------------------------------------ hoja 3: resumen por docente --
+    const enc2 = ['Docente', 'Área(s)', 'Carrera(s)', 'Cursos y grupos', 'F1', 'F2', 'F3', 'Situación', 'Qué le falta',
+                  'Formularios que debía presentar', 'A tiempo', 'Fuera de plazo', 'No presentó',
+                  'Cumplimiento a tiempo (%)', 'Reconocimiento'];
+    const docsOrden = docentes.slice().sort((a, b) => ORDEN_SIT[a.sit] - ORDEN_SIT[b.sit] || es(a.docente, b.docente));
+    const res2 = docsOrden.map(p => {
+      const rf = F.map(f => p.f[f] ? resumenF(p.f[f].ok, p.f[f].tarde, p.f[f].no) : { txt: '— Sin hoja', color: 'gris' });
+      p._rf = rf;
+      return [p.docente, [...p.areas].join(', '), [...p.carreras].join(', '), p.cargas]
+        .concat(rf.map(x => x.txt),
+          [SIT[p.sit].txt, p.queFalta, p.exig, p.ok, p.tarde, p.no, pct(p.ok, p.exig),
+           p.sit === 'completo' ? '😊 ¡Felicitaciones! Presentó a tiempo todos sus formularios' : '']);
+    });
+    const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
+    const ws2 = hoja(f2.concat([enc2], res2), [36, 28, 18, 9, 30, 30, 30, 26, 60, 12, 10, 10, 10, 14, 50], f2.length);
+    docsOrden.forEach((p, i) => {
+      const r = f2.length + 1 + i;
+      p._rf.forEach((x, j) => { if (x.color) pintar(ws2, r, 4 + j, 1, ESTILO[x.color]); });
+      pintar(ws2, r, 7, 1, negr(ESTILO[SIT[p.sit].color]));
+    });
+
+    // ------------------------------------------ hoja 4: resumen por área --
+    const enc3 = ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Docentes',
+                  'Cursos y grupos completos y a tiempo', 'Cursos y grupos con pendientes']
+      .concat(...F.map(f => [f + ' a tiempo', f + ' fuera de plazo', f + ' no presentó']))
+      .concat(['Presentados a tiempo (%)', 'Presentados, a tiempo o tarde (%)']);
+    const areasAlfa = areasOrden.slice().sort((a, b) => es(a.carrera, b.carrera) || es(a.area, b.area));
+    const res3 = areasAlfa.map(a => [a.carrera, a.area, a.coord, a.cargas, a.docs.size, a.completas, a.conPend]
+      .concat(...F.map(f => a.f[f] ? [a.f[f].ok, a.f[f].tarde, a.f[f].no] : ['—', '—', '—']))
+      .concat([a.p, a.pp]));
+    const f3 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por área');
+    const ws3 = hoja(f3.concat([enc3], res3),
+      [13, 30, 32, 9, 9, 13, 13, 9, 9, 10, 9, 9, 10, 9, 9, 10, 13, 13], f3.length);
+    ws3['!rows'][f3.length] = { hpt: 46 };
+    areasAlfa.forEach((a, i) => {
+      const r = f3.length + 1 + i;
+      F.forEach((f, j) => {
+        if (!a.f[f]) return;
+        if (a.f[f].tarde > 0) pintar(ws3, r, 8 + j * 3, 1, ESTILO.amarillo);
+        if (a.f[f].no > 0) pintar(ws3, r, 9 + j * 3, 1, ESTILO.rojo);
+      });
+      if (a.conPend > 0) pintar(ws3, r, 6, 1, ESTILO.rojo);
+      pintar(ws3, r, 16, 1, ESTILO[semaforo(a.p)]);
+    });
+
+    // --------------------------------------------- hoja 5: evidencia --
+    // Un renglón por curso, grupo y formulario: dónde está la respuesta que
+    // sustenta el estado. Es el respaldo ante una consulta o una auditoría.
+    const encE = ['Carrera', 'Área', 'Código', 'Curso', 'Grupo', 'Currícula', 'Docente', 'Formulario', 'Estado',
+                  'Fecha de envío', 'Plazo', 'Días de atraso', 'Fila(s) en la hoja de respuestas', 'Veces enviado',
+                  'Criterio aplicado'];
+    const resE = [], clE = [];
+    filasTodas.forEach(x => x._exig.forEach(f => {
+      const v = x[f] || {}, cl = x._cl[f];
+      resE.push([corto(x._carrera), x._area, x.codigo, nombreCurso(x.curso), x.grupo, x.plan || '', x.docente, f,
+        EST[cl].txt, dma(v.fecha), x._plazos[f] ? dma(x._plazos[f]) : 'No fijado',
+        x._atraso[f] != null ? x._atraso[f] : '', (v.filas || []).length ? v.filas.join(', ') : '—',
+        v.veces || 0,
+        cl === 'no' ? 'Sin respuesta identificada para ese curso, grupo y docente'
+          : (v.aproximada ? 'Coincidencia aproximada: mismo docente y grupo, con el curso o el subgrupo escrito distinto (conviene confirmar)'
+          : 'Coinciden curso, grupo y docente') +
+            (v.veces > 1 ? '. Envió ' + v.veces + ' veces; se toma la primera fecha' : '')]);
+      clE.push(cl);
+    }));
+    const fE = cab('Evidencia — en qué fila de la hoja de respuestas está cada formulario');
+    const notaE = [['Criterio: se verifica que exista el formulario y la fecha en que se envió. No se califica su contenido. ' +
+                    'El número de fila es el de la hoja de respuestas de Google Forms indicada en «Parámetros».'], []];
+    const wsE = hoja(fE.concat(notaE, [encE], resE), [13, 26, 10, 38, 7, 10, 34, 11, 26, 11, 11, 9, 16, 9, 62],
+      fE.length + notaE.length);
+    clE.forEach((cl, i) => pintar(wsE, fE.length + notaE.length + 1 + i, 8, 1, ESTILO[EST[cl].color]));
+
+    // ------------------------------------------ hoja 6: sin coincidencia --
+    const enc4 = ['Carrera', 'Formulario', 'Fila en la hoja', 'Docente (como lo escribió)',
+                  'Curso (como lo escribió)', 'Grupo', 'Fecha'];
+    const res4 = [];
+    reps.forEach(r => F.forEach(f => ((r.sinCoincidencia || {})[f] || []).forEach(x =>
+      res4.push([corto(r.programa), f, x.fila, x.docente, x.curso, x.grupo, dma(x.fecha)]))));
+    const f4 = cab('Respuestas de los formularios que no coinciden con ninguna carga del ciclo');
+    const nota4 = [['Revise estas filas antes de dar a alguien por «No presentó»: suelen ser un curso, ' +
+                    'un grupo o un nombre escrito de otra forma, o una carga de otra carrera.' +
+                    (soloAreas.length ? ' Se listan las de toda la carrera: pueden ser de otra área.' : '')], []];
+    const ws4 = hoja(f4.concat(nota4, [enc4],
+      res4.length ? res4 : [['—', '', '', 'Todas las respuestas coincidieron con una carga', '', '', '']]),
+      [14, 11, 12, 36, 44, 8, 10], f4.length + nota4.length);
+
+    // ------------------------------------------ hoja 7: parámetros --
+    const par = cab('Parámetros y criterios del reporte').concat([['Concepto', 'Valor'], ['Ciclo académico', d.ciclo || ciclo]]);
+    if (soloAreas.length) par.push(['Alcance', 'Solo las áreas que coordina quien emite el reporte: ' + soloAreas.join(', ')]);
+    reps.forEach(r => {
+      par.push([]);
+      par.push(['Carrera', r.programa]);
+      F.forEach(f => par.push(['   Plazo ' + f, r.plazos && r.plazos[f] ? dma(r.plazos[f]) : 'No fijado para este ciclo']));
+      F.forEach(f => {
+        const fu = r.fuentes[f] || {};
+        par.push(['   Hoja ' + f, fu.error ? 'No consultada: ' + fu.error
+          : (fu.hoja + ' · ' + fu.filas + ' respuestas' +
+             (fu.ultimoEnvio ? ' · último envío: ' + dma(fu.ultimoEnvio) : '') + ' · ' + fu.enlace)]);
+      });
+    });
+    par.push([]);
+    [
+      ['Criterios', 'Se evalúa cada carga de la carrera en el ciclo, una por docente, grupo y curso ' +
+        '(teoría y laboratorio del mismo docente y grupo cuentan una vez). Incluye a los docentes de ' +
+        'otros departamentos que dictan cursos de la carrera.'],
+      ['', 'Se verifica que el formulario exista y cuándo se envió. No se califica su contenido.'],
+      ['', 'Si un formulario se envió más de una vez, se toma la primera fecha.'],
+      ['', 'Si la Escuela no fijó plazo para un formulario, lo presentado se cuenta como cumplido.'],
+      ['', 'La fecha es la «Marca temporal» que registra Google Forms al enviar. Formato dd/mm/aa.'],
+      ['Meta del indicador principal (presentados a tiempo)', 'Verde desde ' + META_VERDE + ' %, amarillo desde ' +
+        META_AMARILLO + ' %, rojo por debajo de ' + META_AMARILLO + ' %.'],
+      [],
+      ['Estados de cada formulario (F1, F2 y F3)', 'Qué significa']
+    ].forEach(x => par.push(x));
+    const leyenda = [];   // [fila, estilo]
+    const filaLey = (t, que, color) => { par.push([t, que]); leyenda.push([par.length - 1, ESTILO[color]]); };
+    const filaTitLey = par.length - 1;
+    filaLey(EST.aTiempo.txt, 'Se envió el día del plazo o antes.', 'verde');
+    filaLey(EST.sinPlazo.txt, 'Se envió, y la Escuela no fijó plazo para ese formulario. Cuenta como cumplido.', 'verde');
+    filaLey(EST.tarde.txt, 'Se envió después del plazo. En «Qué falta» se indica cuántos días después.', 'amarillo');
+    filaLey(EST.no.txt, 'No se encontró el formulario de ese curso, grupo y docente en la hoja de respuestas.', 'rojo');
+    filaLey(EST.sinHoja.txt, 'La carrera no tiene registrada la hoja de ese formulario; no se evalúa.', 'gris');
+    par.push([]);
+    par.push(['Situación del curso y grupo, y del docente', 'Qué significa']);
+    const filaTitSit = par.length - 1;
+    filaLey(SIT.completo.txt, 'Presentó a tiempo todos los formularios que le correspondían. Lleva 😊 de felicitación.', 'verde');
+    filaLey(SIT.tarde.txt, 'Presentó todos, pero al menos uno después del plazo.', 'amarillo');
+    filaLey(SIT.falta.txt, 'Presentó alguno, pero le falta al menos uno. Se indica cuál (F1, F2 o F3).', 'naranja');
+    filaLey(SIT.nada.txt, 'No presentó ninguno de los formularios que le correspondían.', 'rojo');
+    const ws5 = XLSX.utils.aoa_to_sheet(par);
+    ws5['!cols'] = [{ wch: 44 }, { wch: 110 }];
+    pintar(ws5, 0, 0, 1, ESTILO.titulo); pintar(ws5, 2, 0, 1, ESTILO.negrita);
+    pintar(ws5, 5, 0, 2, ESTILO.enc);
+    pintar(ws5, filaTitLey, 0, 2, ESTILO.seccion); pintar(ws5, filaTitSit, 0, 2, ESTILO.seccion);
+    leyenda.forEach(([r, e]) => pintar(ws5, r, 0, 1, negr(e)));
+
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
+    XLSX.utils.book_append_sheet(libro, wsP, 'Pendientes');
+    XLSX.utils.book_append_sheet(libro, ws1, 'Detalle por curso y grupo');
+    XLSX.utils.book_append_sheet(libro, ws2, 'Resumen por docente');
+    XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
+    XLSX.utils.book_append_sheet(libro, wsE, 'Evidencia');
+    XLSX.utils.book_append_sheet(libro, ws4, 'Sin coincidencia');
+    XLSX.utils.book_append_sheet(libro, ws5, 'Parámetros');
+    const limpio = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const etiqueta = soloAreas.length === 1 ? 'Area_' + limpio(soloAreas[0])
+      : (reps.length === 1 ? limpio(corto(reps[0].programa)) : (reps.length + '_carreras'));
+    const sello = ahora.getFullYear() + dos(ahora.getMonth() + 1) + dos(ahora.getDate());
+    return { libro, nombre: String(d.ciclo || ciclo).replace(/\s+/g, '') + '_Formularios_F1-F2-F3_' + etiqueta + '_' + sello + '.xlsx' };
+  }
+  window.armarLibroFormularios = armarLibroFormularios;
 
   // Varias carreras: se notifican una tras otra, cada una con su vista previa.
   async function notificarVarias(lista, boton) {
