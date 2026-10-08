@@ -1754,7 +1754,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.6';
+  const VERSION_INTERNA = '2026-10-07.7';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4796,17 +4796,6 @@ label .req{color:var(--falla)}
     const situacionDe = (ok, tarde, no) => !(ok + tarde + no) ? 'sinDatos'
       : (no === 0 && tarde === 0 ? 'completo' : (no === 0 ? 'tarde' : (ok + tarde > 0 ? 'falta' : 'nada')));
     // Resumen de UN formulario cuando hay varios cursos (por docente).
-    // Sin fracciones ni paréntesis: se dice en cuántos cursos falta. Solo tres
-    // colores, como en el resto: verde presentó, amarillo tarde, rojo falta.
-    const resumenF = (ok, tarde, no, unidad) => {
-      const n = ok + tarde + no;
-      const cuantos = k => k + ' ' + unidad + (k === 1 ? '' : 's');
-      if (!n) return { txt: '—', color: null };
-      if (no === 0 && tarde === 0) return { txt: EST.aTiempo.txt, color: 'verde' };
-      if (no === 0) return { txt: tarde === n ? EST.tarde.txt : '▲ Presentó; tarde en ' + cuantos(tarde), color: 'amarillo' };
-      if (no === n) return { txt: EST.no.txt, color: 'rojo' };
-      return { txt: '✘ Falta en ' + cuantos(no), color: 'rojo' };
-    };
     const semaforo = v => v >= META_VERDE ? 'verde' : (v >= META_AMARILLO ? 'amarillo' : 'rojo');
 
     // ---- utilidades de hoja ----------------------------------------------
@@ -4839,13 +4828,13 @@ label .req{color:var(--falla)}
       []
     ];
     // Hoja con una sola tabla al final: cabecera institucional, notas y tabla.
-    const hoja = (filas, anchos, filaEnc) => {
+    const hoja = (filas, anchos, filaEnc, sinFiltro) => {
       const ws = XLSX.utils.aoa_to_sheet(filas);
       ws['!cols'] = anchos.map(w => ({ wch: w }));
       pintar(ws, 0, 0, 1, ESTILO.titulo); pintar(ws, 2, 0, 1, ESTILO.negrita);
       if (filaEnc != null && filas[filaEnc]) {
         const ncol = filas[filaEnc].length;
-        ws['!autofilter'] = { ref: XLSX.utils.encode_range(
+        if (!sinFiltro) ws['!autofilter'] = { ref: XLSX.utils.encode_range(
           { s: { r: filaEnc, c: 0 }, e: { r: filas.length - 1, c: ncol - 1 } }) };
         cuadricula(ws, filaEnc, filas.length - 1, ncol);
         pintar(ws, filaEnc, 0, ncol, ESTILO.enc);
@@ -4853,6 +4842,21 @@ label .req{color:var(--falla)}
       }
       return ws;
     };
+
+    // Agrupa filas seguidas con la misma clave combinando la celda de una
+    // columna (como «Combinar celdas» de Excel): el nombre se lee una vez.
+    const agrupar = (ws, lista, clave, col, fila0) => {
+      ws['!merges'] = ws['!merges'] || [];
+      let i = 0;
+      while (i < lista.length) {
+        let j = i;
+        while (j + 1 < lista.length && clave(lista[j + 1]) === clave(lista[i])) j++;
+        if (j > i) ws['!merges'].push({ s: { r: fila0 + i, c: col }, e: { r: fila0 + j, c: col } });
+        pintar(ws, fila0 + i, col, 1, { font: { bold: true }, alignment: { vertical: 'top', wrapText: true }, border: BORDES });
+        i = j + 1;
+      }
+    };
+    const sinTildes = t => String(t || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
     // ---------------------------------------------- datos por curso y grupo --
     const filasTodas = [];
@@ -4862,6 +4866,8 @@ label .req{color:var(--falla)}
       r.detalle.forEach(x => {
         x._carrera = r.programa; x._exig = exig; x._plazos = r.plazos || {};
         x._area = x.area || 'Sin área';
+        x._areaEtq = x._area + (reps.length > 1 && sinTildes(x._area).indexOf(sinTildes(corto(r.programa))) < 0
+          ? ' (' + corto(r.programa) + ')' : '');
         x._cl = {}; x._atraso = {};
         x._ok = 0; x._tarde = 0; x._no = 0;
         const falta = [], tardes = [];
@@ -4914,10 +4920,6 @@ label .req{color:var(--falla)}
     const docentes = Object.values(porDoc).filter(p => p.exig);
     docentes.forEach(p => {
       p.sit = situacionDe(p.ok, p.tarde, p.no);
-      p.sitTxt = p.sit === 'falta'
-        ? (p.no === 1 ? '✘ Le falta 1 formulario' : '✘ Le faltan ' + p.no + ' formularios')
-        : SIT[p.sit].txt;
-      p.unidad = p.cursos.size === p.cargas ? 'curso' : 'grupo';
       p.queFalta = F.filter(f => p.falta[f]).map(f => f + ': ' + p.falta[f].join('; ')).join('. ');
     });
     const ORDEN_SIT = { nada: 0, falta: 1, tarde: 2, completo: 3, sinDatos: 4 };
@@ -5081,7 +5083,7 @@ label .req{color:var(--falla)}
       marcas.push([R.length - 1, 0, 1, ESTILO.rojo]);
     });
     tablas.push([t0, R.length - 1, 5]);
-    if (sinNada.length > 40) R.push(['…y ' + (sinNada.length - 40) + ' más (ver «Resumen por docente»).']);
+    if (sinNada.length > 40) R.push(['…y ' + (sinNada.length - 40) + ' más (ver «Por área y docente»).']);
     R.push([]);
     filaSeccion('Cómo leer este resumen');
     [
@@ -5120,15 +5122,16 @@ label .req{color:var(--falla)}
        'Antes de reclamarlo, revise la hoja «Sin coincidencia».'],
       []
     ]);
-    const encP = ['Carrera', 'Área', 'Código', 'Currícula', 'Curso', 'Grupo', 'Docente', 'F1', 'F2', 'F3', 'Qué falta'];
-    const detP = pend.map(x => [corto(x._carrera), x._area, x.codigo, x.plan || '', nombreCurso(x.curso), x.grupo, x.docente]
+    const encP = ['Área', 'Código', 'Currícula', 'Curso', 'Grupo', 'Docente', 'F1', 'F2', 'F3', 'Qué falta'];
+    const detP = pend.map(x => [x._areaEtq, x.codigo, x.plan || '', nombreCurso(x.curso), x.grupo, x.docente]
       .concat(F.map(f => EST[x._cl[f]].txt), [x._queFalta]));
     const wsP = hoja(fP.concat([encP], detP.length ? detP
-      : [['—', '', '', '', 'Ningún curso y grupo tiene formularios pendientes', '', '', '', '', '', '']]),
-      [13, 26, 10, 10, 38, 7, 34, 25, 25, 25, 58], fP.length);
+      : [['—', '', '', 'Ningún curso y grupo tiene formularios pendientes', '', '', '', '', '', '']]),
+      [28, 10, 10, 38, 7, 34, 25, 25, 25, 58], fP.length, true);
     pintar(wsP, 5, 0, 1, ESTILO.negrita); pintar(wsP, 6, 0, 1, ESTILO.negrita);
     pend.forEach((x, i) => F.forEach((f, j) =>
-      pintar(wsP, fP.length + 1 + i, 7 + j, 1, x._cl[f] === 'no' ? negr(ESTILO.rojo) : ESTILO[EST[x._cl[f]].color])));
+      pintar(wsP, fP.length + 1 + i, 6 + j, 1, x._cl[f] === 'no' ? negr(ESTILO.rojo) : ESTILO[EST[x._cl[f]].color])));
+    agrupar(wsP, pend, x => x._carrera + '¦' + x._area, 0, fP.length + 1);
 
     // --------------------------------- hoja 2: detalle por curso y grupo --
     const enc1 = ['N°', 'Carrera', 'Área', 'Coordinador del área', 'Docente', 'Código', 'Currícula', 'Curso', 'Grupo',
@@ -5156,26 +5159,24 @@ label .req{color:var(--falla)}
       pintar(ws1, r, 17, 1, negr(ESTILO[SIT[x._sit].color]));
     });
 
-    // ------------------------------------------ hoja 3: resumen por docente --
-    const enc2 = ['Docente', 'Área(s)', 'Carrera(s)', 'Cursos y grupos', 'F1', 'F2', 'F3', 'Situación', 'Qué le falta',
-                  'Formularios que debía presentar', 'A tiempo', 'Fuera de plazo', 'No presentó',
-                  'Cumplimiento a tiempo (%)', 'Reconocimiento'];
-    const docsOrden = docentes.slice().sort((a, b) => ORDEN_SIT[a.sit] - ORDEN_SIT[b.sit] || es(a.docente, b.docente));
-    const res2 = docsOrden.map(p => {
-      const rf = F.map(f => p.f[f] ? resumenF(p.f[f].ok, p.f[f].tarde, p.f[f].no, p.unidad) : { txt: '— Sin hoja', color: 'gris' });
-      p._rf = rf;
-      return [p.docente, [...p.areas].join(', '), [...p.carreras].join(', '), p.cargas]
-        .concat(rf.map(x => x.txt),
-          [p.sitTxt, p.queFalta, p.exig, p.ok, p.tarde, p.no, pct(p.ok, p.exig),
-           p.sit === 'completo' ? '😊 ¡Felicitaciones! Presentó a tiempo todos sus formularios' : '']);
-    });
-    const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — resumen por docente');
-    const ws2 = hoja(f2.concat([enc2], res2), [36, 28, 18, 9, 30, 30, 30, 26, 60, 12, 10, 10, 10, 14, 50], f2.length);
-    docsOrden.forEach((p, i) => {
-      const r = f2.length + 1 + i;
-      p._rf.forEach((x, j) => { if (x.color) pintar(ws2, r, 4 + j, 1, ESTILO[x.color]); });
-      pintar(ws2, r, 7, 1, negr(ESTILO[SIT[p.sit].color]));
-    });
+    // ------------------------------------------ hoja 3: por área y docente --
+    // Un renglón por cada curso y grupo, evaluado por separado: nada se suma.
+    // Se agrupa primero el área y, dentro de ella, al docente que tiene más
+    // de un curso, combinando la celda para que el nombre se lea una sola vez.
+    const porAD = filasTodas.slice().sort((a, b) => es(a._carrera, b._carrera) || es(a._area, b._area) ||
+      es(a.docente, b.docente) || es(nombreCurso(a.curso), nombreCurso(b.curso)) || es(a.grupo, b.grupo));
+    const enc2 = ['Área', 'Docente', 'Código', 'Curso', 'Grupo', 'F1', 'F2', 'F3', 'Qué falta'];
+    const res2 = porAD.map(x => [x._areaEtq, x.docente, x.codigo, nombreCurso(x.curso), x.grupo]
+      .concat(F.map(f => EST[x._cl[f]].txt), [x._queFalta]));
+    const f2 = cab('Cumplimiento de los formularios F1, F2 y F3 — por área y docente');
+    const nota2 = [['Cada renglón es un curso y grupo. Si un docente tiene tres cursos, aparece en tres renglones, ' +
+                    'uno por cada curso, y cada uno dice si presentó F1, F2 y F3.'], []];
+    const ws2 = hoja(f2.concat(nota2, [enc2], res2), [28, 36, 10, 40, 7, 25, 25, 25, 58], f2.length + nota2.length, true);
+    const fila2 = f2.length + nota2.length + 1;
+    porAD.forEach((x, i) => F.forEach((f, j) =>
+      pintar(ws2, fila2 + i, 5 + j, 1, x._cl[f] === 'no' ? negr(ESTILO.rojo) : ESTILO[EST[x._cl[f]].color])));
+    agrupar(ws2, porAD, x => x._carrera + '¦' + x._area, 0, fila2);
+    agrupar(ws2, porAD, x => x._carrera + '¦' + x._area + '¦' + x.docente, 1, fila2);
 
     // ------------------------------------------ hoja 4: resumen por área --
     const enc3 = ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Docentes',
@@ -5295,7 +5296,7 @@ label .req{color:var(--falla)}
     XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
     XLSX.utils.book_append_sheet(libro, wsP, 'Pendientes');
     XLSX.utils.book_append_sheet(libro, ws1, 'Detalle por curso y grupo');
-    XLSX.utils.book_append_sheet(libro, ws2, 'Resumen por docente');
+    XLSX.utils.book_append_sheet(libro, ws2, 'Por área y docente');
     XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
     XLSX.utils.book_append_sheet(libro, wsE, 'Evidencia');
     XLSX.utils.book_append_sheet(libro, ws4, 'Sin coincidencia');
