@@ -1754,7 +1754,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '07/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.7';
+  const VERSION_INTERNA = '2026-10-07.8';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4870,17 +4870,16 @@ label .req{color:var(--falla)}
           ? ' (' + corto(r.programa) + ')' : '');
         x._cl = {}; x._atraso = {};
         x._ok = 0; x._tarde = 0; x._no = 0;
-        const falta = [], tardes = [];
+        const falta = [], tardes = [], aTiempo = [];
         F.forEach(f => {
           const cl = exig.indexOf(f) < 0 ? 'sinHoja' : claseDe((x[f] || {}).estado);
           x._cl[f] = cl;
           if (exig.indexOf(f) < 0) return;
-          if (EST[cl].cumple) x._ok++;
+          if (EST[cl].cumple) { x._ok++; aTiempo.push(f); }
           else if (cl === 'tarde') {
             x._tarde++;
             if (x[f].fecha && x._plazos[f]) x._atraso[f] = dias(x[f].fecha, x._plazos[f]);
-            tardes.push(f + ' llegó ' + (x._atraso[f] != null ? nDias(x._atraso[f]) + ' después del plazo' : 'fuera de plazo') +
-              (x[f].fecha ? ' (' + dma(x[f].fecha) + ')' : ''));
+            tardes.push(f + (x._atraso[f] != null ? ' (' + nDias(x._atraso[f]) + ' tarde)' : ''));
           } else { x._no++; falta.push(f); }
         });
         x._pres = x._ok + x._tarde;
@@ -4889,9 +4888,12 @@ label .req{color:var(--falla)}
         x._sitTxt = x._sit === 'falta'
           ? (falta.length === 1 ? '✘ Le falta ' + falta[0] : '✘ Le faltan ' + falta.join(' y '))
           : SIT[x._sit].txt;
-        x._queFalta = [falta.length ? 'Falta presentar ' + falta.join(', ').replace(/, ([^,]+)$/, ' y $1') : '']
-          .concat(tardes).filter(Boolean).join('. ');
-        if (x._queFalta) x._queFalta += '.';
+        // Tres columnas simples: qué formularios llegaron a tiempo, cuáles
+        // tarde y cuáles faltan. Sin fracciones ni sumas.
+        const yy = l => l.join(', ').replace(/, ([^,]+)$/, ' y $1');
+        x._txtATiempo = aTiempo.length ? yy(aTiempo) : 'Ninguno';
+        x._txtTarde = tardes.length ? yy(tardes) : 'Ninguno';
+        x._queFalta = falta.length ? yy(falta) : 'Nada';
         filasTodas.push(x);
       });
     });
@@ -5134,30 +5136,30 @@ label .req{color:var(--falla)}
     agrupar(wsP, pend, x => x._carrera + '¦' + x._area, 0, fP.length + 1);
 
     // --------------------------------- hoja 2: detalle por curso y grupo --
-    const enc1 = ['N°', 'Carrera', 'Área', 'Coordinador del área', 'Docente', 'Código', 'Currícula', 'Curso', 'Grupo',
-                  'Tipo', 'Semestre']
-      .concat(...F.map(f => [f + ' estado', f + ' fecha']))
-      .concat(['Situación', 'Qué falta', 'Presentados (a tiempo o tarde)', 'Presentados a tiempo', 'Nota']);
-    const det = filasTodas.map((x, i) => {
-      const n = x._exig.length;
-      const aprox = F.filter(f => x[f] && x[f].aproximada);
-      const varias = F.filter(f => x[f] && x[f].veces > 1);
-      return [i + 1, corto(x._carrera), x._area, x.coordinador || '', x.docente, x.codigo, x.plan || '',
-              nombreCurso(x.curso), x.grupo, x.tipos, x.semestre]
-        .concat(...F.map(f => [EST[x._cl[f]].txt, dma((x[f] || {}).fecha)]))
-        .concat([x._sitTxt, x._queFalta, x._pres + ' de ' + n, x._ok + ' de ' + n,
-          [aprox.length ? 'Coincidencia aproximada en ' + aprox.join(', ') + ' (curso o subgrupo escrito distinto)' : '',
-           varias.length ? 'Envió más de una vez ' + varias.join(', ') + ' (se toma la primera fecha)' : '']
-            .filter(Boolean).join('. ')]);
-    });
+    // Se agrupa el área y, dentro de ella, el docente: el nombre no se repite.
+    const ordenAD = filasTodas.slice().sort((a, b) => es(a._carrera, b._carrera) || es(a._area, b._area) ||
+      es(a.docente, b.docente) || es(nombreCurso(a.curso), nombreCurso(b.curso)) || es(a.grupo, b.grupo));
+    const enc1 = ['Área', 'Coordinador del área', 'Docente', 'Código', 'Currícula', 'Curso', 'Grupo', 'Tipo', 'Semestre']
+      .concat(...F.map(f => [f, 'Fecha de ' + f]))
+      .concat(['Presentados a tiempo', 'Presentados fuera de plazo', 'Qué falta']);
+    const det = ordenAD.map(x => [x._areaEtq, x.coordinador || '', x.docente, x.codigo, x.plan || '',
+        nombreCurso(x.curso), x.grupo, x.tipos, x.semestre]
+      .concat(...F.map(f => [EST[x._cl[f]].txt, dma((x[f] || {}).fecha)]))
+      .concat([x._txtATiempo, x._txtTarde, x._queFalta]));
     const f1 = cab('Cumplimiento de los formularios F1, F2 y F3 — detalle por curso y grupo');
     const ws1 = hoja(f1.concat([enc1], det),
-      [5, 13, 26, 30, 34, 10, 10, 38, 7, 10, 9, 25, 10, 25, 10, 25, 10, 30, 50, 12, 12, 46], f1.length);
-    filasTodas.forEach((x, i) => {
-      const r = f1.length + 1 + i;
-      F.forEach((f, j) => pintar(ws1, r, 11 + j * 2, 2, ESTILO[EST[x._cl[f]].color]));
-      pintar(ws1, r, 17, 1, negr(ESTILO[SIT[x._sit].color]));
+      [28, 30, 34, 10, 10, 38, 7, 10, 9, 25, 10, 25, 10, 25, 10, 20, 24, 14], f1.length, true);
+    const fila1 = f1.length + 1;
+    ordenAD.forEach((x, i) => {
+      const r = fila1 + i;
+      F.forEach((f, j) => pintar(ws1, r, 9 + j * 2, 2, ESTILO[EST[x._cl[f]].color]));
+      if (x._ok) pintar(ws1, r, 15, 1, ESTILO.verde);
+      if (x._tarde) pintar(ws1, r, 16, 1, ESTILO.amarillo);
+      if (x._no) pintar(ws1, r, 17, 1, negr(ESTILO.rojo));
     });
+    agrupar(ws1, ordenAD, x => x._carrera + '¦' + x._area, 0, fila1);
+    agrupar(ws1, ordenAD, x => x._carrera + '¦' + x._area, 1, fila1);
+    agrupar(ws1, ordenAD, x => x._carrera + '¦' + x._area + '¦' + x.docente, 2, fila1);
 
     // ------------------------------------------ hoja 3: por área y docente --
     // Un renglón por cada curso y grupo, evaluado por separado: nada se suma.
