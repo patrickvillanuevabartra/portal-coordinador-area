@@ -1798,7 +1798,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '09/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-09.8';
+  const VERSION_INTERNA = '2026-10-09.9';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4699,7 +4699,19 @@ label .req{color:var(--falla)}
           '</div><div style="display:flex;gap:10px;flex-wrap:wrap">' +
           '<button class="btn" id="btnRepF">Generar reporte (Excel)</button>' +
           (puedeNotificarRep ? '<button class="btn fantasma" id="btnNotF">Notificar a los docentes</button>' : '') +
-          '</div></div>'
+          '</div></div>' +
+          '<div style="flex-basis:100%;border:1px solid var(--linea);border-radius:10px;padding:12px 14px">' +
+          '<b>Reporte de portafolios</b>' +
+          '<div style="color:var(--tinta-media);font-size:14px;margin-top:4px">Dice, por área y docente, qué evaluaciones ' +
+          'del portafolio están completas, cuáles incompletas o vacías, qué archivos están mal rotulados y qué no aplica, ' +
+          'según la estructura de Calidad y Acreditación.' +
+          (!puedeNotificarRep && propiasRep.length ? ' Incluye solo ' +
+            (propiasRep.length === 1 ? 'su área: ' : 'sus áreas: ') + esc(propiasRep.join(', ')) + '.' : '') + '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 10px">' +
+          (progsRep.length > 1 ? '<label style="font-weight:600"><input type="checkbox" id="casTodasP"> Todas</label>' : '') +
+          progsRep.map(p => '<label><input type="checkbox" class="cas-carrera-p" value="' + esc(p) + '"' +
+            (progsRep.length === 1 ? ' checked' : '') + '> ' + esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
+          '</div><button class="btn" id="btnRepP">Generar reporte de portafolios (Excel)</button></div>'
         : '') +
       '</div>';
     h += '</div></section>';
@@ -4719,6 +4731,16 @@ label .req{color:var(--falla)}
       generarReporteFormularios(marcadas(), $('btnRepF')));
     if ($('btnNotF')) $('btnNotF').addEventListener('click', () =>
       notificarVarias(marcadas(), $('btnNotF')));
+    const marcadasP = () => [...document.querySelectorAll('.cas-carrera-p:checked')].map(c => c.value);
+    if ($('casTodasP')) {
+      $('casTodasP').addEventListener('change', e =>
+        document.querySelectorAll('.cas-carrera-p').forEach(c => { c.checked = e.target.checked; }));
+      document.querySelectorAll('.cas-carrera-p').forEach(c => c.addEventListener('change', () => {
+        $('casTodasP').checked = [...document.querySelectorAll('.cas-carrera-p')].every(x => x.checked);
+      }));
+    }
+    if ($('btnRepP')) $('btnRepP').addEventListener('click', () =>
+      generarReportePortafolios(marcadasP(), $('btnRepP')));
   }
 
   /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
@@ -5382,6 +5404,348 @@ label .req{color:var(--falla)}
     return { libro, nombre: String(d.ciclo || ciclo).replace(/\s+/g, '') + '_Formularios_F1-F2-F3_' + etiqueta + '_' + sello + '.xlsx' };
   }
   window.armarLibroFormularios = armarLibroFormularios;
+
+  /* ------------------------------------------- reporte de portafolios ---- */
+  // El mismo modelo del reporte de F1 a F3: por área y docente, cada estado en
+  // palabras, símbolo y color, y las celdas de área y docente combinadas.
+  function generarReportePortafolios(carreras, boton) {
+    carreras = (carreras || []).filter(Boolean);
+    if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
+    const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
+    const txt = boton ? boton.textContent : '';
+    if (boton) { boton.disabled = true; boton.textContent = 'Revisando portafolios…'; }
+    const cerrarEspera = mostrarEspera('Revisando los portafolios en Drive',
+      'Se recorre la carpeta de cada curso y grupo de ' + carreras.length +
+      (carreras.length === 1 ? ' carrera' : ' carreras') + '. Puede tardar varios minutos.');
+    const fin = () => { cerrarEspera(); if (boton) { boton.disabled = false; boton.textContent = txt; } };
+    const pedir = () => api('/reporte-portafolios?programas=' + encodeURIComponent(carreras.join('|')) +
+                           '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 330000 });
+    // Si el servidor no alcanzó a revisar todo, se vuelve a pedir: lo ya
+    // revisado queda guardado y la segunda vuelta continúa donde quedó.
+    (async () => {
+      let d = null;
+      for (let vuelta = 1; vuelta <= 8; vuelta++) {
+        d = await pedir();
+        if (d.error) throw new Error(d.error);
+        if (!d.pendientes) break;
+        const extra = document.querySelector('.capa .esp-extra');
+        if (extra) extra.textContent = 'Faltan ' + d.pendientes + ' cursos y grupos por revisar. Continuando…';
+      }
+      const XLSX = await cargarLibreriaExcel();
+      fin();
+      const reps = (d.carreras || []).filter(r => r && r.filas);
+      if (!reps.some(r => r.filas.length)) {
+        alert('No se encontraron cursos con carpeta en el portafolio de ' + carreras.join(', ') + '.' +
+              ((d.carreras || []).filter(r => r.error).map(r => '\n' + r.error).join('')));
+        return;
+      }
+      if (d.pendientes) alert('Quedaron ' + d.pendientes + ' cursos y grupos sin revisar por tiempo. El reporte los omite; ' +
+                              'vuelva a generarlo en unos minutos para completarlo.');
+      const libro = armarLibroPortafolios(d, XLSX, ciclo);
+      XLSX.writeFile(libro.libro, libro.nombre);
+    })().catch(e => { fin(); alert('No se pudo generar el reporte de portafolios: ' + e.message); });
+  }
+  window.generarReportePortafolios = generarReportePortafolios;
+
+  function armarLibroPortafolios(d, XLSX, ciclo) {
+    const reps = (d.carreras || []).filter(r => r && r.filas);
+    const P = ['01', '02', '03', '04', '05', '06', '07'];
+    const NOMBRE_P = { '01': 'Prueba de entrada', '02': 'Prácticas', '03': 'Laboratorio y talleres', '04': 'Investigación',
+                       '05': 'Proyectos', '06': 'Trabajos y tareas', '07': 'Exámenes' };
+    const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+    const corto = p => String(p).replace(/^Ingeniería\s+(de\s+)?/i, '');
+    const es = (a, b) => String(a || '').localeCompare(String(b || ''), 'es', { numeric: true });
+    const dos = n => ('0' + n).slice(-2);
+    const ahora = new Date();
+    const hoy = dos(ahora.getDate()) + '/' + dos(ahora.getMonth() + 1) + '/' + String(ahora.getFullYear()).slice(2);
+    const hora = dos(ahora.getHours()) + ':' + dos(ahora.getMinutes());
+    const soloAreas = d.soloAreas || [];
+    const alcanceTxt = reps.length === 1 ? reps[0].programa : reps.map(r => corto(r.programa)).join(', ');
+    const sinTil = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+    const borde = { style: 'thin', color: { rgb: 'B7C4BD' } };
+    const BORDES = { top: borde, bottom: borde, left: borde, right: borde };
+    const ESTILO = {
+      verde:    { fill: { fgColor: { rgb: 'C6EFCE' } }, font: { color: { rgb: '006100' } } },
+      amarillo: { fill: { fgColor: { rgb: 'FFEB9C' } }, font: { color: { rgb: '7A4D00' } } },
+      rojo:     { fill: { fgColor: { rgb: 'FFC7CE' } }, font: { color: { rgb: '9C0006' } } },
+      gris:     { fill: { fgColor: { rgb: 'EDEDED' } }, font: { color: { rgb: '595959' } } },
+      enc:      { fill: { fgColor: { rgb: '0B3B2E' } }, font: { bold: true, color: { rgb: 'FFFFFF' } },
+                  alignment: { wrapText: true, vertical: 'center', horizontal: 'center' } },
+      seccion:  { fill: { fgColor: { rgb: 'E6F4EE' } }, font: { bold: true, color: { rgb: '0B3B2E' } } },
+      titulo:   { font: { bold: true, sz: 13, color: { rgb: '0F8F5E' } } },
+      negrita:  { font: { bold: true } }
+    };
+    const negr = e => Object.assign({}, e, { font: Object.assign({}, e.font, { bold: true }) });
+    // Estado de cada punto, en palabras, símbolo y color.
+    const EST = {
+      ok:      { txt: '✔ Completo', color: 'verde' },
+      parcial: { txt: '▲ Incompleto', color: 'amarillo' },
+      vacio:   { txt: '✘ Sin archivos', color: 'rojo' },
+      na:      { txt: 'No aplica', color: 'gris' },
+      sin:     { txt: '— Sin carpeta', color: 'gris' },
+      nd:      { txt: '— Sin dato', color: 'gris' }
+    };
+    const EST01 = { ok: { txt: '✔ Presentó el F3', color: 'verde' }, vacio: { txt: '✘ No presentó el F3', color: 'rojo' },
+                    nd: { txt: '— Sin dato del F3', color: 'gris' } };
+    const est = (k, v) => (k === '01' ? EST01[v] : null) || EST[v] || EST.nd;
+    const SIT = {
+      completo: { txt: '✔ Completo', color: 'verde' },
+      incompleto: { txt: '▲ Incompleto', color: 'amarillo' },
+      vacio: { txt: '✘ Sin archivos', color: 'rojo' },
+      sinCarpeta: { txt: '— Sin carpeta del docente', color: 'gris' }
+    };
+
+    const pintar = (ws, r, c0, ncol, estilo) => {
+      for (let c = c0; c < c0 + ncol; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        ws[ref].s = Object.assign({}, ws[ref].s || {}, estilo);
+      }
+    };
+    const cuadricula = (ws, r0, r1, ncol) => {
+      for (let r = r0; r <= r1; r++) for (let c = 0; c < ncol; c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        const s = ws[ref].s = Object.assign({}, ws[ref].s || {});
+        s.border = BORDES;
+        if (r > r0) s.alignment = Object.assign({ vertical: 'top', wrapText: true }, s.alignment || {});
+      }
+    };
+    const cab = (titulo) => [
+      ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+      ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'],
+      [titulo],
+      ['Carrera(s): ' + alcanceTxt + (soloAreas.length ? ' · Área(s): ' + soloAreas.join(', ') : '') +
+       ' · Ciclo: ' + (d.ciclo || ciclo) + ' · Corte de consulta: ' + hoy + ' a las ' + hora +
+       ' · Emitido por ' + (d.generadoPor || '')],
+      []
+    ];
+    const hoja = (filas, anchos, filaEnc, sinFiltro) => {
+      const ws = XLSX.utils.aoa_to_sheet(filas);
+      ws['!cols'] = anchos.map(w => ({ wch: w }));
+      pintar(ws, 0, 0, 1, ESTILO.titulo); pintar(ws, 2, 0, 1, ESTILO.negrita);
+      if (filaEnc != null && filas[filaEnc]) {
+        const ncol = filas[filaEnc].length;
+        if (!sinFiltro) ws['!autofilter'] = { ref: XLSX.utils.encode_range(
+          { s: { r: filaEnc, c: 0 }, e: { r: filas.length - 1, c: ncol - 1 } }) };
+        cuadricula(ws, filaEnc, filas.length - 1, ncol);
+        pintar(ws, filaEnc, 0, ncol, ESTILO.enc);
+        ws['!rows'] = []; ws['!rows'][filaEnc] = { hpt: 32 };
+      }
+      return ws;
+    };
+    const agrupar = (ws, lista, clave, col, fila0) => {
+      ws['!merges'] = ws['!merges'] || [];
+      let i = 0;
+      while (i < lista.length) {
+        let j = i;
+        while (j + 1 < lista.length && clave(lista[j + 1]) === clave(lista[i])) j++;
+        if (j > i) ws['!merges'].push({ s: { r: fila0 + i, c: col }, e: { r: fila0 + j, c: col } });
+        pintar(ws, fila0 + i, col, 1, { font: { bold: true }, alignment: { vertical: 'top', wrapText: true }, border: BORDES });
+        i = j + 1;
+      }
+    };
+
+    // ------------------------------------------------ filas y situación --
+    const filas = [];
+    reps.forEach(r => r.filas.forEach(x => {
+      x._carrera = r.programa;
+      x._area = x.area || 'Sin área';
+      x._areaEtq = x._area + (reps.length > 1 && sinTil(x._area).indexOf(sinTil(corto(r.programa))) < 0 ? ' (' + corto(r.programa) + ')' : '');
+      const evals = P.filter(k => k !== '01').map(k => x.puntos[k]).filter(v => v !== 'na');
+      if (/sinCarpeta|error/.test(x.estado || '')) x._sit = 'sinCarpeta';
+      else if (evals.every(v => v === 'ok') && x.puntos['01'] !== 'vacio' && !(x.malos || []).length && !x.videos) x._sit = 'completo';
+      else if (evals.length && evals.every(v => v === 'vacio')) x._sit = 'vacio';
+      else x._sit = 'incompleto';
+      x._falta = (x.falta || []).length ? x.falta.join('. ') + '.' : (x._sit === 'sinCarpeta' ? (x.mensaje || 'Sin carpeta en el portafolio.') : 'Nada');
+      filas.push(x);
+    }));
+    filas.sort((a, b) => es(a._carrera, b._carrera) || es(a._area, b._area) || es(a.docente, b.docente) ||
+      es(nombreCurso(a.curso), nombreCurso(b.curso)) || es(a.grupo, b.grupo));
+    const cuenta = l => ({ total: l.length, completo: l.filter(x => x._sit === 'completo').length,
+      incompleto: l.filter(x => x._sit === 'incompleto').length, vacio: l.filter(x => x._sit === 'vacio').length,
+      sinCarpeta: l.filter(x => x._sit === 'sinCarpeta').length,
+      revisados: l.reduce((n, x) => n + (x.revisados || 0), 0), bien: l.reduce((n, x) => n + (x.bien || 0), 0),
+      videos: l.reduce((n, x) => n + (x.videos || 0), 0) });
+
+    // ------------------------------------------ hoja 0: resumen ejecutivo --
+    const ambitos = reps.map(r => ({ nombre: corto(r.programa), l: filas.filter(x => x._carrera === r.programa) }));
+    if (reps.length > 1) ambitos.push({ nombre: 'TOTAL', l: filas });
+    const R = cab('Resumen ejecutivo — revisión de los portafolios digitales');
+    const marcas = [], tablas = [];
+    const sec = t => { R.push([t]); marcas.push([R.length - 1, 0, Math.max(ambitos.length + 1, 8), ESTILO.seccion]); };
+    const nyp = (n, t) => n + ' (' + pct(n, t) + ' %)';
+    sec('1. Cursos y grupos con portafolio');
+    let t0 = R.length;
+    R.push(['Indicador'].concat(ambitos.map(a => a.nombre))); marcas.push([R.length - 1, 0, ambitos.length + 1, ESTILO.enc]);
+    const fila = (nombre, f, color) => {
+      R.push([nombre].concat(ambitos.map(a => f(cuenta(a.l)))));
+      if (color) ambitos.forEach((a, i) => { const c = color(cuenta(a.l)); if (c) marcas.push([R.length - 1, i + 1, 1, ESTILO[c]]); });
+    };
+    fila('Cursos y grupos revisados', c => c.total);
+    fila('   • ' + SIT.completo.txt, c => nyp(c.completo, c.total), c => c.completo ? 'verde' : null);
+    fila('   • ' + SIT.incompleto.txt, c => nyp(c.incompleto, c.total), c => c.incompleto ? 'amarillo' : null);
+    fila('   • ' + SIT.vacio.txt, c => nyp(c.vacio, c.total), c => c.vacio ? 'rojo' : null);
+    fila('   • ' + SIT.sinCarpeta.txt, c => nyp(c.sinCarpeta, c.total), c => c.sinCarpeta ? 'gris' : null);
+    fila('Archivos revisados en las carpetas de evaluaciones', c => c.revisados);
+    fila('   • Bien rotulados según la directiva', c => c.revisados ? nyp(c.bien, c.revisados) : '—');
+    fila('   • Mal rotulados', c => c.revisados ? nyp(c.revisados - c.bien, c.revisados) : '—', c => c.revisados - c.bien ? 'rojo' : null);
+    fila('Videos encontrados (la directiva no los permite)', c => c.videos, c => c.videos ? 'rojo' : null);
+    tablas.push([t0, R.length - 1, ambitos.length + 1]);
+    R.push([]);
+    sec('2. Situación de cada punto del portafolio');
+    t0 = R.length;
+    R.push(['Punto', '✔ Completo', '▲ Incompleto', '✘ Sin archivos', 'No aplica', '— Sin carpeta o sin dato']);
+    marcas.push([R.length - 1, 0, 6, ESTILO.enc]);
+    P.forEach(k => {
+      const v = filas.map(x => x.puntos[k]);
+      R.push([NOMBRE_P[k], v.filter(x => x === 'ok').length, v.filter(x => x === 'parcial').length,
+              v.filter(x => x === 'vacio').length, v.filter(x => x === 'na').length,
+              v.filter(x => x === 'sin' || x === 'nd').length]);
+    });
+    tablas.push([t0, R.length - 1, 6]);
+    R.push([]);
+    sec('Cómo leer este resumen');
+    [
+      'Cada curso y grupo se revisa contra la estructura de portafolio trabajada y presentada por el área de Calidad y ' +
+        'Acreditación de la Facultad de Ingeniería: solo cuentan las evaluaciones que tiene ese curso; lo demás «No aplica».',
+      'En cada evaluación deben estar, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio, ' +
+        'rotulados según la directiva (CÓDIGO.TIPO.PERIODO). La prueba de entrada se acredita con el F3.',
+      'Una carpeta vacía puede ser normal si, según el cronograma del sílabo, esa evaluación todavía no se toma.',
+      'Solo se revisan los cursos que tienen carpeta en el portafolio de la Escuela; los demás están en la hoja «Cursos sin portafolio».'
+    ].forEach(t => R.push([t]));
+    const ws0 = XLSX.utils.aoa_to_sheet(R);
+    ws0['!cols'] = [{ wch: 58 }].concat([16, 16, 16, 16, 18, 18, 18].map(w => ({ wch: w })));
+    tablas.forEach(([a, b, n]) => cuadricula(ws0, a, b, n));
+    pintar(ws0, 0, 0, 1, ESTILO.titulo); pintar(ws0, 2, 0, 1, ESTILO.negrita);
+    marcas.forEach(([r, c, n, e]) => pintar(ws0, r, c, n, e));
+
+    // ------------------------------------------------ hoja 1: pendientes --
+    const pend = filas.filter(x => x._sit !== 'completo');
+    const areasT = [...new Set(filas.map(x => x._area))];
+    const tituloP = areasT.length === 1
+      ? (/^[áa]rea/i.test(areasT[0]) ? '' : 'Área de ') + areasT[0] + ' — portafolios con pendientes'
+      : 'Portafolios con pendientes — por área';
+    const c0 = cuenta(filas);
+    const fP = cab(tituloP).concat([
+      [c0.total + ' cursos y grupos revisados; ' + c0.completo + ' con el portafolio completo. ' +
+       (pend.length ? 'Se muestran los ' + pend.length + ' restantes.' : 'No hay pendientes. 😊')],
+      ['De acuerdo con la estructura de portafolio trabajada y presentada por el área de Calidad y Acreditación de la Facultad de Ingeniería.'],
+      []
+    ]);
+    const colsP = ['Área', 'Código', 'Curso', 'Grupo', 'Docente'].concat(P.map(k => NOMBRE_P[k]), ['Situación', 'Qué falta']);
+    const detP = pend.map(x => [x._areaEtq, x.codigo, nombreCurso(x.curso), x.grupo, x.docente]
+      .concat(P.map(k => est(k, x.puntos[k]).txt), [SIT[x._sit].txt, x._falta]));
+    const wsP = hoja(fP.concat([colsP], detP.length ? detP : [['—', '', 'Ningún portafolio tiene pendientes', '', '', '', '', '', '', '', '', '', '', '']]),
+      [28, 10, 36, 7, 32, 18, 14, 18, 14, 14, 14, 16, 20, 60], fP.length, true);
+    pintar(wsP, 5, 0, 1, ESTILO.negrita);
+    pend.forEach((x, i) => {
+      P.forEach((k, j) => pintar(wsP, fP.length + 1 + i, 5 + j, 1, ESTILO[est(k, x.puntos[k]).color]));
+      pintar(wsP, fP.length + 1 + i, 12, 1, negr(ESTILO[SIT[x._sit].color]));
+    });
+    agrupar(wsP, pend, x => x._carrera + '¦' + x._area, 0, fP.length + 1);
+    agrupar(wsP, pend, x => x._carrera + '¦' + x._area + '¦' + x.docente, 4, fP.length + 1);
+
+    // ------------------------------------------ hoja 2: por área y docente --
+    const f1 = cab('Revisión de los portafolios — por área y docente');
+    const nota1 = [['Cada renglón es un curso y grupo. Las evaluaciones son las de la estructura de Calidad y Acreditación para ese curso.'], []];
+    const cols1 = ['Área', 'Coordinador del área', 'Docente', 'Código', 'Curso', 'Grupo', 'Evaluaciones del curso']
+      .concat(P.map(k => NOMBRE_P[k]), ['Situación', 'Archivos revisados', 'Bien rotulados', 'Qué falta', 'Carpeta en Drive']);
+    const det1 = filas.map(x => [x._areaEtq, x.coordinador || '', x.docente, x.codigo, nombreCurso(x.curso), x.grupo,
+      (x.evaluaciones || []).join(', ') || '—']
+      .concat(P.map(k => est(k, x.puntos[k]).txt),
+        [SIT[x._sit].txt, x.revisados || 0, x.revisados ? x.bien + ' de ' + x.revisados : '—', x._falta, x.url || '']));
+    const ws1 = hoja(f1.concat(nota1, [cols1], det1),
+      [28, 28, 32, 10, 36, 7, 30, 18, 14, 18, 14, 14, 14, 16, 22, 10, 12, 60, 40], f1.length + nota1.length, true);
+    const fila1 = f1.length + nota1.length + 1;
+    filas.forEach((x, i) => {
+      P.forEach((k, j) => pintar(ws1, fila1 + i, 7 + j, 1, ESTILO[est(k, x.puntos[k]).color]));
+      pintar(ws1, fila1 + i, 14, 1, negr(ESTILO[SIT[x._sit].color]));
+      if (x.url) { const ref = XLSX.utils.encode_cell({ r: fila1 + i, c: 18 }); if (ws1[ref]) ws1[ref].l = { Target: x.url }; }
+    });
+    agrupar(ws1, filas, x => x._carrera + '¦' + x._area, 0, fila1);
+    agrupar(ws1, filas, x => x._carrera + '¦' + x._area, 1, fila1);
+    agrupar(ws1, filas, x => x._carrera + '¦' + x._area + '¦' + x.docente, 2, fila1);
+
+    // ------------------------------------------ hoja 3: resumen por área --
+    const porArea = {};
+    filas.forEach(x => { const k = x._carrera + '¦' + x._area;
+      (porArea[k] = porArea[k] || { carrera: corto(x._carrera), area: x._area, coord: x.coordinador || '', l: [] }).l.push(x); });
+    const areas = Object.values(porArea).sort((a, b) => es(a.carrera, b.carrera) || es(a.area, b.area));
+    const cols3 = ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', '✔ Completos', '▲ Incompletos',
+                   '✘ Sin archivos', '— Sin carpeta', 'Archivos revisados', 'Bien rotulados (%)'];
+    const det3 = areas.map(a => { const c = cuenta(a.l);
+      return [a.carrera, a.area, a.coord, c.total, c.completo, c.incompleto, c.vacio, c.sinCarpeta, c.revisados,
+              c.revisados ? pct(c.bien, c.revisados) : '—']; });
+    const f3 = cab('Revisión de los portafolios — resumen por área');
+    const ws3 = hoja(f3.concat([cols3], det3), [13, 30, 30, 10, 11, 12, 12, 12, 11, 12], f3.length);
+    areas.forEach((a, i) => { const c = cuenta(a.l), r = f3.length + 1 + i;
+      if (c.completo) pintar(ws3, r, 4, 1, ESTILO.verde); if (c.incompleto) pintar(ws3, r, 5, 1, ESTILO.amarillo);
+      if (c.vacio) pintar(ws3, r, 6, 1, ESTILO.rojo); });
+
+    // -------------------------------------- hoja 4: archivos por corregir --
+    const malos = [];
+    filas.forEach(x => (x.malos || []).forEach(m => malos.push([x._areaEtq, x.codigo, nombreCurso(x.curso), x.grupo, x.docente,
+      m.carpeta, m.nombre, m.motivos.join('; ')])));
+    const f4 = cab('Archivos que no siguen la directiva de rotulado');
+    const nota4 = [['Formato: CÓDIGO.TIPO.PERIODO.PDF para el enunciado y CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota.PDF ' +
+                    'para las evidencias. Siglas: EP, EF, PC, TR, LA, TA, IN, PR; otras, con su nombre completo.'], []];
+    const ws4 = hoja(f4.concat(nota4, [['Área', 'Código', 'Curso', 'Grupo', 'Docente', 'Carpeta', 'Archivo', 'Qué corregir']],
+      malos.length ? malos : [['—', '', 'Todos los archivos revisados están bien rotulados', '', '', '', '', '']]),
+      [28, 10, 34, 7, 32, 18, 50, 60], f4.length + nota4.length);
+
+    // ---------------------------------------- hoja 5: cursos sin portafolio --
+    const sinP = [];
+    reps.forEach(r => (r.sinPortafolio || []).forEach(x => sinP.push([corto(r.programa), x.area || '', x.codigo, nombreCurso(x.curso)])));
+    sinP.sort((a, b) => es(a[0], b[0]) || es(a[1], b[1]) || es(a[3], b[3]));
+    const f5 = cab('Cursos de la carga sin carpeta en el portafolio de la Escuela');
+    const ws5 = hoja(f5.concat([['Solo se revisan los cursos que Calidad y Acreditación incluyó en el portafolio. Estos no tienen carpeta.'], []],
+      [['Carrera', 'Área', 'Código', 'Curso']], sinP.length ? sinP : [['—', '', '', 'Todos los cursos tienen carpeta']]),
+      [14, 30, 10, 44], f5.length + 2);
+
+    // ------------------------------------------------ hoja 6: parámetros --
+    const par = cab('Parámetros y criterios del reporte').concat([['Concepto', 'Valor'], ['Ciclo académico', d.ciclo || ciclo]]);
+    if (soloAreas.length) par.push(['Alcance', 'Solo las áreas que coordina quien emite el reporte: ' + soloAreas.join(', ')]);
+    [
+      ['Fuente', 'Portafolio digital de cada Escuela en Google Drive. Se revisa por el nombre de carpetas y archivos; no se lee el contenido de los trabajos de los estudiantes.'],
+      ['Estructura', 'La que trabajó y presentó el área de Calidad y Acreditación: dentro de la carpeta del docente, «EVALUACIONES» con una subcarpeta por cada evaluación del curso.'],
+      ['Cantidad', 'La fórmula del curso (formato «Fórmula de evaluación») dice cuántas hay de cada tipo; por ejemplo, INF1 a INF4 son cuatro informes.'],
+      ['Directiva', 'Guía operativa docente: enunciado y desarrollo de la mayor, menor y nota promedio, en PDF, rotulados CÓDIGO.TIPO.PERIODO; no se suben videos.'],
+      ['Prueba de entrada', 'Se acredita con el formulario F3 (informe de la prueba de entrada).'],
+      [],
+      ['Estado de cada punto', 'Qué significa']
+    ].forEach(x => par.push(x));
+    const ley = [];
+    const L = (t, q, c) => { par.push([t, q]); ley.push([par.length - 1, ESTILO[c]]); };
+    const filaT1 = par.length - 1;
+    L(EST.ok.txt, 'Están todos los archivos de las evaluaciones de ese punto (o, en la prueba de entrada, el F3).', 'verde');
+    L(EST.parcial.txt, 'Hay archivos, pero falta alguno.', 'amarillo');
+    L(EST.vacio.txt, 'La carpeta de esa evaluación está vacía.', 'rojo');
+    L(EST.na.txt, 'Ese curso no tiene esa evaluación, según la estructura de Calidad y Acreditación.', 'gris');
+    L(EST.sin.txt, 'No se encontró la carpeta del docente en el portafolio.', 'gris');
+    const ws6 = XLSX.utils.aoa_to_sheet(par);
+    ws6['!cols'] = [{ wch: 30 }, { wch: 120 }];
+    pintar(ws6, 0, 0, 1, ESTILO.titulo); pintar(ws6, 2, 0, 1, ESTILO.negrita); pintar(ws6, 5, 0, 2, ESTILO.enc);
+    pintar(ws6, filaT1, 0, 2, ESTILO.seccion);
+    ley.forEach(([r, e]) => pintar(ws6, r, 0, 1, negr(e)));
+
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
+    XLSX.utils.book_append_sheet(libro, wsP, 'Pendientes');
+    XLSX.utils.book_append_sheet(libro, ws1, 'Por área y docente');
+    XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
+    XLSX.utils.book_append_sheet(libro, ws4, 'Archivos por corregir');
+    XLSX.utils.book_append_sheet(libro, ws5, 'Cursos sin portafolio');
+    XLSX.utils.book_append_sheet(libro, ws6, 'Parámetros');
+    const limpio = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    const etiqueta = soloAreas.length === 1 ? 'Area_' + limpio(soloAreas[0])
+      : (reps.length === 1 ? limpio(corto(reps[0].programa)) : reps.length + '_carreras');
+    return { libro, nombre: String(d.ciclo || ciclo).replace(/\s+/g, '') + '_Portafolios_' + etiqueta + '_' +
+             ahora.getFullYear() + dos(ahora.getMonth() + 1) + dos(ahora.getDate()) + '.xlsx' };
+  }
+  window.armarLibroPortafolios = armarLibroPortafolios;
+
 
   // Varias carreras: se notifican una tras otra, cada una con su vista previa.
   async function notificarVarias(lista, boton) {
