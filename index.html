@@ -558,6 +558,19 @@ tr.sin-leer{background:#fffdf6}
 .porta-sub .ojo{color:#9a5b00}
 .btn-enlace{background:none;border:0;padding:0;color:#1f5fa8;text-decoration:underline;font:inherit;cursor:pointer}
 .porta-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.porta-sec{padding:12px 16px;border-top:1px solid var(--linea)}
+.porta-sec h4{margin:0 0 4px;font-size:15px}
+.porta-sec .sub{color:var(--tinta-media);font-size:13px;margin:0 0 8px}
+.ev-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.ev-tabla th{font-size:12.5px;color:var(--tinta-media);text-align:center;padding:6px 8px;border-bottom:1px solid var(--linea)}
+.ev-tabla th:first-child,.ev-tabla td:first-child{text-align:left}
+.ev-tabla td{padding:7px 8px;border-bottom:1px solid #eef1ef;text-align:center}
+.ev-tabla .si{color:#1b7f4b;font-weight:700}.ev-tabla .no{color:#b42318;font-weight:700}
+.ev-tabla .est-ok{background:#eef8f1;color:#14532d;font-weight:600}
+.ev-tabla .est-falta{background:#fff1f0;color:#9c0006;font-weight:600}
+.rot-lista{margin:6px 0 0;padding:0;list-style:none;font-size:13.5px}
+.rot-lista li{padding:5px 0;border-top:1px dashed #e3e9e5}
+.rot-lista code,.porta-sec code{background:#f3f5f4;padding:1px 6px;border-radius:5px;font-size:13px}
 .porta-tabla th{text-align:left;font-size:12.5px;color:var(--tinta-media);padding:8px 12px;border-bottom:1px solid var(--linea);text-transform:none;letter-spacing:normal}
 .porta-tabla td{padding:9px 12px;border-bottom:1px solid #eef1ef;vertical-align:top}
 .porta-tabla td.pn{width:38px;color:var(--tinta-tenue);font-weight:600}
@@ -1770,7 +1783,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '09/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-09.4';
+  const VERSION_INTERNA = '2026-10-09.6';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -6728,6 +6741,42 @@ label .req{color:var(--falla)}
     return texto;
   }
 
+  // Patrón de calidad del logro (punto 06 del sílabo). Marco: Mager (acción,
+  // condición y criterio); Anderson y Krathwohl, taxonomía de Bloom revisada
+  // (nivel del verbo); Tobón (verbo, objeto, finalidad y condición de
+  // referencia); ANECA y Kennedy (redacción de resultados de aprendizaje).
+  const PATRON_LOGRO = {
+    version: 'V1.0',
+    texto:
+      'El logro es un solo enunciado con cuatro elementos:\n' +
+      '1. Sujeto: el estudiante, al finalizar la asignatura (no el docente ni «se busca que…»).\n' +
+      '2. Acción: un verbo principal observable y evaluable, de nivel acorde al ciclo según la taxonomía ' +
+      'de Bloom revisada (aplicar, analizar, evaluar, crear…). No valen «conocer», «comprender» ni «entender».\n' +
+      '3. Criterios: con qué y cómo lo hace —métodos, normas, herramientas o condiciones— de modo que se pueda ' +
+      'juzgar si lo logró.\n' +
+      '4. Resultado esperado: para qué; el producto o desempeño final, que debe corresponder a las competencias ' +
+      'específicas y genéricas que la matriz asigna al curso.\n' +
+      'Cumple: están los cuatro y el resultado se alinea con las competencias. Parcial: falta uno, el verbo no es ' +
+      'observable o el resultado no se relaciona con las competencias del curso. No cumple: no hay logro o solo ' +
+      'enumera contenidos.\n' +
+      'Ejemplo: «Al finalizar la asignatura, el estudiante [sujeto] formula un proyecto de inversión [acción] ' +
+      'aplicando los métodos de evaluación económica y financiera [criterios], para determinar su viabilidad en ' +
+      'el contexto empresarial [resultado esperado].»'
+  };
+  // Las competencias contra las que se alinea el resultado esperado.
+  function competenciasParaLogro(c) {
+    const k = (c && c.competencias) || {};
+    const lin = l => l.map(x => x.codigo + ') ' + x.descripcion).join('\n');
+    const esp = (k.delCurso || []).length ? k.delCurso : (k.especificas || []);
+    const gen = k.genericas || [];
+    if (!esp.length && !gen.length) return 'Este curso aún no tiene competencias registradas en el portal ' +
+      '(Coordinadores → Competencias): el resultado esperado solo se verifica en su presencia, no en su alineación.';
+    return 'El resultado esperado debe corresponder a estas competencias del curso:\n' +
+      (esp.length ? 'Específicas' + ((k.delCurso || []).length ? '' : ' (todas las del plan: el curso no figura en la matriz)') +
+        ':\n' + lin(esp) : '') +
+      (gen.length ? (esp.length ? '\n' : '') + 'Genéricas:\n' + lin(gen) : '');
+  }
+
   let ADJUNTOS = [];
   // La carpeta de sílabos del área: se carga una vez y sirve para todos los
   // cursos que se revisen mientras la página siga abierta.
@@ -6755,9 +6804,9 @@ label .req{color:var(--falla)}
         { t: 'Competencias específicas del curso', de: 'Coordinadores → Competencias',
           hay: c => !!(c && c.competencias && ((c.competencias.delCurso || []).length || (c.competencias.especificas || []).length)),
           falta: 'Aún no están registradas: cárguelas en Coordinadores → Competencias, o adjunte el documento.' },
-        { t: 'Formato institucional y patrón de calidad del sílabo', de: 'Estándar cargado en el portal', hay: () => true },
+        { t: 'Formato institucional y patrón de calidad del sílabo', de: 'Estándar cargado en el portal (patrón del logro ' + PATRON_LOGRO.version + ')', hay: () => true },
         { t: 'Plan de estudios (créditos, requisitos y logro del curso)', opcional: true,
-          falta: 'Aún no está en el portal. Adjúntelo si quiere que se comprueben los puntos 01 y 06.' },
+          falta: 'Aún no está en el portal. Adjúntelo si quiere que se compruebe el punto 01 (créditos y requisitos).' },
         { t: 'Directiva de investigación formativa y responsabilidad social', opcional: true,
           falta: 'Aún no está en el portal. Adjúntela si quiere que se compruebe el punto 05.' }
       ]
@@ -7006,6 +7055,9 @@ label .req{color:var(--falla)}
               : (REFERENCIA_ITEM[n].falta || 'el sílabo del docente')
           }));
           contexto.archivos = ADJUNTOS.map(f => f.name);
+          contexto.patronLogro = 'PATRÓN DE CALIDAD DEL LOGRO DE LA ASIGNATURA, ' + PATRON_LOGRO.version +
+            ' (fuente del ítem 06; compara el logro del sílabo contra este patrón, nunca contra sí mismo):\n' +
+            PATRON_LOGRO.texto + '\n' + competenciasParaLogro(contexto);
         }
       } catch (e) {}
       const r = await fetch(URL_ASISTENTE + '/proponer', {
@@ -7435,8 +7487,11 @@ label .req{color:var(--falla)}
                    '(Coordinadores → Competencias). Mientras tanto, adjunte el documento de competencias con el clip 📎.' },
     '05': { de: 'documento', pide: 'la directiva de investigación formativa y responsabilidad ' +
             'social, para saber qué componentes exige' },
-    '06': { de: 'documento', pide: 'el plan de estudios, donde está el logro previsto de la ' +
-            'asignatura' },
+    // Punto 06: el logro se compara contra un patrón de calidad, no contra el
+    // propio sílabo. Versión V1.0; las mejoras se registran subiendo la versión.
+    '06': { de: 'formato', titulo: 'Patrón de calidad del logro de la asignatura (' + PATRON_LOGRO.version + ')',
+            texto: c => PATRON_LOGRO.texto + '\n\n' + competenciasParaLogro(c),
+            falta: SUBIR_SILABO },
     '07': { de: 'formato', titulo: 'Formato institucional del sílabo',
             texto: () => 'El formato establece 4 unidades. Se verifica que el sílabo las ' +
                          'presente completas, con su logro y contenidos.',
@@ -7764,6 +7819,7 @@ label .req{color:var(--falla)}
           ' · <button type="button" class="btn-enlace" id="portaOtraVez">Volver a revisar</button></span></div>' +
           '<table class="porta-tabla"><thead><tr><th></th><th>Punto</th><th>Archivos</th><th>Evidencia encontrada</th></tr></thead><tbody>' +
           filas + '</tbody></table>' +
+          pintarEvaluacionesPorta(d.evaluaciones) +
           '<p class="porta-nota">El inventario se hace por el nombre de las carpetas y archivos; no se lee el contenido de los trabajos de los estudiantes. ' +
           'Las sugerencias aparecen bajo cada punto: <b>usted marca la calificación</b>.</p>';
         $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
@@ -7784,6 +7840,15 @@ label .req{color:var(--falla)}
         if (estado.f3Portafolio && !estado.f3Portafolio.presentado) {
           lineas.unshift('• 01 Prueba de entrada: no se encuentra presentado el F3 (informe de la prueba de entrada).');
         }
+        // El rotulado: qué archivos corregir y cómo debe quedar el nombre.
+        const ev = d.evaluaciones;
+        if (ev && ev.rotulado && ev.rotulado.malos.length) {
+          lineas.push('• Rotulado de archivos: ' + ev.rotulado.malos.length + ' de ' + ev.rotulado.revisados +
+            ' no siguen la directiva. El formato es CÓDIGO.TIPO.PERIODO.PDF para el enunciado y ' +
+            'CÓDIGO.TIPO.PERIODO.Nombre del estudiante.Mayor|Menor|Promedio.Nota.PDF para las evidencias. Por corregir:');
+          ev.rotulado.malos.slice(0, 8).forEach(m => lineas.push('   – «' + m.nombre + '» (' + m.carpeta + '): ' + m.motivos.join('; ') + '.'));
+          if (ev.rotulado.malos.length > 8) lineas.push('   – y ' + (ev.rotulado.malos.length - 8) + ' más.');
+        }
         const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' +
           'Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + '):\n' +
           (lineas.length ? lineas.join('\n') : '• Se encontró evidencia en todos los puntos revisados.');
@@ -7797,6 +7862,39 @@ label .req{color:var(--falla)}
           ' · <button type="button" class="btn-enlace" id="portaOtraVez">Reintentar</button></span></div>';
         $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
       });
+  }
+
+  // Las evaluaciones que pide el sílabo (las carpetas que creó Calidad) y si
+  // cada una tiene enunciado, mayor, menor y promedio; luego, el rotulado.
+  function pintarEvaluacionesPorta(ev) {
+    if (!ev) return '<div class="porta-sec"><h4>Evaluaciones del sílabo</h4><p class="sub">Esta carpeta no tiene la ' +
+      'subcarpeta «EVALUACIONES» que crea Calidad y Acreditación, así que no se pudo saber qué evaluaciones pide el ' +
+      'sílabo. Se revisó solo por el nombre de los archivos.</p></div>';
+    const marca = n => n ? '<span class="si">✔</span>' : '<span class="no">✘</span>';
+    const filas = ev.evaluaciones.map(e => e.grupos.map(g =>
+      '<tr><td>' + esc(e.nombre + (g.n ? ' ' + g.n : '')) + ' <small>(' + esc(e.sigla) + ')</small></td>' +
+      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => '<td>' + marca(g.tiene[x]) + '</td>').join('') +
+      '<td class="' + (g.faltan.length ? 'est-falta' : 'est-ok') + '">' +
+      (!e.archivos ? 'Carpeta vacía' : (g.faltan.length ? 'Falta ' + g.faltan.length : 'Completa')) + '</td></tr>').join('')).join('');
+    const r = ev.rotulado || { revisados: 0, bien: 0, malos: [], videos: [] };
+    const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
+    return '<div class="porta-sec"><h4>Evaluaciones que pide el sílabo</h4>' +
+      '<p class="sub">Son las carpetas que creó Calidad y Acreditación dentro de «EVALUACIONES». En cada una deben estar ' +
+      'el enunciado y el desarrollo de la mayor, la menor y la nota promedio, en PDF.</p>' +
+      '<table class="ev-tabla"><thead><tr><th>Evaluación</th><th>Enunciado</th><th>Mayor</th><th>Menor</th><th>Promedio</th>' +
+      '<th>Estado</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
+      '<div class="porta-sec"><h4>Rotulado de los archivos</h4>' +
+      (!r.revisados ? '<p class="sub">Todavía no hay archivos que revisar.</p>'
+        : '<p class="sub">' + r.bien + ' de ' + r.revisados + ' archivos están bien rotulados.' +
+          (r.videos.length ? ' <b>Hay ' + r.videos.length + (r.videos.length === 1 ? ' video' : ' videos') +
+            ', y la directiva no permite subir videos.</b>' : '') + '</p>') +
+      '<p class="sub">Formato correcto: enunciado <code>' + esc(ej) + '</code> · evidencia <code>' +
+      esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code></p>' +
+      (r.malos.length ? '<ul class="rot-lista">' + r.malos.slice(0, 12).map(m =>
+        '<li><a href="' + esc(m.url || '#') + '" target="_blank" rel="noopener">' + esc(m.nombre) + '</a> ' +
+        '<small>(' + esc(m.carpeta) + ')</small><br>✘ ' + esc(m.motivos.join('; ')) + '</li>').join('') +
+        (r.malos.length > 12 ? '<li>…y ' + (r.malos.length - 12) + ' más.</li>' : '') + '</ul>' : '') +
+      '</div>';
   }
 
   // Punto 01 del portafolio: según la guía FI-GCA-GUI-001, la prueba de
