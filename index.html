@@ -217,6 +217,11 @@ tr.sin-leer{background:#fffdf6}
 #fichaForm.cargando .resumen::after{content:'Buscando lo registrado…';
   font-size:12.5px;color:var(--tinta-media)}
 #fichaForm.cargando .barra i{width:0 !important;transition:none}
+.guia-paso{margin:0 0 14px;padding:14px 18px;border-radius:10px;font-size:15px;line-height:1.55;border:1px solid}
+.guia-paso b.t{display:block;font-size:16px;margin-bottom:4px}
+.guia-paso ol{margin:6px 0 0 20px;padding:0}.guia-paso li{margin:3px 0}
+.guia-paso.ok{background:#eef8f1;border-color:#bfe3cc;color:#14532d}
+.guia-paso.obs{background:#fff7e8;border-color:#f0d49a;color:#6b4600}
 .declarado{background:#eaf2fb;border:1px solid #c3ddf3;border-left:3px solid #2a6fb0;
   border-radius:8px;padding:11px 13px;margin:0 0 14px;color:#0c447c}
 .declarado p{margin:4px 0 0;font-size:12.5px;line-height:1.5;max-width:76ch}
@@ -237,6 +242,17 @@ tr.sin-leer{background:#fffdf6}
   color:#6b4c00}
 .declarado.sin-fuente a{color:#6b4c00}
 .chat-asistente{margin:0 0 14px}
+.insumos{margin:4px 0 10px;border:1px solid var(--linea);border-radius:10px;background:#fbfcfb;padding:10px 14px}
+.insumos b.t{display:block;font-size:14.5px;margin-bottom:4px}
+.insumos ul{list-style:none;margin:0;padding:0}
+.insumos li{display:flex;gap:10px;padding:5px 0;border-top:1px dashed #e3e9e5;font-size:14px;line-height:1.45}
+.insumos li:first-child{border-top:0}
+.insumos .ic{flex:none;width:22px;text-align:center;font-weight:700}
+.insumos .hay .ic{color:#1b7f4b}.insumos .falta .ic{color:#a86a00}.insumos .opc .ic{color:#6b7280}
+.insumos small{display:block;color:var(--tinta-media);font-size:13px}
+.carpeta-estado{margin:0 0 8px;padding:8px 12px;border-radius:8px;background:#eef6fb;border:1px solid #c3ddf3;font-size:13.5px;line-height:1.5}
+.carpeta-estado.aviso-viejo{background:#fff7e8;border-color:#f0d49a}
+.carpeta-estado button{margin:4px 6px 0 0}
 .chat-titulo{font-size:13px;font-weight:600;color:var(--brand-oscuro)}
 .chat-sub{font-size:12px;color:var(--tinta-media);margin:2px 0 7px}
 .chat-caja{border:1px solid var(--linea);border-radius:14px;background:var(--papel);
@@ -1752,9 +1768,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '07/10/2026';
+  const VERSION_PORTAL = '09/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-07.9';
+  const VERSION_INTERNA = '2026-10-09.4';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5898,7 +5914,10 @@ label .req{color:var(--falla)}
     delegados: {
       asunto: 'Delegados del curso — {curso} (grupo {grupo})',
       mensaje: 'Estimado(a) {docente}:\n\n' +
-        'Quedan registrados los delegados de {curso} ({codigo}), grupo {grupo}, del ciclo {ciclo}.\n\n' +
+        'Como coordinador(a) del área de {area}, he revisado los datos de los delegados de {curso} ({codigo}), ' +
+        'grupo {grupo}, del ciclo {ciclo}.\n\n' +
+        '{observados}\n' +
+        '{cierre}\n\n' +
         'Cordialmente,\n{coordinador}' + FIRMA_BASE
     },
     entrevistas: {
@@ -6083,15 +6102,11 @@ label .req{color:var(--falla)}
           { k:'fijoSubdelegado', etq:'Teléfono fijo', col:'Telefono fijo del subdelegado', tipo:'texto' }
         ]},
         { tipo:'grid', ancho:true, campos:[
-          { k:'estado', etq:'¿Cómo llegaron al cargo estos delegados?', tipo:'select', req:true, full:true,
-            opciones:[ { v:'Vigente',     t:'Ambos fueron elegidos por el aula al inicio del ciclo' },
-                       { v:'Reemplazado', t:'Hubo un cambio: uno de ellos o ambos reemplazan a quienes estaban antes' } ],
-            nota:'Arriba se escriben siempre los datos de quien está HOY en el cargo. El que salió ' +
-                 'solo se menciona en Observaciones. Ejemplo: si Carlos Ruiz reemplazó a Juan Pérez ' +
-                 'como delegado, arriba se escriben los datos de Carlos Ruiz, y en Observaciones: ' +
-                 '«Desde el 15/09/2026 el delegado Juan Pérez fue reemplazado por Carlos Ruiz».' },
+          // «¿Cómo llegaron al cargo?» se retiró: eso lo declara el docente, no el
+          // coordinador. Cuando exista el portal del docente se traerá de allí.
           { k:'observaciones', etq:'Observaciones', tipo:'textarea',
-            ayuda:'Ejemplo: Desde el 15/09/2026 el delegado Juan Pérez fue reemplazado por Carlos Ruiz.' }
+            ayuda:'Arriba van los datos de quien está HOY en el cargo. Si sabe de un cambio, puede anotarlo ' +
+                  'aquí. Ejemplo: Desde el 15/09/2026 el delegado Juan Pérez fue reemplazado por Carlos Ruiz.' }
         ]}
       ]
     }
@@ -6106,6 +6121,9 @@ label .req{color:var(--falla)}
 
     estado.actual = a;
     estado.modulo = clave;
+    estado.f1Delegados = null;   // se sabrá al consultar el F1 de este curso
+    if ($('guiaDelegados')) $('guiaDelegados').remove();
+    CONTEXTO_INSUMOS = null;
     // Para volver al mismo curso y no al principio de la lista.
     estado.vueltaA = (a.programa || '') + '¦' + (a.codigo || '') + '¦' + (a.asignatura || '');
     estado.soloLectura = !!a.soloConsulta;
@@ -6446,45 +6464,60 @@ label .req{color:var(--falla)}
     if (F === FORMULARIOS.formularios) prepararPlazos();
 
     // En los siete formatos, el asistente como un chat: se escribe, se adjunta
-    // si hace falta, y se envía. La explicación queda plegada.
+    // si hace falta, y se envía. Lo que pide y la lista de lo que necesita
+    // cambian según el formato que se está revisando.
     (function () {
-      const esEntrevista = F === FORMULARIOS.entrevistas;
+      const ins = INSUMOS[estado.modulo] || INSUMOS.silabo;
+      ADJUNTOS = [];   // los archivos son de este curso y formato
       const caja = document.createElement('div');
       caja.className = 'chat-asistente';
       caja.innerHTML =
         '<div class="chat-titulo">Apoyo para la revisión</div>' +
-        '<div class="chat-sub">El asistente compara los documentos y le señala lo que ' +
+        '<div class="chat-sub">El asistente compara con los estándares del portal y le señala lo que ' +
         'encuentra. La evaluación y la decisión son suyas.</div>' +
+        '<div class="insumos" id="insumos"></div>' +
+        '<div class="carpeta-estado oculto" id="carpetaEstado"></div>' +
         '<div class="chat-caja">' +
           '<div class="chat-adjuntos" id="trAdjuntos"></div>' +
-          '<textarea id="trIndicacion" rows="2" placeholder="' + (esEntrevista
-            ? 'Adjunte la transcripción de la reunión para analizarla, o anote sus hallazgos…'
-            : 'Adjunte el sílabo y los documentos oficiales para compararlos, o anote sus hallazgos…') +
-          '"></textarea>' +
+          '<textarea id="trIndicacion" rows="2" placeholder="' + esc(ins.placeholder) + '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
               'accept=".pdf,.docx,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
+            '<input type="file" id="trCarpeta" class="oculto" webkitdirectory directory multiple>' +
             '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
+            (ins.carpeta
+              ? '<button type="button" class="chat-clip" id="btnCarpeta" title="Cargar la carpeta con todos los sílabos del área">📁 Cargar carpeta de sílabos</button>'
+              : '') +
             '<button type="button" class="chat-enviar" id="btnProponer" title="Analizar">Analizar ➤</button>' +
           '</div>' +
         '</div>' +
         '<details class="chat-ayuda"><summary>¿Cómo funciona?</summary>' +
-          '<p><b>Si adjunta archivos</b>, el asistente ' + (esEntrevista
-            ? 'lee la transcripción de la reunión'
-            : 'compara el sílabo del profesor con el plan de estudios o el modelo educativo') +
-          ' y le presenta, punto por punto, qué coincide, qué difiere y qué no pudo ' +
-          'comprobar. Usted revisa ese análisis y decide cada punto. Los archivos no se guardan.</p>' +
+          '<p><b>Si adjunta archivos</b>, el asistente ' + ins.como + '. Usted revisa ese análisis y ' +
+          'decide cada punto. Los archivos no se guardan.</p>' +
+          (ins.carpeta
+            ? '<p><b>Si carga la carpeta de sílabos del área</b>, el portal busca en ella el sílabo de este ' +
+              'curso y docente y lo adjunta solo. La carpeta queda cargada mientras no cierre la página, ' +
+              'así que sirve para todos los cursos que revise. Ojo: si el docente cambió el sílabo y lo subió ' +
+              'a su aula virtual, la copia de la carpeta puede estar desactualizada.</p>'
+            : '') +
           '<p><b>Si anota sus hallazgos</b>, el asistente los ordena en el formato para ' +
-          'ahorrarle escribir. Ejemplo: <i>' + (esEntrevista
-            ? 'se quejaron de la puntualidad; el profesor quedó en recuperar dos clases'
-            : 'todo conforme, salvo la bibliografía que es del 2015') + '</i>.</p>' +
+          'ahorrarle escribir. Ejemplo: <i>' + esc(ins.ejemplo) + '</i>.</p>' +
           '<p>En ambos casos la revisión es suya: nada se guarda hasta que usted la ' +
           'confirme con Guardar, y queda registrada a su nombre como revisor.</p>' +
           '<p><b>No confunda con «Enlace de evidencia»</b>, al final: ahí va el respaldo de ' +
           'su revisión, que sí queda guardado.</p>' +
         '</details>';
       $('fichaForm').prepend(caja);
-
+      pintarInsumos();
+      if (ins.carpeta) {
+        $('btnCarpeta').addEventListener('click', () => $('trCarpeta').click());
+        $('trCarpeta').addEventListener('change', () => {
+          CARPETA = [...$('trCarpeta').files].filter(f => /\.(pdf|docx)$/i.test(f.name) && !/^~\$/.test(f.name));
+          $('trCarpeta').value = '';
+          buscarEnCarpeta(true);
+        });
+        if (CARPETA.length) buscarEnCarpeta(false);
+      }
       $('btnArchivo').addEventListener('click', () => $('trArchivo').click());
       $('trArchivo').addEventListener('change', pintarAdjuntos);
       $('btnProponer').addEventListener('click', () => proponer(F));
@@ -6696,9 +6729,202 @@ label .req{color:var(--falla)}
   }
 
   let ADJUNTOS = [];
+  // La carpeta de sílabos del área: se carga una vez y sirve para todos los
+  // cursos que se revisen mientras la página siga abierta.
+  let CARPETA = [];
+
+  // Qué necesita el asistente en cada formato. «hay» dice si ya está en el
+  // portal; lo que no está, el coordinador lo adjunta. A medida que se
+  // integren otros sistemas (el aula virtual, por ejemplo), lo que hoy se
+  // adjunta pasará a estar en el portal y desaparecerá de lo que se pide.
+  const INSUMOS = {
+    silabo: {
+      placeholder: 'Adjunte el sílabo del docente (o cargue la carpeta de sílabos del área), o anote sus hallazgos…',
+      como: 'compara el sílabo del docente con los estándares de esta lista y le presenta, punto por punto, ' +
+            'qué cumple, qué no y qué no pudo comprobar',
+      ejemplo: 'todo conforme, salvo la bibliografía que es del 2015',
+      carpeta: true,
+      lista: [
+        { t: 'Sílabo del docente', archivo: true,
+          falta: 'Adjúntelo con 📎 o cargue la carpeta de sílabos del área con 📁. Cuando esté la conexión con el aula virtual, llegará solo.' },
+        { t: 'Sumilla oficial del curso', de: 'Catálogo de cursos', hay: c => !!(c && c.sumilla),
+          falta: 'Este curso no tiene sumilla en el catálogo: complétela en Validar datos o adjunte el plan de estudios.' },
+        { t: 'Competencias genéricas de la carrera', de: 'Coordinadores → Competencias',
+          hay: c => !!(c && c.competencias && (c.competencias.genericas || []).length),
+          falta: 'La carrera aún no las tiene registradas: cárguelas en Coordinadores → Competencias, o adjunte el documento.' },
+        { t: 'Competencias específicas del curso', de: 'Coordinadores → Competencias',
+          hay: c => !!(c && c.competencias && ((c.competencias.delCurso || []).length || (c.competencias.especificas || []).length)),
+          falta: 'Aún no están registradas: cárguelas en Coordinadores → Competencias, o adjunte el documento.' },
+        { t: 'Formato institucional y patrón de calidad del sílabo', de: 'Estándar cargado en el portal', hay: () => true },
+        { t: 'Plan de estudios (créditos, requisitos y logro del curso)', opcional: true,
+          falta: 'Aún no está en el portal. Adjúntelo si quiere que se comprueben los puntos 01 y 06.' },
+        { t: 'Directiva de investigación formativa y responsabilidad social', opcional: true,
+          falta: 'Aún no está en el portal. Adjúntela si quiere que se compruebe el punto 05.' }
+      ]
+    },
+    formula: {
+      placeholder: 'Adjunte el sílabo y la captura de la fórmula del Sistema de Evaluación, o anote sus hallazgos…',
+      como: 'compara la fórmula de evaluación del sílabo con la configurada en el Sistema de Evaluación',
+      ejemplo: 'en el sistema el examen final pesa 30 % y en el sílabo 40 %',
+      carpeta: true,
+      lista: [
+        { t: 'Sílabo del docente (la fórmula de evaluación)', archivo: true,
+          falta: 'Adjúntelo con 📎 o cargue la carpeta de sílabos del área con 📁.' },
+        { t: 'Fórmula configurada en el Sistema de Evaluación',
+          falta: 'Adjunte el PDF o la captura de la configuración, o cópiela en el campo «Fórmula en el sistema».' }
+      ]
+    },
+    formularios: {
+      placeholder: 'No necesita adjuntar nada: el portal lee los formularios. Si quiere, anote sus hallazgos…',
+      como: 'ordena lo que usted adjunte o anote en el formato',
+      ejemplo: 'el F2 llegó por correo y no por el formulario',
+      lista: [
+        { t: 'Respuestas de F1, F2, F3 y F4', de: 'Hojas de los formularios de la Escuela', hay: () => true },
+        { t: 'Plazos de la Escuela', de: 'Preparar el ciclo → Plazos (si la Escuela los fijó)', hay: () => true }
+      ]
+    },
+    delegados: {
+      placeholder: 'No necesita adjuntar nada: los datos salen del F1. Si quiere, anote sus hallazgos…',
+      como: 'ordena lo que usted adjunte o anote en el formato',
+      ejemplo: 'el subdelegado cambió en setiembre',
+      lista: [
+        { t: 'Delegado y subdelegado', de: 'Formulario F1 que llena el docente', hay: () => true }
+      ]
+    },
+    portafolios: {
+      placeholder: 'No necesita adjuntar nada: el portal revisa la carpeta de Drive. Si quiere, anote sus hallazgos…',
+      como: 'ordena lo que usted adjunte o anote en el formato',
+      ejemplo: 'faltan las rúbricas del examen parcial',
+      lista: [
+        { t: 'Carpeta del portafolio en Drive', de: 'Enlaces de portafolios de las Escuelas', hay: () => true },
+        { t: 'Prueba de entrada', de: 'Formulario F3', hay: () => true }
+      ]
+    },
+    aulaVirtual: {
+      placeholder: 'Adjunte capturas o el PDF del aula virtual, o anote lo que encontró…',
+      como: 'revisa lo que muestran los archivos del aula virtual contra los puntos del formato',
+      ejemplo: 'no está publicado el sílabo y falta el foro de consultas',
+      lista: [
+        { t: 'Contenido del aula virtual', archivo: true,
+          falta: 'Mientras no esté la conexión con el aula virtual (Moodle), adjunte capturas o el PDF, o anote lo que vio.' }
+      ]
+    },
+    entrevistas: {
+      placeholder: 'Adjunte la transcripción de la reunión para analizarla, o anote sus hallazgos…',
+      como: 'lee la transcripción de la reunión y propone lo tratado en cada uno de los ocho temas',
+      ejemplo: 'se quejaron de la puntualidad; el profesor quedó en recuperar dos clases',
+      lista: [
+        { t: 'Transcripción o notas de la reunión', archivo: true,
+          falta: 'Adjúntela con 📎 (de Teams, Meet o Zoom: .vtt, .docx, .txt o .pdf), o anote lo tratado.' },
+        { t: 'Delegados de la carrera', de: 'Datos de delegados de los cursos', hay: () => true }
+      ]
+    }
+  };
+
+  // La lista de lo que el asistente necesita: qué ya está y qué falta subir.
+  let CONTEXTO_INSUMOS = null;
+  function pintarInsumos() {
+    const caja = $('insumos');
+    if (!caja) return;
+    const ins = INSUMOS[estado.modulo] || INSUMOS.silabo;
+    const c = CONTEXTO_INSUMOS;
+    const filas = ins.lista.map(x => {
+      let clase, ic, txt;
+      if (x.archivo) {
+        const n = ADJUNTOS.length;
+        clase = n ? 'hay' : 'falta'; ic = n ? '✔' : '📎';
+        txt = n ? 'Adjuntado: ' + ADJUNTOS.map(f => f.name).join(', ') : x.falta;
+      } else if (x.hay && (c || !/competencias|sumilla/i.test(x.t)) && x.hay(c || {})) {
+        clase = 'hay'; ic = '✔'; txt = 'Ya está en el portal · ' + x.de;
+      } else if (x.hay && !c && estado.modulo === 'silabo') {
+        clase = 'opc'; ic = '…'; txt = 'Consultando el portal…';
+      } else {
+        clase = x.opcional ? 'opc' : 'falta'; ic = x.opcional ? '○' : '📎'; txt = x.falta;
+      }
+      return '<li class="' + clase + '"><span class="ic">' + ic + '</span><div>' + esc(x.t) +
+             (x.opcional && clase !== 'hay' ? ' <i>(opcional)</i>' : '') + '<small>' + esc(txt) + '</small></div></li>';
+    });
+    const nadaQueSubir = ins.lista.every(x => !x.archivo && x.hay && !x.opcional);
+    caja.innerHTML = '<b class="t">' + (nadaQueSubir ? '✔ No necesita subir nada' : 'Lo que el asistente necesita') +
+      '</b><ul>' + filas.join('') + '</ul>';
+    if (estado.modulo === 'silabo' && !c && !pintarInsumos.pidiendo) {
+      pintarInsumos.pidiendo = true;
+      const a = estado.actual || {};
+      api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
+          '&programa=' + encodeURIComponent(a.programa || ''))
+        .then(d => { CONTEXTO_INSUMOS = d.contexto || {}; })
+        .catch(() => { CONTEXTO_INSUMOS = {}; })
+        .then(() => { pintarInsumos.pidiendo = false; pintarInsumos(); });
+    }
+  }
+
+  // Busca en la carpeta cargada el sílabo de este curso y docente, por el
+  // nombre del archivo y de sus subcarpetas: código, nombre del curso,
+  // apellido del docente y grupo.
+  function buscarEnCarpeta(recienCargada) {
+    const caja = $('carpetaEstado');
+    if (!caja) return;
+    const a = estado.actual || {};
+    const norm = t => sinAcentos(String(t || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const cod = sinAcentos(a.codigo || '').replace(/[^a-z0-9]/g, '');
+    const comunes = ['para', 'sobre', 'entre', 'desde', 'curso'];
+    const palabras = norm(nombreCurso(a.asignatura)).split(' ').filter(w => w.length > 3 && comunes.indexOf(w) < 0);
+    const apellidos = norm(String(a.docente || '').split(',')[0]).split(' ').filter(w => w.length > 2);
+    const grupo = String(a.grupo || '').replace(/^0+/, '');
+    const hallados = CARPETA.map(f => {
+      const ruta = ' ' + norm((f.webkitRelativePath || f.name).replace(/\.[^.]+$/, '')) + ' ';
+      const pegada = ruta.replace(/ /g, '');
+      let p = 0, delCurso = false;
+      if (cod && pegada.indexOf(cod) >= 0) { p += 5; delCurso = true; }
+      const hits = palabras.filter(w => ruta.indexOf(' ' + w + ' ') >= 0).length;
+      if (palabras.length && hits / palabras.length >= 0.6) { p += 4; delCurso = true; }
+      if (apellidos.some(w => ruta.indexOf(' ' + w + ' ') >= 0)) p += 3;
+      if (grupo && new RegExp(' (g|gr|grupo) ?0*' + grupo + ' ').test(ruta)) p += 1;
+      return { f, p, delCurso };
+    }).filter(x => x.delCurso && x.p >= 5).sort((x, y) => y.p - x.p);
+
+    const fechaArch = f => { const d = new Date(f.lastModified); return isNaN(d) ? '' :
+      ('0' + d.getDate()).slice(-2) + '/' + ('0' + (d.getMonth() + 1)).slice(-2) + '/' + d.getFullYear(); };
+    const adjuntar = f => {
+      if (!ADJUNTOS.some(x => x.name === f.name && x.size === f.size)) ADJUNTOS.push(f);
+      pintarAdjuntosDesde();
+    };
+    const cab = '<b>📁 Carpeta cargada: ' + CARPETA.length + (CARPETA.length === 1 ? ' archivo' : ' archivos') + '.</b> ';
+    const aviso = ' <br>Confirme que sea la versión vigente, la que está publicada en el aula virtual: ' +
+                  'si el docente la cambió después, esta copia puede estar desactualizada.';
+    caja.classList.remove('oculto', 'aviso-viejo');
+    if (!CARPETA.length) {
+      caja.innerHTML = '<b>📁 La carpeta no tiene archivos PDF ni Word.</b>';
+      return;
+    }
+    if (!hallados.length) {
+      caja.innerHTML = cab + 'No se encontró el sílabo de este curso y docente en la carpeta. Adjúntelo con 📎.';
+      return;
+    }
+    const mejor = hallados[0];
+    const empate = hallados.filter(x => x.p === mejor.p);
+    if (empate.length === 1) {
+      adjuntar(mejor.f);
+      caja.classList.add('aviso-viejo');
+      caja.innerHTML = cab + 'Se adjuntó <b>' + esc(mejor.f.webkitRelativePath || mejor.f.name) + '</b>' +
+        (fechaArch(mejor.f) ? ', modificado el ' + fechaArch(mejor.f) : '') + '.' + aviso;
+      return;
+    }
+    caja.innerHTML = cab + 'Hay ' + empate.length + ' archivos que podrían ser de este curso. Elija el que corresponde:<br>' +
+      empate.slice(0, 6).map((x, i) => '<button type="button" class="btn fantasma" data-elige="' + i + '">' +
+        esc(x.f.webkitRelativePath || x.f.name) + (fechaArch(x.f) ? ' · ' + fechaArch(x.f) : '') + '</button>').join('');
+    caja.querySelectorAll('[data-elige]').forEach(b => b.addEventListener('click', () => {
+      const x = empate[Number(b.dataset.elige)];
+      adjuntar(x.f);
+      caja.classList.add('aviso-viejo');
+      caja.innerHTML = cab + 'Se adjuntó <b>' + esc(x.f.webkitRelativePath || x.f.name) + '</b>.' + aviso;
+    }));
+  }
+
   function pintarAdjuntos() {
     ADJUNTOS = ADJUNTOS.concat([...$('trArchivo').files]);
     $('trArchivo').value = '';
+    setTimeout(pintarInsumos, 0);
     const c = $('trAdjuntos');
     c.innerHTML = ADJUNTOS.map((f, i) =>
       '<span class="chat-chip">📄 ' + esc(f.name) +
@@ -6718,6 +6944,7 @@ label .req{color:var(--falla)}
     c.querySelectorAll('[data-q]').forEach(b => b.addEventListener('click', () => {
       ADJUNTOS.splice(Number(b.dataset.q), 1); pintarAdjuntosDesde();
     }));
+    pintarInsumos();
   }
 
   async function proponer(F, origenForzado) {
@@ -6796,6 +7023,7 @@ label .req{color:var(--falla)}
       if (d.error) throw new Error(d.error);
       aplicarPropuesta(F, d.propuesta || {});
       ADJUNTOS = []; if ($('trAdjuntos')) $('trAdjuntos').innerHTML = '';
+      pintarInsumos();
       $('trIndicacion').value = '';
     } catch (e) {
       btn.disabled = false;
@@ -7662,6 +7890,7 @@ label .req{color:var(--falla)}
         if (d.sinFuente) {
           caja.className = 'declarado sin-fuente';
           caja.innerHTML = '<b>No hay formulario registrado</b><p>' + esc(d.aviso) + '</p>';
+          if (estado.modulo === 'delegados') observarDelegados('sinFuente');
           return;
         }
         const r = (d.coincidencias || [])[0];
@@ -7670,8 +7899,11 @@ label .req{color:var(--falla)}
           caja.innerHTML = '<b>El docente todavía no ha respondido</b>' +
             '<p>Se revisaron las ' + (d.total || 0) + ' respuestas del formulario de la ' +
             'Escuela y ninguna corresponde a esta carga. Si sabe que sí respondió, puede ' +
-            'que lo hiciera con otro curso o grupo.</p>' +
-            '';
+            'que lo hiciera con otro curso o grupo.' +
+            (estado.modulo === 'delegados'
+              ? ' <b>Se anotó en Observaciones</b>, para que pueda enviárselo al docente por correo o WhatsApp.' : '') +
+            '</p>';
+          if (estado.modulo === 'delegados') observarDelegados('sinRespuesta');
           return;
         }
 
@@ -7733,11 +7965,90 @@ label .req{color:var(--falla)}
             .join('') + '</dl></details>';
         marcarCampos();
         recalcularCompleto(F);
+        if (estado.modulo === 'delegados') observarDelegados('respondido');
       })
       .catch(e => {
         caja.className = 'declarado sin-fuente';
         caja.innerHTML = '<b>No se pudo consultar el formulario</b><p>' + esc(e.message) + '</p>';
+        if (estado.modulo === 'delegados') observarDelegados('error');
       });
+  }
+
+  // Datos de delegados: lo que falta se escribe solo en Observaciones, que es
+  // lo que el coordinador envía al docente con «Notificar por correo» o
+  // «WhatsApp». Las frases son fijas: al volver a abrir el formato se quitan
+  // las que ya no correspondan (por ejemplo, si el docente ya respondió).
+  const OBS_DELEGADOS = {
+    sinF1: '• No se encontró su respuesta al formulario F1 (datos de delegados) de este curso y grupo.',
+    sinAmbos: '• No figuran el delegado ni el subdelegado del curso.',
+    sinDel: '• No figura el delegado del curso.',
+    sinSub: '• No figura el subdelegado del curso.'
+  };
+  // Qué hacer ahora: una indicación clara, encima de los botones.
+  function guiaDelegados(notas) {
+    const pie = $('btnGuardar') && $('btnGuardar').parentElement;
+    if (!pie) return;
+    let g = $('guiaDelegados');
+    if (!g) { g = document.createElement('div'); g.id = 'guiaDelegados'; pie.parentElement.insertBefore(g, pie); }
+    const a = estado.actual || {};
+    const canales = [a.correoDocente ? '«Notificar por correo»' : '', a.celularDocente ? '«WhatsApp»' : '']
+      .filter(Boolean).join(' o ');
+    const sinHoja = estado.f1Delegados === 'sinFuente'
+      ? '<li>Además, la Escuela no tiene registrada la hoja del F1 de esta carrera: avise al coordinador general.</li>' : '';
+    if (!notas.length) {
+      g.className = 'guia-paso ok';
+      g.innerHTML = '<b class="t">✔ Todo en orden</b>' +
+        (estado.f1Delegados === 'respondido' ? 'El docente respondió el F1 y están' : 'Están') +
+        ' el delegado y el subdelegado.' +
+        '<ol><li>Revise que los datos estén bien.</li><li>Dé clic en «Guardar delegados».</li>' +
+        '<li>No hace falta escribirle al docente.</li>' + sinHoja + '</ol>';
+      return;
+    }
+    g.className = 'guia-paso obs';
+    g.innerHTML = '<b class="t">▲ Hay ' + (notas.length === 1 ? 'una observación' : notas.length + ' observaciones') +
+      ' para el docente</b>Ya están escritas en Observaciones.' +
+      '<ol><li>Dé clic en «Guardar delegados».</li>' +
+      (canales
+        ? '<li>Dé clic en ' + canales + ' para enviárselas al docente.</li>'
+        : '<li>El docente no tiene correo ni celular registrados: avísele por otro medio.</li>') +
+      '<li>Cuando el docente complete el F1, vuelva a abrir este formato: los datos se llenan solos y la ' +
+      'observación se quita. Entonces guarde otra vez.</li>' + sinHoja + '</ol>';
+  }
+  function observarDelegados(resultadoF1) {
+    if (resultadoF1) estado.f1Delegados = resultadoF1;
+    const form = $('fichaForm');
+    // Se espera a que termine de cargar lo guardado: si no, lo pisaría.
+    if (form && form.classList.contains('cargando')) {
+      clearTimeout(observarDelegados.t);
+      observarDelegados.t = setTimeout(() => observarDelegados(), 400);
+      return;
+    }
+    const obs = $('f_observaciones');
+    if (!obs || estado.modulo !== 'delegados' || estado.soloLectura) return;
+    const v = k => (($('f_' + k) || {}).value || '').trim();
+    const notas = [];
+    if (estado.f1Delegados === 'sinRespuesta') notas.push(OBS_DELEGADOS.sinF1);
+    if (!v('delegado') && !v('subdelegado')) notas.push(OBS_DELEGADOS.sinAmbos);
+    else if (!v('delegado')) notas.push(OBS_DELEGADOS.sinDel);
+    else if (!v('subdelegado')) notas.push(OBS_DELEGADOS.sinSub);
+    let texto = obs.value;
+    Object.values(OBS_DELEGADOS).forEach(t => { texto = texto.split(t).join(''); });
+    texto = texto.replace(/\n{3,}/g, '\n\n').trim();
+    const nuevo = [texto].concat(notas).filter(Boolean).join('\n');
+    if (nuevo !== obs.value) {
+      obs.value = nuevo;
+      obs.dispatchEvent(new Event('input', { bubbles: true }));
+      obs.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    guiaDelegados(notas);
+    // Si el coordinador escribe o borra al delegado, la nota se ajusta sola.
+    ['delegado', 'subdelegado'].forEach(k => {
+      const el = $('f_' + k);
+      if (el && !el.dataset.observa) {
+        el.dataset.observa = '1';
+        el.addEventListener('change', () => observarDelegados());
+      }
+    });
   }
 
   // «24/8/2026 13:21:22» → «2026-08-24», que es lo que esperan los campos de fecha.
@@ -8183,14 +8494,25 @@ label .req{color:var(--falla)}
       porcentaje: r.pct !== undefined ? r.pct : '', observados: obs,
       // El cierre cambia según el resultado: pedir que levanten observaciones
       // cuando no hay ninguna queda mal y confunde al docente.
-      cierre: (obs && obs !== 'Sin observaciones.')
-        ? 'Agradeceré atender lo observado y remitir la versión corregida.'
-        : 'No hay observaciones que atender. Gracias por su colaboración.',
+      cierre: clave === 'delegados'
+        ? ((obs && obs !== 'Sin observaciones.')
+            ? 'Le agradeceré completar el formulario F1 con esos datos a la brevedad.'
+            : 'Los datos de los delegados están completos. Gracias por su colaboración.')
+        : ((obs && obs !== 'Sin observaciones.')
+            ? 'Agradeceré atender lo observado y remitir la versión corregida.'
+            : 'No hay observaciones que atender. Gracias por su colaboración.'),
       fecha: String(fecha).slice(0, 10)
     };
     const sustituir = (t) => String(t || '').replace(/\{(\w+)\}/g,
       (m, k) => datos[k] !== undefined && datos[k] !== '' ? datos[k] : '');
-    return { asunto: sustituir(pl.asunto), cuerpo: sustituir(pl.mensaje) };
+    // Una plantilla guardada antes podría no traer {observados}: lo observado
+    // se agrega igual, para que nunca se envíe sin lo que hay que atender.
+    let cuerpo = sustituir(pl.mensaje);
+    if (!/\{observados\}/.test(pl.mensaje || '') && obs !== 'Sin observaciones.') {
+      const i = cuerpo.indexOf('Cordialmente');
+      cuerpo = i >= 0 ? cuerpo.slice(0, i) + obs + '\n\n' + cuerpo.slice(i) : cuerpo + '\n\n' + obs;
+    }
+    return { asunto: sustituir(pl.asunto), cuerpo };
   }
 
   // ------------------------------------------ notificar al docente --
@@ -8387,12 +8709,6 @@ label .req{color:var(--falla)}
         const n = b.contar.desde.filter(k => $('f_' + k) && [].concat(b.contar.valor).indexOf($('f_' + k).value) >= 0).length;
         if (M.campos[b.contar.campo]) valores[M.campos[b.contar.campo]] = n;
       }
-    }
-
-    if (clave === 'delegados' && $('f_estado') && $('f_estado').value === 'Reemplazado' &&
-        $('f_observaciones') && !$('f_observaciones').value.trim()) {
-      $('f_observaciones').focus();
-      return aviso('Anote en Observaciones quién cambió (delegado o subdelegado), a quién reemplaza y desde qué fecha.', 'error');
     }
 
     // Escala de criterios o ítems
