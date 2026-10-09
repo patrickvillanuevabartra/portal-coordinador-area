@@ -569,6 +569,19 @@ tr.sin-leer{background:#fffdf6}
 .ev-tabla .est-ok{background:#eef8f1;color:#14532d;font-weight:600}
 .ev-tabla .est-falta{background:#fff1f0;color:#9c0006;font-weight:600}
 .rot-lista{margin:6px 0 0;padding:0;list-style:none;font-size:13.5px}
+.porta-tabla tr.na td.pc{color:var(--tinta-tenue)}
+.porta-tabla .no-aplica{color:var(--tinta-media);font-style:italic}
+.ev-chip{display:inline-block;margin:0 6px 4px 0;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.ev-chip.evc-ok{background:#e3f4e9;color:#14532d}.ev-chip.evc-parcial{background:#fff3d6;color:#7a4d00}.ev-chip.evc-vacio{background:#fde8e8;color:#9c0006}
+.ev-scroll{overflow-x:auto}
+.ev-detalle th{text-align:left}
+.ev-detalle tbody th{font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1ef;white-space:nowrap;vertical-align:top}
+.ev-detalle tbody th small{display:block;font-weight:400;color:var(--tinta-tenue);font-size:12px}
+.ev-detalle td{text-align:left;vertical-align:top;font-size:13px}
+.ev-detalle td a{display:block;color:#1f5fa8;word-break:break-all}
+.ev-detalle .rot-ok{display:block;color:#1b7f4b;font-size:12px}
+.ev-detalle .rot-mal{display:block;color:#b42318;font-size:12px}
+.ev-detalle .falta-celda{color:#b42318;font-weight:600;background:#fff5f5}
 .rot-lista li{padding:5px 0;border-top:1px dashed #e3e9e5}
 .rot-lista code,.porta-sec code{background:#f3f5f4;padding:1px 6px;border-radius:5px;font-size:13px}
 .porta-tabla th{text-align:left;font-size:12.5px;color:var(--tinta-media);padding:8px 12px;border-bottom:1px solid var(--linea);text-transform:none;letter-spacing:normal}
@@ -1783,7 +1796,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '09/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-09.6';
+  const VERSION_INTERNA = '2026-10-09.7';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7777,7 +7790,7 @@ label .req{color:var(--falla)}
   const NOMBRE_PUNTO_P = { '01': 'Prueba de entrada', '02': 'Prácticas', '03': 'Laboratorio y talleres',
     '04': 'Investigación', '05': 'Proyectos', '06': 'Trabajos y tareas', '07': 'Exámenes' };
 
-  function revisarPortafolioDrive(recargar) {
+  function revisarPortafolioDrive(recargar, formula) {
     const a = estado.actual || {};
     let caja = document.querySelector('.porta-panel');
     if (!caja) {
@@ -7788,7 +7801,10 @@ label .req{color:var(--falla)}
     caja.innerHTML = '<div class="porta-cab"><b>Revisando el portafolio del docente en Drive…</b>' +
       '<span class="porta-sub">Se recorre su carpeta en el portafolio de la Escuela. Puede tardar unos segundos.</span></div>';
     const id = a.idInforme || a.idAsignacion;
+    if (formula !== undefined) estado.formulaPorta = formula;
+    const fPegada = estado.formulaPorta || '';
     api('/portafolio?idAsignacion=' + encodeURIComponent(id) + '&ciclo=' + encodeURIComponent(a.ciclo || '') +
+        (fPegada ? '&formula=' + encodeURIComponent(fPegada) : '') +
         (recargar ? '&recargar=1' : ''), { limiteMs: 150000 })
       .then(d => {
         if (estado.actual !== a || estado.modulo !== 'portafolios') return;
@@ -7802,7 +7818,8 @@ label .req{color:var(--falla)}
           $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
           return;
         }
-        const filas = Object.keys(NOMBRE_PUNTO_P).map(k => {
+        const evP = d.evaluaciones;
+        const filas = evP ? filasPuntosConEstructura(evP) : Object.keys(NOMBRE_PUNTO_P).map(k => {
           const p = (d.puntos || {})[k] || { n: 0, archivos: [], carpetasVacias: [] };
           const enlaces = p.archivos.slice(0, 4).map(x => '<a href="' + esc(x.url) + '" target="_blank" rel="noopener" title="' +
             esc((x.ruta ? x.ruta + ' / ' : '') + x.nombre) + '">' + esc(x.nombre) + '</a>').join('');
@@ -7817,12 +7834,16 @@ label .req{color:var(--falla)}
           (d.certeza === 'baja' ? ' · <b class="ojo">confirme que es la carpeta de este docente</b>' : '') +
           (d.publica ? ' · <b class="ojo">la carpeta está compartida públicamente</b>' : '') +
           ' · <button type="button" class="btn-enlace" id="portaOtraVez">Volver a revisar</button></span></div>' +
-          '<table class="porta-tabla"><thead><tr><th></th><th>Punto</th><th>Archivos</th><th>Evidencia encontrada</th></tr></thead><tbody>' +
+          (evP ? introEstructuraPorta(evP) : '') +
+          '<table class="porta-tabla"><thead><tr><th></th><th>Punto</th><th>Archivos</th><th>' +
+          (evP ? 'Evaluación del curso que lo cubre' : 'Evidencia encontrada') + '</th></tr></thead><tbody>' +
           filas + '</tbody></table>' +
           pintarEvaluacionesPorta(d.evaluaciones) +
           '<p class="porta-nota">El inventario se hace por el nombre de las carpetas y archivos; no se lee el contenido de los trabajos de los estudiantes. ' +
           'Las sugerencias aparecen bajo cada punto: <b>usted marca la calificación</b>.</p>';
         $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
+        if ($('portaFormulaBtn')) $('portaFormulaBtn').addEventListener('click', () =>
+          revisarPortafolioDrive(true, ($('portaFormula').value || '').trim()));
 
         // Hallazgos bajo cada punto y borrador en Observaciones.
         const h = d.hallazgos || {};
@@ -7835,7 +7856,8 @@ label .req{color:var(--falla)}
         mostrarHallazgos();
         aplicarF3Portafolio();
         const obs = $('f_observaciones') || $('f_observacionesGenerales');
-        const lineas = Object.keys(h).filter(k => k !== '01' && h[k] && h[k].para_docente && h[k].sugerido !== 'Cumple')
+        const lineas = Object.keys(h).filter(k => k !== '01' && h[k] && h[k].para_docente &&
+                                                 h[k].sugerido !== 'Cumple' && h[k].sugerido !== 'No aplica')
           .map(k => '• ' + k + ' ' + NOMBRE_PUNTO_P[k] + ': ' + h[k].para_docente);
         if (estado.f3Portafolio && !estado.f3Portafolio.presentado) {
           lineas.unshift('• 01 Prueba de entrada: no se encuentra presentado el F3 (informe de la prueba de entrada).');
@@ -7850,7 +7872,10 @@ label .req{color:var(--falla)}
           if (ev.rotulado.malos.length > 8) lineas.push('   – y ' + (ev.rotulado.malos.length - 8) + ' más.');
         }
         const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' +
-          'Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + '):\n' +
+          'Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + ')' +
+          (ev ? ', de acuerdo con la estructura de portafolio trabajada y presentada por el área de Calidad y ' +
+                'Acreditación de la Facultad de Ingeniería. Evaluaciones del curso: ' +
+                ev.evaluaciones.map(nombreEvalPorta).join(', ') + '. Lo demás no aplica' : '') + ':\n' +
           (lineas.length ? lineas.join('\n') : '• Se encontró evidencia en todos los puntos revisados.');
         if (obs && !obs.value.trim()) { obs.value = texto; obs.dispatchEvent(new Event('input', { bubbles: true })); }
         estado.ultimosArchivos = [d.carpetaNombre];
@@ -7864,37 +7889,85 @@ label .req{color:var(--falla)}
       });
   }
 
-  // Las evaluaciones que pide el sílabo (las carpetas que creó Calidad) y si
-  // cada una tiene enunciado, mayor, menor y promedio; luego, el rotulado.
+  // «Informe (4: INF1 a INF4)», «Examen Parcial (PAR1)»…
+  function nombreEvalPorta(e) {
+    const n = (e.enFormula || []).length;
+    return e.nombre + (n > 1 ? 's (' + n + ')' : '');
+  }
+
+  // Encima de la tabla: qué evaluaciones tiene el curso según la estructura
+  // de Calidad y Acreditación, y la fórmula con que se cruzó.
+  function introEstructuraPorta(ev) {
+    const sinF = (ev.formulaSinCarpeta || []);
+    return '<div class="porta-sec"><h4>Estructura del portafolio de este curso</h4>' +
+      '<p class="sub">De acuerdo con la estructura de portafolio trabajada y presentada por el área de Calidad y ' +
+      'Acreditación de la Facultad de Ingeniería, este curso tiene <b>' + ev.evaluaciones.length +
+      (ev.evaluaciones.length === 1 ? ' evaluación' : ' evaluaciones') + '</b>: ' +
+      esc(ev.evaluaciones.map(nombreEvalPorta).join(', ')) + '. Los demás puntos no aplican.</p>' +
+      (ev.formulaLeida
+        ? '<p class="sub">Cruzado con la fórmula del curso' + (ev.formulaFuente ? ' (' + esc(ev.formulaFuente) + ')' : '') +
+          ': <code>' + esc(ev.formula) + '</code>' +
+          (sinF.length ? ' · <b class="ojo">La fórmula evalúa ' + esc(sinF.join(', ')) +
+            ', que no tiene carpeta en el portafolio.</b>' : '') + '</p>'
+        : '<p class="sub">No hay fórmula registrada para cruzar cuántas evaluaciones de cada tipo hay (por ejemplo, ' +
+          'cuántos informes). Regístrela en el formato «Fórmula de evaluación» o péguela aquí, tal como figura en el ' +
+          'Sistema de Evaluación:</p>') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+      '<input id="portaFormula" style="flex:1;min-width:260px" placeholder="Ej.: NF = ((INF1+INF2+INF3+INF4)/4 + PAR1 + FIN1 + PRO1)/4" value="' +
+      esc(estado.formulaPorta || '') + '">' +
+      '<button type="button" class="btn fantasma" id="portaFormulaBtn">' + (ev.formulaLeida ? 'Cruzar con otra fórmula' : 'Cruzar con esta fórmula') +
+      '</button></div></div>';
+  }
+
+  // Tabla de los siete puntos con la estructura de Calidad: cada punto dice
+  // qué evaluación del curso lo cubre y cómo está, o que no aplica.
+  function filasPuntosConEstructura(ev) {
+    return Object.keys(NOMBRE_PUNTO_P).map(k => {
+      if (k === '01') return '<tr data-punto="01" class="sin"><td class="pn">01</td><td class="pt">' + NOMBRE_PUNTO_P[k] +
+        '</td><td class="pc">—</td><td class="pa"><span class="vacia">Se acredita con el F3</span></td></tr>';
+      const mias = ev.evaluaciones.filter(e => e.punto === k);
+      if (!mias.length) return '<tr data-punto="' + k + '" class="na"><td class="pn">' + k + '</td><td class="pt">' +
+        NOMBRE_PUNTO_P[k] + '</td><td class="pc">—</td><td class="pa"><span class="no-aplica">No aplica · según la ' +
+        'estructura de portafolio de Calidad y Acreditación</span></td></tr>';
+      const n = mias.reduce((t, e) => t + e.archivos, 0);
+      const completo = mias.every(e => e.completa);
+      return '<tr data-punto="' + k + '" class="' + (completo ? 'con' : 'sin') + '"><td class="pn">' + k + '</td><td class="pt">' +
+        NOMBRE_PUNTO_P[k] + '</td><td class="pc">' + (n || '—') + '</td><td class="pa">' +
+        mias.map(e => '<span class="ev-chip ' + (e.completa ? 'evc-ok' : (e.archivos ? 'evc-parcial' : 'evc-vacio')) + '">' +
+          esc(nombreEvalPorta(e)) + ' · ' + (e.completa ? 'completo' : (e.archivos ? 'incompleto' : 'sin archivos')) + '</span>').join(' ') +
+        '</td></tr>';
+    }).join('');
+  }
+
+  // Detalle: cada evaluación (y cada informe 1, 2, 3…), con el archivo que
+  // está en cada casilla y si está bien rotulado.
   function pintarEvaluacionesPorta(ev) {
+    if (ev === undefined) return '<div class="porta-sec"><h4>Evaluaciones del sílabo</h4><p class="sub"><b class="ojo">' +
+      'Falta actualizar el servidor (Apps Script)</b> para que se revisen las evaluaciones del curso y el rotulado. ' +
+      'Mientras tanto, la tabla de arriba se arma solo por el nombre de los archivos.</p></div>';
     if (!ev) return '<div class="porta-sec"><h4>Evaluaciones del sílabo</h4><p class="sub">Esta carpeta no tiene la ' +
       'subcarpeta «EVALUACIONES» que crea Calidad y Acreditación, así que no se pudo saber qué evaluaciones pide el ' +
       'sílabo. Se revisó solo por el nombre de los archivos.</p></div>';
-    const marca = n => n ? '<span class="si">✔</span>' : '<span class="no">✘</span>';
+    const celda = lista => {
+      if (!lista || !lista.length) return '<td class="falta-celda">Falta</td>';
+      return '<td>' + lista.map(x => '<a href="' + esc(x.url || '#') + '" target="_blank" rel="noopener">' + esc(x.nombre) + '</a>' +
+        (x.ok ? '<span class="rot-ok">✔ bien rotulado</span>' : '<span class="rot-mal">✘ ' + esc(x.motivos.join('; ')) + '</span>')).join('') + '</td>';
+    };
     const filas = ev.evaluaciones.map(e => e.grupos.map(g =>
-      '<tr><td>' + esc(e.nombre + (g.n ? ' ' + g.n : '')) + ' <small>(' + esc(e.sigla) + ')</small></td>' +
-      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => '<td>' + marca(g.tiene[x]) + '</td>').join('') +
-      '<td class="' + (g.faltan.length ? 'est-falta' : 'est-ok') + '">' +
-      (!e.archivos ? 'Carpeta vacía' : (g.faltan.length ? 'Falta ' + g.faltan.length : 'Completa')) + '</td></tr>').join('')).join('');
+      '<tr><th>' + esc(e.nombre + (g.n ? ' ' + g.n : '')) + '<small>' + esc(e.carpeta) + '</small></th>' +
+      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => celda((g.archivos || {})[x])).join('') + '</tr>').join('')).join('');
     const r = ev.rotulado || { revisados: 0, bien: 0, malos: [], videos: [] };
     const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
-    return '<div class="porta-sec"><h4>Evaluaciones que pide el sílabo</h4>' +
-      '<p class="sub">Son las carpetas que creó Calidad y Acreditación dentro de «EVALUACIONES». En cada una deben estar ' +
-      'el enunciado y el desarrollo de la mayor, la menor y la nota promedio, en PDF.</p>' +
-      '<table class="ev-tabla"><thead><tr><th>Evaluación</th><th>Enunciado</th><th>Mayor</th><th>Menor</th><th>Promedio</th>' +
-      '<th>Estado</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
-      '<div class="porta-sec"><h4>Rotulado de los archivos</h4>' +
-      (!r.revisados ? '<p class="sub">Todavía no hay archivos que revisar.</p>'
-        : '<p class="sub">' + r.bien + ' de ' + r.revisados + ' archivos están bien rotulados.' +
-          (r.videos.length ? ' <b>Hay ' + r.videos.length + (r.videos.length === 1 ? ' video' : ' videos') +
-            ', y la directiva no permite subir videos.</b>' : '') + '</p>') +
-      '<p class="sub">Formato correcto: enunciado <code>' + esc(ej) + '</code> · evidencia <code>' +
-      esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code></p>' +
-      (r.malos.length ? '<ul class="rot-lista">' + r.malos.slice(0, 12).map(m =>
-        '<li><a href="' + esc(m.url || '#') + '" target="_blank" rel="noopener">' + esc(m.nombre) + '</a> ' +
-        '<small>(' + esc(m.carpeta) + ')</small><br>✘ ' + esc(m.motivos.join('; ')) + '</li>').join('') +
-        (r.malos.length > 12 ? '<li>…y ' + (r.malos.length - 12) + ' más.</li>' : '') + '</ul>' : '') +
-      '</div>';
+    return '<div class="porta-sec"><h4>Archivos de cada evaluación</h4>' +
+      '<p class="sub">En cada una deben estar, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio, ' +
+      'rotulados según la directiva de la Facultad. Formato: <code>' + esc(ej) + '</code> para el enunciado y <code>' +
+      esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code> para las evidencias.</p>' +
+      '<div class="ev-scroll"><table class="ev-tabla ev-detalle"><thead><tr><th>Evaluación</th><th>Enunciado</th>' +
+      '<th>Mayor nota</th><th>Menor nota</th><th>Nota promedio</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
+      '<p class="sub" style="margin-top:8px">' + (r.revisados
+        ? r.bien + ' de ' + r.revisados + ' archivos están bien rotulados.' : 'Todavía no hay archivos en las carpetas de evaluaciones.') +
+      (r.videos.length ? ' <b class="ojo">Hay ' + r.videos.length + (r.videos.length === 1 ? ' video' : ' videos') +
+        ': la directiva no permite subir videos.</b>' : '') + '</p></div>';
   }
 
   // Punto 01 del portafolio: según la guía FI-GCA-GUI-001, la prueba de
