@@ -574,6 +574,8 @@ tr.sin-leer{background:#fffdf6}
 .ev-chip{display:inline-block;margin:0 6px 4px 0;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
 .ev-chip.evc-ok{background:#e3f4e9;color:#14532d}.ev-chip.evc-parcial{background:#fff3d6;color:#7a4d00}.ev-chip.evc-vacio{background:#fde8e8;color:#9c0006}
 .ev-scroll{overflow-x:auto}
+.porta-formula{margin-top:8px;padding:12px 14px;border:1px dashed #c9b37a;border-radius:10px;background:#fffaf0;font-size:14px}
+.porta-formula p{margin:4px 0}.porta-formula ol{margin:4px 0 0 20px;padding:0}
 .ev-detalle th{text-align:left}
 .ev-detalle tbody th{font-weight:600;padding:7px 8px;border-bottom:1px solid #eef1ef;white-space:nowrap;vertical-align:top}
 .ev-detalle tbody th small{display:block;font-weight:400;color:var(--tinta-tenue);font-size:12px}
@@ -1796,7 +1798,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '09/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-09.7';
+  const VERSION_INTERNA = '2026-10-09.8';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7855,29 +7857,8 @@ label .req{color:var(--falla)}
         });
         mostrarHallazgos();
         aplicarF3Portafolio();
-        const obs = $('f_observaciones') || $('f_observacionesGenerales');
-        const lineas = Object.keys(h).filter(k => k !== '01' && h[k] && h[k].para_docente &&
-                                                 h[k].sugerido !== 'Cumple' && h[k].sugerido !== 'No aplica')
-          .map(k => '• ' + k + ' ' + NOMBRE_PUNTO_P[k] + ': ' + h[k].para_docente);
-        if (estado.f3Portafolio && !estado.f3Portafolio.presentado) {
-          lineas.unshift('• 01 Prueba de entrada: no se encuentra presentado el F3 (informe de la prueba de entrada).');
-        }
-        // El rotulado: qué archivos corregir y cómo debe quedar el nombre.
-        const ev = d.evaluaciones;
-        if (ev && ev.rotulado && ev.rotulado.malos.length) {
-          lineas.push('• Rotulado de archivos: ' + ev.rotulado.malos.length + ' de ' + ev.rotulado.revisados +
-            ' no siguen la directiva. El formato es CÓDIGO.TIPO.PERIODO.PDF para el enunciado y ' +
-            'CÓDIGO.TIPO.PERIODO.Nombre del estudiante.Mayor|Menor|Promedio.Nota.PDF para las evidencias. Por corregir:');
-          ev.rotulado.malos.slice(0, 8).forEach(m => lineas.push('   – «' + m.nombre + '» (' + m.carpeta + '): ' + m.motivos.join('; ') + '.'));
-          if (ev.rotulado.malos.length > 8) lineas.push('   – y ' + (ev.rotulado.malos.length - 8) + ' más.');
-        }
-        const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' +
-          'Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + ')' +
-          (ev ? ', de acuerdo con la estructura de portafolio trabajada y presentada por el área de Calidad y ' +
-                'Acreditación de la Facultad de Ingeniería. Evaluaciones del curso: ' +
-                ev.evaluaciones.map(nombreEvalPorta).join(', ') + '. Lo demás no aplica' : '') + ':\n' +
-          (lineas.length ? lineas.join('\n') : '• Se encontró evidencia en todos los puntos revisados.');
-        if (obs && !obs.value.trim()) { obs.value = texto; obs.dispatchEvent(new Event('input', { bubbles: true })); }
+        estado.ultimaPorta = d;
+        const texto = volcarObsPortafolio(d);
         estado.ultimosArchivos = [d.carpetaNombre];
         guardarBorrador(texto);
         marcarCampos();
@@ -7887,6 +7868,77 @@ label .req{color:var(--falla)}
           ' · <button type="button" class="btn-enlace" id="portaOtraVez">Reintentar</button></span></div>';
         $('portaOtraVez').addEventListener('click', () => revisarPortafolioDrive(true));
       });
+  }
+
+  // El texto para el docente: el mismo panorama del recuadro, en palabras y
+  // sin números de punto, y luego qué falta y qué archivos corregir.
+  function textoObsPortafolio(d) {
+    const h = d.hallazgos || {}, ev = d.evaluaciones;
+    const f3 = estado.f3Portafolio;
+    const y = l => l.join(', ').replace(/, ([^,]*)$/, ' y $1');
+    const L = [];
+    L.push('Revisión del portafolio digital (carpeta «' + d.carpetaNombre + '», ' + d.revisado + ').');
+    if (ev) {
+      L.push('De acuerdo con la estructura de portafolio trabajada y presentada por el área de Calidad y Acreditación ' +
+        'de la Facultad de Ingeniería, este curso tiene ' + ev.evaluaciones.length +
+        (ev.evaluaciones.length === 1 ? ' evaluación: ' : ' evaluaciones: ') + y(ev.evaluaciones.map(nombreEvalPorta)) + '.');
+    }
+    L.push('');
+    L.push('Situación de cada punto del portafolio:');
+    L.push('• Prueba de entrada: ' + (!f3 ? 'se acredita con el F3 (informe de la prueba de entrada).'
+      : (f3.presentado ? 'acreditada con el F3, presentado el ' + f3.fecha + '.' : 'no se encuentra presentado el F3 (informe de la prueba de entrada).')));
+    Object.keys(NOMBRE_PUNTO_P).filter(k => k !== '01').forEach(k => {
+      const nombre = NOMBRE_PUNTO_P[k];
+      if (ev) {
+        const mias = ev.evaluaciones.filter(e => e.punto === k);
+        if (!mias.length) { L.push('• ' + nombre + ': no aplica.'); return; }
+        L.push('• ' + nombre + ' — ' + y(mias.map(nombreEvalPorta)) + ': ' +
+          (mias.every(e => e.completa) ? 'completo.' : (mias.some(e => e.archivos) ? 'incompleto.' : 'sin archivos.')));
+      } else {
+        const x = h[k] || {};
+        L.push('• ' + nombre + ': ' + (x.sugerido === 'Cumple' ? 'con evidencia.' : (x.para_docente || 'sin evidencia.')));
+      }
+    });
+    if (ev) {
+      const falta = [];
+      ev.evaluaciones.forEach(e => {
+        const vacios = e.grupos.filter(g => g.faltan.length === 4);
+        const nums = vacios.map(g => g.n).filter(Boolean);
+        if (vacios.length) falta.push('• ' + (nums.length > 1 ? e.nombre + 's ' + y(nums) + ': todavía no tienen archivos'
+          : e.nombre + (nums[0] ? ' ' + nums[0] : '') + ': todavía no tiene archivos') +
+          ' (enunciado y evidencias de la mayor, la menor y la nota promedio).');
+        e.grupos.filter(g => g.faltan.length && g.faltan.length < 4).forEach(g =>
+          falta.push('• ' + e.nombre + (g.n ? ' ' + g.n : '') + ': falta ' +
+            y(g.faltan.map(x => ({ enunciado: 'el enunciado', mayor: 'la evidencia de la mayor nota',
+              menor: 'la evidencia de la menor nota', promedio: 'la evidencia de la nota promedio' })[x])) + '.'));
+      });
+      if (falta.length) { L.push(''); L.push('Qué falta:'); falta.forEach(x => L.push(x)); }
+      const r = ev.rotulado;
+      if (r && r.malos.length) {
+        L.push(''); L.push('Archivos por corregir (' + r.malos.length + ' de ' + r.revisados + ' no siguen la directiva de rotulado):');
+        r.malos.slice(0, 10).forEach(m => L.push('• «' + m.nombre + '» (carpeta ' + m.carpeta + '): ' + m.motivos.join('; ') + '.'));
+        if (r.malos.length > 10) L.push('• …y ' + (r.malos.length - 10) + ' más.');
+      }
+      if (r && r.videos.length) L.push('• Hay ' + r.videos.length + (r.videos.length === 1 ? ' video' : ' videos') +
+        ' en el portafolio: la directiva no permite subir videos.');
+      const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
+      if (ej) {
+        L.push('');
+        L.push('Recuerde el rotulado de la directiva, por ejemplo: ' + ej + ' para el enunciado y ' +
+          ej.replace(/\.PDF$/, '') + '.Nombre Apellido.Mayor.17.PDF para las evidencias (Mayor, Menor o Promedio, con la nota).');
+      }
+    }
+    return 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' + L.join('\n');
+  }
+  // Pone el texto en Observaciones si está vacío o si lo que hay es un
+  // borrador anterior del asistente (no pisa lo que escribió el coordinador).
+  function volcarObsPortafolio(d) {
+    const texto = textoObsPortafolio(d);
+    const obs = $('f_observaciones') || $('f_observacionesGenerales');
+    if (obs && (!obs.value.trim() || /^BORRADOR DEL ASISTENTE/.test(obs.value))) {
+      obs.value = texto; obs.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    return texto;
   }
 
   // «Informe (4: INF1 a INF4)», «Examen Parcial (PAR1)»…
@@ -7905,18 +7957,21 @@ label .req{color:var(--falla)}
       (ev.evaluaciones.length === 1 ? ' evaluación' : ' evaluaciones') + '</b>: ' +
       esc(ev.evaluaciones.map(nombreEvalPorta).join(', ')) + '. Los demás puntos no aplican.</p>' +
       (ev.formulaLeida
-        ? '<p class="sub">Cruzado con la fórmula del curso' + (ev.formulaFuente ? ' (' + esc(ev.formulaFuente) + ')' : '') +
+        ? '<p class="sub">Se revisó con la fórmula del curso' + (ev.formulaFuente ? ' (' + esc(ev.formulaFuente) + ')' : '') +
           ': <code>' + esc(ev.formula) + '</code>' +
           (sinF.length ? ' · <b class="ojo">La fórmula evalúa ' + esc(sinF.join(', ')) +
-            ', que no tiene carpeta en el portafolio.</b>' : '') + '</p>'
-        : '<p class="sub">No hay fórmula registrada para cruzar cuántas evaluaciones de cada tipo hay (por ejemplo, ' +
-          'cuántos informes). Regístrela en el formato «Fórmula de evaluación» o péguela aquí, tal como figura en el ' +
-          'Sistema de Evaluación:</p>') +
-      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
-      '<input id="portaFormula" style="flex:1;min-width:260px" placeholder="Ej.: NF = ((INF1+INF2+INF3+INF4)/4 + PAR1 + FIN1 + PRO1)/4" value="' +
-      esc(estado.formulaPorta || '') + '">' +
-      '<button type="button" class="btn fantasma" id="portaFormulaBtn">' + (ev.formulaLeida ? 'Cruzar con otra fórmula' : 'Cruzar con esta fórmula') +
-      '</button></div></div>';
+            ', que no tiene carpeta en el portafolio.</b>' : '') + '</p></div>'
+        : '<div class="porta-formula"><b>¿Cuántos informes, prácticas o laboratorios tiene el curso?</b>' +
+          '<p>Lo dice la fórmula de evaluación del curso. Por ejemplo, <code>INF1+INF2+INF3+INF4</code> significa que hay ' +
+          'cuatro informes, y entonces el portal revisa cada uno por separado. Esta carga todavía no tiene su fórmula ' +
+          'registrada en el formato «Fórmula de evaluación».</p>' +
+          '<ol><li>Copie la fórmula del Sistema de Evaluaciones (aparece debajo de las notas, en «Fórmula del Curso»).</li>' +
+          '<li>Péguela aquí y pulse «Revisar con esta fórmula».</li></ol>' +
+          '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">' +
+          '<input id="portaFormula" style="flex:1;min-width:260px" placeholder="Pegue aquí la fórmula, por ejemplo: ((INF1+INF2+INF3+INF4)/4 + PAR1 + FIN1 + PRO1)/4" value="' +
+          esc(estado.formulaPorta || '') + '">' +
+          '<button type="button" class="btn" id="portaFormulaBtn">Revisar con esta fórmula</button></div>' +
+          '<p class="sub" style="margin-top:6px">Sirve solo para esta revisión. Para que quede guardada, regístrela en el formato «Fórmula de evaluación» de este curso.</p></div></div>');
   }
 
   // Tabla de los siete puntos con la estructura de Calidad: cada punto dice
@@ -7977,6 +8032,7 @@ label .req{color:var(--falla)}
   function aplicarF3Portafolio() {
     const f3 = estado.f3Portafolio;
     if (!f3 || estado.modulo !== 'portafolios') return;
+    if (estado.ultimaPorta) volcarObsPortafolio(estado.ultimaPorta);
     const celda = document.querySelector('.porta-tabla tr[data-punto="01"]');
     if (celda) {
       celda.className = f3.presentado ? 'con' : 'sin';
