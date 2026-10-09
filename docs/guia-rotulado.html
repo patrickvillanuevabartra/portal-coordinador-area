@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Guía de Rotulado de Evidencias</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        }
+        .card {
+            background-color: white;
+            border-radius: 1.5rem;
+            box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+            transition: transform 0.3s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+        }
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+        .structure-dot {
+            height: 12px;
+            width: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+        .connector-line {
+            width: 2px;
+            flex-grow: 1;
+            background-color: #e5e7eb;
+        }
+        .icon-bg {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body class="gradient-bg py-12 px-4 sm:px-6 lg:px-8">
+    <main class="max-w-5xl mx-auto">
+        
+        <!-- Header -->
+        <header class="text-center mb-12">
+            <h1 class="text-4xl sm:text-5xl font-black text-gray-800 tracking-tight">Guía Rápida de Rotulado de Evidencias</h1>
+            <p class="mt-4 text-lg text-gray-600 max-w-3xl mx-auto">Un sistema de nomenclatura claro y consistente para la identificación y gestión de archivos académicos.</p>
+        </header>
+
+        <!-- Main Content -->
+        <div class="space-y-12">
+
+            <!-- Structure Section -->
+            <section class="card p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 mr-3 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                    </svg>
+                    Estructura del Nombre de Archivo
+                </h2>
+                <div class="bg-gray-900 rounded-xl p-4 sm:p-6 text-center">
+                    <p class="font-mono text-sm sm:text-lg text-white break-words">
+                        <span class="text-cyan-400">CÓDIGO</span>.<span class="text-emerald-400">TIPO</span>.<span class="text-amber-400">PERIODO</span>.<span class="text-rose-400">NOMBRE</span>.<span class="text-fuchsia-400">MÉTRICA</span>.<span class="text-violet-400">NOTA</span>.<span class="text-gray-400">EXT</span>
+                    </p>
+                </div>
+                <div class="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                    <div class="flex items-center"><div class="structure-dot bg-cyan-400 mr-3"></div><strong class="mr-2">CÓDIGO:</strong> Código de la asignatura.</div>
+                    <div class="flex items-center"><div class="structure-dot bg-emerald-400 mr-3"></div><strong class="mr-2">TIPO:</strong> Sigla del tipo de evaluación.</div>
+                    <div class="flex items-center"><div class="structure-dot bg-amber-400 mr-3"></div><strong class="mr-2">PERIODO:</strong> Año y ciclo académico.</div>
+                    <div class="flex items-center"><div class="structure-dot bg-rose-400 mr-3"></div><strong class="mr-2">NOMBRE:</strong> Nombre del estudiante.</div>
+                    <div class="flex items-center"><div class="structure-dot bg-fuchsia-400 mr-3"></div><strong class="mr-2">MÉTRICA:</strong> Mayor, Menor o Promedio.</div>
+                    <div class="flex items-center"><div class="structure-dot bg-violet-400 mr-3"></div><strong class="mr-2">NOTA:</strong> Calificación obtenida.</div>
+                </div>
+            </section>
+
+            <!-- Evaluation Types Section -->
+            <section class="card p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 mr-3 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                    </svg>
+                    Tipos de Evaluación (Siglas)
+                </h2>
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">EP</span><p class="mt-1 text-gray-600 text-sm">Examen Parcial</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">EF</span><p class="mt-1 text-gray-600 text-sm">Examen Final</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">PC</span><p class="mt-1 text-gray-600 text-sm">Prácticas</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">TR</span><p class="mt-1 text-gray-600 text-sm">Trabajos</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">LA</span><p class="mt-1 text-gray-600 text-sm">Laboratorios</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">TA</span><p class="mt-1 text-gray-600 text-sm">Talleres</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">IN</span><p class="mt-1 text-gray-600 text-sm">Investigaciones</p></div>
+                    <div class="bg-gray-50 rounded-lg p-3 text-center"><span class="tag bg-emerald-100 text-emerald-800">PR</span><p class="mt-1 text-gray-600 text-sm">Proyectos</p></div>
+                </div>
+            </section>
+
+            <!-- Examples Section -->
+            <section class="card p-8">
+                <h2 class="text-2xl font-bold text-gray-800 mb-6 flex items-center">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-7 w-7 mr-3 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Ejemplos Prácticos
+                </h2>
+                <p class="mb-6 text-gray-600">Asignatura: <span class="font-semibold text-gray-700">Sistemas de Gestión de la Calidad (IN0701)</span> | Periodo: <span class="font-semibold text-gray-700">2025-II</span></p>
+                
+                <div class="space-y-6">
+                    <!-- Example 1 -->
+                    <div class="flex flex-col sm:flex-row items-start">
+                        <div class="icon-bg bg-blue-100 text-blue-600 mb-3 sm:mb-0 sm:mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">Enunciado del Examen Parcial</h3>
+                            <p class="text-sm text-gray-500 mb-2">Archivo general del examen.</p>
+                            <div class="bg-gray-100 rounded-lg p-3 font-mono text-sm break-words">
+                                <span class="text-cyan-600 font-semibold">IN0701</span>.<span class="text-emerald-600 font-semibold">EP</span>.<span class="text-amber-600 font-semibold">2025-II</span>.<span class="text-gray-500">PDF</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Example 2 -->
+                    <div class="flex flex-col sm:flex-row items-start">
+                        <div class="icon-bg bg-green-100 text-green-600 mb-3 sm:mb-0 sm:mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 11l3-3m0 0l3 3m-3-3v8m0-13a9 9 0 110 18 9 9 0 010-18z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">Evidencia con Mayor Nota</h3>
+                            <p class="text-sm text-gray-500 mb-2">Examen desarrollado por Luis Morales.</p>
+                            <div class="bg-gray-100 rounded-lg p-3 font-mono text-sm break-words">
+                                <span class="text-cyan-600 font-semibold">IN0701</span>.<span class="text-emerald-600 font-semibold">EP</span>.<span class="text-amber-600 font-semibold">2025-II</span>.<span class="text-rose-600 font-semibold">Luis Morales</span>.<span class="text-fuchsia-600 font-semibold">Mayor</span>.<span class="text-violet-600 font-semibold">17</span>.<span class="text-gray-500">PDF</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Example 3 -->
+                    <div class="flex flex-col sm:flex-row items-start">
+                        <div class="icon-bg bg-red-100 text-red-600 mb-3 sm:mb-0 sm:mr-4">
+                             <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 13l-3 3m0 0l-3-3m3 3V8m0 13a9 9 0 110-18 9 9 0 010 18z" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">Evidencia con Menor Nota</h3>
+                            <p class="text-sm text-gray-500 mb-2">Examen desarrollado por José Vega.</p>
+                            <div class="bg-gray-100 rounded-lg p-3 font-mono text-sm break-words">
+                                <span class="text-cyan-600 font-semibold">IN0701</span>.<span class="text-emerald-600 font-semibold">EP</span>.<span class="text-amber-600 font-semibold">2025-II</span>.<span class="text-rose-600 font-semibold">José Vega</span>.<span class="text-fuchsia-600 font-semibold">Menor</span>.<span class="text-violet-600 font-semibold">12</span>.<span class="text-gray-500">PDF</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Example 4 -->
+                    <div class="flex flex-col sm:flex-row items-start">
+                        <div class="icon-bg bg-yellow-100 text-yellow-600 mb-3 sm:mb-0 sm:mr-4">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7.014A8.003 8.003 0 0112 2a8.003 8.003 0 016.014 2.986C20.5 5 21 8 21 10c2 1 2.657 1.343 2.657 1.343A8 8 0 0117.657 18.657zM5 22a2 2 0 012-2h10a2 2 0 012 2" /></svg>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-gray-800">Evidencia con Nota Promedio</h3>
+                            <p class="text-sm text-gray-500 mb-2">Examen desarrollado por Samuel Díaz.</p>
+                            <div class="bg-gray-100 rounded-lg p-3 font-mono text-sm break-words">
+                                <span class="text-cyan-600 font-semibold">IN0701</span>.<span class="text-emerald-600 font-semibold">EP</span>.<span class="text-amber-600 font-semibold">2025-II</span>.<span class="text-rose-600 font-semibold">Samuel Diaz</span>.<span class="text-fuchsia-600 font-semibold">Promedio</span>.<span class="text-violet-600 font-semibold">14</span>.<span class="text-gray-500">PDF</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+        
+        <!-- Footer -->
+        <footer class="text-center mt-12">
+            <p class="text-sm text-gray-500">&copy; 2025 Departamento de Calidad Académica. Todos los derechos reservados.</p>
+        </footer>
+
+    </main>
+</body>
+</html>
