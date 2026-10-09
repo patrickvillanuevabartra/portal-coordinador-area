@@ -574,6 +574,9 @@ tr.sin-leer{background:#fffdf6}
 .ev-chip{display:inline-block;margin:0 6px 4px 0;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
 .ev-chip.evc-ok{background:#e3f4e9;color:#14532d}.ev-chip.evc-parcial{background:#fff3d6;color:#7a4d00}.ev-chip.evc-vacio{background:#fde8e8;color:#9c0006}
 .ev-scroll{overflow-x:auto}
+.ref-enlaces{margin:8px 0 0}.ref-enlaces a{color:#1f5fa8;font-weight:600}
+.porta-directiva{margin:4px 0 10px;padding:10px 12px;border-left:3px solid #2a6fb0;background:#eef5fc;border-radius:6px;font-size:14px;line-height:1.55}
+.porta-directiva a{font-weight:600;color:#1f5fa8}
 .porta-formula{margin-top:8px;padding:12px 14px;border:1px dashed #c9b37a;border-radius:10px;background:#fffaf0;font-size:14px}
 .porta-formula p{margin:4px 0}.porta-formula ol{margin:4px 0 0 20px;padding:0}
 .ev-detalle th{text-align:left}
@@ -583,6 +586,7 @@ tr.sin-leer{background:#fffdf6}
 .ev-detalle td a{display:block;color:#1f5fa8;word-break:break-all}
 .ev-detalle .rot-ok{display:block;color:#1b7f4b;font-size:12px}
 .ev-detalle .rot-mal{display:block;color:#b42318;font-size:12px}
+.ev-detalle .rot-sug{display:block;color:#14532d;font-size:12px;margin-top:2px}
 .ev-detalle .falta-celda{color:#b42318;font-weight:600;background:#fff5f5}
 .rot-lista li{padding:5px 0;border-top:1px dashed #e3e9e5}
 .rot-lista code,.porta-sec code{background:#f3f5f4;padding:1px 6px;border-radius:5px;font-size:13px}
@@ -1798,7 +1802,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '09/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-09.9';
+  const VERSION_INTERNA = '2026-10-09.12';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5480,7 +5484,7 @@ label .req{color:var(--falla)}
     // Estado de cada punto, en palabras, símbolo y color.
     const EST = {
       ok:      { txt: '✔ Completo', color: 'verde' },
-      parcial: { txt: '▲ Incompleto', color: 'amarillo' },
+      parcial: { txt: '▲ Faltan archivos', color: 'amarillo' },
       vacio:   { txt: '✘ Sin archivos', color: 'rojo' },
       na:      { txt: 'No aplica', color: 'gris' },
       sin:     { txt: '— Sin carpeta', color: 'gris' },
@@ -5490,8 +5494,8 @@ label .req{color:var(--falla)}
                     nd: { txt: '— Sin dato del F3', color: 'gris' } };
     const est = (k, v) => (k === '01' ? EST01[v] : null) || EST[v] || EST.nd;
     const SIT = {
-      completo: { txt: '✔ Completo', color: 'verde' },
-      incompleto: { txt: '▲ Incompleto', color: 'amarillo' },
+      completo: { txt: '✔ Conforme', color: 'verde' },
+      incompleto: { txt: '▲ Con observaciones', color: 'amarillo' },
       vacio: { txt: '✘ Sin archivos', color: 'rojo' },
       sinCarpeta: { txt: '— Sin carpeta del docente', color: 'gris' }
     };
@@ -5558,7 +5562,18 @@ label .req{color:var(--falla)}
       else if (evals.every(v => v === 'ok') && x.puntos['01'] !== 'vacio' && !(x.malos || []).length && !x.videos) x._sit = 'completo';
       else if (evals.length && evals.every(v => v === 'vacio')) x._sit = 'vacio';
       else x._sit = 'incompleto';
-      x._falta = (x.falta || []).length ? x.falta.join('. ') + '.' : (x._sit === 'sinCarpeta' ? (x.mensaje || 'Sin carpeta en el portafolio.') : 'Nada');
+      // Qué corregir: lo que falta y, archivo por archivo, el nombre correcto.
+      const malos = x.malos || [];
+      const ren = malos.slice(0, 5).map(m => '«' + m.nombre + '» ' + (m.sugerido ? '→ ' + m.sugerido + ' (' + m.motivos.join('; ') + ')' : '→ ' + m.motivos.join('; ')));
+      if (malos.length > 5) ren.push('y ' + (malos.length - 5) + ' más (ver hoja «Archivos por corregir»)');
+      const partes = [];
+      if ((x.falta || []).length) partes.push('Falta: ' + x.falta.join('; ') + '.');
+      if (ren.length) partes.push('Archivos por corregir: ' + ren.join('; ') + '.');
+      x._falta = partes.length ? partes.join(' ') : (x._sit === 'sinCarpeta' ? (x.mensaje || 'Sin carpeta en el portafolio.') : 'Nada');
+      x._rot = !x.revisados ? '—' : (malos.length ? '✘ ' + (x.revisados - x.bien) + ' de ' + x.revisados + ' por corregir' : '✔ Correcto');
+      x._rotColor = !x.revisados ? null : (malos.length ? 'rojo' : 'verde');
+      x._mejoras = (x.mejoras || []).length ? x.mejoras.map((m, i) => (i + 1) + ') ' + m).join('\n')
+        : (x._sit === 'sinCarpeta' ? '1) Pida a Calidad y Acreditación que cree la carpeta del docente (con su apellido y grupo) dentro de la carpeta del curso.' : '—');
       filas.push(x);
     }));
     filas.sort((a, b) => es(a._carrera, b._carrera) || es(a._area, b._area) || es(a.docente, b.docente) ||
@@ -5578,25 +5593,36 @@ label .req{color:var(--falla)}
     const nyp = (n, t) => n + ' (' + pct(n, t) + ' %)';
     sec('1. Cursos y grupos con portafolio');
     let t0 = R.length;
-    R.push(['Indicador'].concat(ambitos.map(a => a.nombre))); marcas.push([R.length - 1, 0, ambitos.length + 1, ESTILO.enc]);
-    const fila = (nombre, f, color) => {
-      R.push([nombre].concat(ambitos.map(a => f(cuenta(a.l)))));
+    const nA = ambitos.length + 2;   // indicador, ámbitos y «¿Qué significa?»
+    R.push(['Indicador'].concat(ambitos.map(a => a.nombre), ['¿Qué significa?'])); marcas.push([R.length - 1, 0, nA, ESTILO.enc]);
+    const fila = (nombre, f, color, nota) => {
+      R.push([nombre].concat(ambitos.map(a => f(cuenta(a.l))), [nota || '']));
       if (color) ambitos.forEach((a, i) => { const c = color(cuenta(a.l)); if (c) marcas.push([R.length - 1, i + 1, 1, ESTILO[c]]); });
     };
-    fila('Cursos y grupos revisados', c => c.total);
-    fila('   • ' + SIT.completo.txt, c => nyp(c.completo, c.total), c => c.completo ? 'verde' : null);
-    fila('   • ' + SIT.incompleto.txt, c => nyp(c.incompleto, c.total), c => c.incompleto ? 'amarillo' : null);
-    fila('   • ' + SIT.vacio.txt, c => nyp(c.vacio, c.total), c => c.vacio ? 'rojo' : null);
-    fila('   • ' + SIT.sinCarpeta.txt, c => nyp(c.sinCarpeta, c.total), c => c.sinCarpeta ? 'gris' : null);
-    fila('Archivos revisados en las carpetas de evaluaciones', c => c.revisados);
-    fila('   • Bien rotulados según la directiva', c => c.revisados ? nyp(c.bien, c.revisados) : '—');
-    fila('   • Mal rotulados', c => c.revisados ? nyp(c.revisados - c.bien, c.revisados) : '—', c => c.revisados - c.bien ? 'rojo' : null);
-    fila('Videos encontrados (la directiva no los permite)', c => c.videos, c => c.videos ? 'rojo' : null);
-    tablas.push([t0, R.length - 1, ambitos.length + 1]);
+    fila('Cursos y grupos revisados', c => c.total, null,
+      'Cursos y grupos de la carga del ciclo que tienen carpeta en el portafolio de la Escuela.');
+    fila('   • ' + SIT.completo.txt, c => nyp(c.completo, c.total), c => c.completo ? 'verde' : null,
+      'Tienen todos los archivos que corresponden y todos bien rotulados. No hay nada que corregir.');
+    fila('   • ' + SIT.incompleto.txt, c => nyp(c.incompleto, c.total), c => c.incompleto ? 'amarillo' : null,
+      'Ya subieron archivos, pero falta alguno o hay archivos con el nombre mal escrito. En la hoja «Pendientes» se dice cuáles y cómo corregirlos.');
+    fila('   • ' + SIT.vacio.txt, c => nyp(c.vacio, c.total), c => c.vacio ? 'rojo' : null,
+      'Las carpetas de evaluaciones están vacías. Puede ser normal si, según el cronograma del sílabo, aún no se toman.');
+    fila('   • ' + SIT.sinCarpeta.txt, c => nyp(c.sinCarpeta, c.total), c => c.sinCarpeta ? 'gris' : null,
+      'El curso tiene carpeta en el portafolio, pero no se encontró dentro una carpeta con el apellido y grupo de este docente. ' +
+      'Hay que pedir a Calidad y Acreditación que la cree, o corregir su nombre.');
+    fila('Archivos revisados en las carpetas de evaluaciones', c => c.revisados, null,
+      'Todos los archivos que los docentes ya subieron a las carpetas de evaluaciones.');
+    fila('   • Bien rotulados según la directiva', c => c.revisados ? nyp(c.bien, c.revisados) : '—', null,
+      'Su nombre sigue el formato CÓDIGO.TIPO.PERIODO (y, en las evidencias, .Nombre.Mayor|Menor|Promedio.Nota), en PDF.');
+    fila('   • Mal rotulados', c => c.revisados ? nyp(c.revisados - c.bien, c.revisados) : '—', c => c.revisados - c.bien ? 'rojo' : null,
+      'Su nombre no sigue la directiva. La hoja «Archivos por corregir» compara cada parte del nombre con el estándar y da el nombre correcto.');
+    fila('Videos encontrados (la directiva no los permite)', c => c.videos, c => c.videos ? 'rojo' : null,
+      'Los videos no van en el portafolio; si son material del curso, van en el aula virtual.');
+    tablas.push([t0, R.length - 1, nA]);
     R.push([]);
     sec('2. Situación de cada punto del portafolio');
     t0 = R.length;
-    R.push(['Punto', '✔ Completo', '▲ Incompleto', '✘ Sin archivos', 'No aplica', '— Sin carpeta o sin dato']);
+    R.push(['Punto', '✔ Completo', '▲ Faltan archivos', '✘ Sin archivos', 'No aplica', '— Sin carpeta o sin dato']);
     marcas.push([R.length - 1, 0, 6, ESTILO.enc]);
     P.forEach(k => {
       const v = filas.map(x => x.puntos[k]);
@@ -5605,6 +5631,9 @@ label .req{color:var(--falla)}
               v.filter(x => x === 'sin' || x === 'nd').length]);
     });
     tablas.push([t0, R.length - 1, 6]);
+    R.push(['✔ Completo: están todos los archivos de ese punto. ▲ Faltan archivos: hay archivos, pero falta alguno. ' +
+            '✘ Sin archivos: la carpeta está vacía. No aplica: ese curso no tiene esa evaluación. — Sin carpeta o sin dato: ' +
+            'no se encontró la carpeta del docente (o, en la prueba de entrada, no hay dato del F3).']);
     R.push([]);
     sec('Cómo leer este resumen');
     [
@@ -5616,7 +5645,7 @@ label .req{color:var(--falla)}
       'Solo se revisan los cursos que tienen carpeta en el portafolio de la Escuela; los demás están en la hoja «Cursos sin portafolio».'
     ].forEach(t => R.push([t]));
     const ws0 = XLSX.utils.aoa_to_sheet(R);
-    ws0['!cols'] = [{ wch: 58 }].concat([16, 16, 16, 16, 18, 18, 18].map(w => ({ wch: w })));
+    ws0['!cols'] = [{ wch: 52 }].concat(ambitos.map(() => ({ wch: 16 })), [{ wch: 90 }], [16, 16, 16, 16].map(w => ({ wch: w })));
     tablas.forEach(([a, b, n]) => cuadricula(ws0, a, b, n));
     pintar(ws0, 0, 0, 1, ESTILO.titulo); pintar(ws0, 2, 0, 1, ESTILO.negrita);
     marcas.forEach(([r, c, n, e]) => pintar(ws0, r, c, n, e));
@@ -5634,15 +5663,17 @@ label .req{color:var(--falla)}
       ['De acuerdo con la estructura de portafolio trabajada y presentada por el área de Calidad y Acreditación de la Facultad de Ingeniería.'],
       []
     ]);
-    const colsP = ['Área', 'Código', 'Curso', 'Grupo', 'Docente'].concat(P.map(k => NOMBRE_P[k]), ['Situación', 'Qué falta']);
+    const colsP = ['Área', 'Código', 'Curso', 'Grupo', 'Docente'].concat(P.map(k => NOMBRE_P[k]),
+      ['Rotulado de archivos', 'Situación', 'Qué corregir', 'Cómo corregirlo (orientación para el docente)']);
     const detP = pend.map(x => [x._areaEtq, x.codigo, nombreCurso(x.curso), x.grupo, x.docente]
-      .concat(P.map(k => est(k, x.puntos[k]).txt), [SIT[x._sit].txt, x._falta]));
-    const wsP = hoja(fP.concat([colsP], detP.length ? detP : [['—', '', 'Ningún portafolio tiene pendientes', '', '', '', '', '', '', '', '', '', '', '']]),
-      [28, 10, 36, 7, 32, 18, 14, 18, 14, 14, 14, 16, 20, 60], fP.length, true);
+      .concat(P.map(k => est(k, x.puntos[k]).txt), [x._rot, SIT[x._sit].txt, x._falta, x._mejoras]));
+    const wsP = hoja(fP.concat([colsP], detP.length ? detP : [['—', '', 'Ningún portafolio tiene pendientes', '', '', '', '', '', '', '', '', '', '', '', '', '']]),
+      [28, 10, 36, 7, 32, 18, 16, 18, 16, 16, 16, 16, 20, 22, 80, 80], fP.length, true);
     pintar(wsP, 5, 0, 1, ESTILO.negrita);
     pend.forEach((x, i) => {
       P.forEach((k, j) => pintar(wsP, fP.length + 1 + i, 5 + j, 1, ESTILO[est(k, x.puntos[k]).color]));
-      pintar(wsP, fP.length + 1 + i, 12, 1, negr(ESTILO[SIT[x._sit].color]));
+      if (x._rotColor) pintar(wsP, fP.length + 1 + i, 12, 1, ESTILO[x._rotColor]);
+      pintar(wsP, fP.length + 1 + i, 13, 1, negr(ESTILO[SIT[x._sit].color]));
     });
     agrupar(wsP, pend, x => x._carrera + '¦' + x._area, 0, fP.length + 1);
     agrupar(wsP, pend, x => x._carrera + '¦' + x._area + '¦' + x.docente, 4, fP.length + 1);
@@ -5651,18 +5682,20 @@ label .req{color:var(--falla)}
     const f1 = cab('Revisión de los portafolios — por área y docente');
     const nota1 = [['Cada renglón es un curso y grupo. Las evaluaciones son las de la estructura de Calidad y Acreditación para ese curso.'], []];
     const cols1 = ['Área', 'Coordinador del área', 'Docente', 'Código', 'Curso', 'Grupo', 'Evaluaciones del curso']
-      .concat(P.map(k => NOMBRE_P[k]), ['Situación', 'Archivos revisados', 'Bien rotulados', 'Qué falta', 'Carpeta en Drive']);
+      .concat(P.map(k => NOMBRE_P[k]), ['Situación', 'Archivos revisados', 'Rotulado de archivos', 'Qué corregir',
+              'Cómo corregirlo (orientación para el docente)', 'Carpeta en Drive']);
     const det1 = filas.map(x => [x._areaEtq, x.coordinador || '', x.docente, x.codigo, nombreCurso(x.curso), x.grupo,
       (x.evaluaciones || []).join(', ') || '—']
       .concat(P.map(k => est(k, x.puntos[k]).txt),
-        [SIT[x._sit].txt, x.revisados || 0, x.revisados ? x.bien + ' de ' + x.revisados : '—', x._falta, x.url || '']));
+        [SIT[x._sit].txt, x.revisados || 0, x._rot, x._falta, x._mejoras, x.url || '']));
     const ws1 = hoja(f1.concat(nota1, [cols1], det1),
-      [28, 28, 32, 10, 36, 7, 30, 18, 14, 18, 14, 14, 14, 16, 22, 10, 12, 60, 40], f1.length + nota1.length, true);
+      [28, 28, 32, 10, 36, 7, 30, 18, 16, 18, 16, 16, 16, 16, 22, 10, 20, 80, 80, 40], f1.length + nota1.length, true);
     const fila1 = f1.length + nota1.length + 1;
     filas.forEach((x, i) => {
       P.forEach((k, j) => pintar(ws1, fila1 + i, 7 + j, 1, ESTILO[est(k, x.puntos[k]).color]));
       pintar(ws1, fila1 + i, 14, 1, negr(ESTILO[SIT[x._sit].color]));
-      if (x.url) { const ref = XLSX.utils.encode_cell({ r: fila1 + i, c: 18 }); if (ws1[ref]) ws1[ref].l = { Target: x.url }; }
+      if (x._rotColor) pintar(ws1, fila1 + i, 16, 1, ESTILO[x._rotColor]);
+      if (x.url) { const ref = XLSX.utils.encode_cell({ r: fila1 + i, c: 19 }); if (ws1[ref]) ws1[ref].l = { Target: x.url }; }
     });
     agrupar(ws1, filas, x => x._carrera + '¦' + x._area, 0, fila1);
     agrupar(ws1, filas, x => x._carrera + '¦' + x._area, 1, fila1);
@@ -5685,15 +5718,80 @@ label .req{color:var(--falla)}
       if (c.vacio) pintar(ws3, r, 6, 1, ESTILO.rojo); });
 
     // -------------------------------------- hoja 4: archivos por corregir --
-    const malos = [];
-    filas.forEach(x => (x.malos || []).forEach(m => malos.push([x._areaEtq, x.codigo, nombreCurso(x.curso), x.grupo, x.docente,
-      m.carpeta, m.nombre, m.motivos.join('; ')])));
-    const f4 = cab('Archivos que no siguen la directiva de rotulado');
-    const nota4 = [['Formato: CÓDIGO.TIPO.PERIODO.PDF para el enunciado y CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota.PDF ' +
-                    'para las evidencias. Siglas: EP, EF, PC, TR, LA, TA, IN, PR; otras, con su nombre completo.'], []];
-    const ws4 = hoja(f4.concat(nota4, [['Área', 'Código', 'Curso', 'Grupo', 'Docente', 'Carpeta', 'Archivo', 'Qué corregir']],
-      malos.length ? malos : [['—', '', 'Todos los archivos revisados están bien rotulados', '', '', '', '', '']]),
-      [28, 10, 34, 7, 32, 18, 50, 60], f4.length + nota4.length);
+    // Cada archivo, parte por parte de su nombre, comparado con la directiva.
+    const CAMPOS_R = ['Código del curso', 'Tipo de evaluación', 'Periodo', 'Nombre del estudiante', 'Métrica', 'Nota', 'Formato', 'Separación'];
+    const malos = [], estMalos = [];
+    const nombreCarpeta = (x, c) => { const k = (x.carpetas || []).find(z => z.carpeta === c);
+      return k ? k.nombre + (k.carpeta.toUpperCase() !== k.nombre.toUpperCase() ? ' (carpeta ' + k.carpeta + ')' : '') : c; };
+    filas.forEach(x => (x.malos || []).forEach(m => {
+      const det = {}; (m.detalle || []).forEach(dd => { det[dd.campo] = dd; });
+      const celdas = CAMPOS_R.map(cn => {
+        const dd = det[cn];
+        if (!dd) return { t: /video/.test(m.motivos.join(' ')) ? '—' : 'No corresponde (es el enunciado)', c: 'gris' };
+        return dd.ok ? { t: '✔ ' + (dd.actual || dd.esperado), c: 'verde' }
+                     : { t: '✘ ' + (dd.actual ? '«' + dd.actual + '»' : 'falta') + ' → ' + dd.esperado, c: 'rojo' };
+      });
+      malos.push([x._areaEtq, x.codigo, nombreCurso(x.curso), x.grupo, x.docente, nombreCarpeta(x, m.carpeta), m.nombre]
+        .concat(celdas.map(z => z.t), [m.sugerido || 'Eliminar del portafolio (los videos no se suben)']));
+      estMalos.push(celdas.map(z => z.c));
+    }));
+    const f4 = cab('Archivos que no siguen la directiva de rotulado — qué corregir en cada parte del nombre');
+    const nota4 = [['Formato de la directiva: CÓDIGO.TIPO.PERIODO.PDF para el enunciado y CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota.PDF ' +
+                    'para las evidencias, separando cada parte con un punto. Ejemplo: IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF.'],
+                   ['✔ = esa parte está bien · ✘ «como está» → como debe ser. La última columna da el nombre completo correcto.'], []];
+    const ws4 = hoja(f4.concat(nota4, [['Área', 'Código', 'Curso', 'Grupo', 'Docente', 'Evaluación', 'Archivo como está']
+      .concat(CAMPOS_R, ['Nombre correcto'])],
+      malos.length ? malos : [['—', '', 'Todos los archivos revisados están bien rotulados', '', '', '', '', '', '', '', '', '', '', '', '', '']]),
+      [24, 10, 30, 7, 28, 22, 36, 22, 18, 20, 24, 18, 18, 16, 20, 48], f4.length + nota4.length);
+    estMalos.forEach((fila, i) => fila.forEach((c, j) => pintar(ws4, f4.length + nota4.length + 1 + i, 7 + j, 1, ESTILO[c])));
+    pintar(ws4, f4.length, 0, 1, ESTILO.negrita);
+
+    // ----------------------------- hoja: guía para entender y corregir --
+    const guia = cab('Guía para entender el reporte y corregir el portafolio');
+    const marcasG = [];
+    const secG = t => { guia.push([t]); marcasG.push([guia.length - 1, 2, ESTILO.seccion]); };
+    secG('1. Qué es cada carpeta de evaluaciones');
+    guia.push(['Calidad y Acreditación crea, dentro de la carpeta de cada docente, una carpeta «EVALUACIONES» con una subcarpeta por ' +
+               'cada evaluación del curso. Algunas Escuelas las nombran con el código del Sistema de Evaluación. Así se leen:', '']);
+    guia.push(['Carpeta', 'Qué evaluación es · sigla que va en el nombre del archivo · punto del portafolio']);
+    marcasG.push([guia.length - 1, 2, ESTILO.enc]);
+    const vistas = {};
+    filas.forEach(x => (x.carpetas || []).forEach(k => { vistas[k.carpeta.toUpperCase()] = k; }));
+    Object.keys(vistas).sort().forEach(c => { const k = vistas[c];
+      guia.push([c, k.nombre + ' · sigla ' + k.sigla + (c !== k.sigla && /^[A-Z]{2,5}\d*$/.test(c) ? ' (también se acepta ' + c.replace(/\d+$/, '') + ')' : '') +
+                 ' · ' + NOMBRE_P[k.punto]]); });
+    guia.push([]);
+    secG('2. Cómo debe llamarse cada archivo (directiva de la Facultad)');
+    [['Enunciado', 'CÓDIGO.TIPO.PERIODO.PDF  →  ejemplo: IN0701.EP.2026-II.PDF'],
+     ['Desarrollo de la mayor nota', 'CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor.Nota.PDF  →  IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF'],
+     ['Desarrollo de la menor nota', '…Nombre Apellido.Menor.Nota.PDF  →  IN0701.EP.2026-II.José Vega.Menor.12.PDF'],
+     ['Desarrollo de la nota promedio', '…Nombre Apellido.Promedio.Nota.PDF  →  IN0701.EP.2026-II.Samuel Díaz.Promedio.14.PDF'],
+     ['Siglas', 'EP examen parcial · EF examen final · PC prácticas · TR trabajos · LA laboratorios · TA talleres · IN investigaciones · ' +
+                'PR proyectos · otras, con su nombre completo (por ejemplo INFORME). Si hay varias, se numeran: PC1, PC2…'],
+     ['Reglas', 'Cada parte se separa con un punto (no con espacios ni guiones) · el código del curso sin espacios (II0502) · el periodo ' +
+                'como 2026-II · la métrica es Mayor, Menor o Promedio (no «mejor» ni «peor») · todo en PDF · sin videos.']]
+      .forEach(z => guia.push(z));
+    guia.push([]);
+    secG('3. Qué significa cada estado');
+    [[SIT.completo.txt, 'Tiene todos los archivos que corresponden y bien rotulados.'],
+     [SIT.incompleto.txt, 'Faltan archivos o hay nombres mal escritos. «Qué corregir» dice cuáles; «Cómo corregirlo» dice qué hacer.'],
+     [SIT.vacio.txt, 'Ninguna carpeta de evaluaciones tiene archivos todavía.'],
+     [SIT.sinCarpeta.txt, 'En la carpeta del curso no hay una carpeta con el apellido y grupo de este docente. Calidad y Acreditación debe crearla.'],
+     [EST.parcial.txt, 'En ese punto falta algún archivo (el enunciado, o la evidencia de la mayor, menor o nota promedio).'],
+     [EST.na.txt, 'Ese curso no tiene esa evaluación, según la estructura de Calidad y Acreditación.'],
+     [EST01.nd.txt, 'No se encontró dato del formulario F3 para ese curso y grupo.']].forEach(z => guia.push(z));
+    guia.push([]);
+    secG('4. Qué debe hacer el docente');
+    ['1) Abra su carpeta del portafolio (el enlace está en la hoja «Por área y docente»).',
+     '2) En cada carpeta de evaluación suba, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio.',
+     '3) Póngales el nombre como indica la directiva (sección 2). Si ya los subió con otro nombre, renómbrelos: en Drive, clic derecho → Cambiar nombre.',
+     '4) Si algún archivo está en Word, guárdelo como PDF (Archivo → Guardar como → PDF) y súbalo en lugar del original.',
+     '5) No suba videos al portafolio; el material del curso va en el aula virtual.',
+     '6) La prueba de entrada se acredita presentando el formulario F3.'].forEach(t => guia.push([t, '']));
+    const wsG = XLSX.utils.aoa_to_sheet(guia);
+    wsG['!cols'] = [{ wch: 34 }, { wch: 130 }];
+    pintar(wsG, 0, 0, 1, ESTILO.titulo); pintar(wsG, 2, 0, 1, ESTILO.negrita);
+    marcasG.forEach(([r, n, e]) => pintar(wsG, r, 0, n, e));
 
     // ---------------------------------------- hoja 5: cursos sin portafolio --
     const sinP = [];
@@ -5720,18 +5818,26 @@ label .req{color:var(--falla)}
     const L = (t, q, c) => { par.push([t, q]); ley.push([par.length - 1, ESTILO[c]]); };
     const filaT1 = par.length - 1;
     L(EST.ok.txt, 'Están todos los archivos de las evaluaciones de ese punto (o, en la prueba de entrada, el F3).', 'verde');
-    L(EST.parcial.txt, 'Hay archivos, pero falta alguno.', 'amarillo');
+    L(EST.parcial.txt, 'Hay archivos, pero falta alguno (el enunciado o la evidencia de la mayor, menor o nota promedio).', 'amarillo');
     L(EST.vacio.txt, 'La carpeta de esa evaluación está vacía.', 'rojo');
     L(EST.na.txt, 'Ese curso no tiene esa evaluación, según la estructura de Calidad y Acreditación.', 'gris');
     L(EST.sin.txt, 'No se encontró la carpeta del docente en el portafolio.', 'gris');
+    par.push([]);
+    par.push(['Situación del curso y grupo', 'Qué significa']);
+    const filaT2 = par.length - 1;
+    L(SIT.completo.txt, 'Están todos los archivos que corresponden y todos bien rotulados.', 'verde');
+    L(SIT.incompleto.txt, 'Faltan archivos o hay archivos por renombrar. En «Qué corregir» se dice cuáles y el nombre correcto.', 'amarillo');
+    L(SIT.vacio.txt, 'Ninguna evaluación tiene archivos todavía.', 'rojo');
+    L('Rotulado de archivos', '«✔ Correcto» o «✘ n de m por corregir»: cuántos archivos no siguen la directiva.', 'gris');
     const ws6 = XLSX.utils.aoa_to_sheet(par);
     ws6['!cols'] = [{ wch: 30 }, { wch: 120 }];
     pintar(ws6, 0, 0, 1, ESTILO.titulo); pintar(ws6, 2, 0, 1, ESTILO.negrita); pintar(ws6, 5, 0, 2, ESTILO.enc);
-    pintar(ws6, filaT1, 0, 2, ESTILO.seccion);
+    pintar(ws6, filaT1, 0, 2, ESTILO.seccion); pintar(ws6, filaT2, 0, 2, ESTILO.seccion);
     ley.forEach(([r, e]) => pintar(ws6, r, 0, 1, negr(e)));
 
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
+    XLSX.utils.book_append_sheet(libro, wsG, 'Guía para corregir');
     XLSX.utils.book_append_sheet(libro, wsP, 'Pendientes');
     XLSX.utils.book_append_sheet(libro, ws1, 'Por área y docente');
     XLSX.utils.book_append_sheet(libro, ws3, 'Resumen por área');
@@ -7124,13 +7230,33 @@ label .req{color:var(--falla)}
   // condición y criterio); Anderson y Krathwohl, taxonomía de Bloom revisada
   // (nivel del verbo); Tobón (verbo, objeto, finalidad y condición de
   // referencia); ANECA y Kennedy (redacción de resultados de aprendizaje).
+  // Taxonomía de Bloom de referencia (documento de la Facultad, adaptado de
+  // Eduteka): niveles, qué hace el estudiante y verbos indicadores.
+  const BLOOM = [
+    { n: 1, nivel: 'Conocimiento', hace: 'recuerda y reconoce información, ideas y principios como los aprendió',
+      verbos: 'define, lista, rotula, nombra, identifica, repite, cuenta, describe, recoge, examina, tabula, cita' },
+    { n: 2, nivel: 'Comprensión', hace: 'esclarece, comprende o interpreta información con base en el conocimiento previo',
+      verbos: 'predice, asocia, estima, diferencia, extiende, resume, describe, interpreta, discute, contrasta, distingue, explica, parafrasea, ilustra, compara' },
+    { n: 3, nivel: 'Aplicación', hace: 'selecciona, transfiere y utiliza datos y principios para completar una tarea o solucionar un problema',
+      verbos: 'aplica, demuestra, completa, ilustra, muestra, examina, modifica, relata, cambia, clasifica, experimenta, descubre, usa, computa, resuelve, construye, calcula' },
+    { n: 4, nivel: 'Análisis', hace: 'diferencia, clasifica y relaciona conjeturas, hipótesis, evidencias o estructuras',
+      verbos: 'separa, ordena, explica, conecta, divide, compara, selecciona, infiere, arregla, clasifica, analiza, categoriza, contrasta' },
+    { n: 5, nivel: 'Síntesis', hace: 'genera, integra y combina ideas en un producto, plan o propuesta nuevos',
+      verbos: 'combina, integra, reordena, sustituye, planea, crea, diseña, inventa, prepara, generaliza, compone, modifica, plantea, desarrolla, formula, reescribe' },
+    { n: 6, nivel: 'Evaluación', hace: 'valora, evalúa o critica con base en estándares y criterios específicos',
+      verbos: 'decide, establece, prueba, mide, recomienda, juzga, explica, compara, valora, critica, justifica, discrimina, apoya, convence, concluye, selecciona, predice, argumenta' }
+  ];
+  const DOC_BLOOM = 'docs/taxonomia-bloom.pdf';
+  const GUIA_ROTULADO = 'docs/guia-rotulado.html';
   const PATRON_LOGRO = {
-    version: 'V1.0',
+    version: 'V1.1',
     texto:
       'El logro es un solo enunciado con cuatro elementos:\n' +
       '1. Sujeto: el estudiante, al finalizar la asignatura (no el docente ni «se busca que…»).\n' +
-      '2. Acción: un verbo principal observable y evaluable, de nivel acorde al ciclo según la taxonomía ' +
-      'de Bloom revisada (aplicar, analizar, evaluar, crear…). No valen «conocer», «comprender» ni «entender».\n' +
+      '2. Acción: un verbo principal observable y evaluable, tomado de la Taxonomía de Bloom de referencia de la ' +
+      'Facultad (ver el documento). En los cursos de ingeniería se espera, de preferencia, un nivel de aplicación o ' +
+      'superior (aplicación, análisis, síntesis o evaluación). No valen «conocer», «comprender» ni «entender», que no se ' +
+      'pueden observar.\n' +
       '3. Criterios: con qué y cómo lo hace —métodos, normas, herramientas o condiciones— de modo que se pueda ' +
       'juzgar si lo logró.\n' +
       '4. Resultado esperado: para qué; el producto o desempeño final, que debe corresponder a las competencias ' +
@@ -7140,8 +7266,11 @@ label .req{color:var(--falla)}
       'enumera contenidos.\n' +
       'Ejemplo: «Al finalizar la asignatura, el estudiante [sujeto] formula un proyecto de inversión [acción] ' +
       'aplicando los métodos de evaluación económica y financiera [criterios], para determinar su viabilidad en ' +
-      'el contexto empresarial [resultado esperado].»'
+      'el contexto empresarial [resultado esperado].» El verbo «formula» es del nivel 5, Síntesis.'
   };
+  // La taxonomía en texto, para el asistente y para el recuadro.
+  const BLOOM_TEXTO = 'Taxonomía de Bloom de referencia (nivel · qué hace el estudiante · verbos indicadores):\n' +
+    BLOOM.map(b => b.n + '. ' + b.nivel + ' · ' + b.hace + ' · ' + b.verbos).join('\n');
   // Las competencias contra las que se alinea el resultado esperado.
   function competenciasParaLogro(c) {
     const k = (c && c.competencias) || {};
@@ -7436,7 +7565,8 @@ label .req{color:var(--falla)}
           contexto.archivos = ADJUNTOS.map(f => f.name);
           contexto.patronLogro = 'PATRÓN DE CALIDAD DEL LOGRO DE LA ASIGNATURA, ' + PATRON_LOGRO.version +
             ' (fuente del ítem 06; compara el logro del sílabo contra este patrón, nunca contra sí mismo):\n' +
-            PATRON_LOGRO.texto + '\n' + competenciasParaLogro(contexto);
+            PATRON_LOGRO.texto + '\n' + BLOOM_TEXTO + '\nAl revisar la acción, di de qué nivel de Bloom es el verbo ' +
+            'principal del logro y si es adecuado para el curso.\n' + competenciasParaLogro(contexto);
         }
       } catch (e) {}
       const r = await fetch(URL_ASISTENTE + '/proponer', {
@@ -7869,7 +7999,8 @@ label .req{color:var(--falla)}
     // Punto 06: el logro se compara contra un patrón de calidad, no contra el
     // propio sílabo. Versión V1.0; las mejoras se registran subiendo la versión.
     '06': { de: 'formato', titulo: 'Patrón de calidad del logro de la asignatura (' + PATRON_LOGRO.version + ')',
-            texto: c => PATRON_LOGRO.texto + '\n\n' + competenciasParaLogro(c),
+            texto: c => PATRON_LOGRO.texto + '\n\n' + BLOOM_TEXTO + '\n\n' + competenciasParaLogro(c),
+            enlaces: [{ url: DOC_BLOOM, texto: '📘 Ver la Taxonomía de Bloom (documento de referencia de la Facultad)' }],
             falta: SUBIR_SILABO },
     '07': { de: 'formato', titulo: 'Formato institucional del sílabo',
             texto: () => 'El formato establece 4 unidades. Se verifica que el sílabo las ' +
@@ -7925,6 +8056,8 @@ label .req{color:var(--falla)}
             ? '<p>' + esc(textoPlano(texto)) + '</p>'
             : '<p class="falta">' + esc(r.vacio || ('No está registrado en el catálogo. Sin esa fuente este punto ' +
               'no se puede comprobar: súbala o complétela en Validar datos.')) + '</p>') +
+          (r.enlaces ? '<p class="ref-enlaces">' + r.enlaces.map(e => '<a href="' + esc(e.url) +
+            '" target="_blank" rel="noopener">' + esc(e.texto) + '</a>').join(' · ') + '</p>' : '') +
           (r.falta ? '<p class="pide-archivo">' + esc(r.falta) + '</p>' : '');
       }
       fila.appendChild(caja);
@@ -8257,7 +8390,7 @@ label .req{color:var(--falla)}
         const mias = ev.evaluaciones.filter(e => e.punto === k);
         if (!mias.length) { L.push('• ' + nombre + ': no aplica.'); return; }
         L.push('• ' + nombre + ' — ' + y(mias.map(nombreEvalPorta)) + ': ' +
-          (mias.every(e => e.completa) ? 'completo.' : (mias.some(e => e.archivos) ? 'incompleto.' : 'sin archivos.')));
+          (mias.every(e => e.completa) ? 'completo.' : (mias.some(e => e.archivos) ? 'faltan archivos.' : 'sin archivos.')));
       } else {
         const x = h[k] || {};
         L.push('• ' + nombre + ': ' + (x.sugerido === 'Cumple' ? 'con evidencia.' : (x.para_docente || 'sin evidencia.')));
@@ -8280,11 +8413,16 @@ label .req{color:var(--falla)}
       const r = ev.rotulado;
       if (r && r.malos.length) {
         L.push(''); L.push('Archivos por corregir (' + r.malos.length + ' de ' + r.revisados + ' no siguen la directiva de rotulado):');
-        r.malos.slice(0, 10).forEach(m => L.push('• «' + m.nombre + '» (carpeta ' + m.carpeta + '): ' + m.motivos.join('; ') + '.'));
+        r.malos.slice(0, 10).forEach(m => L.push('• «' + m.nombre + '» (carpeta ' + m.carpeta + '): ' + m.motivos.join('; ') + '.' +
+          (m.sugerido ? ' Nombre correcto: ' + m.sugerido : '')));
         if (r.malos.length > 10) L.push('• …y ' + (r.malos.length - 10) + ' más.');
       }
       if (r && r.videos.length) L.push('• Hay ' + r.videos.length + (r.videos.length === 1 ? ' video' : ' videos') +
         ' en el portafolio: la directiva no permite subir videos.');
+      if ((ev.mejoras || []).length) {
+        L.push(''); L.push('Cómo corregirlo:');
+        ev.mejoras.forEach((m, i) => L.push((i + 1) + ') ' + m));
+      }
       const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
       if (ej) {
         L.push('');
@@ -8308,7 +8446,9 @@ label .req{color:var(--falla)}
   // «Informe (4: INF1 a INF4)», «Examen Parcial (PAR1)»…
   function nombreEvalPorta(e) {
     const n = (e.enFormula || []).length;
-    return e.nombre + (n > 1 ? 's (' + n + ')' : '');
+    if (e.otro) return String(e.carpeta).trim().toUpperCase() + ' (código no reconocido)';
+    const cod = /^[A-Za-z]{2,5}\d*$/.test(String(e.carpeta || '').trim()) ? ' [' + String(e.carpeta).trim().toUpperCase() + ']' : '';
+    return e.nombre + (n > 1 ? 's (' + n + ')' : '') + cod;
   }
 
   // Encima de la tabla: qué evaluaciones tiene el curso según la estructura
@@ -8353,7 +8493,7 @@ label .req{color:var(--falla)}
       return '<tr data-punto="' + k + '" class="' + (completo ? 'con' : 'sin') + '"><td class="pn">' + k + '</td><td class="pt">' +
         NOMBRE_PUNTO_P[k] + '</td><td class="pc">' + (n || '—') + '</td><td class="pa">' +
         mias.map(e => '<span class="ev-chip ' + (e.completa ? 'evc-ok' : (e.archivos ? 'evc-parcial' : 'evc-vacio')) + '">' +
-          esc(nombreEvalPorta(e)) + ' · ' + (e.completa ? 'completo' : (e.archivos ? 'incompleto' : 'sin archivos')) + '</span>').join(' ') +
+          esc(nombreEvalPorta(e)) + ' · ' + (e.completa ? 'completo' : (e.archivos ? 'faltan archivos' : 'sin archivos')) + '</span>').join(' ') +
         '</td></tr>';
     }).join('');
   }
@@ -8370,17 +8510,33 @@ label .req{color:var(--falla)}
     const celda = lista => {
       if (!lista || !lista.length) return '<td class="falta-celda">Falta</td>';
       return '<td>' + lista.map(x => '<a href="' + esc(x.url || '#') + '" target="_blank" rel="noopener">' + esc(x.nombre) + '</a>' +
-        (x.ok ? '<span class="rot-ok">✔ bien rotulado</span>' : '<span class="rot-mal">✘ ' + esc(x.motivos.join('; ')) + '</span>')).join('') + '</td>';
+        (x.ok ? '<span class="rot-ok">✔ bien rotulado</span>'
+              : '<span class="rot-mal">✘ ' + esc(x.motivos.join('; ')) + '</span>' +
+                (x.sugerido ? '<span class="rot-sug">Nombre correcto: <code>' + esc(x.sugerido) + '</code></span>' : ''))).join('') + '</td>';
     };
     const filas = ev.evaluaciones.map(e => e.grupos.map(g =>
-      '<tr><th>' + esc(e.nombre + (g.n ? ' ' + g.n : '')) + '<small>' + esc(e.carpeta) + '</small></th>' +
+      '<tr><th>' + esc((e.otro ? String(e.carpeta).toUpperCase() : e.nombre) + (g.n ? ' ' + g.n : '')) +
+      '<small>carpeta ' + esc(e.carpeta) + (e.otro ? ' · código no reconocido' : '') + ' · punto ' + e.punto + ' ' +
+      esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></th>' +
       ['enunciado', 'mayor', 'menor', 'promedio'].map(x => celda((g.archivos || {})[x])).join('') + '</tr>').join('')).join('');
     const r = ev.rotulado || { revisados: 0, bien: 0, malos: [], videos: [] };
     const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
+    const raros = ev.evaluaciones.filter(e => e.otro).map(e => String(e.carpeta).toUpperCase());
     return '<div class="porta-sec"><h4>Archivos de cada evaluación</h4>' +
-      '<p class="sub">En cada una deben estar, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio, ' +
-      'rotulados según la directiva de la Facultad. Formato: <code>' + esc(ej) + '</code> para el enunciado y <code>' +
-      esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code> para las evidencias.</p>' +
+      '<div class="porta-directiva"><b>Qué pide la directiva</b> (Guía operativa docente, 3.1 y 3.2): por cada evaluación ' +
+      'el docente sube al portafolio, en PDF, <b>a)</b> el enunciado de la evaluación y <b>b)</b> el escaneado del desarrollo ' +
+      'de la <b>mayor nota</b>, la <b>menor nota</b> y la <b>nota promedio</b>. Cada archivo se rotula ' +
+      '<code>CÓDIGO.TIPO.PERIODO</code> (el enunciado) o <code>CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota</code> ' +
+      '(las evidencias), separando las partes con puntos. No se suben videos. ' +
+      '<a href="' + GUIA_ROTULADO + '" target="_blank" rel="noopener">📘 Ver la Guía rápida de rotulado</a></div>' +
+      '<p class="sub"><b>Cómo leer esta tabla:</b> detalla la tabla de arriba. Cada fila es una evaluación del curso —una ' +
+      'carpeta que creó Calidad y Acreditación dentro de «EVALUACIONES»— y dice a qué punto del portafolio corresponde. ' +
+      'Las cuatro columnas son las evidencias que exige la directiva. En cada casilla aparece el archivo que se encontró, ' +
+      'con su nombre y si está bien rotulado (si no, qué corregir y el nombre correcto); si no hay archivo, dice «Falta». ' +
+      'Para este curso, el rotulado sería, por ejemplo, <code>' + esc(ej) + '</code> y <code>' +
+      esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code>.</p>' +
+      (raros.length ? '<p class="sub"><b class="ojo">Las carpetas ' + esc(raros.join(' y ')) + ' tienen un código que el portal ' +
+        'todavía no reconoce</b>; se cuentan en «Trabajos y tareas». Confirme con Calidad y Acreditación qué evaluación es cada una.</p>' : '') +
       '<div class="ev-scroll"><table class="ev-tabla ev-detalle"><thead><tr><th>Evaluación</th><th>Enunciado</th>' +
       '<th>Mayor nota</th><th>Menor nota</th><th>Nota promedio</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
       '<p class="sub" style="margin-top:8px">' + (r.revisados
