@@ -1802,7 +1802,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-10.02';
+  const VERSION_INTERNA = '2026-10-10.03';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7779,7 +7779,7 @@ label .req{color:var(--falla)}
       pintarInsumos.pidiendo = true;
       const a = estado.actual || {};
       api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
-          '&programa=' + encodeURIComponent(a.programa || ''))
+          '&programa=' + encodeURIComponent(a.programa || '') + '&plan=' + encodeURIComponent(a.planEstudio || '') + '&curso=' + encodeURIComponent(a.asignatura || ''))
         .then(d => { CONTEXTO_INSUMOS = d.contexto || {}; })
         .catch(() => { CONTEXTO_INSUMOS = {}; })
         .then(() => { pintarInsumos.pidiendo = false; pintarInsumos(); });
@@ -7919,7 +7919,7 @@ label .req{color:var(--falla)}
       let contexto = null;
       try {
         const d = await api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
-                            '&programa=' + encodeURIComponent(a.programa || ''));
+                            '&programa=' + encodeURIComponent(a.programa || '') + '&plan=' + encodeURIComponent(a.planEstudio || '') + '&curso=' + encodeURIComponent(a.asignatura || ''));
         contexto = d.contexto || null;
         // Si otra carrera tiene otra sumilla para el mismo código, el asistente
         // debe saberlo: compara con la de aquí y deja constancia.
@@ -8440,7 +8440,7 @@ label .req{color:var(--falla)}
     const a = estado.actual || {};
     pintarReferencias('cargando');
     api('/contexto-curso?codigo=' + encodeURIComponent(a.codigo || '') +
-        '&programa=' + encodeURIComponent(a.programa || ''))
+        '&programa=' + encodeURIComponent(a.programa || '') + '&plan=' + encodeURIComponent(a.planEstudio || '') + '&curso=' + encodeURIComponent(a.asignatura || ''))
       .then(d => {
         const c = d.contexto;
         document.querySelectorAll('.referencia-item').forEach(x => x.remove());
