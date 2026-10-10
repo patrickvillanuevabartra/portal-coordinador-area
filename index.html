@@ -1802,7 +1802,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-10.01';
+  const VERSION_INTERNA = '2026-10-10.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2171,8 +2171,13 @@ label .req{color:var(--falla)}
 
     const incompletas = lista.filter(a => a.faltantes.length);
     $('tableroAlertas').innerHTML = incompletas.length
-      ? '<div class="alerta"><b>' + incompletas.length + ' asignación(es) sin datos completos.</b> ' +
-        'No se les puede generar el ID ni registrar supervisiones hasta que se complete lo que falta en Docentes DAI.</div>'
+      ? '<div class="alerta"><b>' + incompletas.length + (incompletas.length === 1 ? ' carga incompleta' : ' cargas incompletas') +
+        ' en la tabla Docentes DAI.</b> Sin esos datos el portal no puede generarles su identificador (ID), y sin ID no se ' +
+        'puede registrar su supervisión. Complete en Docentes DAI lo que falta; si es una fila repetida, elimínela:' +
+        '<ul style="margin:6px 0 0 18px">' + incompletas.map(a => '<li>' + esc(nombreCurso(a.asignatura) || 'Curso sin nombre') +
+          (a.tipo ? ' (' + esc(a.tipo) + ')' : '') + (a.grupo ? ' · grupo ' + esc(a.grupo) : '') + ' · ' + esc(a.docente || 'sin docente') +
+          ' — falta: <b>' + esc(a.faltantes.map(x => x === 'código' ? 'el código del curso (columna «Codigo texto»)' :
+            x === 'ciclo' ? 'el ciclo (columna «Ciclo texto»)' : 'el grupo').join(', ')) + '</b></li>').join('') + '</ul></div>'
       : '';
 
     if (!lista.length) {
