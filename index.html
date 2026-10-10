@@ -1800,9 +1800,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '09/10/2026';
+  const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-09.12';
+  const VERSION_INTERNA = '2026-10-10.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4715,7 +4715,15 @@ label .req{color:var(--falla)}
           (progsRep.length > 1 ? '<label style="font-weight:600"><input type="checkbox" id="casTodasP"> Todas</label>' : '') +
           progsRep.map(p => '<label><input type="checkbox" class="cas-carrera-p" value="' + esc(p) + '"' +
             (progsRep.length === 1 ? ' checked' : '') + '> ' + esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
-          '</div><button class="btn" id="btnRepP">Generar reporte de portafolios (Excel)</button></div>'
+          '</div><label style="display:block;margin:0 0 10px;font-size:14px">Momento de la revisión: ' +
+          '<select id="modoPorta" style="margin-left:6px"><option value="ciclo">Durante el ciclo (las evaluaciones aún no tomadas no se observan)</option>' +
+          '<option value="cierre">Cierre de ciclo (toda carpeta vacía es falta)</option></select></label>' +
+          '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn" id="btnRepP">Generar reporte de portafolios (Excel)</button>' +
+          '<button class="btn fantasma" id="btnInfP">Informe para el Director (Word)</button></div>' +
+          '<div style="color:var(--tinta-media);font-size:13px;margin-top:8px">El informe sigue el modelo del profesor Juan Bendezú: ' +
+          'resumen ejecutivo, sustento normativo (Guía Operativa Docente, numerales 3, 3.1 y 3.2), Anexo 01 tabla maestra ' +
+          '(Conforme / Observado) y Anexo 02 observaciones detalladas con el numeral que sustenta cada falta. Complete el número del informe al abrirlo en Word.</div></div>'
         : '') +
       '</div>';
     h += '</div></section>';
@@ -4744,7 +4752,9 @@ label .req{color:var(--falla)}
       }));
     }
     if ($('btnRepP')) $('btnRepP').addEventListener('click', () =>
-      generarReportePortafolios(marcadasP(), $('btnRepP')));
+      generarReportePortafolios(marcadasP(), $('btnRepP'), 'excel'));
+    if ($('btnInfP')) $('btnInfP').addEventListener('click', () =>
+      generarReportePortafolios(marcadasP(), $('btnInfP'), 'informe'));
   }
 
   /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
@@ -5412,10 +5422,35 @@ label .req{color:var(--falla)}
   /* ------------------------------------------- reporte de portafolios ---- */
   // El mismo modelo del reporte de F1 a F3: por área y docente, cada estado en
   // palabras, símbolo y color, y las celdas de área y docente combinadas.
-  function generarReportePortafolios(carreras, boton) {
+  // Lo último revisado se guarda 10 minutos: el informe en Word y el Excel
+  // salen de la misma revisión sin volver a recorrer Drive.
+  let ULTIMA_REV_PORTA = null;
+  function generarReportePortafolios(carreras, boton, tipo) {
     carreras = (carreras || []).filter(Boolean);
     if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
     const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
+    const modo = ($('modoPorta') && $('modoPorta').value) || 'ciclo';
+    const clave = carreras.join('|') + '¦' + ciclo;
+    const entregar = (d, XLSX) => {
+      if (tipo === 'informe') {
+        (d.carreras || []).filter(r => r && r.filas && r.filas.length).forEach(r => {
+          const inf = armarInformePortafolios(r, d, modo, ciclo);
+          const blob = new Blob(['\ufeff', inf.html], { type: 'application/msword' });
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob); a.download = inf.nombre;
+          document.body.appendChild(a); a.click();
+          setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+        });
+      } else {
+        const libro = armarLibroPortafolios(d, XLSX, ciclo, modo);
+        XLSX.writeFile(libro.libro, libro.nombre);
+      }
+    };
+    if (ULTIMA_REV_PORTA && ULTIMA_REV_PORTA.clave === clave && Date.now() - ULTIMA_REV_PORTA.t < 600000) {
+      cargarLibreriaExcel().then(XLSX => entregar(ULTIMA_REV_PORTA.d, XLSX))
+        .catch(e => alert('No se pudo generar: ' + e.message));
+      return;
+    }
     const txt = boton ? boton.textContent : '';
     if (boton) { boton.disabled = true; boton.textContent = 'Revisando portafolios…'; }
     const cerrarEspera = mostrarEspera('Revisando los portafolios en Drive',
@@ -5445,13 +5480,311 @@ label .req{color:var(--falla)}
       }
       if (d.pendientes) alert('Quedaron ' + d.pendientes + ' cursos y grupos sin revisar por tiempo. El reporte los omite; ' +
                               'vuelva a generarlo en unos minutos para completarlo.');
-      const libro = armarLibroPortafolios(d, XLSX, ciclo);
-      XLSX.writeFile(libro.libro, libro.nombre);
+      if (!d.pendientes) ULTIMA_REV_PORTA = { clave, d, t: Date.now() };
+      entregar(d, XLSX);
     })().catch(e => { fin(); alert('No se pudo generar el reporte de portafolios: ' + e.message); });
   }
   window.generarReportePortafolios = generarReportePortafolios;
 
-  function armarLibroPortafolios(d, XLSX, ciclo) {
+  /* ---------------------------------------------------------------------
+   * Auditoría con sustento normativo (modelo del informe del profesor Juan
+   * Bendezú): cada falta se cita contra la Guía Operativa Docente.
+   *   Numeral 3   Portafolio Digital Docente (mantenerlo actualizado)
+   *   Numeral 3.1 Evaluaciones y evidencias (a enunciado PDF; b mayor,
+   *               menor y promedio escaneados en PDF; c materiales solo en el
+   *               aula virtual; d no se suben videos)
+   *   Numeral 3.2 Rotulado de las evidencias (siglas y correlativo)
+   *   Numeral 3   Proceso de supervisión (responsabilidad del docente, se
+   *               extiende al Coordinador de Área)
+   * modo 'cierre': toda carpeta vacía es falta. modo 'ciclo': una evaluación
+   * sin archivos queda «por cargar según el cronograma» y no se observa (salvo
+   * que no haya ninguna evidencia en todo el portafolio).
+   * ------------------------------------------------------------------- */
+  const SUSTENTO_GUIA = {
+    integridad: 'Falla de integridad (Numeral 3.1)',
+    enunciado: 'Incumplimiento del Numeral 3.1, literal a (enunciado en PDF)',
+    evidencias: 'Incumplimiento del Numeral 3.1, literal b (mayor, menor y nota promedio)',
+    formato: 'Contravención del Numeral 3.1, literales a y b (PDF obligatorio)',
+    video: 'Contravención del Numeral 3.1, literal d (no se suben videos)',
+    rotulado: 'Incumplimiento del Numeral 3.2 (rotulado de las evidencias)',
+    carpeta: 'Falla de integridad (Numeral 3 y Numeral 3 «Proceso de supervisión»)'
+  };
+  function auditarPortafolio(x, modo) {
+    const y = l => l.join(', ').replace(/, ([^,]*)$/, ' y $1');
+    const pl = (n, s, p) => n + ' ' + (n === 1 ? s : p);
+    const nom = (ev, nums) => nums && nums.length > 1 ? ev + 's ' + y(nums) : ev + (nums && nums[0] ? ' ' + nums[0] : '');
+    const out = [], pendientes = [];
+    const F = (clave, falta, breve, subsanar) => out.push({ clave, falta, breve, sustento: SUSTENTO_GUIA[clave], subsanar });
+    if (x.estado === 'error') {
+      return { estado: 'NO REVISADO', faltas: [], pendientes: [],
+               detalle: 'No se pudo leer la carpeta en Drive' + (x.mensaje ? ': ' + x.mensaje : '') + '. Vuelva a generar el reporte.' };
+    }
+    if (/sinCarpeta/.test(x.estado || '')) {
+      F('carpeta', x.estado === 'sinCarpetaCurso'
+          ? 'El curso no tiene carpeta en el portafolio digital de la Escuela: no hay evidencia digital que revisar'
+          : 'No existe la carpeta del docente (con su apellido y grupo) dentro de la carpeta del curso: no hay evidencia digital que revisar',
+        'inexistencia de la carpeta del docente en el portafolio',
+        'Coordinar con Calidad y Acreditación la creación de la carpeta del docente (apellido y grupo) y subir las evidencias.');
+    } else if (x.estado === 'sinEstructura') {
+      F('integridad', 'La carpeta del docente no tiene la subcarpeta EVALUACIONES de la estructura de Calidad y Acreditación',
+        'carpeta sin la estructura de evaluaciones',
+        'Pedir a Calidad y Acreditación la subcarpeta EVALUACIONES, con una carpeta por cada evaluación del curso, y ordenar ahí las evidencias.');
+    } else {
+      const faltas = x.faltas || [];
+      if (x.sinEvidencias) {
+        F('integridad', 'Carpetas de evaluaciones creadas pero sin contenido: no hay ningún archivo de evidencia',
+          'carpetas de evaluaciones sin contenido',
+          'Subir a cada carpeta el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio, en PDF.');
+      } else {
+        const vacias = faltas.filter(f => f.tipo === 'vacia').map(f => nom(f.eval, f.nums));
+        if (vacias.length && modo === 'ciclo') pendientes.push(...vacias);
+        else if (vacias.length) F('integridad', 'Carpetas de evaluaciones sin contenido: ' + y(vacias),
+          'carpetas sin contenido (' + y(vacias) + ')',
+          'Subir a esas carpetas el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio, en PDF.');
+        const partes = faltas.filter(f => f.tipo === 'partes');
+        const enun = partes.filter(f => f.faltan.indexOf('enunciado') >= 0).map(f => nom(f.eval, [f.n]));
+        if (enun.length) F('enunciado', 'Falta el enunciado de: ' + y(enun), 'falta el enunciado (' + y(enun) + ')',
+          'Subir el enunciado en PDF con el nombre CÓDIGO.SIGLA.PERIODO.PDF.');
+        const NP = { mayor: 'mayor nota', menor: 'menor nota', promedio: 'nota promedio' };
+        const evid = partes.map(f => {
+          const q = f.faltan.filter(p => NP[p]).map(p => NP[p]);
+          return q.length ? nom(f.eval, [f.n]) + ' (' + y(q) + ')' : '';
+        }).filter(Boolean);
+        if (evid.length) F('evidencias', 'Falta el desarrollo escaneado de: ' + y(evid), 'faltan evidencias de ' + y(evid),
+          'Escanear el desarrollo indicado y subirlo en PDF: CÓDIGO.SIGLA.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota.PDF.');
+        if (!x.faltas && (x.falta || []).length) {
+          // Servidor sin actualizar: se cita lo que falta tal como viene.
+          const f2 = x.falta.filter(t => !/F3|video/i.test(t));
+          if (f2.length) F('integridad', 'Faltan evidencias: ' + f2.join('; '), 'faltan evidencias',
+            'Completar las evidencias de cada evaluación en PDF.');
+        }
+      }
+      // Formatos y rotulado (con respaldo si el servidor no trae los conteos).
+      let formatos = x.formatos, nomen = x.nomenclatura;
+      if (!formatos) {
+        formatos = {}; nomen = 0;
+        (x.malos || []).forEach(m => {
+          const e = ((String(m.nombre).match(/\.([A-Za-z0-9]{2,5})$/) || [])[1] || 'SIN EXTENSIÓN').toUpperCase();
+          if (e !== 'PDF' && !/^(MP4|MOV|AVI|MKV|WMV|M4V|WEBM|3GP)$/.test(e)) formatos[e] = (formatos[e] || 0) + 1;
+          if ((m.detalle || []).some(dd => !dd.ok && dd.campo !== 'Formato')) nomen++;
+        });
+      }
+      const fm = Object.keys(formatos);
+      if (fm.length) {
+        const zip = fm.some(e => /^(ZIP|RAR|7Z)$/.test(e));
+        F('formato', 'Evidencias en formato ' + y(fm.map(e => e + ' (' + formatos[e] + ')')) + ' en lugar de PDF',
+          'uso de formato ' + y(fm) + ' en lugar de PDF',
+          'Convertir cada archivo a PDF (en Word o PowerPoint: Archivo › Guardar como › PDF) y retirar el original' +
+          (zip ? '; los comprimidos se descomprimen y cada evidencia se sube en PDF' : '') + '.');
+      }
+      if (x.videos) F('video', pl(x.videos, 'video', 'videos') + ' en el portafolio', 'videos en el portafolio',
+        'Retirarlos del portafolio; si son material del curso, van en el aula virtual (Numeral 3.1, literal c).');
+      if (nomen) F('rotulado', pl(nomen, 'archivo', 'archivos') + ' con nomenclatura no estándar (no siguen la secuencia ' +
+          'CÓDIGO.SIGLA.PERIODO y, en las evidencias, .Nombre Apellido.Mayor|Menor|Promedio.Nota)',
+        'rotulado no conforme (' + pl(nomen, 'archivo', 'archivos') + ')',
+        'Renombrar los archivos según el Numeral 3.2; la hoja «Archivos por corregir» del reporte Excel trae el nombre correcto de cada uno.');
+    }
+    const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+    const numeral = c => ({ integridad: '3.1', enunciado: '3.1 a', evidencias: '3.1 b', formato: '3.1', video: '3.1 d',
+                            rotulado: '3.2', carpeta: '3' })[c];
+    let detalle = out.length
+      ? cap(out.map(f => f.breve + ' [Num. ' + numeral(f.clave) + ']').join('; ')) + '.'
+      : 'Cumplimiento total: evidencias completas, en PDF y rotuladas según el Numeral 3.2.';
+    if (pendientes.length) detalle += ' Aún sin carga, según el avance del ciclo: ' + y(pendientes) + ' (verificar con el cronograma del sílabo).';
+    return { estado: out.length ? 'OBSERVADO' : 'CONFORME', faltas: out, pendientes, detalle };
+  }
+
+  // Informe formal para el Director de la Escuela (se abre en Word). Una
+  // carrera por informe; los anexos van en hoja horizontal.
+  function armarInformePortafolios(rep, d, modo, ciclo) {
+    const e = t => String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const y = l => l.join(', ').replace(/, ([^,]*)$/, ' y $1');
+    const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
+    const es = (a, b) => String(a || '').localeCompare(String(b || ''), 'es', { numeric: true });
+    const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre'];
+    const ahora = new Date(), dos = n => ('0' + n).slice(-2);
+    const fechaLarga = ahora.getDate() + ' de ' + MESES[ahora.getMonth()] + ' de ' + ahora.getFullYear();
+    const hora = dos(ahora.getHours()) + ':' + dos(ahora.getMinutes());
+    const cic = d.ciclo || ciclo;
+    const filas = rep.filas.slice().sort((a, b) => es(a.area, b.area) || es(a.docente, b.docente) ||
+      es(nombreCurso(a.asignatura || a.curso), nombreCurso(b.asignatura || b.curso)) || es(a.grupo, b.grupo));
+    filas.forEach(x => { x._aud = auditarPortafolio(x, modo); });
+    const areas = [...new Set(filas.map(x => x.area || 'Sin área'))];
+    const soloAreas = (d.soloAreas || []).length > 0;
+    const escuela = 'Escuela Profesional de ' + rep.programa;
+    const dir = rep.director || {};
+    const cargo = soloAreas ? 'Coordinador' + (areas.length > 1 ? ' de las áreas ' + y(areas) : ' del ' + (/^[áa]rea/i.test(areas[0]) ? '' : 'Área de ') + areas[0])
+      : (estado.general ? 'Coordinador General de ' + rep.programa : 'Administración del Portal del Coordinador de Área');
+    const alcance = soloAreas ? (areas.length > 1 ? 'Áreas de ' + y(areas) : (/^[áa]rea/i.test(areas[0]) ? '' : 'Área de ') + areas[0]) : escuela;
+    const n = filas.length;
+    const cuenta = est => filas.filter(x => x._aud.estado === est).length;
+    const nC = cuenta('CONFORME'), nO = cuenta('OBSERVADO'), nN = cuenta('NO REVISADO');
+    const nSin = filas.filter(x => /sinCarpeta/.test(x.estado || '')).length;
+    const docentes = new Set(filas.map(x => x.docente)).size;
+    const revis = filas.reduce((s, x) => s + (x.revisados || 0), 0), bien = filas.reduce((s, x) => s + (x.bien || 0), 0);
+    // Frecuencia de cada tipo de falta.
+    const TIPOS = [
+      ['carpeta', 'Inexistencia de la carpeta del docente en el portafolio'],
+      ['integridad', 'Carpetas de evaluaciones sin contenido o sin estructura'],
+      ['enunciado', 'Falta el enunciado de la evaluación'],
+      ['evidencias', 'Falta el desarrollo escaneado de la mayor, menor o nota promedio'],
+      ['formato', 'Evidencias en formato distinto de PDF (DOCX, PPTX, XLSX, ZIP u otros)'],
+      ['video', 'Videos en el portafolio'],
+      ['rotulado', 'Nomenclatura de archivos no conforme a la directiva']
+    ];
+    const frec = TIPOS.map(([c, t]) => ({ c, t, n: filas.filter(x => x._aud.faltas.some(f => f.clave === c)).length }))
+      .filter(f => f.n);
+    const masFrec = frec.slice().sort((a, b) => b.n - a.n).slice(0, 3);
+    const conPend = filas.filter(x => x._aud.pendientes.length).length;
+
+    const P = t => '<p>' + t + '</p>';
+    const th = l => '<tr>' + l.map(t => '<th>' + t + '</th>').join('') + '</tr>';
+    let h = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" ' +
+      'xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Informe de portafolios ' + e(cic) + '</title>' +
+      '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]-->' +
+      '<style>@page Hoja1{size:21cm 29.7cm;margin:2.2cm 2.2cm 2.2cm 2.8cm}' +
+      '@page Hoja2{size:29.7cm 21cm;mso-page-orientation:landscape;margin:1.8cm 1.8cm 1.8cm 1.8cm}' +
+      'div.Hoja1{page:Hoja1}div.Hoja2{page:Hoja2}' +
+      'body{font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}p{margin:0 0 8pt;text-align:justify}' +
+      'h1{font-size:13pt;text-align:center;margin:6pt 0 2pt}h2{font-size:11.5pt;margin:14pt 0 6pt;color:#0B3B2E}' +
+      '.membrete{text-align:center;font-size:10pt;color:#0B3B2E;border-bottom:1.5pt solid #0B3B2E;padding-bottom:4pt;margin-bottom:10pt}' +
+      'table{border-collapse:collapse;width:100%;margin:4pt 0 10pt}th{background:#0B3B2E;color:#fff;font-size:9pt;border:1px solid #777;padding:3pt 4pt}' +
+      'td{border:1px solid #999;padding:3pt 4pt;font-size:9pt;vertical-align:top;text-align:left}td p,td{text-align:left}td.area{background:#E6F4EE;font-weight:bold;color:#0B3B2E}' +
+      '.cab td{border:none;font-size:11pt;padding:1pt 4pt}.conf{color:#006100;font-weight:bold}.obs{color:#9C0006;font-weight:bold}' +
+      '.nota{font-size:9pt;color:#444}.firma{margin-top:48pt;text-align:center}</style></head><body><div class="Hoja1">';
+    h += '<p align="center" style="text-align:center;margin:0;color:#0B3B2E"><b>UNIVERSIDAD RICARDO PALMA</b></p>' +
+      '<p align="center" style="text-align:center;margin:0;color:#0B3B2E">FACULTAD DE INGENIERÍA</p>' +
+      '<p align="center" style="text-align:center;margin:0 0 4pt;color:#0B3B2E;border-bottom:1.5pt solid #0B3B2E;padding-bottom:4pt">' + e(escuela) + '</p>';
+    h += '<h1>INFORME N.° ____-' + e(cic) + '-FI-URP</h1><br>';
+    h += '<table class="cab" border="0" cellpadding="2">' +
+      '<tr><td width="70"><b>A</b></td><td>: <b>' + e([dir.grado, (dir.nombre || '[Nombre del Director]').toUpperCase()].filter(Boolean).join(' ')) +
+        '</b><br>&nbsp;&nbsp;Director de la ' + e(escuela) + '</td></tr>' +
+      '<tr><td><b>De</b></td><td>: ' + e(d.generadoPor || estado.nombre || '') + '<br>&nbsp;&nbsp;' + e(cargo) + '</td></tr>' +
+      '<tr><td><b>Asunto</b></td><td>: Informe de cumplimiento del Portafolio Digital Docente – ' + e(alcance) +
+        '. Periodo Académico ' + e(cic) + '</td></tr>' +
+      '<tr><td><b>Referencia</b></td><td>: Guía Operativa Docente para la Planificación, Ejecución y Evaluación del Proceso de ' +
+        'Enseñanza-Aprendizaje (Numerales 3, 3.1 y 3.2) · Norma ISO 21001</td></tr>' +
+      '<tr><td><b>Fecha</b></td><td>: Santiago de Surco, ' + fechaLarga + '</td></tr></table><hr>';
+    h += P('Tengo el agrado de dirigirme a usted para informarle el resultado de la supervisión del Portafolio Digital Docente ' +
+      'correspondiente al Periodo Académico ' + e(cic) + ', en el marco de la implementación de la Norma ISO 21001.');
+
+    h += '<h2>1. Resumen ejecutivo</h2>';
+    h += P('Se realizó la revisión técnica de <b>' + n + ' portafolios digitales</b> (cursos y grupos) de ' + docentes +
+      (docentes === 1 ? ' docente' : ' docentes') + (soloAreas ? (areas.length > 1 ? ' de las ' : ' del ') : ' de la ') +
+      e(soloAreas ? alcance.replace(/^Áreas? /, m => m.toLowerCase()) : alcance) + ', con corte al ' + fechaLarga + ' a las ' + hora +
+      ' horas, conforme a los lineamientos de la Guía Operativa Docente y a la estructura de portafolio establecida por el área de ' +
+      'Calidad y Acreditación de la Facultad.');
+    h += P('Resultado: <b>' + nC + (nC === 1 ? ' conforme' : ' conformes') + ' (' + pct(nC, n) + ' %)</b> y <b>' + nO +
+      (nO === 1 ? ' observado' : ' observados') + ' (' + pct(nO, n) + ' %)</b>' +
+      (nSin ? (nSin === 1 ? '; uno de ellos no tiene' : ', de los cuales ' + nSin + ' no tienen') + ' carpeta del docente en el portafolio' : '') +
+      (nN ? '; ' + nN + ' no pudieron revisarse' : '') + '. Se revisaron ' + revis + ' archivos de evidencia: ' + bien +
+      ' (' + pct(bien, revis) + ' %) cumplen el rotulado del Numeral 3.2.' +
+      (masFrec.length ? ' Las faltas más frecuentes son: ' + y(masFrec.map(f => f.t.charAt(0).toLowerCase() + f.t.slice(1) + ' (' + f.n + ')')) + '.' : ''));
+    if (modo === 'ciclo' && conPend) h += P('<i>Revisión durante el ciclo:</i> en ' + conPend + (conPend === 1 ? ' portafolio hay' : ' portafolios hay') +
+      ' evaluaciones aún sin archivos que, según el avance del ciclo, pueden no haberse tomado todavía; no se cuentan como observación ' +
+      'y se indican en el Anexo N.° 01 para su verificación con el cronograma del sílabo.');
+
+    h += '<h2>2. Sustento normativo</h2>';
+    h += P('La supervisión se sustenta en la <b>Guía Operativa Docente para la Planificación, Ejecución y Evaluación del Proceso de ' +
+      'Enseñanza-Aprendizaje</b>, cuyos numerales aplicables son:');
+    h += '<table border="1" cellpadding="4">' + th(['Numeral', 'Qué establece']) +
+      '<tr><td><b>3</b> Portafolio Digital Docente</td><td>El docente debe mantener un portafolio digital actualizado que documente las actividades académicas desarrolladas durante el semestre.</td></tr>' +
+      '<tr><td><b>3.1</b> Evaluaciones y Evidencias</td><td>Para cada evaluación (Examen Parcial, Examen Final, Prácticas Calificadas, Trabajos, Laboratorios, Talleres, Investigaciones, Proyectos y otros) se suben: <b>a)</b> el enunciado en formato PDF; <b>b)</b> el desarrollo escaneado en PDF de la Mayor Nota, la Menor Nota y la Nota Promedio; <b>c)</b> los materiales educativos se colocan solo en el aula virtual; <b>d)</b> no se suben videos.</td></tr>' +
+      '<tr><td><b>3.2</b> Rotulado de las Evidencias</td><td>Siglas: Examen Parcial (EP), Examen Final (EF), Prácticas (PC), Trabajos (TR), Laboratorios (LA), Talleres (TA), Investigaciones (IN), Proyectos (PR) y otros (denominación completa), con un número correlativo por tipo de evaluación. Ejemplo: <b>IN0701.EP.2026-II.PDF</b> (enunciado) e <b>IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF</b> (evidencia).</td></tr>' +
+      '<tr><td><b>3</b> Proceso de supervisión</td><td>Cada docente es responsable de tener al día los documentos y evidencias del Portafolio Digital de su curso y grupo; esta responsabilidad es exigible individualmente frente a los evaluadores de las agencias acreditadoras o auditores ISO 21001 y se extiende hasta el Coordinador de Área.</td></tr></table>';
+
+    h += '<h2>3. Alcance y metodología</h2>';
+    h += P('Se revisó el portafolio digital de la Escuela en Google Drive, por el nombre de carpetas y archivos; <b>no se abrió el contenido ' +
+      'de los trabajos de los estudiantes</b>. En cada curso y grupo se verificó: (i) la carpeta del docente y la subcarpeta EVALUACIONES de la ' +
+      'estructura de Calidad y Acreditación; (ii) que cada evaluación del curso, en la cantidad que indica su fórmula de evaluación, tenga el ' +
+      'enunciado y las evidencias de la mayor, la menor y la nota promedio; (iii) el formato PDF; (iv) la ausencia de videos; y (v) el rotulado ' +
+      'de cada archivo, parte por parte, contra el Numeral 3.2. Las evaluaciones que el curso no tiene se consideran «no aplica».');
+    h += P('<b>CONFORME:</b> cumple todos los puntos anteriores. <b>OBSERVADO:</b> presenta al menos una falta, detallada con su sustento en el Anexo N.° 02.' +
+      (modo === 'cierre' ? ' Revisión de <b>cierre de ciclo</b>: toda carpeta de evaluación vacía se considera falta.' : ' Revisión <b>durante el ciclo</b>.'));
+
+    h += '<h2>4. Resultados</h2>';
+    h += '<table border="1" cellpadding="4">' + th(['Área', 'Portafolios revisados', 'Conformes', 'Observados', 'Sin carpeta del docente']) +
+      areas.map(a => {
+        const l = filas.filter(x => (x.area || 'Sin área') === a);
+        const c = l.filter(x => x._aud.estado === 'CONFORME').length, o = l.filter(x => x._aud.estado === 'OBSERVADO').length;
+        return '<tr><td>' + e(a) + '</td><td align="center">' + l.length + '</td><td align="center">' + c + ' (' + pct(c, l.length) +
+          ' %)</td><td align="center">' + o + ' (' + pct(o, l.length) + ' %)</td><td align="center">' +
+          l.filter(x => /sinCarpeta/.test(x.estado || '')).length + '</td></tr>';
+      }).join('') +
+      (areas.length > 1 ? '<tr><td><b>Total</b></td><td align="center"><b>' + n + '</b></td><td align="center"><b>' + nC + ' (' + pct(nC, n) +
+        ' %)</b></td><td align="center"><b>' + nO + ' (' + pct(nO, n) + ' %)</b></td><td align="center"><b>' + nSin + '</b></td></tr>' : '') + '</table>';
+    if (frec.length) {
+      h += P('Faltas detectadas, por tipo y sustento normativo (un portafolio puede presentar más de una):');
+      h += '<table border="1" cellpadding="4">' + th(['Falta', 'Portafolios', 'Sustento normativo']) +
+        frec.map(f => '<tr><td>' + e(f.t) + '</td><td align="center">' + f.n + '</td><td>' + e(SUSTENTO_GUIA[f.c]) + '</td></tr>').join('') + '</table>';
+    }
+
+    h += '<h2>5. Conclusiones y recomendaciones</h2>';
+    const rec = [];
+    if (!nO) rec.push('Los portafolios revisados cumplen la Guía Operativa Docente. Se recomienda mantener la carga oportuna de las evidencias de las evaluaciones que restan del ciclo.');
+    else {
+      rec.push('Comunicar a cada docente observado las faltas del Anexo N.° 02 con su sustento normativo y la forma de subsanarlas, y fijar un plazo para la subsanación, luego del cual se realizará una nueva verificación.');
+      const tiene = c => frec.some(f => f.c === c);
+      if (tiene('carpeta') || tiene('integridad')) rec.push('Coordinar con el área de Calidad y Acreditación la creación o corrección de las carpetas faltantes, para que los docentes puedan subir sus evidencias.');
+      if (tiene('enunciado') || tiene('evidencias')) rec.push('Recordar que por cada evaluación se requieren cuatro archivos en PDF: el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (Numeral 3.1).');
+      if (tiene('formato')) rec.push('Convertir a PDF los archivos en otros formatos (DOCX, PPTX, XLSX) y descomprimir los .zip, subiendo cada evidencia en PDF (Numeral 3.1).');
+      if (tiene('video')) rec.push('Retirar los videos del portafolio; el material audiovisual del curso corresponde al aula virtual (Numeral 3.1, literales c y d).');
+      if (tiene('rotulado')) rec.push('Renombrar los archivos según el Numeral 3.2. El reporte Excel de portafolios (hoja «Archivos por corregir») compara cada nombre con el estándar y propone el nombre correcto.');
+    }
+    rec.push('Recordar a los docentes que la responsabilidad de mantener al día el portafolio es individual y exigible frente a las agencias acreditadoras y auditores ISO 21001, y se extiende al Coordinador de Área (Numeral 3, Proceso de supervisión).');
+    h += '<ol>' + rec.map(r => '<li><p>' + e(r) + '</p></li>').join('') + '</ol>';
+    h += P('Es todo cuanto informo a usted para su conocimiento y fines pertinentes.') + P('Atentamente,');
+    h += '<div class="firma">_______________________________<br>' + e(d.generadoPor || estado.nombre || '') + '<br>' + e(cargo) + '</div>';
+    h += '<p class="nota" style="margin-top:24pt">Anexos: N.° 01 Tabla maestra de auditoría de portafolios (' + n + ' registros). ' +
+      'N.° 02 Tabla de observaciones detalladas. Generado con el Portal del Coordinador de Área.</p>';
+    h += '</div>';
+
+    // ----- Anexos en hoja horizontal.
+    h += '<br clear="all" style="page-break-before:always;mso-break-type:section-break"><div class="Hoja2">';
+    h += '<h1>ANEXO N.° 01</h1><h1 style="font-size:11.5pt">Tabla maestra de auditoría de portafolios (' + n + ' registros)</h1>';
+    h += '<table border="1" cellpadding="3">' + th(['N.°', 'Código', 'Asignatura – Grupo', 'Docente', 'Correo institucional', 'Estado', 'Detalle del hallazgo']);
+    let i = 0;
+    areas.forEach(a => {
+      if (areas.length > 1 || !soloAreas) h += '<tr><td class="area" colspan="7">' + e(a) + '</td></tr>';
+      filas.filter(x => (x.area || 'Sin área') === a).forEach(x => {
+        const st = x._aud.estado;
+        h += '<tr><td align="center">' + (++i) + '</td><td>' + e(x.codigo) + '</td><td>' + e(nombreCurso(x.curso)) + ' – G' + e(x.grupo) +
+          '</td><td>' + e(x.docente) + '</td><td>' + e(x.correo || '') + '</td><td style="font-weight:bold;color:#' + (st === 'CONFORME' ? '006100;background:#C6EFCE' : '9C0006;background:#FFC7CE') + '">' + st +
+          '</td><td>' + e(x._aud.detalle) + '</td></tr>';
+      });
+    });
+    h += '</table>';
+    h += '<br clear="all" style="page-break-before:always">';
+    h += '<h1>ANEXO N.° 02</h1><h1 style="font-size:11.5pt">Tabla de observaciones detalladas</h1>';
+    const obs = filas.filter(x => x._aud.faltas.length);
+    if (!obs.length) h += P('No se registran observaciones.');
+    else {
+      h += '<table border="1" cellpadding="3">' + th(['Docente', 'Asignatura – Grupo', 'Falta específica detectada', 'Sustento normativo', 'Cómo subsanarla']);
+      // El docente en una sola celda para todas sus faltas.
+      const porDoc = [];
+      obs.forEach(x => { let g = porDoc.find(p => p.docente === x.docente); if (!g) porDoc.push(g = { docente: x.docente, l: [] }); g.l.push(x); });
+      porDoc.forEach(g => {
+        const total = g.l.reduce((s, x) => s + x._aud.faltas.length, 0);
+        let primero = true;
+        g.l.forEach(x => x._aud.faltas.forEach((f, k) => {
+          h += '<tr>' + (primero ? '<td rowspan="' + total + '"><b>' + e(g.docente) + '</b></td>' : '') +
+            (k === 0 ? '<td rowspan="' + x._aud.faltas.length + '">' + e(x.codigo) + ' ' + e(nombreCurso(x.curso)) + ' – G' + e(x.grupo) + '</td>' : '') +
+            '<td>' + e(f.falta) + '</td><td>' + e(f.sustento) + '</td><td>' + e(f.subsanar) + '</td></tr>';
+          primero = false;
+        }));
+      });
+      h += '</table>';
+    }
+    h += '</div></body></html>';
+    const limpio = t => String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    return { html: h, nombre: 'Informe_Portafolios_' + String(cic).replace(/\s+/g, '') + '_' +
+      limpio(soloAreas && areas.length === 1 ? 'Area_' + areas[0] : rep.programa.replace(/^Ingeniería\s+(de\s+)?/i, '')) + '_' +
+      ahora.getFullYear() + dos(ahora.getMonth() + 1) + dos(ahora.getDate()) + '.doc' };
+  }
+  window.auditarPortafolio = auditarPortafolio;
+  window.armarInformePortafolios = armarInformePortafolios;
+
+  function armarLibroPortafolios(d, XLSX, ciclo, modo) {
     const reps = (d.carreras || []).filter(r => r && r.filas);
     const P = ['01', '02', '03', '04', '05', '06', '07'];
     const NOMBRE_P = { '01': 'Prueba de entrada', '02': 'Prácticas', '03': 'Laboratorio y talleres', '04': 'Investigación',
@@ -5835,8 +6168,41 @@ label .req{color:var(--falla)}
     pintar(ws6, filaT1, 0, 2, ESTILO.seccion); pintar(ws6, filaT2, 0, 2, ESTILO.seccion);
     ley.forEach(([r, e]) => pintar(ws6, r, 0, 1, negr(e)));
 
+    // -------------------- anexos con sustento normativo (modelo Bendezú) --
+    filas.forEach(x => { x._aud = auditarPortafolio(x, modo); });
+    const modoTxt = modo === 'cierre' ? 'Revisión de cierre de ciclo: toda carpeta de evaluación vacía es falta.'
+      : 'Revisión durante el ciclo: una evaluación aún sin archivos no se observa; se indica para verificarla con el cronograma del sílabo.';
+    const fA1 = cab('ANEXO N.° 01 — Tabla maestra de auditoría de portafolios (' + filas.length + ' registros)').concat([
+      ['Sustento: Guía Operativa Docente, Numerales 3, 3.1 y 3.2, y Numeral 3 «Proceso de supervisión». ' + modoTxt], []]);
+    const encA1 = fA1.length;
+    fA1.push(['N.°', 'Área', 'Código', 'Asignatura – Grupo', 'Docente', 'Correo institucional', 'Estado', 'Detalle del hallazgo']);
+    filas.forEach((x, i) => fA1.push([i + 1, x._areaEtq, x.codigo, nombreCurso(x.curso) + ' – G' + x.grupo, x.docente,
+      x.correo || '', x._aud.estado, x._aud.detalle]));
+    const wsA1 = hoja(fA1, [5, 26, 9, 40, 30, 30, 13, 90], encA1, true);
+    agrupar(wsA1, filas, x => x._carrera + '¦' + x._area, 1, encA1 + 1);
+    filas.forEach((x, i) => pintar(wsA1, encA1 + 1 + i, 6, 1,
+      negr(ESTILO[x._aud.estado === 'CONFORME' ? 'verde' : (x._aud.estado === 'OBSERVADO' ? 'rojo' : 'gris')])));
+
+    const fA2 = cab('ANEXO N.° 02 — Tabla de observaciones detalladas').concat([
+      ['Cada falta, con el numeral de la Guía Operativa Docente que la sustenta y cómo subsanarla.'], []]);
+    const encA2 = fA2.length;
+    fA2.push(['N.°', 'Área', 'Docente', 'Asignatura – Grupo', 'Falta específica detectada', 'Sustento normativo', 'Cómo subsanarla']);
+    const filasA2 = [];
+    filas.filter(x => x._aud.faltas.length).forEach(x => x._aud.faltas.forEach(f => filasA2.push({ x, f })));
+    filasA2.forEach((o, i) => fA2.push([i + 1, o.x._areaEtq, o.x.docente,
+      o.x.codigo + ' ' + nombreCurso(o.x.curso) + ' – G' + o.x.grupo, o.f.falta, o.f.sustento, o.f.subsanar]));
+    if (!filasA2.length) fA2.push(['—', '', '', '', 'No se registran observaciones.', '', '']);
+    const wsA2 = hoja(fA2, [5, 26, 30, 38, 60, 40, 60], encA2, true);
+    if (filasA2.length) {
+      agrupar(wsA2, filasA2, o => o.x._carrera + '¦' + o.x._area, 1, encA2 + 1);
+      agrupar(wsA2, filasA2, o => o.x._carrera + '¦' + o.x._area + '¦' + o.x.docente, 2, encA2 + 1);
+      agrupar(wsA2, filasA2, o => o.x._carrera + '¦' + o.x._area + '¦' + o.x.docente + '¦' + o.x.codigo + '¦' + o.x.grupo, 3, encA2 + 1);
+    }
+
     const libro = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(libro, ws0, 'Resumen ejecutivo');
+    XLSX.utils.book_append_sheet(libro, wsA1, 'Anexo 01 Tabla maestra');
+    XLSX.utils.book_append_sheet(libro, wsA2, 'Anexo 02 Observaciones');
     XLSX.utils.book_append_sheet(libro, wsG, 'Guía para corregir');
     XLSX.utils.book_append_sheet(libro, wsP, 'Pendientes');
     XLSX.utils.book_append_sheet(libro, ws1, 'Por área y docente');
