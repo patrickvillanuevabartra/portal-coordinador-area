@@ -749,6 +749,7 @@ tbody tr:hover{background:#fafcfb}
 
 /* -------------------------------------------------------------------- ficha */
 .migas{font-size:12px;color:var(--tinta-media);margin-bottom:12px}
+header .btn.activo{background:var(--brand-suave);font-weight:600}
 .migas button{
   background:none;border:none;color:var(--brand);padding:0;font-size:12px;
   text-decoration:underline;text-underline-offset:2px;
@@ -918,6 +919,7 @@ label .req{color:var(--falla)}
     <b id="usuarioNombre"></b>
     <span id="usuarioArea"></span>
   </div>
+  <button class="btn fantasma oculto" id="btnInicio">Mis cursos</button>
   <button class="btn fantasma oculto" id="btnCiclo">Preparar el ciclo</button>
   <button class="btn fantasma oculto" id="btnDatos">Validar datos</button>
   <button class="btn fantasma oculto" id="btnTablero">Indicadores</button>
@@ -1705,14 +1707,14 @@ label .req{color:var(--falla)}
     if (estado.entrandoGuardada) {
       estado.entrandoGuardada = false;
       estado.credential = null;
-      ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos','btnCiclo'].forEach(id => $(id).classList.add('oculto'));
+      ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos','btnCiclo','btnInicio'].forEach(id => $(id).classList.add('oculto'));
       mostrar('ingreso');
       $('ingresoError').textContent = '';
       return;
     }
     estado.credential = null;
     if (window.google && google.accounts) google.accounts.id.disableAutoSelect();
-    ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos'].forEach(id => $(id).classList.add('oculto'));
+    ['usuarioCaja','btnSalir','btnCoord','btnTablero','btnDatos','btnInicio'].forEach(id => $(id).classList.add('oculto'));
     mostrar('ingreso');
     $('ingresoError').textContent = 'Tu sesión venció. Vuelve a entrar con tu cuenta URP.';
   }
@@ -1802,7 +1804,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-10.03';
+  const VERSION_INTERNA = '2026-10-10.04';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -1841,9 +1843,15 @@ label .req{color:var(--falla)}
                        coordinadores: 'volverCoord', ficha: 'volver' };
   const origenVista = {};
   let vistaActual = null;
-  function mostrar(seccion, regresando) {
+  // Los botones de la barra superior son la navegación principal: abrir una
+  // página desde ahí empieza de nuevo el camino, así «Volver» lleva a Mis
+  // cursos y no encadena todas las páginas visitadas antes.
+  const BOTON_VISTA = { tablero: 'btnInicio', ciclo: 'btnCiclo', datos: 'btnDatos',
+                        indicadores: 'btnTablero', coordinadores: 'btnCoord' };
+  function mostrar(seccion, regresando, desdeMenu) {
     const previa = vistaActual;
-    if (seccion === 'tablero' || seccion === 'ingreso') {
+    if (desdeMenu) Object.keys(origenVista).forEach(k => delete origenVista[k]);
+    if (seccion === 'tablero' || seccion === 'ingreso' || desdeMenu) {
       Object.keys(origenVista).forEach(k => delete origenVista[k]);
     } else if (!regresando && previa && previa !== seccion && NOMBRE_VISTA[previa] &&
                origenVista[previa] !== seccion) {
@@ -1854,9 +1862,27 @@ label .req{color:var(--falla)}
     ['ingreso','tablero','ficha','coordinadores','indicadores','datos','ciclo'].forEach(s => $(s).classList.toggle('oculto', s !== seccion));
     const miga = MIGA_VISTA[seccion] && $(MIGA_VISTA[seccion]);
     const destino = NOMBRE_VISTA[origenVista[seccion] || 'tablero'];
-    if (miga) miga.textContent = destino;
+    if (miga) {
+      miga.textContent = destino;
+      // Mis cursos siempre queda a un clic: si se vino de otra página, la miga
+      // muestra el camino completo «Mis cursos / Origen / Página actual».
+      let ini = miga.parentNode.querySelector('.miga-inicio');
+      if (!ini) {
+        ini = document.createElement('span');
+        ini.className = 'miga-inicio';
+        ini.innerHTML = '<button type="button">Mis cursos</button> / ';
+        ini.querySelector('button').addEventListener('click', irAMisCursos);
+        miga.parentNode.insertBefore(ini, miga);
+      }
+      ini.classList.toggle('oculto', destino === 'Mis cursos');
+    }
+    Object.keys(BOTON_VISTA).forEach(v => { const b = $(BOTON_VISTA[v]); if (b) b.classList.toggle('activo', v === seccion); });
     if (seccion === 'ficha' && $('volverArriba')) $('volverArriba').textContent = '‹ Volver a ' + (destino === 'Mis cursos' ? 'mis cursos' : destino);
     window.scrollTo(0, 0);
+  }
+  function irAMisCursos() {
+    estado.actual = null;
+    mostrar('tablero');
   }
   // Vuelve a la página de origen de «desde» (o a Mis cursos).
   function regresar(desde) {
@@ -1967,6 +1993,7 @@ label .req{color:var(--falla)}
         $('btnCoord').classList.toggle('oculto', !(estado.admin || estado.general));
         $('btnTablero').classList.remove('oculto');
         $('btnDatos').classList.remove('oculto');
+        $('btnInicio').classList.remove('oculto');
         $('btnCiclo').classList.toggle('oculto', !estado.admin);
         // El asistente vive en otro bloque y no ve estas variables: se publica
         // aquí lo que necesita para consultar los datos en nombre del usuario.
@@ -2534,11 +2561,18 @@ label .req{color:var(--falla)}
      va y lleva a donde se resuelve, para no tener que recordar el orden. */
 
   $('btnCiclo').addEventListener('click', () => {
-    mostrar('ciclo');
+    mostrar('ciclo', false, true);
     if (!$('cicloPrep').value) $('cicloPrep').value = $('filtroCiclo').value || CFG.CICLO_ACTIVO || '';
     verEstadoCiclo();
   });
   $('volverCiclo').addEventListener('click', () => regresar('ciclo'));
+  $('btnInicio').addEventListener('click', irAMisCursos);
+  // El sello y el nombre del portal también llevan a Mis cursos.
+  document.querySelectorAll('header .sello, header .marca').forEach(el => {
+    el.style.cursor = 'pointer';
+    el.title = 'Ir a Mis cursos';
+    el.addEventListener('click', () => { if (!$('btnInicio').classList.contains('oculto')) irAMisCursos(); });
+  });
   $('btnVerCiclo').addEventListener('click', verEstadoCiclo);
 
   function verEstadoCiclo() {
@@ -2870,7 +2904,7 @@ label .req{color:var(--falla)}
   /* ---------------------------------------------- validar datos */
 
   $('btnDatos').addEventListener('click', () => {
-    mostrar('datos');
+    mostrar('datos', false, true);
     if (puedeEditar()) $('dtNota').textContent =
       'Revisa y corrige el catálogo de cursos y la carga lectiva de tu ámbito. ' +
       'Puedes editar los datos de contacto y de identificación; la carga aprobada por el ' +
@@ -4584,7 +4618,7 @@ label .req{color:var(--falla)}
 
   /* ------------------------------------------------- indicadores */
 
-  $('btnTablero').addEventListener('click', () => { mostrar('indicadores'); cargarIndicadores(); });
+  $('btnTablero').addEventListener('click', () => { mostrar('indicadores', false, true); cargarIndicadores(); });
   $('volverInd').addEventListener('click', () => regresar('indicadores'));
 
   function cargarIndicadores() {
@@ -6458,7 +6492,7 @@ label .req{color:var(--falla)}
   /* ------------------------------------------- coordinadores y clonado */
 
   $('btnCoord').addEventListener('click', () => {
-    mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
+    mostrar('coordinadores', false, true); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
   });
   $('volverCoord').addEventListener('click', () => regresar('coordinadores'));
 
