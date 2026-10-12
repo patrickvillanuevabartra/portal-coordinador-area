@@ -1923,7 +1923,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.16';
+  const VERSION_INTERNA = '2026-10-12.17';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2478,13 +2478,11 @@ label .req{color:var(--falla)}
       estudiar: 'Es la guía de su trabajo: 6 páginas. Lea el Cuadro 1 (páginas 3 a 6): qué supervisar, en qué semanas y qué informe elevar a la Escuela. Lo que el portal usa está resaltado, con una etiqueta en la columna «Información relacionada».',
       atajos: [{ pag: 3, t: 'sílabo, F1–F3, fórmula' }, { pag: 4, t: 'notas y aula virtual' }, { pag: 5, t: 'portafolios y reuniones' }, { pag: 6, t: 'F4 e informe final' }],
       aviso: 'Versión en actualización: la nueva versión, aún por aprobar, debe añadir este cambio: las reuniones o entrevistas con los delegados y subdelegados son responsabilidad del coordinador general de la carrera, no de los coordinadores de área (la versión 01 aún las asigna al coordinador de área en los numerales 14 a 16). Mientras se aprueba, aplique esta indicación.' },
-    { k: 'directiva_rotulado', n: 'Directiva de rotulado de evidencias (Calidad y Acreditación)',
+    { k: 'directiva_rotulado', n: 'Guía rápida de rotulado de evidencias (Calidad y Acreditación)',
       para: 'Nombre que debe tener cada archivo del portafolio: CÓDIGO.SIGLA.PERIODO y, en las evidencias, .Nombre Apellido.Mayor|Menor|Promedio.Nota.',
-      hoy: 'El portal ya revisa el rotulado con esta regla. Suba la directiva para que quede como referencia. Mientras tanto puede consultar la guía práctica del portal. Para rotular un archivo paso a paso, use el Asistente de rotulado (docs/asistente-rotulado.html, también en el módulo Portafolios).',
-      local: 'docs/guia-rotulado.html', localTexto: 'guía práctica de rotulado (del portal)', noOficial: true },
-    { k: 'estructura_portafolio', n: 'Estructura del portafolio digital (Calidad y Acreditación)',
-      para: 'Carpetas que debe tener cada portafolio (subcarpeta EVALUACIONES con una carpeta por evaluación).',
-      hoy: 'El portal ya revisa esta estructura. Suba el documento para que quede como referencia.' },
+      hoy: 'Vigente. El portal revisa el rotulado con esta guía. Para rotular un archivo paso a paso, use el Asistente de rotulado (módulo Portafolios).',
+      estudiar: 'Cómo nombrar cada archivo del portafolio: CÓDIGO.SIGLA.PERIODO y, en los trabajos de estudiantes, .Nombre Apellido.Mayor|Menor|Promedio.Nota. Para no equivocarse, use el Asistente de rotulado (botón 🏷️ en el módulo Portafolios).',
+      local: 'docs/guia-rotulado.html' },
     { k: 'procedimiento_informacion', n: 'Procedimiento de Información Documentada (FI-GCA-PR-001)',
       para: 'Control de los documentos del SGOE: versiones vigentes, copias controladas y no controladas.',
       hoy: 'Vigente (versión 03, aprobada el 10/10/2026).',
@@ -2501,10 +2499,7 @@ label .req{color:var(--falla)}
       atajos: [{ pag: 108, t: 'Figura 14: estrategias didácticas' }, { pag: 109, t: 'estrategia y técnica' }, { pag: 114, t: 'Tabla 8: pasos de la sesión' }, { pag: 116, t: 'criterios y producto' }, { pag: 157, t: 'Anexo 1: modelo de sílabo' }] },
     { k: 'taxonomia_bloom', n: 'Taxonomía de Bloom (documento de referencia de la Facultad)',
       para: 'Verbos observables para redactar el logro de la asignatura y de cada unidad (punto 06 del sílabo).',
-      hoy: 'Vigente.', local: 'docs/taxonomia-bloom.pdf' },
-    { k: 'reglamento_evaluacion', n: 'Reglamento de evaluación del estudiante',
-      para: 'Reglas de evaluación (sustitutorio, promedio, plazos de entrega de notas), por si se necesita citarlas.',
-      hoy: 'Opcional. Súbalo si se va a citar en las observaciones.' }
+      hoy: 'Vigente.', local: 'docs/taxonomia-bloom.pdf' }
   ];
   // Enlace para leer el documento: el subido al portal manda; si no hay, la
   // copia de consulta publicada con el portal (carpeta docs/).
@@ -2563,7 +2558,7 @@ label .req{color:var(--falla)}
   /* ------------------------------------------------ guía rápida (notas) ---- */
   // Biblioteca para estudiar: los documentos oficiales con su enlace, para qué
   // sirven y qué leer primero. La ven todos los roles.
-  const ORDEN_BIBLIO = ['guia_coordinador', 'guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'directiva_rotulado', 'estructura_portafolio', 'procedimiento_informacion', 'reglamento_evaluacion'];
+  const ORDEN_BIBLIO = ['guia_coordinador', 'guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'directiva_rotulado', 'procedimiento_informacion'];
   function bibliotecaHtml(docs) {
     const items = ORDEN_BIBLIO.map(k => DOCS_REF.find(d => d.k === k)).filter(Boolean).map(d => {
       const e = enlaceDoc(d, docs);
