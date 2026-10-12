@@ -1804,7 +1804,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-10.04';
+  const VERSION_INTERNA = '2026-10-12.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4759,7 +4759,8 @@ label .req{color:var(--falla)}
           '<option value="cierre">Cierre de ciclo (toda carpeta vacía es falta)</option></select></label>' +
           '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
           '<button class="btn" id="btnRepP">Generar reporte de portafolios (Excel)</button>' +
-          '<button class="btn fantasma" id="btnInfP">Informe para el Director (Word)</button></div>' +
+          '<button class="btn fantasma" id="btnInfP">Informe para el Director (Word)</button>' +
+          (puedeNotificarRep ? '<button class="btn fantasma" id="btnNotP">Notificar a los docentes</button>' : '') + '</div>' +
           '<div style="color:var(--tinta-media);font-size:13px;margin-top:8px">El informe sigue el modelo del profesor Juan Bendezú: ' +
           'resumen ejecutivo, sustento normativo (Guía Operativa Docente, numerales 3, 3.1 y 3.2), Anexo 01 tabla maestra ' +
           '(Conforme / Observado) y Anexo 02 observaciones detalladas con el numeral que sustenta cada falta. Complete el número del informe al abrirlo en Word.</div></div>'
@@ -4794,6 +4795,8 @@ label .req{color:var(--falla)}
       generarReportePortafolios(marcadasP(), $('btnRepP'), 'excel'));
     if ($('btnInfP')) $('btnInfP').addEventListener('click', () =>
       generarReportePortafolios(marcadasP(), $('btnInfP'), 'informe'));
+    if ($('btnNotP')) $('btnNotP').addEventListener('click', () =>
+      notificarPortafoliosVarias(marcadasP(), $('btnNotP')));
   }
 
   /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
@@ -5524,6 +5527,190 @@ label .req{color:var(--falla)}
     })().catch(e => { fin(); alert('No se pudo generar el reporte de portafolios: ' + e.message); });
   }
   window.generarReportePortafolios = generarReportePortafolios;
+  /* ---------------------------------- notificar portafolios a docentes ---- */
+  // Usa la misma revisión y la misma auditoría del reporte y del informe al
+  // Director: lo que el docente recibe es exactamente lo que dice el informe.
+  // Cada docente queda en un grupo: conforme, observado o sin carpeta.
+  async function obtenerRevisionPortafolios(carreras, boton) {
+    const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
+    const clave = carreras.join('|') + '¦' + ciclo;
+    if (ULTIMA_REV_PORTA && ULTIMA_REV_PORTA.clave === clave && Date.now() - ULTIMA_REV_PORTA.t < 600000) return ULTIMA_REV_PORTA.d;
+    const txt = boton ? boton.textContent : '';
+    if (boton) { boton.disabled = true; boton.textContent = 'Revisando portafolios…'; }
+    const cerrarEspera = mostrarEspera('Revisando los portafolios en Drive',
+      'Se recorre la carpeta de cada curso y grupo. Puede tardar varios minutos.');
+    try {
+      let d = null;
+      for (let vuelta = 1; vuelta <= 8; vuelta++) {
+        d = await api('/reporte-portafolios?programas=' + encodeURIComponent(carreras.join('|')) +
+                      '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 330000 });
+        if (d.error) throw new Error(d.error);
+        if (!d.pendientes) break;
+        const extra = document.querySelector('.capa .esp-extra');
+        if (extra) extra.textContent = 'Faltan ' + d.pendientes + ' cursos y grupos por revisar. Continuando…';
+      }
+      if (d.pendientes) throw new Error('quedaron ' + d.pendientes + ' cursos y grupos sin revisar por tiempo. ' +
+                                        'Vuelva a intentarlo en unos minutos: lo ya revisado se conserva.');
+      ULTIMA_REV_PORTA = { clave, d, t: Date.now() };
+      return d;
+    } finally {
+      cerrarEspera();
+      if (boton) { boton.disabled = false; boton.textContent = txt; }
+    }
+  }
+
+  function docentesPortafolio(rep, modo) {
+    const por = {}, orden = [];
+    (rep.filas || []).forEach(x => {
+      const k = sinTildes(x.docente || '');
+      if (!k) return;
+      if (!por[k]) { por[k] = { docente: x.docente, cursos: [] }; orden.push(k); }
+      const a = auditarPortafolio(x, modo);
+      por[k].cursos.push({ codigo: x.codigo, curso: nombreCurso(x.curso), grupo: x.grupo, estado: a.estado,
+        url: x.url || '', pendientes: a.pendientes || [], sinCarpeta: /sinCarpeta/.test(x.estado || ''),
+        faltas: a.faltas.map(f => ({ falta: f.falta, sustento: f.sustento, subsanar: f.subsanar })) });
+    });
+    return orden.map(k => {
+      const d = por[k];
+      d.grupo = d.cursos.every(c => c.sinCarpeta) ? 'sinCarpeta'
+        : (d.cursos.every(c => c.estado === 'CONFORME') ? 'conforme' : 'observado');
+      return d;
+    });
+  }
+
+  async function notificarPortafoliosVarias(carreras, boton) {
+    carreras = (carreras || []).filter(Boolean);
+    if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
+    const modo = ($('modoPorta') && $('modoPorta').value) || 'ciclo';
+    let d;
+    try { d = await obtenerRevisionPortafolios(carreras, boton); }
+    catch (e) { alert('No se pudo revisar los portafolios: ' + e.message); return; }
+    for (const rep of (d.carreras || []).filter(r => r && r.filas && r.filas.length)) {
+      await notificarPortafolios(rep, d.ciclo || (($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO), modo);
+    }
+  }
+
+  function notificarPortafolios(rep, ciclo, modo) {
+    const programa = rep.programa;
+    const docentes = docentesPortafolio(rep, modo);
+    const NOMBRE = { conforme: 'Portafolio conforme', observado: 'Portafolio con observaciones', sinCarpeta: 'Sin carpeta en el portafolio' };
+    const GRUPOS = [
+      { k: 'observado', color: '#d9822b', marca: true, titulo: 'Su portafolio tiene observaciones',
+        msj: 'Su correo le dice, por curso y grupo, qué falta, el numeral de la Guía Operativa Docente y cómo subsanarlo.' },
+      { k: 'sinCarpeta', color: '#b42318', marca: true, titulo: 'No tiene carpeta en el portafolio',
+        msj: 'Su correo le avisa que no se encontró su carpeta y le pide coordinar con Calidad y Acreditación.' },
+      { k: 'conforme', color: '#1b7f4b', marca: false, titulo: 'Su portafolio está conforme 😊',
+        msj: 'Su correo es una felicitación, con su tarjeta de reconocimiento.' }
+    ];
+    const cuerpoBase = { programa, ciclo, modo, docentes };
+    const cerrarEspera = mostrarEspera('Preparando la notificación', 'Se están buscando los correos de los docentes de ' + programa + '.');
+    return api('/notificar-portafolios', { method: 'POST', limiteMs: 120000, body: JSON.stringify(cuerpoBase) })
+      .then(v => new Promise(listo => {
+        cerrarEspera();
+        if (v.error) { alert(v.error); listo(); return; }
+        const vacio = { conCorreo: 0, sinCorreo: [] };
+        const G = v.grupos || {};
+        const capa = document.createElement('div');
+        capa.className = 'capa';
+        capa.innerHTML =
+          '<div class="dialogo" role="dialog" aria-modal="true" style="width:min(660px,100%);font-size:15px">' +
+          '<h3 style="font-size:19px">Notificar a los docentes</h3>' +
+          '<p class="det" style="color:var(--tinta-media);margin:0 0 12px">' + esc(programa) + ' · ciclo ' + esc(ciclo) +
+            ' · portafolio digital · ' + (modo === 'cierre' ? 'cierre de ciclo' : 'durante el ciclo') + '</p>' +
+          '<div class="cuerpo-dialogo">' +
+          '<p style="font-weight:600;margin:6px 0 4px">Marque a qué docentes enviar el correo:</p>' +
+          '<p class="nota-dialogo" style="margin:0 0 10px">Cada grupo recibe un mensaje distinto. Las observaciones son las mismas del reporte y del informe al Director.</p>' +
+          GRUPOS.map(g => {
+            const o = G[g.k] || vacio;
+            const n = o.conCorreo + (o.sinCorreo || []).length;
+            return '<label style="display:flex;gap:12px;align-items:flex-start;padding:10px 12px;' +
+              'border:1px solid var(--linea);border-left:6px solid ' + g.color + ';border-radius:10px;margin-bottom:8px;' +
+              (n ? 'cursor:pointer' : 'opacity:.55') + '">' +
+              '<input type="checkbox" class="grpNotP" value="' + g.k + '"' + (g.marca && n ? ' checked' : '') +
+                (n ? '' : ' disabled') + ' style="width:20px;height:20px;margin-top:2px;flex:none">' +
+              '<span><b>' + g.titulo + '</b> — <b>' + n + (n === 1 ? ' docente' : ' docentes') + '</b><br>' +
+              '<span style="color:var(--tinta-media);font-size:14px">' + g.msj + '</span></span></label>';
+          }).join('') +
+          '<div id="notPSinCorreo" style="margin-top:12px"></div>' +
+          (v.cuota >= 0 ? '<p class="nota-dialogo" style="margin:10px 0 0">Correos disponibles hoy en la cuenta del portal: <b>' + v.cuota + '</b>.</p>' : '') +
+          '<p class="nota-dialogo" style="margin:6px 0 0">Cada docente recibe un solo correo con todos sus cursos. Si responde, la respuesta le llega a usted.</p>' +
+          '<div id="notPResultado" style="margin-top:12px"></div></div>' +
+          '<div class="pie" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">' +
+            '<button type="button" class="btn gris" id="notPNo">No enviar</button>' +
+            '<button type="button" class="btn" id="notPSi"></button></div></div>';
+        document.body.appendChild(capa);
+        const marcados = () => [...capa.querySelectorAll('.grpNotP:checked')].map(c => c.value);
+        const actualizar = () => {
+          const ks = marcados();
+          const n = ks.reduce((t, k) => t + (G[k] || vacio).conCorreo, 0);
+          const sc = [].concat(...ks.map(k => (G[k] || vacio).sinCorreo || []));
+          const bSi = capa.querySelector('#notPSi');
+          bSi.textContent = !ks.length ? 'Marque al menos un grupo' : (n ? 'Enviar ' + n + (n === 1 ? ' correo' : ' correos') : 'No hay a quién enviar');
+          bSi.disabled = !n || (v.cuota >= 0 && n > v.cuota);
+          capa.querySelector('#notPSinCorreo').innerHTML = sc.length
+            ? '<div style="background:#fdf4e3;border-left:4px solid #d99a1b;padding:10px 12px;border-radius:8px">' +
+              '<b>' + sc.length + (sc.length === 1 ? ' docente no tiene' : ' docentes no tienen') + ' correo registrado</b> y no recibirá' +
+              (sc.length === 1 ? '' : 'n') + ' nada:<div style="max-height:110px;overflow:auto;margin-top:6px;font-size:14px">' +
+              sc.map(esc).join('<br>') + '</div><div style="font-size:13px;margin-top:6px;color:var(--tinta-media)">' +
+              'Se registra en Validar datos → Directorio de docentes.</div></div>' : '';
+          if (v.cuota >= 0 && n > v.cuota) capa.querySelector('#notPSinCorreo').innerHTML +=
+            '<p style="color:#b42318;margin-top:8px"><b>La cuota de correos de hoy no alcanza.</b> Desmarque algún grupo o envíe mañana.</p>';
+        };
+        capa.querySelectorAll('.grpNotP').forEach(c => c.addEventListener('change', actualizar));
+        actualizar();
+        const cerrar = () => { capa.remove(); listo(); };
+        capa.querySelector('#notPNo').addEventListener('click', cerrar);
+        capa.querySelector('#notPSi').addEventListener('click', () => {
+          const grupos = marcados();
+          const bSi = capa.querySelector('#notPSi'), bNo = capa.querySelector('#notPNo');
+          bSi.disabled = true; bNo.disabled = true;
+          capa.querySelectorAll('.grpNotP').forEach(c => { c.disabled = true; });
+          bSi.textContent = 'Enviando…';
+          const cerrarEnvio = mostrarEspera('Enviando los correos', 'Se está enviando un correo a cada docente. Al terminar verá el resultado aquí mismo.');
+          api('/notificar-portafolios', { method: 'POST', limiteMs: 300000,
+            body: JSON.stringify(Object.assign({}, cuerpoBase, { grupos: grupos.join(','), confirmado: true })) })
+          .then(r => {
+            cerrarEnvio();
+            if (r.error) throw new Error(r.error);
+            const env = (r.enviados || []).length, fal = (r.fallidos || []).length, sin = (r.sinCorreo || []).length;
+            capa.querySelector('#notPResultado').innerHTML =
+              '<div style="background:#f1faf4;border-left:4px solid #1b7f4b;padding:12px 14px;border-radius:8px;font-size:15px">' +
+              '<b>✔ Listo: se enviaron ' + env + (env === 1 ? ' correo' : ' correos') + '.</b>' +
+              (fal ? '<br><span style="color:#b42318">No se pudieron enviar: ' + fal + '.</span>' : '') +
+              (sin ? '<br>Sin correo registrado: ' + sin + '.' : '') +
+              '<br><span style="color:var(--tinta-media);font-size:13px">Se descargó la constancia en Excel.</span></div>';
+            bSi.style.display = 'none'; bNo.disabled = false; bNo.textContent = 'Cerrar'; bNo.classList.remove('gris');
+            return cargarLibreriaExcel().then(XLSX => {
+              const filas = [
+                ['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+                ['Constancia de notificación a docentes — portafolio digital'],
+                ['Carrera: ' + r.programa + ' · Ciclo: ' + r.ciclo + ' · ' + (modo === 'cierre' ? 'Cierre de ciclo' : 'Durante el ciclo') +
+                 ' · Enviado por ' + r.remitente + ' el ' + new Date().toLocaleString('es-PE')],
+                ['Grupos notificados: ' + grupos.map(k => NOMBRE[k]).join(' · ')],
+                [],
+                ['Resultado', 'Docente', 'Correo', 'Situación', 'Cursos y grupos', 'Con observaciones']
+              ].concat((r.enviados || []).map(x => ['Enviado', x.docente, x.correo, NOMBRE[x.grupo] || '', x.cursos, x.observados]))
+               .concat((r.fallidos || []).map(x => ['No enviado', x.docente, x.correo, '', '', x.error]))
+               .concat((r.sinCorreo || []).map(x => ['Sin correo', x, '', '', '', 'Registrar su correo en el directorio de Validar datos']));
+              const ws = XLSX.utils.aoa_to_sheet(filas);
+              ws['!cols'] = [{ wch: 12 }, { wch: 36 }, { wch: 34 }, { wch: 30 }, { wch: 16 }, { wch: 22 }];
+              const wb = XLSX.utils.book_new();
+              XLSX.utils.book_append_sheet(wb, ws, 'Constancia');
+              XLSX.writeFile(wb, 'Constancia_notificacion_portafolios_' +
+                String(programa).replace(/^Ingeniería\s+(de\s+)?/i, '').replace(/\s+/g, '_') + '_' + String(r.ciclo).replace(/\s+/g, '') + '.xlsx');
+            });
+          }).catch(e => {
+            cerrarEnvio();
+            capa.querySelector('#notPResultado').innerHTML =
+              '<div style="background:#fdecec;border-left:4px solid #b42318;padding:12px 14px;border-radius:8px">' +
+              '<b>No se pudo completar el envío.</b><br>' + esc(e.message) + '</div>';
+            bNo.disabled = false; bNo.textContent = 'Cerrar'; bSi.textContent = 'No enviado';
+          });
+        });
+      }))
+      .catch(e => { cerrarEspera(); alert('No se pudo preparar la notificación: ' + e.message); });
+  }
+
 
   /* ---------------------------------------------------------------------
    * Auditoría con sustento normativo (modelo del informe del profesor Juan
