@@ -1923,7 +1923,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.12';
+  const VERSION_INTERNA = '2026-10-12.14';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2471,10 +2471,13 @@ label .req{color:var(--falla)}
       local: 'docs/guia-operativa-docente.pdf',
       estudiar: 'Es corta (6 páginas) y es la que más se cita. Lea 4.1 (criterios del sílabo), 4.4 (evaluación: publicar antes la rúbrica; en cada pregunta, la unidad y el puntaje; retroalimentación en 2 semanas), 4.5 (evidencias del portafolio) y 4.6 (supervisión: 5 días de aviso, 3 días para subsanar, acta). Lo que usa el portal está resaltado en amarillo.',
       atajos: [{ pag: 3, t: '4.1 sílabo' }, { pag: 4, t: '4.4 evaluación' }, { pag: 5, t: '4.5 portafolio' }, { pag: 6, t: '4.6 supervisión' }] },
-    { k: 'guia_coordinador', n: 'Guía del Coordinador (última versión)',
-      para: 'Funciones de cada rol. Entre otras: las reuniones o entrevistas con los delegados y subdelegados las realiza el coordinador general de la carrera, no los coordinadores de área; plazo de ' + GRACIA_DIAS + ' días para devolver al estudiante las evaluaciones corregidas; lo de la unidad y el puntaje en cada pregunta ya está en la Guía Operativa Docente (4.4).',
-      hoy: 'Pendiente de la versión final. Mientras tanto, estas reglas se aplican por indicación del administrador y las observaciones no citan numeral.',
-      aviso: 'Documento en proceso de aprobación. La versión actual todavía no incorpora este cambio: las reuniones o entrevistas con los delegados y subdelegados pasan a ser responsabilidad del coordinador general de la carrera, no de los coordinadores de área. Mientras se aprueba la versión final, aplique esta indicación; el enlace aparecerá aquí cuando se suba.' },
+    { k: 'guia_coordinador', n: 'Guía para los Coordinadores de Área Académica (FI-GCA-GUI-001, v01)',
+      para: 'Qué supervisa el coordinador de área y cuándo (6. Desarrollo): sílabos (1–3); formularios F1–F3 (4–5); fórmula de evaluación contra la información oficial de la URM (6–8); registro de notas (9–10); aula virtual en las semanas 3, 7 y 14 (11); portafolios digitales en las semanas 7, 12 y 16 (12); reuniones con delegados (13–16) y con docentes, mínimo dos: antes de la semana 8 y al cierre (17–20); F4 (21) e informe final (22).',
+      hoy: 'Versión 01 (26/08/2026). El portal la cita en los formatos de supervisión. Lo que usa está resaltado en amarillo.',
+      local: 'docs/guia-coordinador-area.pdf',
+      estudiar: 'Es la guía de su trabajo: 6 páginas. Lea el Cuadro 1 (páginas 3 a 6): qué supervisar, en qué semanas y qué informe elevar a la Escuela. Lo que el portal usa está resaltado, con una etiqueta en la columna «Información relacionada».',
+      atajos: [{ pag: 3, t: 'sílabo, F1–F3, fórmula' }, { pag: 4, t: 'notas y aula virtual' }, { pag: 5, t: 'portafolios y reuniones' }, { pag: 6, t: 'F4 e informe final' }],
+      aviso: 'Versión en actualización: la nueva versión, aún por aprobar, debe añadir este cambio: las reuniones o entrevistas con los delegados y subdelegados son responsabilidad del coordinador general de la carrera, no de los coordinadores de área (la versión 01 aún las asigna al coordinador de área en los numerales 14 a 16). Mientras se aprueba, aplique esta indicación.' },
     { k: 'directiva_rotulado', n: 'Directiva de rotulado de evidencias (Calidad y Acreditación)',
       para: 'Nombre que debe tener cada archivo del portafolio: CÓDIGO.SIGLA.PERIODO y, en las evidencias, .Nombre Apellido.Mayor|Menor|Promedio.Nota.',
       hoy: 'El portal ya revisa el rotulado con esta regla. Suba la directiva para que quede como referencia. Mientras tanto puede consultar la guía práctica del portal.',
@@ -2560,7 +2563,7 @@ label .req{color:var(--falla)}
   /* ------------------------------------------------ guía rápida (notas) ---- */
   // Biblioteca para estudiar: los documentos oficiales con su enlace, para qué
   // sirven y qué leer primero. La ven todos los roles.
-  const ORDEN_BIBLIO = ['guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'guia_coordinador', 'directiva_rotulado', 'estructura_portafolio', 'procedimiento_informacion', 'reglamento_evaluacion'];
+  const ORDEN_BIBLIO = ['guia_coordinador', 'guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'directiva_rotulado', 'estructura_portafolio', 'procedimiento_informacion', 'reglamento_evaluacion'];
   function bibliotecaHtml(docs) {
     const items = ORDEN_BIBLIO.map(k => DOCS_REF.find(d => d.k === k)).filter(Boolean).map(d => {
       const e = enlaceDoc(d, docs);
@@ -2586,6 +2589,7 @@ label .req{color:var(--falla)}
       '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión; en verde los ya registrados.',
       '<b>Sílabo:</b> adjunte el sílabo del docente para revisarlo y, en la misma ficha, pulse <b>«Leer el sílabo»</b> para registrar el cronograma de evaluaciones (una vez por curso y ciclo). Sin cronograma, el portal no sabe cuándo debió subirse cada taller o práctica.',
       '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio, en PDF y bien rotuladas. En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
+      '<b>Cuándo supervisar</b> (Guía para los Coordinadores de Área, Cuadro 1): aula virtual en las semanas 3, 7 y 14; portafolios en las semanas 7, 12 y 16; reuniones con los docentes, mínimo dos (antes de la semana 8 y al cierre). Después de cada supervisión, comunique el resultado al docente por correo institucional y eleve el informe a la Escuela.',
       '<b>Delegados:</b> registre a los delegados de cada curso. <b>La reunión o entrevista con delegados y subdelegados la realiza el coordinador general de la carrera</b>, no el coordinador de área.',
       '<b>El asistente</b> (botón verde de abajo a la derecha) le muestra lo que encuentra y propone; <b>usted decide</b> y marca Cumple, Parcial o No cumple.'
     ];
@@ -8263,16 +8267,21 @@ label .req{color:var(--falla)}
         'encuentra. La evaluación y la decisión son suyas.</div>' +
         '<div class="insumos" id="insumos"></div>' +
         '<div class="carpeta-estado oculto" id="carpetaEstado"></div>' +
+        '<div class="carpeta-estado oculto" id="carpetaEstadoF"></div>' +
         '<div class="chat-caja">' +
           '<div class="chat-adjuntos" id="trAdjuntos"></div>' +
           '<textarea id="trIndicacion" rows="2" placeholder="' + esc(ins.placeholder + (/adjunte/i.test(ins.placeholder) ? ' También puede arrastrar y soltar los archivos aquí.' : '')) + '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
-              'accept=".pdf,.docx,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
+              'accept=".pdf,.docx,.txt,.vtt,.srt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,text/plain,application/pdf,image/png,image/jpeg,image/webp">' +
             '<input type="file" id="trCarpeta" class="oculto" webkitdirectory directory multiple>' +
+            '<input type="file" id="trCarpetaF" class="oculto" webkitdirectory directory multiple>' +
             '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
             (ins.carpeta
               ? '<button type="button" class="chat-clip" id="btnCarpeta" title="Cargar la carpeta con todos los sílabos del área">📁 Cargar carpeta de sílabos</button>'
+              : '') +
+            (ins.carpetaFormulas
+              ? '<button type="button" class="chat-clip" id="btnCarpetaF" title="Cargar la carpeta con las fórmulas de todos los cursos que envían la URM u OFICIC (provisional, mientras no esté la integración con Moodle)">📁 Cargar carpeta de fórmulas (URM / OFICIC)</button>'
               : '') +
             '<button type="button" class="chat-enviar" id="btnProponer" title="Analizar">Analizar ➤</button>' +
           '</div>' +
@@ -8285,6 +8294,13 @@ label .req{color:var(--falla)}
               'curso y docente y lo adjunta solo. La carpeta queda cargada mientras no cierre la página, ' +
               'así que sirve para todos los cursos que revise. Ojo: si el docente cambió el sílabo y lo subió ' +
               'a su aula virtual, la copia de la carpeta puede estar desactualizada.</p>'
+            : '') +
+          (ins.carpetaFormulas
+            ? '<p><b>Si carga la carpeta de fórmulas que envían la URM u OFICIC</b> (procedimiento provisional, mientras no esté la integración con el Moodle de la Facultad), el portal busca la fórmula de este curso por el nombre ' +
+              'del archivo o, si es un archivo con todos los cursos (PDF, Excel o Word), dentro de su contenido por el código del ' +
+              'curso, y adjunta solo la parte que le corresponde. Sirve para todos los cursos mientras no cierre la página. ' +
+              'Ojo: es una copia con fecha de envío; si el docente cambió la fórmula en el Sistema de Evaluación después, puede estar desactualizada.</p>' +
+              '<p><b>Capturas y PDF escaneados:</b> también se aceptan imágenes (PNG, JPG) y PDF sin texto; el asistente los lee como imagen.</p>'
             : '') +
           '<p><b>Si anota sus hallazgos</b>, el asistente los ordena en el formato para ' +
           'ahorrarle escribir. Ejemplo: <i>' + esc(ins.ejemplo) + '</i>.</p>' +
@@ -8303,6 +8319,16 @@ label .req{color:var(--falla)}
           buscarEnCarpeta(true);
         });
         if (CARPETA.length) buscarEnCarpeta(false);
+      }
+      if (ins.carpetaFormulas) {
+        $('btnCarpetaF').addEventListener('click', () => $('trCarpetaF').click());
+        $('trCarpetaF').addEventListener('change', () => {
+          CARPETA_F = [...$('trCarpetaF').files].filter(f => /\.(pdf|docx|xlsx|xls|csv|txt|png|jpe?g|webp)$/i.test(f.name) && !/^~\$/.test(f.name));
+          TEXTOS_F.clear();
+          $('trCarpetaF').value = '';
+          buscarFormulaEnCarpeta(true);
+        });
+        if (CARPETA_F.length) buscarFormulaEnCarpeta(false);
       }
       $('btnArchivo').addEventListener('click', () => $('trArchivo').click());
       $('trArchivo').addEventListener('change', pintarAdjuntos);
@@ -8489,6 +8515,12 @@ label .req{color:var(--falla)}
       const r = await window.mammoth.extractRawText({ arrayBuffer: await arch.arrayBuffer() });
       return r.value || '';
     }
+    if (/\.(xlsx|xls)$/i.test(arch.name)) {
+      const XLSX = await cargarLibreriaExcel();
+      const wb = XLSX.read(await arch.arrayBuffer(), { type: 'array' });
+      return wb.SheetNames.map(h => '--- Hoja: ' + h + ' ---\n' + XLSX.utils.sheet_to_csv(wb.Sheets[h], { FS: ' | ' })).join('\n\n');
+    }
+    if (esImagen(arch)) { const e = new Error('imagen'); e.imagen = true; throw e; }
     if (!esPdf) return await arch.text();
 
     await cargarPdfJs();
@@ -8508,10 +8540,121 @@ label .req{color:var(--falla)}
       texto += '\n';
     }
     if (texto.replace(/\s/g, '').length < 40) {
-      throw new Error('Ese PDF no tiene texto: parece un documento escaneado. ' +
-                      'Prueba con el archivo original o escribe la indicación.');
+      // PDF escaneado o hecho desde una imagen (por ejemplo, con iLovePDF): no
+      // trae texto. Se envían sus páginas como imágenes y el asistente las lee.
+      const e = new Error('Ese PDF no tiene texto (parece escaneado o convertido desde una imagen).');
+      e.escaneado = true;
+      throw e;
     }
     return texto;
+  }
+
+  const esImagen = f => /^image\/(png|jpe?g|webp)$/i.test(f.type || '') || /\.(png|jpe?g|webp)$/i.test(f.name || '');
+  // Una imagen se reduce (máximo 1600 px de lado) y se pasa a JPEG: así entra
+  // en el límite del asistente y se lee igual de bien.
+  function lienzoABase64(lienzo) {
+    return lienzo.toDataURL('image/jpeg', 0.82).split(',')[1];
+  }
+  async function imagenParaAsistente(arch) {
+    const url = URL.createObjectURL(arch);
+    try {
+      const img = await new Promise((ok, mal) => { const i = new Image(); i.onload = () => ok(i); i.onerror = () => mal(new Error('No se pudo abrir la imagen ' + arch.name)); i.src = url; });
+      const k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+      return { mime: 'image/jpeg', datos: lienzoABase64(c), nombre: arch.name };
+    } finally { URL.revokeObjectURL(url); }
+  }
+  async function paginasComoImagenes(arch, max) {
+    await cargarPdfJs();
+    const doc = await pdfjsLib.getDocument({ data: await arch.arrayBuffer() }).promise;
+    const out = [];
+    for (let p = 1; p <= Math.min(doc.numPages, max); p++) {
+      const pag = await doc.getPage(p);
+      const v0 = pag.getViewport({ scale: 1 });
+      const vp = pag.getViewport({ scale: Math.min(2, 1600 / Math.max(v0.width, v0.height)) });
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      await pag.render({ canvasContext: g, viewport: vp }).promise;
+      out.push({ mime: 'image/jpeg', datos: lienzoABase64(c), nombre: arch.name + ' (pág. ' + p + ')' });
+    }
+    return { imagenes: out, total: doc.numPages };
+  }
+
+  /* ----------------------------- carpeta de fórmulas del Sistema de Evaluación ----
+   * OFICIC envía a veces un archivo por curso y a veces un solo archivo con las
+   * fórmulas de todos. Primero se busca por el nombre del archivo; si no, dentro
+   * del contenido por el código del curso, y se adjunta solo lo que corresponde. */
+  function buscarFormulaEnCarpeta(recienCargada) {
+    const caja = $('carpetaEstadoF');
+    if (!caja) return;
+    const a = estado.actual || {};
+    const cod = String(a.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const m = cod.match(/^([A-Z]+)0*(\d+)$/);
+    const reCod = m ? new RegExp('(^|[^A-Z0-9])' + m[1] + '[\\s\\-._]*0*' + m[2] + '(?![0-9])', 'i') : null;
+    const norm = t => sinAcentos(String(t || '')).replace(/[^a-z0-9]+/g, ' ').trim();
+    const palabras = norm(nombreCurso(a.asignatura)).split(' ').filter(w => w.length > 3);
+    const cab = '<b>📁 Carpeta de fórmulas cargada: ' + CARPETA_F.length + (CARPETA_F.length === 1 ? ' archivo' : ' archivos') + '.</b> ';
+    const nota = '<br><b>Nota:</b> este procedimiento es provisional: se usa mientras no esté la integración con el Moodle de la Facultad. ' +
+      'Es la copia que enviaron la URM u OFICIC (la Guía del Coordinador, numeral 6, toma como fuente oficial la información de la URM). Confirme que sea la fórmula vigente en el Sistema de Evaluación: ' +
+      'si el docente la modificó después del envío, esta copia puede estar desactualizada. Ante la duda, verifique en el sistema o pida una captura actual.';
+    caja.classList.remove('oculto', 'aviso-viejo');
+    if (!CARPETA_F.length) { caja.innerHTML = '<b>📁 La carpeta no tiene archivos PDF, Excel, Word o imágenes.</b>'; return; }
+    if (!reCod) { caja.innerHTML = cab + 'Este curso no tiene código en el portal: adjunte la fórmula con 📎.'; return; }
+    const adjuntar = f => { if (!ADJUNTOS.some(x => x.name === f.name && x.size === f.size)) ADJUNTOS.push(f); pintarAdjuntosDesde(); };
+    // 1. Por el nombre del archivo
+    const porNombre = CARPETA_F.filter(f => {
+      const ruta = (f.webkitRelativePath || f.name).replace(/\.[^.]+$/, '');
+      if (reCod.test(ruta.toUpperCase())) return true;
+      const r = ' ' + norm(ruta) + ' ';
+      return palabras.length && palabras.filter(w => r.indexOf(' ' + w + ' ') >= 0).length / palabras.length >= 0.8;
+    });
+    if (porNombre.length) {
+      porNombre.slice(0, 3).forEach(adjuntar);
+      caja.classList.add('aviso-viejo');
+      caja.innerHTML = cab + 'Se adjuntó por el nombre: <b>' + porNombre.slice(0, 3).map(f => esc(f.webkitRelativePath || f.name)).join(', ') + '</b>.' + nota;
+      return;
+    }
+    // 2. Dentro del contenido (archivos con varios cursos)
+    caja.innerHTML = cab + 'Buscando la fórmula de ' + esc(a.codigo || '') + ' dentro de los archivos…';
+    const legibles = CARPETA_F.filter(f => !esImagen(f));
+    (async () => {
+      const hallados = [];
+      for (const f of legibles) {
+        let t = TEXTOS_F.get(f);
+        if (t === undefined) { try { t = await textoDelArchivo(f); } catch (e) { t = ''; } TEXTOS_F.set(f, t); }
+        if (!t || !reCod.test(t.toUpperCase())) continue;
+        // Se toma cada línea con el código y las siguientes, hasta la próxima línea con otro código de curso.
+        const lineas = t.split('\n'), trozos = [];
+        const otroCodigo = /(^|[^A-Z0-9])[A-Z]{2,4}[\s\-]?\d{3,4}(?![0-9])/i;
+        lineas.forEach((l, i) => {
+          if (!reCod.test(l.toUpperCase())) return;
+          const sel = [l];
+          for (let j = i + 1; j < Math.min(lineas.length, i + 30); j++) {
+            if (otroCodigo.test(lineas[j]) && !reCod.test(lineas[j].toUpperCase())) break;
+            sel.push(lineas[j]);
+          }
+          trozos.push(sel.join('\n'));
+        });
+        hallados.push({ f, texto: trozos.join('\n…\n').slice(0, 12000) });
+      }
+      if (!hallados.length) {
+        const escaneados = legibles.filter(f => TEXTOS_F.get(f) === '').length;
+        caja.innerHTML = cab + 'No se encontró el código ' + esc(a.codigo || '') + ' ni por el nombre de los archivos ni dentro de su contenido.' +
+          (escaneados ? ' ' + escaneados + ' archivo(s) no tienen texto (escaneados); si la fórmula está ahí, adjúntelos con 📎 para que el asistente los lea como imagen.' : '') +
+          ' Adjunte la captura del Sistema de Evaluación con 📎.';
+        return;
+      }
+      hallados.forEach(h => {
+        const nombre = 'Fórmula ' + (a.codigo || '') + ' (extraída de ' + (h.f.webkitRelativePath || h.f.name) + ').txt';
+        adjuntar(new File(['Fórmula del Sistema de Evaluación del curso ' + (a.codigo || '') + ' ' + (a.asignatura || '') +
+          ', extraída del archivo enviado por OFICIC «' + (h.f.webkitRelativePath || h.f.name) + '»:\n\n' + h.texto], nombre, { type: 'text/plain' }));
+      });
+      caja.classList.add('aviso-viejo');
+      caja.innerHTML = cab + 'Se encontró ' + esc(a.codigo || '') + ' dentro de <b>' + hallados.map(h => esc(h.f.webkitRelativePath || h.f.name)).join(', ') +
+        '</b> y se adjuntó solo la parte de este curso. Revise el adjunto: si el archivo trae varios grupos, el asistente los verá todos.' + nota;
+    })();
   }
 
   // Patrón de calidad del logro (punto 06 del sílabo). Marco: Mager (acción,
@@ -8577,6 +8720,8 @@ label .req{color:var(--falla)}
   // La carpeta de sílabos del área: se carga una vez y sirve para todos los
   // cursos que se revisen mientras la página siga abierta.
   let CARPETA = [];
+  let CARPETA_F = [];            // carpeta de fórmulas del Sistema de Evaluación (OFICIC)
+  const TEXTOS_F = new Map();    // texto ya leído de cada archivo de esa carpeta
 
   // Qué necesita el asistente en cada formato. «hay» dice si ya está en el
   // portal; lo que no está, el coordinador lo adjunta. A medida que se
@@ -8612,11 +8757,12 @@ label .req{color:var(--falla)}
       como: 'compara la fórmula de evaluación del sílabo con la configurada en el Sistema de Evaluación',
       ejemplo: 'en el sistema el examen final pesa 30 % y en el sílabo 40 %',
       carpeta: true,
+      carpetaFormulas: true,
       lista: [
         { t: 'Sílabo del docente (la fórmula de evaluación)', archivo: true,
           falta: 'Adjúntelo con 📎 o cargue la carpeta de sílabos del área con 📁.' },
         { t: 'Fórmula configurada en el Sistema de Evaluación',
-          falta: 'Adjunte el PDF o la captura de la configuración, o cópiela en el campo «Fórmula en el sistema».' }
+          falta: 'Adjunte el PDF o la captura (PNG o JPG) de la configuración, cargue la carpeta de fórmulas que envía OFICIC con 📁, o cópiela en el campo «Fórmula en el sistema».' }
       ]
     },
     formularios: {
@@ -8735,7 +8881,8 @@ label .req{color:var(--falla)}
       pintarAdjuntosDesde();
     };
     const cab = '<b>📁 Carpeta cargada: ' + CARPETA.length + (CARPETA.length === 1 ? ' archivo' : ' archivos') + '.</b> ';
-    const aviso = ' <br>Confirme que sea la versión vigente, la que está publicada en el aula virtual: ' +
+    const aviso = ' <br><b>Nota:</b> este procedimiento es provisional: se usa mientras no esté la integración con el Moodle de la Facultad. ' +
+                  'Confirme que sea la versión vigente, la que está publicada en el aula virtual: ' +
                   'si el docente la cambió después, esta copia puede estar desactualizada.';
     caja.classList.remove('oculto', 'aviso-viejo');
     if (!CARPETA.length) {
@@ -8798,6 +8945,7 @@ label .req{color:var(--falla)}
     const origen = origenForzado || (ADJUNTOS.length ? 'archivo' : 'texto');
     const btn = $('btnProponer');
     let fuente = '';
+    let imagenes = [];
     try {
       if (origen === 'archivo') {
         const archivos = ADJUNTOS.slice();
@@ -8806,8 +8954,26 @@ label .req{color:var(--falla)}
         // Se pueden subir varios: el sílabo y, aparte, el documento oficial
         // contra el que se compara.
         const partes = [];
+        imagenes = [];
+        const MAX_IMG = 6;
         for (const arch of archivos) {
-          partes.push('===== ' + arch.name + ' =====\n' + await textoDelArchivo(arch));
+          try {
+            partes.push('===== ' + arch.name + ' =====\n' + await textoDelArchivo(arch));
+          } catch (e) {
+            if (e.imagen) {
+              if (imagenes.length < MAX_IMG) imagenes.push(await imagenParaAsistente(arch));
+              partes.push('===== ' + arch.name + ' =====\n[Imagen adjunta: léela como parte de lo que entrega el coordinador.]');
+            } else if (e.escaneado) {
+              const r = await paginasComoImagenes(arch, Math.max(0, MAX_IMG - imagenes.length));
+              imagenes.push(...r.imagenes);
+              partes.push('===== ' + arch.name + ' =====\n[PDF sin texto (escaneado o convertido desde imagen): se envían ' +
+                r.imagenes.length + ' de sus ' + r.total + ' páginas como imágenes; léelas.]');
+            } else throw e;
+          }
+        }
+        if (imagenes.length >= MAX_IMG) {
+          const extra = archivos.filter(esImagen).length > MAX_IMG;
+          if (extra) alert('Se enviarán solo las primeras ' + MAX_IMG + ' imágenes o páginas escaneadas.');
         }
         fuente = partes.join('\n\n');
         const nota = $('trIndicacion').value.trim();
@@ -8817,7 +8983,7 @@ label .req{color:var(--falla)}
                        .replace(/^\d+$/gm, '')
                        .replace(/^\d{2}:\d{2}:\d{2}[.,]\d{3}\s*-->.*$/gm, '')
                        .replace(/\n{3,}/g, '\n\n').trim();
-        if (fuente.length < 40) throw new Error('El archivo parece vacío.');
+        if (fuente.length < 40 && !imagenes.length) throw new Error('El archivo parece vacío.');
       } else {
         estado.ultimosArchivos = [];
         fuente = $('trIndicacion').value.trim();
@@ -8864,7 +9030,8 @@ label .req{color:var(--falla)}
           curso: [a.codigo, nombreCurso(a.asignatura), a.docente].filter(Boolean).join(' · '),
           campos: camposDelFormato(F),
           contexto: contexto,
-          texto: fuente
+          texto: fuente,
+          imagenes: imagenes.map(i => ({ mime: i.mime, datos: i.datos }))
         })
       });
       const d = await r.json();
