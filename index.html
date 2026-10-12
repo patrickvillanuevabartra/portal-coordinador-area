@@ -448,6 +448,15 @@ tr.sin-leer{background:#fffdf6}
 .marcas{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--brand-oscuro)}
 .capa{position:fixed;inset:0;background:rgba(21,32,27,.45);display:grid;
   place-items:start center;z-index:40;padding:24px 20px;overflow:auto}
+.coord-inactivo td{opacity:.55}
+.tipo-inactivo{background:#f3e3e3 !important;color:#8f2418 !important}
+.coord-hist{color:var(--tinta-media);font-size:12px}
+.ec-modos{display:grid;gap:8px;margin:10px 0 6px}
+.ec-modo{display:flex;gap:10px;align-items:flex-start;border:1px solid var(--linea);border-radius:10px;padding:10px 12px;cursor:pointer;font-weight:400}
+.ec-modo input{margin-top:4px;width:auto !important;flex:0 0 auto}
+.ec-modo span{flex:1}
+.ec-modo small{color:var(--tinta-media);line-height:1.4}
+.ec-hist pre{white-space:pre-wrap;font-size:12px;background:#f6f6f2;border-radius:8px;padding:8px;max-height:160px;overflow:auto}
 .dialogo{background:var(--papel);border-radius:12px;padding:26px 28px;width:min(560px,100%);
   box-shadow:0 10px 40px rgba(21,32,27,.25);max-height:calc(100vh - 48px);
   display:flex;flex-direction:column;margin:auto 0}
@@ -1324,6 +1333,42 @@ label .req{color:var(--falla)}
     </div>
   </div>
 
+  <!-- ============================================ editar coordinador -->
+  <div id="capaEditCoord" class="capa oculto">
+    <div class="dialogo">
+      <h3>Editar coordinador</h3>
+      <p class="det" id="ecAmbito"></p>
+      <div class="ec-modos">
+        <label class="ec-modo"><input type="radio" name="ecModo" value="reemplazar" checked>
+          <span><b>Reemplazar por otra persona</b><br>
+          <small>Otra persona asume el área (licencia, renuncia, reasignación). El anterior queda como «Inactivo» con su historial y sus supervisiones siguen a su nombre; el nuevo entra con su correo y desde ese momento ve los cursos del área.</small></span></label>
+        <label class="ec-modo"><input type="radio" name="ecModo" value="corregir">
+          <span><b>Corregir datos de la misma persona</b><br>
+          <small>Solo para errores de tipeo en el nombre, el correo o el celular. No cambia quién coordina.</small></span></label>
+      </div>
+      <label for="ecNombre">Apellidos y nombres <span class="req">*</span></label>
+      <input type="text" id="ecNombre" placeholder="APELLIDOS, Nombres">
+      <label for="ecCorreo">Correo institucional <span class="req">*</span></label>
+      <input type="text" inputmode="email" id="ecCorreo" placeholder="nombre.apellido@urp.edu.pe">
+      <label for="ecCelular">Celular</label>
+      <input type="text" id="ecCelular">
+      <div id="ecBloqueDesde">
+        <label for="ecDesde">Desde (fecha en que asume)</label>
+        <input type="date" id="ecDesde">
+      </div>
+      <label for="ecMotivo">Motivo o nota (opcional)</label>
+      <input type="text" id="ecMotivo" placeholder="Ej.: licencia del Ing. …; designación por resolución …">
+      <p class="nota-dialogo" id="ecNota"></p>
+      <details class="ec-hist" id="ecHistCaja"><summary>Historial de cambios</summary><pre id="ecHist"></pre></details>
+      <div class="pie">
+        <button class="btn" id="btnEcGuardar">Guardar</button>
+        <button class="btn gris" id="btnEcCancel">Cancelar</button>
+        <button class="btn gris" id="btnEcEstado" style="margin-left:auto"></button>
+        <span class="aviso" id="avisoEc"></span>
+      </div>
+    </div>
+  </div>
+
   <!-- ======================================== coordinadores y clonado -->
   <section id="coordinadores" class="oculto">
     <div class="migas"><button id="volverCoord">Mis cursos</button> / Gestión del ciclo</div>
@@ -1878,7 +1923,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.11';
+  const VERSION_INTERNA = '2026-10-12.12';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7309,20 +7354,33 @@ label .req{color:var(--falla)}
       $('tablaCoord').innerHTML = '<div class="vacio">No hay coordinadores registrados en ese ciclo.</div>';
       return;
     }
+    const inactivo = c => /inactiv/i.test(c.estado || '');
+    // Las vigentes primero; las inactivas (reemplazadas) se ven atenuadas y no
+    // se marcan para clonar.
+    lista.sort((a, b) => (inactivo(a) - inactivo(b)) || String(a.area).localeCompare(String(b.area)));
     const filas = lista.map((c, i) =>
-      '<tr><td style="width:34px"><input type="checkbox" data-c="' + i + '" checked></td>' +
+      '<tr class="' + (inactivo(c) ? 'coord-inactivo' : '') + '"><td style="width:34px"><input type="checkbox" data-c="' + i + '"' + (inactivo(c) ? '' : ' checked') + '></td>' +
       '<td><b>' + esc(c.area || (/general/i.test(c.rol) ? 'Toda la carrera' : '—')) + '</b>' +
       '<small class="codigo">' + esc(c.programa || '—') + '</small></td>' +
       '<td><b>' + esc(c.nombre) + '</b>' +
       '<small class="codigo">' + esc(c.correo || 'sin correo') + '</small>' +
-      '<small class="codigo"><span class="tipo">' + esc(c.rol) + '</span></small></td></tr>').join('');
+      '<small class="codigo"><span class="tipo">' + esc(c.rol) + '</span>' +
+        (inactivo(c) ? ' <span class="tipo tipo-inactivo">Inactivo</span>' : '') + '</small>' +
+      (c.historial ? '<small class="codigo coord-hist">🕘 ' + esc(String(c.historial).split('\n').pop()) + '</small>' : '') + '</td>' +
+      '<td style="width:110px;text-align:right"><button type="button" class="btn gris btn-editar-coord" data-e="' + i + '">✏️ Editar</button></td></tr>').join('');
     const nGen = lista.filter(c => /general/i.test(c.rol)).length;
     const resumen = '<div class="resumen" style="margin:0 0 12px">' +
       '<div><div class="cifra">' + lista.length + '</div><div class="det">registros en ' + esc(ciclo === '__sin__' ? 'sin ciclo' : ciclo) + '</div></div>' +
       '<div class="det">' + (lista.length - nGen) + ' de área · ' + nGen + ' general(es)</div></div>';
     $('tablaCoord').innerHTML = resumen +
-      '<table><thead><tr><th></th><th>Ámbito</th><th>Coordinador y rol</th></tr></thead><tbody>' + filas + '</tbody></table>';
+      '<table><thead><tr><th></th><th>Ámbito</th><th>Coordinador y rol</th><th></th></tr></thead><tbody>' + filas + '</tbody></table>' +
+      '<p class="nota-crono" style="margin-top:8px"><b>¿Cambió el coordinador de un área?</b> Use <b>✏️ Editar → Reemplazar</b>: ' +
+      'el anterior queda como «Inactivo» con su historial y el nuevo entra con su correo. Para un error de tipeo, ' +
+      'use <b>Corregir datos</b>. Las filas inactivas se ven atenuadas y no se clonan al ciclo siguiente.</p>';
     $('tablaCoord').dataset.ciclo = ciclo;
+    estado.coordVista = lista;
+    $('tablaCoord').querySelectorAll('.btn-editar-coord').forEach(b =>
+      b.addEventListener('click', () => abrirEditarCoord(lista[Number(b.dataset.e)])));
   }
 
   // "Otro ciclo" abre un campo de texto para escribirlo.
@@ -7342,7 +7400,7 @@ label .req{color:var(--falla)}
     const destino = $('cicloDestino').value.trim();
     if (!destino) return avisoCoord('Escribe el ciclo destino, por ejemplo 2027 I.', 'error');
     const ciclo = $('tablaCoord').dataset.ciclo;
-    const lista = estado.coordinadores.filter(c => ciclo === '__sin__' ? !c.ciclo : c.ciclo === ciclo);
+    const lista = estado.coordVista || [];
     const sel = [...$('tablaCoord').querySelectorAll('[data-c]')]
       .filter(x => x.checked).map(x => lista[Number(x.dataset.c)]);
     if (!sel.length) return avisoCoord('No hay ninguna fila marcada.', 'error');
@@ -7515,6 +7573,65 @@ label .req{color:var(--falla)}
       .then(() => api('/plantillas'))
       .then(d => { estado.plantillas = d.plantillas || []; avisoPl('Plantilla guardada.', 'ok'); $('btnPlantilla').disabled = false; })
       .catch(e => { avisoPl(e.message, 'error'); $('btnPlantilla').disabled = false; });
+  });
+
+  /* ---------------------------------------------- editar coordinador -- */
+  let EC = null;
+  function abrirEditarCoord(c) {
+    EC = c;
+    const inact = /inactiv/i.test(c.estado || '');
+    $('ecAmbito').textContent = (c.area || 'Toda la carrera') + ' · ' + (c.programa || '') + ' · ' + (c.rol || '') +
+      ' · ciclo ' + (c.ciclo || 'sin ciclo') + (inact ? ' · INACTIVO' : '');
+    document.querySelector('input[name="ecModo"][value="' + (inact ? 'corregir' : 'reemplazar') + '"]').checked = true;
+    document.querySelector('input[name="ecModo"][value="reemplazar"]').disabled = inact;
+    $('ecHist').textContent = c.historial || '';
+    $('ecHistCaja').classList.toggle('oculto', !c.historial);
+    $('btnEcEstado').textContent = inact ? 'Reactivar esta fila' : 'Desactivar sin reemplazo';
+    $('avisoEc').textContent = '';
+    ecModo();
+    $('capaEditCoord').classList.remove('oculto');
+  }
+  function ecModo() {
+    const reemplazo = document.querySelector('input[name="ecModo"]:checked').value === 'reemplazar';
+    $('ecBloqueDesde').classList.toggle('oculto', !reemplazo);
+    $('ecNombre').value = reemplazo ? '' : (EC.nombre || '');
+    $('ecCorreo').value = reemplazo ? '' : (EC.correo || '');
+    $('ecCelular').value = reemplazo ? '' : (EC.celular || '');
+    if (reemplazo && !$('ecDesde').value) $('ecDesde').value = (typeof hoyLima === 'function') ? hoyLima() : new Date().toISOString().slice(0, 10);
+    $('ecNota').innerHTML = reemplazo
+      ? 'Escriba los datos de la <b>persona que asume</b>. Saldrá de la lista de coordinadores vigentes <b>' + esc(EC.nombre || '') +
+        '</b>, que deja de ver los cursos de esta área (si coordina otras áreas, las conserva). Sus supervisiones ya registradas no cambian.'
+      : 'Se corrige la misma fila; queda anotado en el historial qué decía antes.';
+    setTimeout(() => $('ecNombre').focus(), 50);
+  }
+  document.querySelectorAll('input[name="ecModo"]').forEach(r => r.addEventListener('change', ecModo));
+  $('btnEcCancel').addEventListener('click', () => $('capaEditCoord').classList.add('oculto'));
+  $('btnEcGuardar').addEventListener('click', () => {
+    const modo = document.querySelector('input[name="ecModo"]:checked').value;
+    const datos = { recordId: EC.recordId, modo, nombre: $('ecNombre').value.trim(), correo: $('ecCorreo').value.trim(),
+      celular: $('ecCelular').value.trim(), desde: $('ecDesde').value, motivo: $('ecMotivo').value.trim() };
+    if (!datos.nombre || !datos.correo) { $('avisoEc').textContent = 'Faltan el nombre y el correo.'; $('avisoEc').className = 'aviso error'; return; }
+    if (!/@urp\.edu\.pe$/i.test(datos.correo) && !confirm('El correo no es @urp.edu.pe. ¿Guardar igual?')) return;
+    if (modo === 'reemplazar' && datos.correo.toLowerCase() === String(EC.correo || '').toLowerCase()) {
+      $('avisoEc').textContent = 'Es el mismo correo: si es la misma persona, use «Corregir datos».'; $('avisoEc').className = 'aviso error'; return;
+    }
+    $('btnEcGuardar').disabled = true; $('avisoEc').textContent = 'Guardando…'; $('avisoEc').className = 'aviso';
+    api('/editar-coordinador', { method: 'POST', body: JSON.stringify(datos) })
+      .then(d => {
+        if (d.error) throw new Error(d.error);
+        $('capaEditCoord').classList.add('oculto');
+        avisoCoord(modo === 'reemplazar' ? 'Listo: ' + datos.nombre + ' reemplaza a ' + EC.nombre + '.' : 'Datos corregidos.', 'ok');
+        cargarCoordinadores();
+      })
+      .catch(e => { $('avisoEc').textContent = e.message; $('avisoEc').className = 'aviso error'; })
+      .finally(() => { $('btnEcGuardar').disabled = false; });
+  });
+  $('btnEcEstado').addEventListener('click', () => {
+    const inact = /inactiv/i.test(EC.estado || '');
+    if (!confirm(inact ? '¿Reactivar a ' + EC.nombre + ' en esta área?' : '¿Desactivar a ' + EC.nombre + ' sin poner a nadie en su lugar? El área quedará sin coordinador hasta que registre uno.')) return;
+    api('/estado-coordinador', { method: 'POST', body: JSON.stringify({ recordId: EC.recordId, estado: inact ? 'Vigente' : 'Inactivo', motivo: $('ecMotivo').value.trim() }) })
+      .then(d => { if (d.error) throw new Error(d.error); $('capaEditCoord').classList.add('oculto'); avisoCoord('Estado actualizado.', 'ok'); cargarCoordinadores(); })
+      .catch(e => { $('avisoEc').textContent = e.message; $('avisoEc').className = 'aviso error'; });
   });
 
   function avisoCoord(t, tipo) {
