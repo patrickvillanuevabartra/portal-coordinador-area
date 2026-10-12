@@ -261,7 +261,7 @@ tr.sin-leer{background:#fffdf6}
 .chat-caja textarea{width:100%;border:0;outline:none;resize:vertical;font:inherit;
   font-size:13.5px;background:transparent;padding:4px 2px;min-height:44px}
 .chat-barra{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.chat-clip{border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
+.chat-clip{text-decoration:none;display:inline-flex;align-items:center;border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
   font-size:12.5px;padding:5px 8px;border-radius:8px}
 .chat-clip:hover{background:var(--fondo)}
 .chat-enviar{border:0;background:var(--brand);color:#fff;cursor:pointer;font:inherit;
@@ -1923,7 +1923,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.14';
+  const VERSION_INTERNA = '2026-10-12.16';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2480,7 +2480,7 @@ label .req{color:var(--falla)}
       aviso: 'Versión en actualización: la nueva versión, aún por aprobar, debe añadir este cambio: las reuniones o entrevistas con los delegados y subdelegados son responsabilidad del coordinador general de la carrera, no de los coordinadores de área (la versión 01 aún las asigna al coordinador de área en los numerales 14 a 16). Mientras se aprueba, aplique esta indicación.' },
     { k: 'directiva_rotulado', n: 'Directiva de rotulado de evidencias (Calidad y Acreditación)',
       para: 'Nombre que debe tener cada archivo del portafolio: CÓDIGO.SIGLA.PERIODO y, en las evidencias, .Nombre Apellido.Mayor|Menor|Promedio.Nota.',
-      hoy: 'El portal ya revisa el rotulado con esta regla. Suba la directiva para que quede como referencia. Mientras tanto puede consultar la guía práctica del portal.',
+      hoy: 'El portal ya revisa el rotulado con esta regla. Suba la directiva para que quede como referencia. Mientras tanto puede consultar la guía práctica del portal. Para rotular un archivo paso a paso, use el Asistente de rotulado (docs/asistente-rotulado.html, también en el módulo Portafolios).',
       local: 'docs/guia-rotulado.html', localTexto: 'guía práctica de rotulado (del portal)', noOficial: true },
     { k: 'estructura_portafolio', n: 'Estructura del portafolio digital (Calidad y Acreditación)',
       para: 'Carpetas que debe tener cada portafolio (subcarpeta EVALUACIONES con una carpeta por evaluación).',
@@ -2588,7 +2588,7 @@ label .req{color:var(--falla)}
     const area = [
       '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión; en verde los ya registrados.',
       '<b>Sílabo:</b> adjunte el sílabo del docente para revisarlo y, en la misma ficha, pulse <b>«Leer el sílabo»</b> para registrar el cronograma de evaluaciones (una vez por curso y ciclo). Sin cronograma, el portal no sabe cuándo debió subirse cada taller o práctica.',
-      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio, en PDF y bien rotuladas. En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
+      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio, en PDF y bien rotuladas (para dar con el nombre correcto, use el <a href="docs/asistente-rotulado.html" target="_blank" rel="noopener">🏷️ Asistente de rotulado</a>). En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
       '<b>Cuándo supervisar</b> (Guía para los Coordinadores de Área, Cuadro 1): aula virtual en las semanas 3, 7 y 14; portafolios en las semanas 7, 12 y 16; reuniones con los docentes, mínimo dos (antes de la semana 8 y al cierre). Después de cada supervisión, comunique el resultado al docente por correo institucional y eleve el informe a la Escuela.',
       '<b>Delegados:</b> registre a los delegados de cada curso. <b>La reunión o entrevista con delegados y subdelegados la realiza el coordinador general de la carrera</b>, no el coordinador de área.',
       '<b>El asistente</b> (botón verde de abajo a la derecha) le muestra lo que encuentra y propone; <b>usted decide</b> y marca Cumple, Parcial o No cumple.'
@@ -6582,7 +6582,7 @@ label .req{color:var(--falla)}
       if (tiene('enunciado') || tiene('evidencias')) rec.push('Recordar que por cada evaluación se requieren cuatro archivos en PDF: el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (Numeral 4.5).');
       if (tiene('formato')) rec.push('Convertir a PDF los archivos en otros formatos (DOCX, PPTX, XLSX) y descomprimir los .zip, subiendo cada evidencia en PDF (Numeral 4.5).');
       if (tiene('video')) rec.push('Retirar los videos del portafolio; el material audiovisual del curso corresponde al aula virtual (Numeral 4.5, literales c y d).');
-      if (tiene('rotulado')) rec.push('Renombrar los archivos según la directiva de rotulado de Calidad y Acreditación. El reporte Excel de portafolios (hoja «Archivos por corregir») compara cada nombre con el estándar y propone el nombre correcto.');
+      if (tiene('rotulado')) rec.push('Renombrar los archivos según la directiva de rotulado de Calidad y Acreditación. El reporte Excel de portafolios (hoja «Archivos por corregir») compara cada nombre con el estándar y propone el nombre correcto. Para rotular paso a paso se puede usar el Asistente de rotulado del portal: https://patrickvillanuevabartra.github.io/portal-coordinador-area/docs/asistente-rotulado.html');
     }
     rec.push('Recordar a los docentes que la responsabilidad de mantener al día el portafolio es individual y exigible frente a las agencias acreditadoras y auditores ISO 21001, y se extiende al Coordinador de Área (Numeral 4.6, Proceso de supervisión).');
     h += '<ol>' + rec.map(r => '<li><p>' + e(r) + '</p></li>').join('') + '</ol>';
@@ -8280,6 +8280,10 @@ label .req{color:var(--falla)}
             (ins.carpeta
               ? '<button type="button" class="chat-clip" id="btnCarpeta" title="Cargar la carpeta con todos los sílabos del área">📁 Cargar carpeta de sílabos</button>'
               : '') +
+            (ins.rotulado
+              ? '<a class="chat-clip" target="_blank" rel="noopener" title="Pregunta paso a paso y da el nombre correcto de cada archivo del portafolio" href="docs/asistente-rotulado.html?codigo=' +
+                encodeURIComponent((estado.actual || {}).codigo || '') + '&periodo=' + encodeURIComponent(cicloVigente()) + '">🏷️ Asistente de rotulado</a>'
+              : '') +
             (ins.carpetaFormulas
               ? '<button type="button" class="chat-clip" id="btnCarpetaF" title="Cargar la carpeta con las fórmulas de todos los cursos que envían la URM u OFICIC (provisional, mientras no esté la integración con Moodle)">📁 Cargar carpeta de fórmulas (URM / OFICIC)</button>'
               : '') +
@@ -8582,6 +8586,31 @@ label .req{color:var(--falla)}
     return { imagenes: out, total: doc.numPages };
   }
 
+  /* Las fórmulas del sílabo suelen escribirse como fracción: el numerador en una
+   * línea, la raya y el denominador («4») en la de abajo. Al pasar el PDF a texto
+   * la raya se pierde y el «4» queda pegado a otra línea, así que el asistente
+   * podía leer una suma donde hay un promedio. Por eso, en el módulo Fórmula,
+   * además del texto se envía la página donde está la fórmula como imagen. */
+  async function paginasDeFormula(arch, max) {
+    if (max <= 0) return [];
+    await cargarPdfJs();
+    const doc = await pdfjsLib.getDocument({ data: await arch.arrayBuffer() }).promise;
+    const re = /promedio\s+final|nota\s+final|\b[PN]F\s*=|f[oó]rmula\s+de\s+(evaluaci|calificaci)/i;
+    const out = [];
+    for (let p = 1; p <= doc.numPages && out.length < max; p++) {
+      const pag = await doc.getPage(p);
+      const txt = (await pag.getTextContent()).items.map(it => it.str || '').join(' ');
+      if (!re.test(txt)) continue;
+      const v0 = pag.getViewport({ scale: 1 });
+      const vp = pag.getViewport({ scale: Math.min(2, 1600 / Math.max(v0.width, v0.height)) });
+      const c = document.createElement('canvas'); c.width = vp.width; c.height = vp.height;
+      const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+      await pag.render({ canvasContext: g, viewport: vp }).promise;
+      out.push({ mime: 'image/jpeg', datos: lienzoABase64(c), nombre: arch.name + ' (pág. ' + p + ')', pagina: p });
+    }
+    return out;
+  }
+
   /* ----------------------------- carpeta de fórmulas del Sistema de Evaluación ----
    * OFICIC envía a veces un archivo por curso y a veces un solo archivo con las
    * fórmulas de todos. Primero se busca por el nombre del archivo; si no, dentro
@@ -8786,6 +8815,7 @@ label .req{color:var(--falla)}
       placeholder: 'No necesita adjuntar nada: el portal revisa la carpeta de Drive. Si quiere, anote sus hallazgos…',
       como: 'ordena lo que usted adjunte o anote en el formato',
       ejemplo: 'faltan las rúbricas del examen parcial',
+      rotulado: true,
       lista: [
         { t: 'Carpeta del portafolio en Drive', de: 'Enlaces de portafolios de las Escuelas', hay: () => true },
         { t: 'Prueba de entrada', de: 'Formulario F3', hay: () => true }
@@ -8959,6 +8989,14 @@ label .req{color:var(--falla)}
         for (const arch of archivos) {
           try {
             partes.push('===== ' + arch.name + ' =====\n' + await textoDelArchivo(arch));
+            if (estado.modulo === 'formula' && (/\.pdf$/i.test(arch.name) || arch.type === 'application/pdf')) {
+              const pf = await paginasDeFormula(arch, Math.min(2, MAX_IMG - imagenes.length));
+              if (pf.length) {
+                imagenes.push(...pf);
+                partes.push('[Además se envía como imagen la página ' + pf.map(x => x.pagina).join(' y ') + ' de «' + arch.name +
+                  '», donde está la fórmula. Léela en la imagen: en el texto de arriba las fracciones pierden la raya y el denominador.]');
+              }
+            }
           } catch (e) {
             if (e.imagen) {
               if (imagenes.length < MAX_IMG) imagenes.push(await imagenParaAsistente(arch));
