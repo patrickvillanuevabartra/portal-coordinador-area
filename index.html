@@ -264,6 +264,10 @@ tr.sin-leer{background:#fffdf6}
 .chat-clip{text-decoration:none;display:inline-flex;align-items:center;border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
   font-size:12.5px;padding:5px 8px;border-radius:8px}
 .chat-clip:hover{background:var(--fondo)}
+.banda-rotulado{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;
+  background:#fff7e0;border:2px solid #e2b33c;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:15px;line-height:1.45;color:#3a2f12}
+.btn-rotulado{background:#1f5c46;color:#fff !important;text-decoration:none;font-weight:700;border-radius:8px;padding:10px 16px;white-space:nowrap}
+.btn-rotulado:hover{filter:brightness(1.1)}
 .chat-enviar{border:0;background:var(--brand);color:#fff;cursor:pointer;font:inherit;
   font-size:12.5px;font-weight:600;padding:6px 14px;border-radius:9px}
 .chat-enviar:disabled{opacity:.5;cursor:wait}
@@ -1923,7 +1927,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.17';
+  const VERSION_INTERNA = '2026-10-12.18';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -8257,6 +8261,13 @@ label .req{color:var(--falla)}
       const caja = document.createElement('div');
       caja.className = 'chat-asistente';
       caja.innerHTML =
+        (ins.rotulado
+          ? '<div class="banda-rotulado"><span>🏷️ <b>¿Necesita saber cómo debe llamarse un archivo del portafolio?</b> ' +
+            'El asistente le hace unas preguntas sencillas y le da el nombre correcto.</span>' +
+            '<a class="btn-rotulado" target="_blank" rel="noopener" href="docs/asistente-rotulado.html?codigo=' +
+            encodeURIComponent((estado.actual || {}).codigo || '') + '&periodo=' + encodeURIComponent(cicloVigente()) +
+            '">Abrir el Asistente de rotulado</a></div>'
+          : '') +
         '<div class="chat-titulo">Apoyo para la revisión</div>' +
         '<div class="chat-sub">El asistente compara con los estándares del portal y le señala lo que ' +
         'encuentra. La evaluación y la decisión son suyas.</div>' +
