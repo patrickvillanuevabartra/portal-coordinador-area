@@ -418,6 +418,11 @@ tr.sin-leer{background:#fffdf6}
 .referencia-item b{font-size:11.5px;color:var(--brand-oscuro)}
 .referencia-item p{margin:4px 0 0;font-size:12px;line-height:1.5;color:var(--tinta-media);
   max-height:200px;overflow-y:auto;white-space:pre-wrap}
+.ref-ayuda{display:block;font-size:11.5px;color:var(--tinta-media);margin-bottom:2px}
+.referencia-item details.orienta-item{margin-top:7px;font-size:12px;color:var(--tinta-media)}
+.referencia-item details.orienta-item summary{cursor:pointer;font-weight:600;color:var(--brand-oscuro)}
+.referencia-item details.orienta-item ul{margin:6px 0 0;padding-left:18px;line-height:1.5}
+.referencia-item details.orienta-item li{margin-bottom:4px}
 .referencia-item p.falta{color:#8f2418}
 .referencia-item p.pide-archivo{margin-top:7px;padding-top:7px;border-top:1px dashed var(--linea);
   color:#8a6400}
@@ -748,6 +753,30 @@ tbody tr:hover{background:#fafcfb}
   border:1px solid var(--linea);border-radius:5px;padding:1px 7px;color:var(--tinta-media);background:var(--papel)}
 
 /* -------------------------------------------------------------------- ficha */
+.caja-crono{margin-top:12px;padding:12px 14px;border:1px solid #bfe2ce;border-left:6px solid #1b7f4b;border-radius:10px;background:#f6fbf8}
+.nota-crono{font-size:13.5px;color:var(--tinta-media);margin:6px 0 0}
+.aviso-crono{font-size:13.5px;color:#8a4b00;background:#fdf4e3;border-left:4px solid #d99a1b;padding:8px 10px;border-radius:6px;margin:8px 0 0}
+.tabla-crono{border-collapse:collapse;font-size:13.5px;margin-top:8px}
+.tabla-crono th{background:#0b3b2e;color:#fff;padding:5px 8px;font-weight:600}
+.tabla-crono td{border:1px solid var(--linea);padding:5px 8px}
+.doc-ref{display:flex;gap:14px;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;margin-bottom:8px}
+.doc-ref.pendiente{background:#fffaf0;border-color:#ecd08f}
+.doc-ref.listo{background:#f2f9f5;border-color:#bfe2ce}
+.doc-ref>div:first-child{flex:1;min-width:280px}
+.doc-ref>div:first-child>b{font-size:15px;color:#1d2a24;font-weight:700}
+.doc-ref.pendiente>div:first-child>b{color:#1d2a24}
+.doc-acc{display:flex;gap:8px;align-items:center}
+.estado-doc{font-size:12.5px;font-weight:600;padding:2px 8px;border-radius:999px}
+.estado-doc.ok{background:#dff2e7;color:#1b7f4b}.estado-doc.pend{background:#fbe7c6;color:#8a4b00}
+.guia-rapida{border:1px solid #c9d8f0;background:#f4f8fe;border-radius:10px;padding:10px 14px;margin:0 0 12px}
+.guia-rapida summary{cursor:pointer;font-weight:700;font-size:15px}
+.guia-rapida h4{margin:10px 0 4px;font-size:14px}
+.guia-rapida ol{margin:0;padding-left:20px;font-size:14px;line-height:1.5}
+.guia-rapida ul.biblioteca{margin:4px 0 0;padding-left:20px;font-size:14px;line-height:1.5}
+.guia-rapida ul.biblioteca li{margin-bottom:8px}
+.nota-doc{font-size:13px;color:var(--tinta-media)}
+.atajos-doc{font-size:12.5px;margin-left:4px}
+.aviso-doc{margin:4px 0 0;padding:6px 9px;font-size:13px;background:#fff4e0;border-left:3px solid #e0a030;border-radius:4px;color:#5a3d00}
 .migas{font-size:12px;color:var(--tinta-media);margin-bottom:12px}
 header .btn.activo{background:var(--brand-suave);font-weight:600}
 .migas button{
@@ -970,6 +999,8 @@ label .req{color:var(--falla)}
       <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
       <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
     </div>
+    <div id="guiaRapida"></div>
+    <div id="avisoCalendario"></div>
     <div id="tableroAlertas"></div>
     <div class="tabla" id="tableroTabla"></div>
   </section>
@@ -981,7 +1012,7 @@ label .req{color:var(--falla)}
     <section class="tarjeta">
       <header class="tarjeta-cab"><div>
         <h2>Preparar el ciclo</h2>
-        <p>Los seis pasos para dejar un ciclo listo, en orden. Cada uno muestra cómo va y
+        <p>Los siete pasos para dejar un ciclo listo, en orden. Cada uno muestra cómo va y
            lleva al sitio donde se resuelve.</p>
       </div></header>
       <div class="tarjeta-cuerpo">
@@ -1002,6 +1033,48 @@ label .req{color:var(--falla)}
         </div>
         <div id="logSupervisa" class="consola oculto"></div>
       </div>
+    </section>
+
+    <section class="tarjeta" id="tarjetaCalendario">
+      <header class="tarjeta-cab"><div>
+        <span class="paso">6</span><h2>Calendario académico del ciclo <span id="calCiclo"></span></h2>
+        <p>Se registra <b>una vez por ciclo</b>, cuando el Consejo Universitario aprueba el calendario
+           (Intranet de la URP). Copie aquí las fechas de la tabla oficial: inicio de clases, semana de
+           parciales, semana de finales y cierre de actas.</p>
+      </div></header>
+      <div class="tarjeta-cuerpo">
+        <p class="ayuda" style="margin-top:0">Con estas fechas el portal decide solo si el semestre está en curso o en
+          cierre, y exige el examen parcial (o el final) en el portafolio a los 3 días de terminada su
+          semana de exámenes (plazo para devolver las evaluaciones corregidas). Mientras falte, Mis cursos muestra un aviso.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px;margin:10px 0">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Inicio de clases<input type="date" id="cal_inicio"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Parciales · desde<input type="date" id="cal_parcialesIni"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Parciales · hasta<input type="date" id="cal_parcialesFin"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Finales · desde<input type="date" id="cal_finalesIni"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Finales · hasta<input type="date" id="cal_finalesFin"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Sustitutorios · desde (opcional)<input type="date" id="cal_sustitutoriosIni"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Sustitutorios · hasta (opcional)<input type="date" id="cal_sustitutoriosFin"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Cierre de actas · desde<input type="date" id="cal_cierreIni"></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Cierre de actas · hasta<input type="date" id="cal_cierreFin"></label>
+        </div>
+        <label style="display:flex;flex-direction:column;gap:4px;font-size:14px;max-width:520px">Acuerdo que lo aprueba (opcional)
+          <input type="text" id="cal_acuerdo" placeholder="Ej.: Acuerdo del Consejo Universitario N.° 1153-2025"></label>
+        <div class="buscador" style="margin-top:12px">
+          <button class="btn" id="btnGuardarCal">Guardar calendario</button>
+          <span id="calEstado" class="conteo"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="tarjeta" id="tarjetaDocumentos">
+      <header class="tarjeta-cab"><div>
+        <h2>Documentos de referencia</h2>
+        <p>La normativa que el portal cita como sustento: Guía Operativa Docente, Guía del Coordinador, directiva de
+           rotulado, estructura del portafolio… <b>Súbalos cuando tenga la versión vigente</b> (PDF). Cada tarjeta dice
+           para qué sirve el documento y, mientras falte, qué está usando el portal en su lugar. Los coordinadores ven
+           la lista de pendientes en la guía rápida de Mis cursos.</p>
+      </div></header>
+      <div class="tarjeta-cuerpo"><div id="listaDocumentos"><div class="vacio">Pulsa «Ver cómo va» para revisar.</div></div></div>
     </section>
 
     <section class="tarjeta" id="tarjetaImportar">
@@ -1512,6 +1585,7 @@ label .req{color:var(--falla)}
         <p class="solo-consulta oculto" id="fichaAlcance" style="display:inline-block;margin:8px 0 0"></p>
         <div class="meta" id="fichaMeta"></div>
         <div class="llave mono" id="fichaLlave"></div>
+        <div id="cajaCronograma"></div>
       </div>
       <div class="ficha-cuerpo">
         <div id="fichaForm"></div>
@@ -1804,7 +1878,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '10/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.01';
+  const VERSION_INTERNA = '2026-10-12.11';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2054,6 +2128,447 @@ label .req{color:var(--falla)}
 
   /* ---------------------------------------------------------------- tablero */
 
+
+  /* --------------------------------------------- calendario académico ---- */
+  // Uno por ciclo, para toda la Facultad. Lo registra el administrador en
+  // Preparar el ciclo. Con él, el portal decide solo si el semestre está en
+  // curso o en cierre, y desde cuándo un examen parcial o final ya debía estar
+  // en el portafolio (una semana después de su semana de exámenes).
+  const CAL = { ciclo: null, datos: undefined };
+  // Plazo del docente para devolver las evaluaciones corregidas: 3 días,
+  // contados desde el último día de la semana de exámenes.
+  const GRACIA_DIAS = 3;
+  function cicloVigente() { return ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO || ''; }
+  function hoyLima() { return new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10); }
+  function sumarDias(iso, n) {
+    const d = new Date(iso + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
+  }
+  function fechaCal(iso) {
+    if (!iso) return '';
+    const M = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'set', 'oct', 'nov', 'dic'];
+    return Number(iso.slice(8, 10)) + ' ' + M[Number(iso.slice(5, 7)) - 1];
+  }
+  function cargarCalendario(ciclo, forzar) {
+    ciclo = ciclo || cicloVigente();
+    if (!forzar && CAL.ciclo === ciclo && CAL.datos !== undefined) return Promise.resolve(CAL.datos);
+    return api('/calendario?ciclo=' + encodeURIComponent(ciclo))
+      .then(d => { if (ciclo === cicloVigente() || !CAL.ciclo) { CAL.ciclo = ciclo; CAL.datos = d.calendario || null; } return d.calendario || null; })
+      .catch(() => null);
+  }
+  function momentoSegunCalendario(cal) {
+    if (!cal) return null;
+    return hoyLima() >= cal.cierreIni ? 'cierre' : 'ciclo';
+  }
+  // ¿Esta evaluación ya debía estar en el portafolio, según el calendario?
+  function evaluacionVencida(nombreEval) {
+    const cal = CAL.datos, hoy = hoyLima();
+    if (!cal) return false;
+    if (/parcial/i.test(nombreEval)) return hoy > sumarDias(cal.parcialesFin, GRACIA_DIAS);
+    if (/final/i.test(nombreEval)) return hoy > sumarDias(cal.finalesFin, GRACIA_DIAS);
+    return false;
+  }
+  function resumenCalendario(cal) {
+    return 'clases desde el ' + fechaCal(cal.inicio) +
+      ' · parciales del ' + fechaCal(cal.parcialesIni) + ' al ' + fechaCal(cal.parcialesFin) +
+      ' · finales del ' + fechaCal(cal.finalesIni) + ' al ' + fechaCal(cal.finalesFin) +
+      (cal.sustitutoriosIni ? ' · sustitutorios del ' + fechaCal(cal.sustitutoriosIni) + ' al ' + fechaCal(cal.sustitutoriosFin || cal.sustitutoriosIni) : '') +
+      ' · cierre de actas del ' + fechaCal(cal.cierreIni) + ' al ' + fechaCal(cal.cierreFin);
+  }
+  function irARegistrarCalendario() {
+    mostrar('ciclo', false, true);
+    if (!$('cicloPrep').value) $('cicloPrep').value = cicloVigente();
+    verEstadoCiclo();
+    setTimeout(() => $('tarjetaCalendario').scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+  }
+  // Aviso en Mis cursos mientras el ciclo no tenga calendario.
+  function pintarAvisoCalendario() {
+    const caja = $('avisoCalendario');
+    if (!caja) return;
+    caja.innerHTML = '';
+    if (!(estado.admin || estado.general)) return;
+    const ciclo = cicloVigente();
+    if (!ciclo) return;
+    cargarCalendario(ciclo).then(cal => {
+      if (cal || ciclo !== cicloVigente()) return;
+      caja.innerHTML = '<div style="background:#fdf4e3;border:1px solid #ecd08f;border-left:6px solid #d99a1b;' +
+        'border-radius:10px;padding:12px 14px;margin:0 0 12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap">' +
+        '<span style="font-size:22px">📅</span><div style="flex:1;min-width:260px"><b>Falta registrar el calendario académico ' +
+        esc(ciclo) + '.</b><br><span style="font-size:14px;color:var(--tinta-media)">Sin él, la revisión de portafolios no sabe ' +
+        'qué evaluaciones ya debían tomarse y hay que elegir a mano si el semestre está en curso o en cierre.' +
+        (estado.admin ? '' : ' Lo registra el administrador del portal.') + '</span></div>' +
+        (estado.admin ? '<button class="btn" id="btnAvisoCal">Registrar ahora</button>' : '') + '</div>';
+      if ($('btnAvisoCal')) $('btnAvisoCal').addEventListener('click', irARegistrarCalendario);
+    });
+  }
+  const CAMPOS_CAL = [
+    ['inicio', 'Inicio de clases', true], ['parcialesIni', 'Exámenes parciales · desde', true], ['parcialesFin', 'Exámenes parciales · hasta', true],
+    ['finalesIni', 'Exámenes finales · desde', true], ['finalesFin', 'Exámenes finales · hasta', true],
+    ['sustitutoriosIni', 'Exámenes sustitutorios · desde', false], ['sustitutoriosFin', 'Exámenes sustitutorios · hasta', false],
+    ['cierreIni', 'Cierre de actas · desde', true], ['cierreFin', 'Cierre de actas · hasta', true]
+  ];
+  function cargarFormCalendario() {
+    const ciclo = $('cicloPrep').value.trim();
+    $('calCiclo').textContent = ciclo || '—';
+    $('calEstado').textContent = 'Consultando…';
+    CAMPOS_CAL.forEach(([k]) => { $('cal_' + k).value = ''; });
+    $('cal_acuerdo').value = '';
+    return cargarCalendario(ciclo, true).then(cal => {
+      if (cal) {
+        CAMPOS_CAL.forEach(([k]) => { $('cal_' + k).value = cal[k] || ''; });
+        $('cal_acuerdo').value = cal.acuerdo || '';
+        $('calEstado').innerHTML = '<span style="color:#1b7f4b"><b>✔ Registrado</b></span>' +
+          (cal.registrado ? ' el ' + esc(cal.registrado) + (cal.por ? ' por ' + esc(cal.por) : '') : '') + '.';
+      } else {
+        $('calEstado').innerHTML = '<span style="color:#b42318"><b>Falta registrar el calendario de ' + esc(ciclo) + '.</b></span>';
+      }
+      return cal;
+    });
+  }
+  function guardarCalendario() {
+    const ciclo = $('cicloPrep').value.trim();
+    if (!ciclo) { alert('Escriba el ciclo arriba (por ejemplo 2026 II).'); return; }
+    const cal = { acuerdo: $('cal_acuerdo').value.trim() };
+    const faltan = [];
+    CAMPOS_CAL.forEach(([k, et, oblig]) => { const v = $('cal_' + k).value; if (v) cal[k] = v; else if (oblig) faltan.push(et); });
+    if (faltan.length) { alert('Faltan estas fechas:\n• ' + faltan.join('\n• ')); return; }
+    const orden = ['inicio', 'parcialesIni', 'parcialesFin', 'finalesIni', 'finalesFin', 'cierreIni', 'cierreFin'];
+    for (let i = 1; i < orden.length; i++) if (cal[orden[i]] < cal[orden[i - 1]]) {
+      alert('Revise el orden de las fechas: «' + CAMPOS_CAL.find(c => c[0] === orden[i])[1] + '» queda antes de «' +
+            CAMPOS_CAL.find(c => c[0] === orden[i - 1])[1] + '».'); return;
+    }
+    $('btnGuardarCal').disabled = true; $('calEstado').textContent = 'Guardando…';
+    api('/calendario', { method: 'POST', body: JSON.stringify({ ciclo, calendario: cal }) })
+      .then(r => {
+        if (r.error) throw new Error(r.error);
+        CAL.ciclo = null; CAL.datos = undefined;
+        return cargarFormCalendario().then(() => { verEstadoCiclo(); pintarAvisoCalendario(); });
+      })
+      .catch(e => { $('calEstado').innerHTML = '<span style="color:#b42318">No se pudo guardar: ' + esc(e.message) + '</span>'; })
+      .finally(() => { $('btnGuardarCal').disabled = false; });
+  }
+
+  // Lee del texto del sílabo el cronograma de evaluaciones: en qué semana y
+  // en qué unidad se entrega cada una. Solo mira la sección de contenidos por
+  // semana (desde la primera «UNIDAD» hasta las estrategias o la evaluación).
+  function leerCronogramaSilabo(texto) {
+    const ROM = { I: 1, II: 2, III: 3, IV: 4, V: 5, VI: 6, VII: 7, VIII: 8, IX: 9, X: 10 };
+    const lineas = String(texto || '').split(/\n/);
+    let enCronograma = false, unidad = '', semana = null;
+    const evs = [], unidades = [], avisos = [], vistos = {};
+    const TIPOS = [
+      { re: /examen\s+parcial/i, tipo: 'Examen Parcial' },
+      { re: /examen\s+final/i, tipo: 'Examen Final' },
+      { re: /taller(?:es)?\s+calificado\s*(?:n[°ºo]?\s*r?o?\.?\s*)?(\d+)?/i, tipo: 'Taller' },
+      { re: /informe\s+(?:de\s+)?(?:taller|laboratorio)?\s*(?:n[°ºo]?\s*r?o?\.?\s*)?(\d+)/i, tipo: 'Informe' },
+      { re: /pr[aá]ctica\s+calificada\s*(?:n[°ºo]?\s*r?o?\.?\s*)?(\d+)?/i, tipo: 'Práctica' },
+      { re: /laboratorio\s+calificado\s*(?:n[°ºo]?\s*r?o?\.?\s*)?(\d+)?/i, tipo: 'Laboratorio' },
+      { re: /trabajo\s+(?:pr[aá]ctico|final|de\s+investigaci[oó]n)/i, tipo: 'Trabajo' }
+    ];
+    for (let i = 0; i < lineas.length; i++) {
+      const l = lineas[i].replace(/\s+/g, ' ').trim();
+      if (!l) continue;
+      const mu = l.match(/^UNIDAD\s+(?:N[°º]?\s*)?([IVX]+|\d+)\b\s*[:.\-–]?\s*(.*)$/i);
+      if (mu) {
+        enCronograma = true;
+        unidad = mu[1].toUpperCase();
+        unidades.push({ unidad, nombre: mu[2].replace(/\.$/, '').slice(0, 120) });
+        continue;
+      }
+      if (!enCronograma) continue;
+      if (/^(V\s*I\s*I\s*I?|I\s*X|X\s*I?)\s*\.\s+\S/.test(l) || /ESTRATEGIAS\s+DID[AÁ]CTICAS|^RECURSOS\b|^EVALUACI[OÓ]N\s*$/i.test(l)) break;
+      const ms = l.match(/^(?:semana\s*)?(\d{1,2})\b(?!\s*(?:hojas|horas|%|\.\d))\s*(.*)$/i);
+      if (ms && Number(ms[1]) >= 1 && Number(ms[1]) <= 18) semana = Number(ms[1]);
+      if (!semana) continue;
+      TIPOS.forEach(t => {
+        const m = l.match(t.re);
+        if (!m) return;
+        if (t.tipo === 'Taller' && /(?:las|los|de\s+las)\s+(?:cuatro|tres|dos)/i.test(l)) return;
+        const num = m[1] ? Number(m[1]) : null;
+        const k = t.tipo + '¦' + (num || '');
+        if (vistos[k]) return;
+        vistos[k] = 1;
+        evs.push({ tipo: t.tipo, num, semana, unidad, texto: l.slice(0, 120) });
+        // Si el texto cita otra unidad que la del bloque, se avisa.
+        const ventana = [lineas[i - 2], lineas[i - 1], lineas[i], lineas[i + 1]].map(x => String(x || '')).join(' ').replace(/\s+/g, ' ');
+        const cita = ventana.match(/(?:contenido\s+de\s+la\s+)?unidad\s+([IVX]+|\d+)\b(?!\s*:)/i);
+        if (cita && unidad) {
+          const a = isNaN(cita[1]) ? ROM[cita[1].toUpperCase()] : Number(cita[1]);
+          const b = isNaN(unidad) ? ROM[unidad] : Number(unidad);
+          if (a && b && a !== b) avisos.push(t.tipo + (num ? ' ' + num : '') + ' (semana ' + semana + ', Unidad ' + unidad +
+            '): el texto dice «unidad ' + cita[1] + '». Revise si es un error de redacción.');
+        }
+      });
+    }
+    evs.sort((a, b) => a.semana - b.semana);
+    return { evaluaciones: evs, unidades, avisos };
+  }
+
+  /* ------------------------------ cronograma de evaluaciones (sílabo) ---- */
+  // El cronograma de cada curso se lee de su sílabo una vez por ciclo, en la
+  // ficha Sílabo de cualquiera de sus cargas (el sílabo es único por curso).
+  const CRONOS = {};          // carrera¦ciclo → { CODIGO: { evaluaciones, ... } }
+  function codLimpio(c) { return String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); }
+  function cargarCronogramas(carreras, forzar) {
+    const ciclo = cicloVigente();
+    return Promise.all((carreras || []).filter(Boolean).map(p => {
+      const k = p + '¦' + ciclo;
+      if (!forzar && CRONOS[k]) return CRONOS[k];
+      return api('/cronograma?programa=' + encodeURIComponent(p) + '&ciclo=' + encodeURIComponent(ciclo))
+        .then(d => (CRONOS[k] = d.cronogramas || {}))
+        .catch(() => (CRONOS[k] = {}));
+    }));
+  }
+  function cronoDe(codigo, programa) {
+    const ciclo = cicloVigente(), c = codLimpio(codigo);
+    if (programa && CRONOS[programa + '¦' + ciclo] && CRONOS[programa + '¦' + ciclo][c]) return CRONOS[programa + '¦' + ciclo][c];
+    for (const k of Object.keys(CRONOS)) if (k.endsWith('¦' + ciclo) && CRONOS[k][c]) return CRONOS[k][c];
+    return null;
+  }
+  function grupoEval(t) {
+    t = sinTildes(t || '');
+    if (/parcial/.test(t)) return 'parcial';
+    if (/final/.test(t) && !/trabajo/.test(t)) return 'final';
+    if (/taller|informe/.test(t)) return 'taller';
+    if (/practica/.test(t)) return 'practica';
+    if (/laborat/.test(t)) return 'laboratorio';
+    if (/trabajo|proyecto/.test(t)) return 'trabajo';
+    return t;
+  }
+  function finDeSemana(cal, semana) { return sumarDias(cal.inicio, 7 * (semana - 1) + 5); }
+  // ¿Desde cuándo se exige esta evaluación en el portafolio? Primero manda el
+  // cronograma del sílabo; para parcial y final, si no hay, el calendario.
+  function vencimientoEval(codigo, programa, evalNombre, n) {
+    const cal = CAL.datos;
+    if (!cal) return { sinCalendario: true };
+    const cr = cronoDe(codigo, programa), g = grupoEval(evalNombre);
+    let semana = null, fin = null, fuente = '';
+    if (cr) {
+      const cands = (cr.evaluaciones || []).filter(e => grupoEval(e.tipo) === g);
+      let e = n ? cands.find(c => Number(c.num) === Number(n)) : null;
+      if (!e && cands.length === 1 && (!n || Number(n) === 1)) e = cands[0];
+      if (e) { semana = e.semana; fin = finDeSemana(cal, semana); fuente = 'cronograma del sílabo'; }
+    }
+    if (!fin && g === 'parcial') { fin = cal.parcialesFin; fuente = 'calendario académico'; }
+    if (!fin && g === 'final') { fin = cal.finalesFin; fuente = 'calendario académico'; }
+    if (!fin) return { sinFecha: true, sinCrono: !cr };
+    const desde = sumarDias(fin, GRACIA_DIAS + 1);
+    return { vencida: hoyLima() >= desde, desde, semana, fuente };
+  }
+
+  function pintarCajaCronograma() {
+    const caja = $('cajaCronograma');
+    const a = estado.actual || {};
+    if (!caja || !a.codigo) return;
+    const ciclo = cicloVigente();
+    caja.innerHTML = '<div class="nota-crono">Consultando el cronograma…</div>';
+    Promise.all([cargarCalendario(), cargarCronogramas([a.programa], true)]).then(([cal]) => {
+      const cr = cronoDe(a.codigo, a.programa);
+      const fila = e => {
+        const fin = cal && e.semana ? finDeSemana(cal, e.semana) : '';
+        return '<tr><td>' + esc(e.tipo + (e.num ? ' ' + e.num : '')) + '</td><td style="text-align:center">' + esc(e.semana || '') +
+          '</td><td style="text-align:center">' + esc(e.unidad || '') + '</td><td>' +
+          (fin ? 'hasta el ' + fechaCal(fin) + ' · se exige desde el ' + fechaCal(sumarDias(fin, GRACIA_DIAS + 1)) : 'sin calendario') + '</td></tr>';
+      };
+      const tabla = evs => '<table class="tabla-crono"><tr><th>Evaluación</th><th>Semana</th><th>Unidad</th><th>En el portafolio</th></tr>' +
+        evs.map(fila).join('') + '</table>';
+      caja.innerHTML =
+        '<div class="caja-crono">' +
+        '<b>📅 Cronograma de evaluaciones del sílabo</b> ' +
+        (cr ? '<span style="color:#1b7f4b;font-weight:600">✔ Registrado</span>' : '<span style="color:#b42318;font-weight:600">Falta registrar</span>') +
+        '<p class="nota-crono"><b>¿Qué hay que hacer?</b> Elija el PDF (o Word) del sílabo del curso. El portal lee en qué semana y unidad ' +
+        'se entrega cada evaluación (talleres, prácticas, parcial, final) y lo muestra para que usted lo confirme. Se registra <b>una vez por ' +
+        'curso y ciclo</b>: sirve para todos los grupos. Con esto, la revisión del portafolio exige cada evaluación ' + GRACIA_DIAS +
+        ' días después de terminada su semana (plazo para devolver las evaluaciones corregidas).' +
+        (cal ? '' : ' <b>Falta el calendario académico ' + esc(ciclo) + '</b>: sin él no se pueden calcular las fechas.') + '</p>' +
+        (cr ? tabla(cr.evaluaciones || []) + ((cr.avisos || []).length ? '<p class="aviso-crono">⚠ ' + cr.avisos.map(esc).join('<br>⚠ ') + '</p>' : '') +
+              '<p class="nota-crono">Registrado' + (cr.registrado ? ' el ' + esc(cr.registrado) : '') + (cr.por ? ' por ' + esc(cr.por) : '') +
+              '. Si el sílabo cambia, vuelva a leerlo.</p>' : '') +
+        '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">' +
+        '<label class="btn gris" style="cursor:pointer">' + (cr ? 'Volver a leer el sílabo' : 'Leer el sílabo (PDF o Word)') +
+        '<input type="file" id="archCrono" accept=".pdf,.docx" style="display:none"></label>' +
+        '<span id="avisoCrono" class="nota-crono"></span></div><div id="previaCrono"></div></div>';
+      $('archCrono').addEventListener('change', async ev => {
+        const arch = ev.target.files[0];
+        if (!arch) return;
+        $('avisoCrono').textContent = 'Leyendo ' + arch.name + '…';
+        try {
+          const texto = await textoDelArchivo(arch);
+          const r = leerCronogramaSilabo(texto);
+          if (!r.evaluaciones.length) {
+            $('avisoCrono').textContent = 'No se encontró el cronograma: el sílabo debe indicar en qué semana se entrega cada ' +
+              'evaluación (por ejemplo «Semana 4 … Taller Calificado Nro. 1»). Revise el sílabo con el docente.';
+            return;
+          }
+          $('avisoCrono').textContent = 'Revise lo que se leyó y pulse «Guardar cronograma».';
+          $('previaCrono').innerHTML = tabla(r.evaluaciones) +
+            ((r.avisos || []).length ? '<p class="aviso-crono">⚠ ' + r.avisos.map(esc).join('<br>⚠ ') +
+              '<br><span style="font-weight:400">Coméntelo al docente para que corrija el sílabo.</span></p>' : '') +
+            '<button class="btn" id="btnGuardarCrono" style="margin-top:8px">Guardar cronograma</button>';
+          $('btnGuardarCrono').addEventListener('click', () => {
+            $('btnGuardarCrono').disabled = true;
+            api('/cronograma', { method: 'POST', body: JSON.stringify({ programa: a.programa, ciclo, codigo: a.codigo,
+              curso: nombreCurso(a.asignatura), evaluaciones: r.evaluaciones, unidades: r.unidades, avisos: r.avisos }) })
+              .then(x => { if (x.error) throw new Error(x.error); pintarCajaCronograma(); })
+              .catch(e => { $('avisoCrono').textContent = 'No se pudo guardar: ' + e.message; $('btnGuardarCrono').disabled = false; });
+          });
+        } catch (e) { $('avisoCrono').textContent = e.message; }
+      });
+    });
+  }
+
+  /* -------------------------------------------- documentos de referencia ---- */
+  // Lo que el portal cita como sustento. Mientras un documento no se suba, su
+  // tarjeta dice qué falta y qué se está usando en su lugar.
+  const DOCS_REF = [
+    { k: 'guia_operativa_docente', n: 'Guía Operativa Docente (FI-GFP-GA-001, v01)',
+      para: 'Código FI-GFP-GA-001, versión 01 (20/03/2026), vigente. Sustento de las observaciones: 4.1 (criterios de calidad del sílabo), 4.4 (evaluación: publicar antes la rúbrica e instrucciones; en cada pregunta de las evaluaciones escritas, la unidad y el puntaje; retroalimentación máximo 2 semanas después), 4.5 (portafolio: enunciado en PDF; mayor, menor y nota promedio escaneadas en PDF; materiales solo en el aula virtual; sin videos) y 4.6 (supervisión: aviso al docente con 5 días de anticipación, 3 días para subsanar, acta Conforme / No conforme).',
+      hoy: 'Vigente (aprobada el 20/03/2026 para 2026-I y sigue en vigor). El portal cita sus numerales en las observaciones del portafolio y del sílabo.',
+      local: 'docs/guia-operativa-docente.pdf',
+      estudiar: 'Es corta (6 páginas) y es la que más se cita. Lea 4.1 (criterios del sílabo), 4.4 (evaluación: publicar antes la rúbrica; en cada pregunta, la unidad y el puntaje; retroalimentación en 2 semanas), 4.5 (evidencias del portafolio) y 4.6 (supervisión: 5 días de aviso, 3 días para subsanar, acta). Lo que usa el portal está resaltado en amarillo.',
+      atajos: [{ pag: 3, t: '4.1 sílabo' }, { pag: 4, t: '4.4 evaluación' }, { pag: 5, t: '4.5 portafolio' }, { pag: 6, t: '4.6 supervisión' }] },
+    { k: 'guia_coordinador', n: 'Guía del Coordinador (última versión)',
+      para: 'Funciones de cada rol. Entre otras: las reuniones o entrevistas con los delegados y subdelegados las realiza el coordinador general de la carrera, no los coordinadores de área; plazo de ' + GRACIA_DIAS + ' días para devolver al estudiante las evaluaciones corregidas; lo de la unidad y el puntaje en cada pregunta ya está en la Guía Operativa Docente (4.4).',
+      hoy: 'Pendiente de la versión final. Mientras tanto, estas reglas se aplican por indicación del administrador y las observaciones no citan numeral.',
+      aviso: 'Documento en proceso de aprobación. La versión actual todavía no incorpora este cambio: las reuniones o entrevistas con los delegados y subdelegados pasan a ser responsabilidad del coordinador general de la carrera, no de los coordinadores de área. Mientras se aprueba la versión final, aplique esta indicación; el enlace aparecerá aquí cuando se suba.' },
+    { k: 'directiva_rotulado', n: 'Directiva de rotulado de evidencias (Calidad y Acreditación)',
+      para: 'Nombre que debe tener cada archivo del portafolio: CÓDIGO.SIGLA.PERIODO y, en las evidencias, .Nombre Apellido.Mayor|Menor|Promedio.Nota.',
+      hoy: 'El portal ya revisa el rotulado con esta regla. Suba la directiva para que quede como referencia. Mientras tanto puede consultar la guía práctica del portal.',
+      local: 'docs/guia-rotulado.html', localTexto: 'guía práctica de rotulado (del portal)', noOficial: true },
+    { k: 'estructura_portafolio', n: 'Estructura del portafolio digital (Calidad y Acreditación)',
+      para: 'Carpetas que debe tener cada portafolio (subcarpeta EVALUACIONES con una carpeta por evaluación).',
+      hoy: 'El portal ya revisa esta estructura. Suba el documento para que quede como referencia.' },
+    { k: 'procedimiento_informacion', n: 'Procedimiento de Información Documentada (FI-GCA-PR-001)',
+      para: 'Control de los documentos del SGOE: versiones vigentes, copias controladas y no controladas.',
+      hoy: 'Vigente (versión 03, aprobada el 10/10/2026).',
+      local: 'docs/procedimiento-informacion-documentada.pdf' },
+    { k: 'guia_silabos', n: 'Guía de Elaboración de Sílabos (ODACA-GCA-G-02, rev. 01)',
+      para: 'Sustento de los once puntos de la revisión del sílabo: datos administrativos, sumilla tal cual del plan, competencias, componentes, logro, 3 a 4 unidades con programación semanal, estrategias, recursos, matriz de evaluación (primera mitad máximo 35 %) y referencias APA.',
+      hoy: 'Vigente (13.03.2025). El portal la cita en cada punto del sílabo.',
+      local: 'docs/guia-elaboracion-silabos.pdf', estudiar: 'Antes de revisar un sílabo, lea la estructura (11 elementos) y el ejemplo de cada uno: logro, unidades, programación semanal y matriz de evaluación. En la copia del portal está resaltado en amarillo lo que se usa en cada punto de la revisión, con una etiqueta roja en el margen («Punto 08», etc.).',
+      atajos: [{ pag: 6, t: 'logro y unidades' }, { pag: 7, t: 'estrategias' }, { pag: 8, t: 'matriz de evaluación (35 %)' }, { pag: 17, t: 'ejemplo con rúbrica' }] },
+    { k: 'modelo_pedagogico', n: 'Modelo Pedagógico de la URP (ODACA)',
+      para: 'Estándar de las estrategias didácticas del sílabo (4.1.1, Figura 14: proyectos, problemas, colaborativo, estudio de casos, aprendizaje servicio, TIC y juegos), técnicas de la Figura 15, pasos de la sesión (Tabla 8), evaluación por producto con criterios en el sílabo (4.1.4) y modelo de sílabo (Anexo 1).',
+      hoy: 'Vigente. El portal lo cita en los puntos 08 (estrategias) y 10 (evaluación).',
+      local: 'docs/modelo-pedagogico-urp.pdf', estudiar: 'Lo esencial para la revisión: 4.1.1 Estrategias didácticas (Figura 14, p. 108, y técnicas de la Figura 15, p. 109), 4.1.3 Pasos de la sesión (Tabla 8, p. 114), 4.1.4 Evaluación por competencias y el Anexo 1, modelo de sílabo. Lo que el portal usa está resaltado en amarillo, con una etiqueta roja en el margen.',
+      atajos: [{ pag: 108, t: 'Figura 14: estrategias didácticas' }, { pag: 109, t: 'estrategia y técnica' }, { pag: 114, t: 'Tabla 8: pasos de la sesión' }, { pag: 116, t: 'criterios y producto' }, { pag: 157, t: 'Anexo 1: modelo de sílabo' }] },
+    { k: 'taxonomia_bloom', n: 'Taxonomía de Bloom (documento de referencia de la Facultad)',
+      para: 'Verbos observables para redactar el logro de la asignatura y de cada unidad (punto 06 del sílabo).',
+      hoy: 'Vigente.', local: 'docs/taxonomia-bloom.pdf' },
+    { k: 'reglamento_evaluacion', n: 'Reglamento de evaluación del estudiante',
+      para: 'Reglas de evaluación (sustitutorio, promedio, plazos de entrega de notas), por si se necesita citarlas.',
+      hoy: 'Opcional. Súbalo si se va a citar en las observaciones.' }
+  ];
+  // Enlace para leer el documento: el subido al portal manda; si no hay, la
+  // copia de consulta publicada con el portal (carpeta docs/).
+  function enlaceDoc(d, docs) {
+    const x = (docs || DOCS_CARGADOS || {})[d.k];
+    if (x && x.url) return { url: x.url, texto: 'abrir' + (x.version ? ' (' + x.version + ')' : ''), subido: true };
+    if (d.local) return { url: d.local, texto: d.localTexto || 'abrir copia de consulta', subido: false };
+    return null;
+  }
+  let DOCS_CARGADOS = null;
+  function cargarDocumentos(forzar) {
+    if (DOCS_CARGADOS && !forzar) return Promise.resolve(DOCS_CARGADOS);
+    return api('/documentos').then(d => (DOCS_CARGADOS = d.documentos || {})).catch(() => (DOCS_CARGADOS = {}));
+  }
+  function pintarDocumentos() {
+    const caja = $('listaDocumentos');
+    if (!caja) return;
+    caja.innerHTML = '<div class="vacio">Cargando…</div>';
+    cargarDocumentos(true).then(docs => {
+      caja.innerHTML = DOCS_REF.map(d => {
+        const x = docs[d.k];
+        return '<div class="doc-ref ' + (x && x.url ? 'listo' : 'pendiente') + '">' +
+          '<div><b>' + esc(d.n) + '</b> ' + (x && x.url
+            ? '<span class="estado-doc ok">✔ Subido' + (x.version ? ' · ' + esc(x.version) : '') + '</span> <a href="' + esc(x.url) +
+              '" target="_blank" rel="noopener">abrir</a>'
+            : (d.local && !d.noOficial
+                ? '<span class="estado-doc ok">✔ Copia de consulta publicada</span> <a href="' + esc(d.local) + '" target="_blank" rel="noopener">abrir</a>'
+                : '<span class="estado-doc pend">Pendiente de subir</span>' + (d.local ? ' <a href="' + esc(d.local) + '" target="_blank" rel="noopener">' + esc(d.localTexto || 'abrir') + '</a>' : ''))) +
+          (d.aviso ? '<p class="aviso-doc">⚠ ' + esc(d.aviso) + '</p>' : '') +
+          '<p class="nota-crono"><b>Para qué sirve:</b> ' + esc(d.para) + '</p>' +
+          '<p class="nota-crono"><b>Mientras tanto:</b> ' + esc(x && x.url ? 'En uso la versión subida' + (x.subido ? ' el ' + x.subido : '') + '.' : d.hoy) + '</p></div>' +
+          (estado.admin ? '<div class="doc-acc"><input type="text" placeholder="Versión (ej.: v03)" class="docVer" data-k="' + d.k + '" style="width:130px">' +
+            '<label class="btn gris" style="cursor:pointer">' + (x && x.url ? 'Reemplazar' : 'Subir PDF') +
+            '<input type="file" class="docArch" data-k="' + d.k + '" accept=".pdf,.docx" style="display:none"></label></div>' : '') +
+          '</div>';
+      }).join('');
+      caja.querySelectorAll('.docArch').forEach(inp => inp.addEventListener('change', ev => {
+        const arch = ev.target.files[0], k = inp.dataset.k;
+        if (!arch) return;
+        if (arch.size > 15 * 1024 * 1024) { alert('El archivo pasa de 15 MB.'); return; }
+        const ver = (caja.querySelector('.docVer[data-k="' + k + '"]') || {}).value || '';
+        const lector = new FileReader();
+        lector.onload = () => {
+          const b64 = String(lector.result).split(',')[1];
+          const cerrar = mostrarEspera('Subiendo el documento', arch.name);
+          api('/documentos', { method: 'POST', limiteMs: 180000, body: JSON.stringify({ clave: k,
+            nombre: DOCS_REF.find(d => d.k === k).n, version: ver, archivo: arch.name, tipo: arch.type || 'application/pdf', base64: b64 }) })
+            .then(r => { cerrar(); if (r.error) throw new Error(r.error); pintarDocumentos(); })
+            .catch(e => { cerrar(); alert('No se pudo subir: ' + e.message); });
+        };
+        lector.readAsDataURL(arch);
+      }));
+    });
+  }
+
+  /* ------------------------------------------------ guía rápida (notas) ---- */
+  // Biblioteca para estudiar: los documentos oficiales con su enlace, para qué
+  // sirven y qué leer primero. La ven todos los roles.
+  const ORDEN_BIBLIO = ['guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'guia_coordinador', 'directiva_rotulado', 'estructura_portafolio', 'procedimiento_informacion', 'reglamento_evaluacion'];
+  function bibliotecaHtml(docs) {
+    const items = ORDEN_BIBLIO.map(k => DOCS_REF.find(d => d.k === k)).filter(Boolean).map(d => {
+      const e = enlaceDoc(d, docs);
+      const titulo = e && !d.noOficial
+        ? '<a href="' + esc(e.url) + '" target="_blank" rel="noopener"><b>' + esc(d.n) + '</b></a>'
+        : '<b>' + esc(d.n) + '</b> <span class="estado-doc pend">' + (d.aviso ? 'En aprobación' : 'Pendiente') + '</span>' +
+          (e ? ' · <a href="' + esc(e.url) + '" target="_blank" rel="noopener">' + esc(e.texto) + '</a>' : '');
+      const atajos = (e && d.atajos && !e.subido) ? ' <span class="atajos-doc">Ir a: ' + d.atajos.map(a =>
+        '<a href="' + esc(e.url) + '#page=' + a.pag + '" target="_blank" rel="noopener">' + esc(a.t) + '</a>').join(' · ') + '</span>' : '';
+      return '<li>' + titulo + atajos +
+        '<div class="nota-doc">' + esc(d.estudiar || d.para) + '</div>' +
+        (d.aviso ? '<div class="aviso-doc">⚠ ' + esc(d.aviso) + '</div>' : '') + '</li>';
+    }).join('');
+    return '<h4>📚 Documentos oficiales para estudiar</h4>' +
+      '<p class="nota-crono">Son la base de lo que el portal revisa. Léalos con calma: cada observación que se hace al docente debe poder explicarse con uno de ellos.</p>' +
+      '<ul class="biblioteca">' + items + '</ul>';
+  }
+  function pintarGuiaRapida() {
+    const caja = $('guiaRapida');
+    if (!caja) return;
+    const rol = estado.admin ? 'admin' : (estado.general ? 'general' : 'area');
+    const area = [
+      '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión; en verde los ya registrados.',
+      '<b>Sílabo:</b> adjunte el sílabo del docente para revisarlo y, en la misma ficha, pulse <b>«Leer el sílabo»</b> para registrar el cronograma de evaluaciones (una vez por curso y ciclo). Sin cronograma, el portal no sabe cuándo debió subirse cada taller o práctica.',
+      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio, en PDF y bien rotuladas. En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
+      '<b>Delegados:</b> registre a los delegados de cada curso. <b>La reunión o entrevista con delegados y subdelegados la realiza el coordinador general de la carrera</b>, no el coordinador de área.',
+      '<b>El asistente</b> (botón verde de abajo a la derecha) le muestra lo que encuentra y propone; <b>usted decide</b> y marca Cumple, Parcial o No cumple.'
+    ];
+    const general = [
+      '<b>Entrevista con delegados y subdelegados:</b> la registra usted, una por carrera y ciclo, en <b>Coordinadores → Entrevista con los delegados</b>.',
+      '<b>Plazos de F1 a F3</b> de su carrera: en <b>Coordinadores</b>.',
+      '<b>Reportes y avisos a docentes</b> (formularios y portafolios) e <b>informe al Director</b>: en <b>Indicadores</b>.'
+    ];
+    const admin = [
+      '<b>Al empezar cada ciclo</b>, en <b>Preparar el ciclo</b>: áreas, coordinadores, catálogo, cursos comunes, carga lectiva y <b>calendario académico</b>.',
+      '<b>Documentos de referencia</b> (Guía Operativa Docente, Guía del Coordinador, directiva de rotulado…): súbalos en <b>Preparar el ciclo → Documentos de referencia</b> cuando tenga la versión vigente. Mientras falten, el portal dice qué está usando en su lugar.'
+    ];
+    const lista = l => '<ol>' + l.map(x => '<li>' + x + '</li>').join('') + '</ol>';
+    caja.innerHTML = '<details class="guia-rapida"' + (rol === 'area' ? ' open' : '') + '><summary>📘 ¿Qué tengo que hacer? Guía rápida</summary>' +
+      '<div class="guia-cuerpo"><h4>Coordinador de área</h4>' + lista(area) +
+      (rol !== 'area' ? '<h4>Coordinador general de carrera</h4>' + lista(general) : '') +
+      (rol === 'admin' ? '<h4>Administrador</h4>' + lista(admin) : '') +
+      '<div id="guiaBiblioteca"></div><div id="guiaDocsPend"></div></div></details>';
+    cargarDocumentos().then(docs => {
+      if ($('guiaBiblioteca')) $('guiaBiblioteca').innerHTML = bibliotecaHtml(docs);
+      const pend = DOCS_REF.filter(d => !(docs[d.k] && docs[d.k].url) && (!d.local || d.noOficial));
+      if (!pend.length || !$('guiaDocsPend')) return;
+      $('guiaDocsPend').innerHTML = '<p class="nota-crono" style="margin-top:8px"><b>Documentos de referencia pendientes de subir (' + pend.length +
+        ' de ' + DOCS_REF.length + '):</b> ' + pend.map(d => esc(d.n)).join(' · ') + '.' +
+        (estado.admin ? ' Se suben en Preparar el ciclo.' : ' Los sube el administrador.') + '</p>';
+    });
+  }
+
   function prepararCiclos() {
     const sel = $('filtroCiclo');
     sel.innerHTML = '';
@@ -2098,6 +2613,8 @@ label .req{color:var(--falla)}
   }
 
   function cargarAsignaciones() {
+    pintarAvisoCalendario();
+    pintarGuiaRapida();
     const habia = leerLocal();
     if (!estado.asignaciones.length)
       $('tableroTabla').innerHTML = '<div class="vacio">Cargando tus cursos…</div>';
@@ -2574,13 +3091,16 @@ label .req{color:var(--falla)}
     el.addEventListener('click', () => { if (!$('btnInicio').classList.contains('oculto')) irAMisCursos(); });
   });
   $('btnVerCiclo').addEventListener('click', verEstadoCiclo);
+  $('btnGuardarCal').addEventListener('click', guardarCalendario);
 
   function verEstadoCiclo() {
     const ciclo = $('cicloPrep').value.trim();
     $('pasosCiclo').innerHTML = '<div class="vacio">Revisando…</div>';
     $('cicloAviso').textContent = '';
-    api('/estado-ciclo?ciclo=' + encodeURIComponent(ciclo))
-      .then(pintarPasos)
+    if ($('tarjetaCalendario')) cargarFormCalendario();
+    if ($('listaDocumentos')) pintarDocumentos();
+    Promise.all([api('/estado-ciclo?ciclo=' + encodeURIComponent(ciclo)), cargarCalendario(ciclo, true)])
+      .then(([d, cal]) => { d.calendario = cal; pintarPasos(d); })
       .catch(e => { $('pasosCiclo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
@@ -2637,7 +3157,12 @@ label .req{color:var(--falla)}
                  ? '<br>y ' + (d.carga.cicloRaro.length - 8) + ' más.' : '') + '</span>'
              : ''),
         acc: 'Importar abajo', ir: null },
-      { n: 6, t: 'Comprobación final',
+      { n: 6, t: 'Calendario académico',
+        listo: !!d.calendario,
+        p: d.calendario ? 'Registrado: ' + esc(resumenCalendario(d.calendario)) + '.'
+          : 'Falta registrar. Sin él, la revisión de portafolios no sabe qué evaluaciones ya debían tomarse.',
+        acc: 'Registrar abajo', ir: null },
+      { n: 7, t: 'Comprobación final',
         listo: d.carga.total > 0 && d.carga.incompletas === 0 && d.comunes.porConfirmar === 0,
         p: d.carga.incompletas || d.comunes.porConfirmar
            ? 'Quedan cosas por cerrar en los pasos anteriores.'
@@ -4754,15 +5279,24 @@ label .req{color:var(--falla)}
           (progsRep.length > 1 ? '<label style="font-weight:600"><input type="checkbox" id="casTodasP"> Todas</label>' : '') +
           progsRep.map(p => '<label><input type="checkbox" class="cas-carrera-p" value="' + esc(p) + '"' +
             (progsRep.length === 1 ? ' checked' : '') + '> ' + esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
-          '</div><label style="display:block;margin:0 0 10px;font-size:14px">Momento de la revisión: ' +
-          '<select id="modoPorta" style="margin-left:6px"><option value="ciclo">Durante el ciclo (las evaluaciones aún no tomadas no se observan)</option>' +
-          '<option value="cierre">Cierre de ciclo (toda carpeta vacía es falta)</option></select></label>' +
+          '</div><div style="margin:0 0 12px"><b style="font-size:14px">¿En qué momento del semestre está revisando?</b>' +
+          '<div style="display:flex;flex-direction:column;gap:8px;margin-top:6px">' +
+          '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;cursor:pointer">' +
+          '<input type="radio" name="modoPorta" value="ciclo" checked style="width:18px;height:18px;margin-top:3px;flex:none">' +
+          '<span><b>El semestre está en curso</b><br><span style="color:var(--tinta-media);font-size:14px">Solo se observan las evaluaciones ' +
+          'que ya se tomaron. Si una carpeta está vacía porque el examen todavía no llega, no cuenta como falta: se anota como ' +
+          '«pendiente según el cronograma».</span></span></label>' +
+          '<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;cursor:pointer">' +
+          '<input type="radio" name="modoPorta" value="cierre" style="width:18px;height:18px;margin-top:3px;flex:none">' +
+          '<span><b>El semestre ya terminó (cierre)</b><br><span style="color:var(--tinta-media);font-size:14px">Ya se tomaron todas las ' +
+          'evaluaciones, así que toda carpeta vacía cuenta como falta.</span></span></label></div>' +
+          '<div id="notaCalP" style="font-size:13px;margin-top:6px"></div></div>' +
           '<div style="display:flex;gap:10px;flex-wrap:wrap">' +
           '<button class="btn" id="btnRepP">Generar reporte de portafolios (Excel)</button>' +
           '<button class="btn fantasma" id="btnInfP">Informe para el Director (Word)</button>' +
           (puedeNotificarRep ? '<button class="btn fantasma" id="btnNotP">Notificar a los docentes</button>' : '') + '</div>' +
           '<div style="color:var(--tinta-media);font-size:13px;margin-top:8px">El informe sigue el modelo del profesor Juan Bendezú: ' +
-          'resumen ejecutivo, sustento normativo (Guía Operativa Docente, numerales 3, 3.1 y 3.2), Anexo 01 tabla maestra ' +
+          'resumen ejecutivo, sustento normativo (Guía Operativa Docente, numerales 4.4, 4.5 y 4.6), Anexo 01 tabla maestra ' +
           '(Conforme / Observado) y Anexo 02 observaciones detalladas con el numeral que sustenta cada falta. Complete el número del informe al abrirlo en Word.</div></div>'
         : '') +
       '</div>';
@@ -4797,6 +5331,27 @@ label .req{color:var(--falla)}
       generarReportePortafolios(marcadasP(), $('btnInfP'), 'informe'));
     if ($('btnNotP')) $('btnNotP').addEventListener('click', () =>
       notificarPortafoliosVarias(marcadasP(), $('btnNotP')));
+    if ($('notaCalP')) cargarCalendario().then(cal => {
+      const nota = $('notaCalP');
+      if (!nota) return;
+      if (!cal) {
+        nota.innerHTML = '<span style="color:#a86a00">📅 Falta registrar el calendario académico ' + esc(cicloVigente()) +
+          ': elija la opción a mano.</span>' + (estado.admin ? ' <button class="btn fantasma" id="btnNotaCal" ' +
+          'style="padding:3px 10px;font-size:13px">Registrarlo</button>' : ' Lo registra el administrador.');
+        if ($('btnNotaCal')) $('btnNotaCal').addEventListener('click', irARegistrarCalendario);
+        return;
+      }
+      const m = momentoSegunCalendario(cal);
+      const r = document.querySelector('input[name="modoPorta"][value="' + m + '"]');
+      if (r) r.checked = true;
+      const hoy = hoyLima();
+      const parc = hoy > sumarDias(cal.parcialesFin, GRACIA_DIAS), fin = hoy > sumarDias(cal.finalesFin, GRACIA_DIAS);
+      nota.innerHTML = '<span style="color:#1b7f4b">📅 Elegido según el calendario académico ' + esc(cicloVigente()) + '</span> (' +
+        esc(resumenCalendario(cal)) + '). ' + (m === 'cierre' ? 'Ya empezó el cierre de actas: toda carpeta vacía es falta.'
+          : (fin ? 'Ya se exigen los exámenes parciales y finales.'
+            : (parc ? 'Ya se exigen los exámenes parciales; los finales todavía no.'
+              : 'Todavía no se exigen los exámenes parciales: se exigen desde el ' + fechaCal(sumarDias(cal.parcialesFin, GRACIA_DIAS + 1)) + '.')));
+    });
   }
 
   /* ------------------------------- reporte de cumplimiento F1 a F3 ---- */
@@ -5468,10 +6023,14 @@ label .req{color:var(--falla)}
   // salen de la misma revisión sin volver a recorrer Drive.
   let ULTIMA_REV_PORTA = null;
   function generarReportePortafolios(carreras, boton, tipo) {
+    if (CAL.datos === undefined || (carreras || []).some(c => c && !CRONOS[c + '¦' + cicloVigente()])) {
+      Promise.all([cargarCalendario(), cargarCronogramas(carreras)]).then(() => generarReportePortafolios(carreras, boton, tipo));
+      return;
+    }
     carreras = (carreras || []).filter(Boolean);
     if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
     const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
-    const modo = ($('modoPorta') && $('modoPorta').value) || 'ciclo';
+    const modo = (document.querySelector('input[name="modoPorta"]:checked') || {}).value || 'ciclo';
     const clave = carreras.join('|') + '¦' + ciclo;
     const entregar = (d, XLSX) => {
       if (tipo === 'informe') {
@@ -5565,6 +6124,7 @@ label .req{color:var(--falla)}
       const k = sinTildes(x.docente || '');
       if (!k) return;
       if (!por[k]) { por[k] = { docente: x.docente, cursos: [] }; orden.push(k); }
+      x._carrera = x._carrera || rep.programa;
       const a = auditarPortafolio(x, modo);
       por[k].cursos.push({ codigo: x.codigo, curso: nombreCurso(x.curso), grupo: x.grupo, estado: a.estado,
         url: x.url || '', pendientes: a.pendientes || [], sinCarpeta: /sinCarpeta/.test(x.estado || ''),
@@ -5581,7 +6141,8 @@ label .req{color:var(--falla)}
   async function notificarPortafoliosVarias(carreras, boton) {
     carreras = (carreras || []).filter(Boolean);
     if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
-    const modo = ($('modoPorta') && $('modoPorta').value) || 'ciclo';
+    const modo = (document.querySelector('input[name="modoPorta"]:checked') || {}).value || 'ciclo';
+    await Promise.all([cargarCalendario(), cargarCronogramas(carreras)]);
     let d;
     try { d = await obtenerRevisionPortafolios(carreras, boton); }
     catch (e) { alert('No se pudo revisar los portafolios: ' + e.message); return; }
@@ -5715,25 +6276,27 @@ label .req{color:var(--falla)}
   /* ---------------------------------------------------------------------
    * Auditoría con sustento normativo (modelo del informe del profesor Juan
    * Bendezú): cada falta se cita contra la Guía Operativa Docente.
-   *   Numeral 3   Portafolio Digital Docente (mantenerlo actualizado)
-   *   Numeral 3.1 Evaluaciones y evidencias (a enunciado PDF; b mayor,
+   * Guía Operativa Docente FI-GFP-GA-001 v01 (20/03/2026), vigente:
+   *   Numeral 4.5 Portafolio Digital Docente (a enunciado PDF; b mayor,
    *               menor y promedio escaneados en PDF; c materiales solo en el
    *               aula virtual; d no se suben videos)
-   *   Numeral 3.2 Rotulado de las evidencias (siglas y correlativo)
-   *   Numeral 3   Proceso de supervisión (responsabilidad del docente, se
-   *               extiende al Coordinador de Área)
+   *   Numeral 4.6 Proceso de supervisión (responsabilidad del docente, se
+   *               extiende al Coordinador de Área; 5 días de aviso, 3 días
+   *               para subsanar, acta Conforme / No conforme)
+   *   El rotulado (siglas y correlativo) no está en la Guía: se cita la
+   *   directiva de rotulado de Calidad y Acreditación.
    * modo 'cierre': toda carpeta vacía es falta. modo 'ciclo': una evaluación
    * sin archivos queda «por cargar según el cronograma» y no se observa (salvo
    * que no haya ninguna evidencia en todo el portafolio).
    * ------------------------------------------------------------------- */
   const SUSTENTO_GUIA = {
-    integridad: 'Falla de integridad (Numeral 3.1)',
-    enunciado: 'Incumplimiento del Numeral 3.1, literal a (enunciado en PDF)',
-    evidencias: 'Incumplimiento del Numeral 3.1, literal b (mayor, menor y nota promedio)',
-    formato: 'Contravención del Numeral 3.1, literales a y b (PDF obligatorio)',
-    video: 'Contravención del Numeral 3.1, literal d (no se suben videos)',
-    rotulado: 'Incumplimiento del Numeral 3.2 (rotulado de las evidencias)',
-    carpeta: 'Falla de integridad (Numeral 3 y Numeral 3 «Proceso de supervisión»)'
+    integridad: 'Falla de integridad (Numeral 4.5)',
+    enunciado: 'Incumplimiento del Numeral 4.5, literal a (enunciado en PDF)',
+    evidencias: 'Incumplimiento del Numeral 4.5, literal b (mayor, menor y nota promedio)',
+    formato: 'Contravención del Numeral 4.5, literales a y b (PDF obligatorio)',
+    video: 'Contravención del Numeral 4.5, literal d (no se suben videos)',
+    rotulado: 'Incumplimiento de la directiva de rotulado de las evidencias (Calidad y Acreditación)',
+    carpeta: 'Falla de integridad (Numerales 4.5 y 4.6 «Proceso de supervisión»)'
   };
   function auditarPortafolio(x, modo) {
     const y = l => l.join(', ').replace(/, ([^,]*)$/, ' y $1');
@@ -5762,9 +6325,24 @@ label .req{color:var(--falla)}
           'carpetas de evaluaciones sin contenido',
           'Subir a cada carpeta el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio, en PDF.');
       } else {
-        const vacias = faltas.filter(f => f.tipo === 'vacia').map(f => nom(f.eval, f.nums));
-        if (vacias.length && modo === 'ciclo') pendientes.push(...vacias);
-        else if (vacias.length) F('integridad', 'Carpetas de evaluaciones sin contenido: ' + y(vacias),
+        // Durante el ciclo, una carpeta vacía solo es falta si el calendario
+        // dice que esa evaluación ya debía tomarse (parcial o final).
+        const vaciasF = faltas.filter(f => f.tipo === 'vacia');
+        let vacias = [];
+        if (modo === 'ciclo') {
+          // Cada evaluación vacía se mira por separado (Taller 1, Taller 2…):
+          // es falta solo si ya pasó su fecha según el cronograma del sílabo
+          // (o, para parcial y final, el calendario académico).
+          vaciasF.forEach(f => (f.nums && f.nums.length ? f.nums : [null]).forEach(n => {
+            const v = vencimientoEval(x.codigo, x._carrera || x.programa, f.eval, n);
+            const nombre = nom(f.eval, n ? [n] : []);
+            if (v.vencida) vacias.push(nombre + ' (debía estar desde el ' + fechaCal(v.desde) +
+              (v.semana ? ', semana ' + v.semana + ' del sílabo' : ', según el calendario académico') + ')');
+            else pendientes.push(nombre + (v.desde ? ' (se exige desde el ' + fechaCal(v.desde) + ')'
+              : (v.sinCrono ? ' (sin cronograma del sílabo registrado)' : '')));
+          }));
+        } else vacias = vaciasF.map(f => nom(f.eval, f.nums));
+        if (vacias.length) F('integridad', 'Carpetas de evaluaciones sin contenido: ' + y(vacias),
           'carpetas sin contenido (' + y(vacias) + ')',
           'Subir a esas carpetas el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio, en PDF.');
         const partes = faltas.filter(f => f.tipo === 'partes');
@@ -5804,18 +6382,18 @@ label .req{color:var(--falla)}
           (zip ? '; los comprimidos se descomprimen y cada evidencia se sube en PDF' : '') + '.');
       }
       if (x.videos) F('video', pl(x.videos, 'video', 'videos') + ' en el portafolio', 'videos en el portafolio',
-        'Retirarlos del portafolio; si son material del curso, van en el aula virtual (Numeral 3.1, literal c).');
+        'Retirarlos del portafolio; si son material del curso, van en el aula virtual (Numeral 4.5, literal c).');
       if (nomen) F('rotulado', pl(nomen, 'archivo', 'archivos') + ' con nomenclatura no estándar (no siguen la secuencia ' +
           'CÓDIGO.SIGLA.PERIODO y, en las evidencias, .Nombre Apellido.Mayor|Menor|Promedio.Nota)',
         'rotulado no conforme (' + pl(nomen, 'archivo', 'archivos') + ')',
-        'Renombrar los archivos según el Numeral 3.2; la hoja «Archivos por corregir» del reporte Excel trae el nombre correcto de cada uno.');
+        'Renombrar los archivos según la directiva de rotulado de Calidad y Acreditación; la hoja «Archivos por corregir» del reporte Excel trae el nombre correcto de cada uno.');
     }
     const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
-    const numeral = c => ({ integridad: '3.1', enunciado: '3.1 a', evidencias: '3.1 b', formato: '3.1', video: '3.1 d',
-                            rotulado: '3.2', carpeta: '3' })[c];
+    const numeral = c => ({ integridad: 'Num. 4.5', enunciado: 'Num. 4.5 a', evidencias: 'Num. 4.5 b', formato: 'Num. 4.5', video: 'Num. 4.5 d',
+                            rotulado: 'directiva de rotulado', carpeta: 'Num. 4.5 y 4.6' })[c];
     let detalle = out.length
-      ? cap(out.map(f => f.breve + ' [Num. ' + numeral(f.clave) + ']').join('; ')) + '.'
-      : 'Cumplimiento total: evidencias completas, en PDF y rotuladas según el Numeral 3.2.';
+      ? cap(out.map(f => f.breve + ' [' + numeral(f.clave) + ']').join('; ')) + '.'
+      : 'Cumplimiento total: evidencias completas y en PDF (Numeral 4.5), rotuladas según la directiva de rotulado de Calidad y Acreditación.';
     if (pendientes.length) detalle += ' Aún sin carga, según el avance del ciclo: ' + y(pendientes) + ' (verificar con el cronograma del sílabo).';
     return { estado: out.length ? 'OBSERVADO' : 'CONFORME', faltas: out, pendientes, detalle };
   }
@@ -5889,7 +6467,7 @@ label .req{color:var(--falla)}
       '<tr><td><b>Asunto</b></td><td>: Informe de cumplimiento del Portafolio Digital Docente – ' + e(alcance) +
         '. Periodo Académico ' + e(cic) + '</td></tr>' +
       '<tr><td><b>Referencia</b></td><td>: Guía Operativa Docente para la Planificación, Ejecución y Evaluación del Proceso de ' +
-        'Enseñanza-Aprendizaje (Numerales 3, 3.1 y 3.2) · Norma ISO 21001</td></tr>' +
+        'Enseñanza-Aprendizaje, FI-GFP-GA-001 v01 (Numerales 4.4, 4.5 y 4.6) · Norma ISO 21001</td></tr>' +
       '<tr><td><b>Fecha</b></td><td>: Santiago de Surco, ' + fechaLarga + '</td></tr></table><hr>';
     h += P('Tengo el agrado de dirigirme a usted para informarle el resultado de la supervisión del Portafolio Digital Docente ' +
       'correspondiente al Periodo Académico ' + e(cic) + ', en el marco de la implementación de la Norma ISO 21001.');
@@ -5904,7 +6482,7 @@ label .req{color:var(--falla)}
       (nO === 1 ? ' observado' : ' observados') + ' (' + pct(nO, n) + ' %)</b>' +
       (nSin ? (nSin === 1 ? '; uno de ellos no tiene' : ', de los cuales ' + nSin + ' no tienen') + ' carpeta del docente en el portafolio' : '') +
       (nN ? '; ' + nN + ' no pudieron revisarse' : '') + '. Se revisaron ' + revis + ' archivos de evidencia: ' + bien +
-      ' (' + pct(bien, revis) + ' %) cumplen el rotulado del Numeral 3.2.' +
+      ' (' + pct(bien, revis) + ' %) cumplen la directiva de rotulado de Calidad y Acreditación.' +
       (masFrec.length ? ' Las faltas más frecuentes son: ' + y(masFrec.map(f => f.t.charAt(0).toLowerCase() + f.t.slice(1) + ' (' + f.n + ')')) + '.' : ''));
     if (modo === 'ciclo' && conPend) h += P('<i>Revisión durante el ciclo:</i> en ' + conPend + (conPend === 1 ? ' portafolio hay' : ' portafolios hay') +
       ' evaluaciones aún sin archivos que, según el avance del ciclo, pueden no haberse tomado todavía; no se cuentan como observación ' +
@@ -5914,19 +6492,19 @@ label .req{color:var(--falla)}
     h += P('La supervisión se sustenta en la <b>Guía Operativa Docente para la Planificación, Ejecución y Evaluación del Proceso de ' +
       'Enseñanza-Aprendizaje</b>, cuyos numerales aplicables son:');
     h += '<table border="1" cellpadding="4">' + th(['Numeral', 'Qué establece']) +
-      '<tr><td><b>3</b> Portafolio Digital Docente</td><td>El docente debe mantener un portafolio digital actualizado que documente las actividades académicas desarrolladas durante el semestre.</td></tr>' +
-      '<tr><td><b>3.1</b> Evaluaciones y Evidencias</td><td>Para cada evaluación (Examen Parcial, Examen Final, Prácticas Calificadas, Trabajos, Laboratorios, Talleres, Investigaciones, Proyectos y otros) se suben: <b>a)</b> el enunciado en formato PDF; <b>b)</b> el desarrollo escaneado en PDF de la Mayor Nota, la Menor Nota y la Nota Promedio; <b>c)</b> los materiales educativos se colocan solo en el aula virtual; <b>d)</b> no se suben videos.</td></tr>' +
-      '<tr><td><b>3.2</b> Rotulado de las Evidencias</td><td>Siglas: Examen Parcial (EP), Examen Final (EF), Prácticas (PC), Trabajos (TR), Laboratorios (LA), Talleres (TA), Investigaciones (IN), Proyectos (PR) y otros (denominación completa), con un número correlativo por tipo de evaluación. Ejemplo: <b>IN0701.EP.2026-II.PDF</b> (enunciado) e <b>IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF</b> (evidencia).</td></tr>' +
-      '<tr><td><b>3</b> Proceso de supervisión</td><td>Cada docente es responsable de tener al día los documentos y evidencias del Portafolio Digital de su curso y grupo; esta responsabilidad es exigible individualmente frente a los evaluadores de las agencias acreditadoras o auditores ISO 21001 y se extiende hasta el Coordinador de Área.</td></tr></table>';
+      '<tr><td><b>4.4</b> Proceso de evaluación de los aprendizajes</td><td>Antes de cada evaluación se publican en el aula virtual la rúbrica o instrumento, las instrucciones y los criterios. En las evaluaciones escritas, cada pregunta indica la unidad del sílabo que evalúa y su puntaje. La retroalimentación se da en un plazo máximo de 2 semanas después de la evaluación.</td></tr>' +
+      '<tr><td><b>4.5</b> Portafolio Digital Docente</td><td>El docente mantiene un portafolio digital actualizado que incluye las evaluaciones (examen parcial, examen final, prácticas calificadas, trabajos, laboratorios, talleres, investigaciones, proyectos y otros). Las evidencias son: <b>a)</b> el enunciado en formato PDF; <b>b)</b> el desarrollo escaneado en PDF de la Mayor Nota, la Menor Nota y la Nota Promedio; <b>c)</b> los materiales educativos se colocan solo en el aula virtual; <b>d)</b> no se suben videos.</td></tr>' +
+      '<tr><td><b>4.6</b> Proceso de supervisión</td><td>Cada docente es responsable de tener al día los documentos y evidencias del Portafolio Digital de su curso y grupo; esta responsabilidad es exigible individualmente frente a los evaluadores de las agencias acreditadoras o auditores ISO 21001 y se extiende hasta el Coordinador de Área. El Coordinador de Área notifica al docente con 5 días de anticipación; el docente tiene 3 días para subsanar observaciones; se levanta acta de revisión: Conforme / No conforme.</td></tr>' +
+      '<tr><td><b>Rotulado</b> (directiva de Calidad y Acreditación)</td><td>Siglas: Examen Parcial (EP), Examen Final (EF), Prácticas (PC), Trabajos (TR), Laboratorios (LA), Talleres (TA), Investigaciones (IN), Proyectos (PR) y otros (denominación completa), con un número correlativo por tipo de evaluación. Ejemplo: <b>IN0701.EP.2026-II.PDF</b> (enunciado) e <b>IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF</b> (evidencia). La Guía Operativa Docente no trae el rotulado; se aplica la directiva de Calidad y Acreditación.</td></tr></table>';
 
     h += '<h2>3. Alcance y metodología</h2>';
     h += P('Se revisó el portafolio digital de la Escuela en Google Drive, por el nombre de carpetas y archivos; <b>no se abrió el contenido ' +
       'de los trabajos de los estudiantes</b>. En cada curso y grupo se verificó: (i) la carpeta del docente y la subcarpeta EVALUACIONES de la ' +
       'estructura de Calidad y Acreditación; (ii) que cada evaluación del curso, en la cantidad que indica su fórmula de evaluación, tenga el ' +
       'enunciado y las evidencias de la mayor, la menor y la nota promedio; (iii) el formato PDF; (iv) la ausencia de videos; y (v) el rotulado ' +
-      'de cada archivo, parte por parte, contra el Numeral 3.2. Las evaluaciones que el curso no tiene se consideran «no aplica».');
+      'de cada archivo, parte por parte, contra la directiva de rotulado de Calidad y Acreditación. Las evaluaciones que el curso no tiene se consideran «no aplica».');
     h += P('<b>CONFORME:</b> cumple todos los puntos anteriores. <b>OBSERVADO:</b> presenta al menos una falta, detallada con su sustento en el Anexo N.° 02.' +
-      (modo === 'cierre' ? ' Revisión de <b>cierre de ciclo</b>: toda carpeta de evaluación vacía se considera falta.' : ' Revisión <b>durante el ciclo</b>.'));
+      (modo === 'cierre' ? ' Revisión de <b>cierre de ciclo</b>: toda carpeta de evaluación vacía se considera falta.' : (' Revisión <b>durante el ciclo</b>' + (CAL.datos ? ', según el calendario académico (' + resumenCalendario(CAL.datos) + '); un examen parcial o final se exige a los 3 días de terminada su semana de exámenes.' : '.'))));
 
     h += '<h2>4. Resultados</h2>';
     h += '<table border="1" cellpadding="4">' + th(['Área', 'Portafolios revisados', 'Conformes', 'Observados', 'Sin carpeta del docente']) +
@@ -5952,12 +6530,12 @@ label .req{color:var(--falla)}
       rec.push('Comunicar a cada docente observado las faltas del Anexo N.° 02 con su sustento normativo y la forma de subsanarlas, y fijar un plazo para la subsanación, luego del cual se realizará una nueva verificación.');
       const tiene = c => frec.some(f => f.c === c);
       if (tiene('carpeta') || tiene('integridad')) rec.push('Coordinar con el área de Calidad y Acreditación la creación o corrección de las carpetas faltantes, para que los docentes puedan subir sus evidencias.');
-      if (tiene('enunciado') || tiene('evidencias')) rec.push('Recordar que por cada evaluación se requieren cuatro archivos en PDF: el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (Numeral 3.1).');
-      if (tiene('formato')) rec.push('Convertir a PDF los archivos en otros formatos (DOCX, PPTX, XLSX) y descomprimir los .zip, subiendo cada evidencia en PDF (Numeral 3.1).');
-      if (tiene('video')) rec.push('Retirar los videos del portafolio; el material audiovisual del curso corresponde al aula virtual (Numeral 3.1, literales c y d).');
-      if (tiene('rotulado')) rec.push('Renombrar los archivos según el Numeral 3.2. El reporte Excel de portafolios (hoja «Archivos por corregir») compara cada nombre con el estándar y propone el nombre correcto.');
+      if (tiene('enunciado') || tiene('evidencias')) rec.push('Recordar que por cada evaluación se requieren cuatro archivos en PDF: el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (Numeral 4.5).');
+      if (tiene('formato')) rec.push('Convertir a PDF los archivos en otros formatos (DOCX, PPTX, XLSX) y descomprimir los .zip, subiendo cada evidencia en PDF (Numeral 4.5).');
+      if (tiene('video')) rec.push('Retirar los videos del portafolio; el material audiovisual del curso corresponde al aula virtual (Numeral 4.5, literales c y d).');
+      if (tiene('rotulado')) rec.push('Renombrar los archivos según la directiva de rotulado de Calidad y Acreditación. El reporte Excel de portafolios (hoja «Archivos por corregir») compara cada nombre con el estándar y propone el nombre correcto.');
     }
-    rec.push('Recordar a los docentes que la responsabilidad de mantener al día el portafolio es individual y exigible frente a las agencias acreditadoras y auditores ISO 21001, y se extiende al Coordinador de Área (Numeral 3, Proceso de supervisión).');
+    rec.push('Recordar a los docentes que la responsabilidad de mantener al día el portafolio es individual y exigible frente a las agencias acreditadoras y auditores ISO 21001, y se extiende al Coordinador de Área (Numeral 4.6, Proceso de supervisión).');
     h += '<ol>' + rec.map(r => '<li><p>' + e(r) + '</p></li>').join('') + '</ol>';
     h += P('Es todo cuanto informo a usted para su conocimiento y fines pertinentes.') + P('Atentamente,');
     h += '<div class="firma">_______________________________<br>' + e(d.generadoPor || estado.nombre || '') + '<br>' + e(cargo) + '</div>';
@@ -6397,9 +6975,9 @@ label .req{color:var(--falla)}
     // -------------------- anexos con sustento normativo (modelo Bendezú) --
     filas.forEach(x => { x._aud = auditarPortafolio(x, modo); });
     const modoTxt = modo === 'cierre' ? 'Revisión de cierre de ciclo: toda carpeta de evaluación vacía es falta.'
-      : 'Revisión durante el ciclo: una evaluación aún sin archivos no se observa; se indica para verificarla con el cronograma del sílabo.';
+      : ('Revisión durante el ciclo: una evaluación sin archivos se observa solo si, según el calendario académico, ya debía tomarse (parciales y finales, a los 3 días de terminada su semana de exámenes); las demás se indican para verificarlas con el cronograma del sílabo.' + (CAL.datos ? ' Calendario: ' + resumenCalendario(CAL.datos) + '.' : ' No hay calendario académico registrado: ninguna evaluación vacía se observa.'));
     const fA1 = cab('ANEXO N.° 01 — Tabla maestra de auditoría de portafolios (' + filas.length + ' registros)').concat([
-      ['Sustento: Guía Operativa Docente, Numerales 3, 3.1 y 3.2, y Numeral 3 «Proceso de supervisión». ' + modoTxt], []]);
+      ['Sustento: Guía Operativa Docente FI-GFP-GA-001 v01, Numerales 4.4, 4.5 y 4.6 «Proceso de supervisión», y directiva de rotulado de Calidad y Acreditación. ' + modoTxt], []]);
     const encA1 = fA1.length;
     fA1.push(['N.°', 'Área', 'Código', 'Asignatura – Grupo', 'Docente', 'Correo institucional', 'Estado', 'Detalle del hallazgo']);
     filas.forEach((x, i) => fA1.push([i + 1, x._areaEtq, x.codigo, nombreCurso(x.curso) + ' – G' + x.grupo, x.docente,
@@ -7276,6 +7854,7 @@ label .req{color:var(--falla)}
       dato('Plan de estudio', a.planEstudio) +
       dato('Ciclo', a.ciclo);
     $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
+    if ($('cajaCronograma')) $('cajaCronograma').innerHTML = '';
     aviso('', '');
 
     // Si el area no es suya, la ficha queda en consulta.
@@ -7542,7 +8121,7 @@ label .req{color:var(--falla)}
 
     // La sumilla oficial de la carrera, a la vista: el ítem 02 pide compararla
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
-    if (F === FORMULARIOS.silabo) mostrarReferenciasSilabo();
+    if (F === FORMULARIOS.silabo) { mostrarReferenciasSilabo(); pintarCajaCronograma(); }
     if (F === FORMULARIOS.silabo) mostrarSilaboUnicoEnOtrosGrupos(estado.actual);
 
     // Lo que el docente declaró en el formulario de la Escuela: el portal lo
@@ -7569,7 +8148,7 @@ label .req{color:var(--falla)}
         '<div class="carpeta-estado oculto" id="carpetaEstado"></div>' +
         '<div class="chat-caja">' +
           '<div class="chat-adjuntos" id="trAdjuntos"></div>' +
-          '<textarea id="trIndicacion" rows="2" placeholder="' + esc(ins.placeholder) + '"></textarea>' +
+          '<textarea id="trIndicacion" rows="2" placeholder="' + esc(ins.placeholder + (/adjunte/i.test(ins.placeholder) ? ' También puede arrastrar y soltar los archivos aquí.' : '')) + '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
               'accept=".pdf,.docx,.txt,.vtt,.srt,.md,.csv,text/plain,application/pdf">' +
@@ -8514,6 +9093,9 @@ label .req{color:var(--falla)}
   const SUBIR_SILABO = 'Para comprobarlo hace falta el sílabo del docente: adjúntelo con ' +
     'el clip 📎 del asistente, arriba.';
 
+  // Documento oficial que respalda los puntos del sílabo.
+  const GUIA_SILABOS = 'Guía de Elaboración de Sílabos (ODACA-GCA-G-02, rev. 01, 13.03.2025)';
+  const MODELO_PEDAGOGICO = 'Modelo Pedagógico de la URP (ODACA)';
   const REFERENCIA_ITEM = {
     '12': { de: 'portal', titulo: 'Los sílabos de los demás grupos del curso',
             texto: () => {
@@ -8563,13 +9145,18 @@ label .req{color:var(--falla)}
             falta: 'Los créditos, los requisitos y si el curso es obligatorio o electivo no ' +
                    'se registran en el portal. Adjunte el plan de estudios de la carrera con ' +
                    'el clip 📎 del asistente para que se puedan comprobar.' },
-    '02': { de: 'portal', titulo: 'Sumilla oficial', texto: c => c.sumilla || '' },
+    '02': { de: 'portal', titulo: 'Sumilla oficial',
+            texto: c => c.sumilla ? c.sumilla + '\n\nSegún la ' + GUIA_SILABOS + ', la sumilla se transcribe tal cual aparece en el ' +
+              'plan curricular vigente, sin ninguna alteración (naturaleza, propósito y principales contenidos).' : '' },
     // Las competencias salen del módulo de Competencias (Coordinadores).
     '03': { de: 'portal', titulo: 'Las competencias genéricas',
             texto: c => {
               const g = ((c && c.competencias) || {}).genericas || [];
               return g.length ? 'El sílabo debe declarar las competencias genéricas de la carrera:\n' +
-                g.map(x => x.codigo + ') ' + (x.nombre ? x.nombre + ': ' : '') + x.descripcion).join('\n') : '';
+                g.map(x => x.codigo + ') ' + (x.nombre ? x.nombre + ': ' : '') + x.descripcion).join('\n') +
+                '\n\nSegún la ' + GUIA_SILABOS + ', se incluyen solo las genéricas que se alinean con el logro de la asignatura, ' +
+                'tomadas del perfil de egreso URP (comportamiento ético, pensamiento crítico y creativo, liderazgo compartido, ' +
+                'autoaprendizaje, responsabilidad social, resolución de problemas, investigación científica y tecnológica, comunicación efectiva).' : '';
             },
             vacio: 'Esta carrera todavía no tiene sus competencias genéricas registradas en el portal ' +
                    '(Coordinadores → Competencias). Mientras tanto, adjunte el documento de competencias con el clip 📎.' },
@@ -8578,7 +9165,8 @@ label .req{color:var(--falla)}
               const k = (c && c.competencias) || {};
               const l = k.delCurso || [];
               if (l.length) return 'Según la matriz de la carrera, este curso desarrolla:\n' +
-                l.map(x => x.codigo + ') ' + x.descripcion).join('\n');
+                l.map(x => x.codigo + ') ' + x.descripcion).join('\n') + '\n\nSegún la ' + GUIA_SILABOS +
+                ', las específicas salen del plan curricular del programa y se alinean con el logro. Las asignaturas del PEB no llevan esta sección.';
               if ((k.especificas || []).length) return 'Este curso no figura en la matriz de competencias por ' +
                 'curso, así que se muestran todas las específicas del plan; verifique cuáles corresponden:\n' +
                 k.especificas.map(x => x.codigo + ') ' + x.descripcion).join('\n');
@@ -8586,38 +9174,159 @@ label .req{color:var(--falla)}
             },
             vacio: 'Esta carrera todavía no tiene sus competencias específicas registradas en el portal ' +
                    '(Coordinadores → Competencias). Mientras tanto, adjunte el documento de competencias con el clip 📎.' },
-    '05': { de: 'documento', pide: 'la directiva de investigación formativa y responsabilidad ' +
-            'social, para saber qué componentes exige' },
+    '05': { de: 'formato', titulo: 'Componentes que desarrolla (' + GUIA_SILABOS + ')',
+            texto: () => 'El sílabo marca uno o dos componentes: Investigación formativa y/o Responsabilidad social. ' +
+              'Lo marcado debe verse en la Programación de contenidos: en las semanas se precisan las actividades de ' +
+              'investigación formativa o de responsabilidad social que se desarrollarán (por ejemplo, proyectos de intervención social).',
+            falta: SUBIR_SILABO },
     // Punto 06: el logro se compara contra un patrón de calidad, no contra el
     // propio sílabo. Versión V1.0; las mejoras se registran subiendo la versión.
     '06': { de: 'formato', titulo: 'Patrón de calidad del logro de la asignatura (' + PATRON_LOGRO.version + ')',
-            texto: c => PATRON_LOGRO.texto + '\n\n' + BLOOM_TEXTO + '\n\n' + competenciasParaLogro(c),
+            texto: c => PATRON_LOGRO.texto + '\n\nSegún la ' + GUIA_SILABOS + ': el logro tiene tiempo («Al finalizar la asignatura»), ' +
+              'sujeto (el estudiante), acción-resultado y criterios de calidad; es objetivo, observable y evaluable; el verbo va en ' +
+              'presente indicativo y no se usan verbos no observables como conocer, entender o comprender; se alinea con las ' +
+              'competencias genéricas y específicas.\n\n' + BLOOM_TEXTO + '\n\n' + competenciasParaLogro(c),
             enlaces: [{ url: DOC_BLOOM, texto: '📘 Ver la Taxonomía de Bloom (documento de referencia de la Facultad)' }],
             falta: SUBIR_SILABO },
     '07': { de: 'formato', titulo: 'Formato institucional del sílabo',
-            texto: () => 'El formato establece 4 unidades. Se verifica que el sílabo las ' +
-                         'presente completas, con su logro y contenidos.',
+            texto: () => 'Según la ' + GUIA_SILABOS + ': se programan entre tres y cuatro unidades, cada una con su nombre y su ' +
+                         'logro de aprendizaje (tiempo, sujeto, acción, resultado y criterios) alineado al logro de la asignatura. ' +
+                         'Dentro de cada unidad los contenidos se programan por semana, y la semana en que se evalúa se indica ' +
+                         '(«Evaluación del logro», como en el ejemplo de la guía). Así, cada taller, práctica o producto debe figurar ' +
+                         'en la semana en que se entrega: el portal usa esas semanas para saber cuándo exigirlo en el portafolio.',
             falta: SUBIR_SILABO },
-    '08': { de: 'formato', titulo: 'Formato institucional del sílabo',
-            texto: () => 'Se verifica que las estrategias didácticas estén descritas y sean ' +
-                         'coherentes con el logro de la asignatura.',
+    '08': { de: 'formato', titulo: 'Estándar de estrategias didácticas: ' + MODELO_PEDAGOGICO + ' (Figura 14) y ' + GUIA_SILABOS,
+            texto: () => 'Referencia prioritaria: el ' + MODELO_PEDAGOGICO + ' (4.1.1, Figura 14, p. 108, basada en Tobón, Pimienta y ' +
+                         'García, 2010) prioriza siete estrategias: aprendizaje basado en proyectos, aprendizaje basado en problemas, ' +
+                         'aprendizaje colaborativo, estudio de casos, aprendizaje servicio, aprendizaje basado en TIC y aprendizaje basado ' +
+                         'en juegos. En todas, el estudiante es el protagonista y el docente el facilitador. ' +
+                         'También son válidos los métodos que nombra la ' + GUIA_SILABOS + ' (p. 7): aprendizaje basado en investigación, ' +
+                         'método de casos, enseñanza basada en evidencias, aprendizaje autodirigido y microaprendizaje, porque la Guía ' +
+                         'pide que las estrategias sean activas, centradas en el estudiante y coherentes con el Modelo. ' +
+                         'Lo que se exige siempre: el sílabo dice en qué unidad o para qué producto usa cada estrategia, y eso se ve en ' +
+                         'las actividades de la programación semanal. Las técnicas de la Figura 15 (exposición, diapositivas, lluvia de ' +
+                         'ideas, debate, juego de roles, simulación, organizadores gráficos, trabajo de campo…) acompañan a la estrategia, ' +
+                         'pero por sí solas no la reemplazan.',
+            orienta: [
+              'Cumple: declara una o más estrategias de la Figura 14 o de la lista de la Guía, indica en qué unidad o para qué producto se usan (por ejemplo, «Unidades III y IV: aprendizaje basado en proyectos para el trabajo final») y la programación semanal tiene actividades que las muestran (avances del proyecto, análisis de un caso, trabajo en equipo).',
+              'Parcial: nombra estrategias válidas pero en una lista general («ABP, problemas, juegos, casos, etc.») sin decir dónde se aplican, o no se ven en la programación semanal.',
+              'No cumple: solo menciona técnicas o recursos («clase expositiva», «diapositivas», «disertación», «PPT», «talleres») o la sección no existe.',
+              'Nota aclaratoria: ¿por qué se acepta el aprendizaje basado en investigación si no está en la Figura 14? Porque la Guía de sílabos (2025), que también es documento oficial, lo nombra como método válido. La Figura 14 dice lo que el Modelo prioriza; la Guía amplía la lista. Si el curso puede trabajar con una de las siete de la Figura 14, se le recomienda, pero no es motivo de observación.',
+              'Nota aclaratoria: estrategia y técnica no son lo mismo. La estrategia es el procedimiento general que organiza el aprendizaje de una unidad (Modelo, p. 109); la técnica es la forma concreta de una sesión. «Exposición» o «PPT» son técnicas o recursos, no estrategias.',
+              'Cómo orientar al docente: no basta con cambiar el texto. Pregúntele qué producto quiere lograr y ayúdele a elegir una estrategia que lleve a él; luego, que la nombre en la unidad donde la usa y que las semanas de la programación lo reflejen. Es mejor una estrategia bien aplicada que una lista larga.',
+              'Relación con el resto del sílabo: la estrategia lleva a un producto, ese producto se evalúa con un criterio y un instrumento (punto 10) y se entrega en una semana indicada (punto 07). Si uno de los tres falta, la estrategia queda en el papel.'
+            ],
             falta: SUBIR_SILABO },
     '09': { de: 'formato', titulo: 'Formato institucional del sílabo',
-            texto: () => 'Se verifica que los recursos necesarios estén indicados.',
+            texto: () => 'Se verifica que los recursos estén indicados. Según la ' + GUIA_SILABOS + ', se especifican equipos, ' +
+                         'materiales y plataformas (software) que se usarán en el curso.',
             falta: SUBIR_SILABO },
     '10': { de: 'formato', titulo: 'Formato institucional del sílabo',
-            texto: () => 'Se verifica que los criterios de evaluación y su ponderación estén ' +
-                         'descritos, con sus instrumentos o rúbricas. La coincidencia con el ' +
-                         'Sistema de Evaluación se comprueba en el formato de Fórmula.',
+            texto: () => 'Según la ' + GUIA_SILABOS + ', la matriz de evaluación tiene cuatro columnas: unidad, criterios ' +
+                         '(por ejemplo «Talleres 1 y 2», «Evaluación parcial»), instrumentos (rúbrica, prueba escrita, lista de cotejo…) ' +
+                         'y ponderación. La primera mitad de la asignatura no debe acumular más del 35 % del peso total. La fórmula ' +
+                         'aritmética da el resultado en escala vigesimal (0 a 20) y la evaluación se precisa según la modalidad. ' +
+                         'El ' + MODELO_PEDAGOGICO + ' (4.1.4) añade que los criterios de evaluación deben estar claramente ' +
+                         'señalados en el sílabo y que se evalúa en función de un producto. ' +
+                         'La coincidencia con el Sistema de Evaluación se comprueba en el formato de Fórmula.',
             falta: SUBIR_SILABO },
     '11': { de: 'formato', titulo: 'Criterios del formato institucional',
-            texto: () => 'Se verifica en el propio sílabo que las referencias básicas y ' +
+            texto: () => 'Según la ' + GUIA_SILABOS + ', las referencias van en formato APA, separadas en básicas y ' +
+                         'complementarias, y deben estar disponibles en las bibliotecas de la universidad. ' +
+                         'Se verifica además en el propio sílabo que las referencias básicas y ' +
                          'complementarias sean de los últimos cinco años, estén en orden ' +
                          'alfabético y en estilo APA, y que se promueva el uso de bases de ' +
                          'datos bibliográficas.',
             falta: SUBIR_SILABO }
   };
 
+  // Notas aclaratorias de cada punto del sílabo: cómo valorarlo y cómo
+  // orientar al docente. Se mejoran poco a poco: cada cambio sube la versión.
+  const ORIENTA_ITEM = {
+    '01': [
+      'Cumple: están los ocho datos de la Guía (asignatura, código, condición, requisitos, créditos, horas teóricas y prácticas, semestre, docente con su correo institucional) y coinciden con la carga del portal y con el plan de estudios.',
+      'Parcial: falta alguno de los datos o no coincide con el plan (por ejemplo, otras horas o créditos, o el requisito de otro plan).',
+      'Nota aclaratoria: el correo debe ser el institucional (@urp.edu.pe), no uno personal.',
+      'Cómo orientar al docente: pídale que copie los datos del plan de estudios vigente, no de un sílabo de ciclos anteriores.'],
+    '02': [
+      'Cumple: la sumilla es idéntica a la del plan de estudios vigente.',
+      'Parcial: tiene cambios menores (palabras cambiadas, contenidos agregados o quitados).',
+      'No cumple: la redactó el docente, es de otro plan o falta.',
+      'Nota aclaratoria: la sumilla no se «mejora» en el sílabo. Si el docente cree que debe cambiar, se propone a la Escuela para el próximo plan curricular.'],
+    '03': [
+      'Cumple: declara solo competencias genéricas del perfil de egreso URP (las ocho de la Guía y del Modelo, Figura 10, p. 83) y son las que se alinean con el logro del curso.',
+      'Parcial: copia las ocho sin seleccionar, o agrega competencias que no son del perfil URP.',
+      'Nota aclaratoria: no se trata de poner muchas, sino las que el curso realmente desarrolla y que se ven en el logro.'],
+    '04': [
+      'Cumple: las competencias específicas son las del plan curricular de la carrera para este curso y se alinean con el logro.',
+      'Parcial: pone competencias de otra carrera, de otro plan o redactadas por el docente.',
+      'Nota aclaratoria: las asignaturas del PEB (estudios básicos) no llevan esta sección; en ellas el punto es «No aplica».'],
+    '05': [
+      'Cumple: marca uno o dos componentes (investigación formativa y/o responsabilidad social) y en la programación semanal hay una actividad concreta de cada uno.',
+      'Parcial: marca el componente pero no se ve ninguna actividad en las semanas.',
+      'Nota aclaratoria: marcar los dos componentes no es mejor que marcar uno. Se marca solo lo que el curso realmente hace (por ejemplo, responsabilidad social = un proyecto con una comunidad o institución).'],
+    '06': [
+      'Cumple: el logro tiene los cuatro elementos de la Guía (Tabla 5, p. 6): tiempo («Al finalizar la asignatura»), sujeto («el estudiante»), acción-resultado y criterios de calidad; el verbo está en presente y es observable.',
+      'Parcial: falta alguno de los elementos (casi siempre los criterios) o usa un verbo no observable.',
+      'Nota aclaratoria: la Guía prohíbe verbos como conocer, entender o comprender porque no se pueden verificar. Se reemplazan por verbos observables de la Taxonomía de Bloom, que usa la Facultad (explica, analiza, diseña, sustenta…); la Guía menciona también la taxonomía de Biggs y Collis.',
+      'Cómo orientar al docente: pregúntele «¿qué va a poder hacer el estudiante al final y cómo lo voy a ver?». La respuesta es el logro.'],
+    '07': [
+      'Cumple: entre tres y cuatro unidades, cada una con nombre y logro; contenidos programados por semana; y la semana de evaluación de cada unidad indicada («Evaluación del logro»), con los talleres, prácticas o productos en la semana en que se entregan.',
+      'Parcial: más de cuatro unidades, unidades sin logro, o no se indica en qué semana se evalúa o se entrega cada producto.',
+      'Nota aclaratoria: la Guía dice «se sugiere» entre tres y cuatro unidades; cinco unidades no invalidan el sílabo, pero se recomienda agruparlas.',
+      'Nota aclaratoria: la Guía Operativa Docente (4.1) pide además que los contenidos se distribuyan equilibradamente en las 16 semanas del semestre.',
+      'Nota aclaratoria: la semana de entrega importa también para el portafolio: el portal usa esas semanas para saber desde cuándo exigir cada evidencia (' + GRACIA_DIAS + ' días después de la semana de la evaluación).'],
+    '09': [
+      'Cumple: indica equipos, materiales y plataformas (software) concretos del curso.',
+      'Parcial: solo pone «computadora y proyector» o una lista genérica que no corresponde al curso.',
+      'Nota aclaratoria: si el curso usa un software de la especialidad (por ejemplo, un simulador), debe figurar aquí.'],
+    '10': [
+      'Cumple: la matriz tiene las cuatro columnas (unidad, criterios, instrumentos y ponderación); la primera mitad de la asignatura no pasa del 35 %; la fórmula da la nota en escala de 0 a 20; y los criterios se relacionan con el producto de cada unidad.',
+      'Parcial: falta una columna (casi siempre criterios o instrumentos), la primera mitad pasa del 35 % o la fórmula usa siglas que no se explican.',
+      'Nota aclaratoria: «criterio» en la matriz es lo que se evalúa (por ejemplo, «Talleres 1 y 2», «Avance 1: matriz de consistencia»); «instrumento» es con qué se evalúa (rúbrica, prueba escrita, lista de cotejo). Una rúbrica con sus criterios y niveles dentro del sílabo es la mejor forma de cumplir el Modelo (p. 116), que pide criterios claramente señalados y evaluación en función de un producto.',
+      'Nota aclaratoria: la primera mitad son las semanas 1 a 8. Se suman los pesos de las evaluaciones que caen en esas semanas.',
+      'Cómo orientar al docente: muéstrele el ejemplo de la Guía (Anexo 2, p. 17): unidad, producto con sus criterios, rúbrica y peso.'],
+    '11': [
+      'Cumple: referencias en formato APA, separadas en básicas y complementarias, disponibles en la biblioteca o en sus bases de datos.',
+      'Parcial: sin separar, sin formato APA, o con libros que no están en la biblioteca.',
+      'Nota aclaratoria: que las referencias sean actualizadas, «preferentemente de los últimos cinco años», y estén en la Biblioteca Central o en bases de libre acceso lo pide la Guía Operativa Docente (4.1). Dice «preferentemente»: si falla solo eso, es Parcial, no No cumple. El orden alfabético es una recomendación de forma.'],
+    '12': [
+      'Cumple: todos los docentes del curso publican el mismo sílabo en el aula virtual.',
+      'Parcial o No cumple: hay versiones distintas (otra fórmula, otras unidades, otras referencias).',
+      'Nota aclaratoria: los docentes de un mismo curso coordinan un sílabo único.']
+  };
+
+  // Páginas exactas de cada referencia en las copias de consulta (docs/), que
+  // llevan resaltado en amarillo lo que el portal toma como referencia.
+  const PDF_GUIA = 'docs/guia-elaboracion-silabos.pdf', PDF_MODELO = 'docs/modelo-pedagogico-urp.pdf', PDF_GOD = 'docs/guia-operativa-docente.pdf';
+  const REF_PAGINAS = {
+    '01': [[PDF_GUIA, 3, 'Guía de sílabos, p. 3: datos administrativos']],
+    '02': [[PDF_GUIA, 4, 'Guía de sílabos, p. 4: sumilla'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1']],
+    '03': [[PDF_GUIA, 4, 'Guía de sílabos, p. 4: competencias genéricas'], [PDF_MODELO, 83, 'Modelo Pedagógico, p. 83: Figura 10']],
+    '04': [[PDF_GUIA, 5, 'Guía de sílabos, p. 5: competencias específicas']],
+    '05': [[PDF_GUIA, 5, 'Guía de sílabos, p. 5: componentes']],
+    '06': [[PDF_GUIA, 5, 'Guía de sílabos, p. 5-6: logro (Tabla 5)'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1']],
+    '07': [[PDF_GUIA, 6, 'Guía de sílabos, p. 6: unidades'], [PDF_GUIA, 7, 'p. 7: «Evaluación del logro»'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1: 16 semanas']],
+    '08': [[PDF_MODELO, 108, 'Modelo Pedagógico, p. 108: Figura 14'], [PDF_MODELO, 109, 'p. 109: estrategia y técnica (Figura 15)'],
+           [PDF_MODELO, 114, 'p. 114: Tabla 8'], [PDF_GUIA, 7, 'Guía de sílabos, p. 7: estrategias']],
+    '09': [[PDF_GUIA, 7, 'Guía de sílabos, p. 7: recursos']],
+    '10': [[PDF_GUIA, 8, 'Guía de sílabos, p. 8: matriz y tope del 35 %'], [PDF_GUIA, 9, 'p. 9: ejemplo de matriz'],
+           [PDF_GUIA, 17, 'p. 17: ejemplo con rúbrica'], [PDF_MODELO, 116, 'Modelo Pedagógico, p. 116: criterios y producto'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1: ponderación y fórmula']],
+    '11': [[PDF_GUIA, 9, 'Guía de sílabos, p. 9-10: referencias APA'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1: últimos cinco años']]
+  };
+
+  function enlacesRef(r, texto, n) {
+    if (n && REF_PAGINAS[n]) return (r.enlaces || []).concat(REF_PAGINAS[n].map(x =>
+      ({ url: x[0] + '#page=' + x[1], texto: (x[0] === PDF_MODELO ? '📗 ' : x[0] === PDF_GOD ? '📕 ' : '📙 ') + x[2] })));
+    const l = (r.enlaces || []).slice();
+    const t = String(texto || '');
+    if (t.indexOf(MODELO_PEDAGOGICO) >= 0) {
+      if (/Figura 14/.test(t)) l.push({ url: 'docs/modelo-pedagogico-urp.pdf#page=108', texto: '📗 Modelo Pedagógico: Figura 14 (p. 108)' });
+      else l.push({ url: 'docs/modelo-pedagogico-urp.pdf', texto: '📗 Ver el Modelo Pedagógico' });
+    }
+    if (t.indexOf(GUIA_SILABOS) >= 0) l.push({ url: 'docs/guia-elaboracion-silabos.pdf', texto: '📙 Ver la Guía de Elaboración de Sílabos' });
+    return l;
+  }
   function pintarReferencias(contexto) {
     const M = CFG.MODULOS.silabo;
     const filas = [...$('fichaForm').querySelectorAll('#listaItems .item')];
@@ -8648,8 +9357,10 @@ label .req{color:var(--falla)}
             ? '<p>' + esc(textoPlano(texto)) + '</p>'
             : '<p class="falta">' + esc(r.vacio || ('No está registrado en el catálogo. Sin esa fuente este punto ' +
               'no se puede comprobar: súbala o complétela en Validar datos.')) + '</p>') +
-          (r.enlaces ? '<p class="ref-enlaces">' + r.enlaces.map(e => '<a href="' + esc(e.url) +
+          (enlacesRef(r, texto, it.n).length ? '<p class="ref-enlaces">' + '<span class="ref-ayuda">Abre el documento en la página exacta; lo que se toma como referencia está resaltado en amarillo:</span> ' + enlacesRef(r, texto, it.n).map(e => '<a href="' + esc(e.url) +
             '" target="_blank" rel="noopener">' + esc(e.texto) + '</a>').join(' · ') + '</p>' : '') +
+          ((r.orienta || ORIENTA_ITEM[it.n]) ? '<details class="orienta-item"><summary>📝 Notas aclaratorias: cómo valorarlo y cómo orientar al docente</summary><ul>' +
+            (r.orienta || ORIENTA_ITEM[it.n]).map(o => '<li>' + esc(o) + '</li>').join('') + '</ul></details>' : '') +
           (r.falta ? '<p class="pide-archivo">' + esc(r.falta) + '</p>' : '');
       }
       fila.appendChild(caja);
@@ -9115,12 +9826,13 @@ label .req{color:var(--falla)}
     const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
     const raros = ev.evaluaciones.filter(e => e.otro).map(e => String(e.carpeta).toUpperCase());
     return '<div class="porta-sec"><h4>Archivos de cada evaluación</h4>' +
-      '<div class="porta-directiva"><b>Qué pide la directiva</b> (Guía operativa docente, 3.1 y 3.2): por cada evaluación ' +
+      '<div class="porta-directiva"><b>Qué pide la normativa</b> (Guía Operativa Docente, numeral 4.5; rotulado según la directiva de Calidad y Acreditación): por cada evaluación ' +
       'el docente sube al portafolio, en PDF, <b>a)</b> el enunciado de la evaluación y <b>b)</b> el escaneado del desarrollo ' +
       'de la <b>mayor nota</b>, la <b>menor nota</b> y la <b>nota promedio</b>. Cada archivo se rotula ' +
       '<code>CÓDIGO.TIPO.PERIODO</code> (el enunciado) o <code>CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota</code> ' +
       '(las evidencias), separando las partes con puntos. No se suben videos. ' +
-      '<a href="' + GUIA_ROTULADO + '" target="_blank" rel="noopener">📘 Ver la Guía rápida de rotulado</a></div>' +
+      '<a href="' + GUIA_ROTULADO + '" target="_blank" rel="noopener">📘 Ver la Guía rápida de rotulado</a> · ' +
+      '<a href="docs/guia-operativa-docente.pdf#page=5" target="_blank" rel="noopener">📕 Guía Operativa Docente, 4.5 (resaltado)</a></div>' +
       '<p class="sub"><b>Cómo leer esta tabla:</b> detalla la tabla de arriba. Cada fila es una evaluación del curso —una ' +
       'carpeta que creó Calidad y Acreditación dentro de «EVALUACIONES»— y dice a qué punto del portafolio corresponde. ' +
       'Las cuatro columnas son las evidencias que exige la directiva. En cada casilla aparece el archivo que se encontró, ' +
@@ -10263,7 +10975,7 @@ label .req{color:var(--falla)}
       onclick="document.getElementById('asis-file').click()">📎</button>
     <button id="asis-mic" title="Dictar la pregunta" aria-label="Dictar la pregunta"
       onclick="asisDictar()">🎙️</button>
-    <textarea id="asis-input" rows="1" placeholder="Escribe tu pregunta o pega una captura…"
+    <textarea id="asis-input" rows="1" placeholder="Escribe tu pregunta, pega o arrastra una captura…"
       oninput="asisAutoAlto(this)" onkeydown="asisTecla(event)" onpaste="asisPegar(event)"></textarea>
     <button id="asis-enviar" onclick="asisEnviar()">Enviar</button>
   </div>
@@ -10738,5 +11450,76 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 </script>
 
+
+<script>
+/* ---------------------------------------------------------- arrastrar y soltar ----
+ * En todo el portal se puede arrastrar un archivo y soltarlo sobre la zona
+ * donde está el botón de adjuntar: el archivo entra al mismo campo, como si se
+ * hubiera elegido con el botón. Funciona también con los campos que se crean
+ * después (formatos, documentos de referencia, asistente). Un archivo soltado
+ * fuera de una zona no abre el PDF en la pestaña (se perdería lo escrito). */
+(function () {
+  const PROHIBIDOS = new Set(['BODY', 'HTML', 'MAIN']);
+  function campoDe(el) {
+    for (let n = el, i = 0; n && n.nodeType === 1 && i < 8; n = n.parentElement, i++) {
+      if (PROHIBIDOS.has(n.tagName) || n.classList.contains('tarjeta') && n.querySelectorAll('input[type=file]').length > 1) break;
+      const l = [...n.querySelectorAll('input[type=file]')].filter(x => !x.hasAttribute('webkitdirectory') && !x.disabled);
+      if (l.length === 1) return { zona: n, input: l[0] };
+      if (l.length > 1) return null;   // zona ambigua: no se adivina
+    }
+    return null;
+  }
+  function acepta(input, f) {
+    const a = (input.getAttribute('accept') || '').split(',').map(x => x.trim().toLowerCase()).filter(Boolean);
+    if (!a.length) return true;
+    const nom = f.name.toLowerCase(), tipo = (f.type || '').toLowerCase();
+    return a.some(x => x.startsWith('.') ? nom.endsWith(x) : x.endsWith('/*') ? tipo.startsWith(x.slice(0, -1)) : tipo === x);
+  }
+  let marcada = null;
+  function marcar(z) { if (marcada === z) return; if (marcada) marcada.classList.remove('zona-arrastre'); marcada = z; if (z) z.classList.add('zona-arrastre'); }
+  const conArchivos = e => e.dataTransfer && [...(e.dataTransfer.types || [])].includes('Files');
+  document.addEventListener('dragover', e => {
+    if (!conArchivos(e)) return;
+    e.preventDefault();
+    const c = campoDe(e.target);
+    e.dataTransfer.dropEffect = c ? 'copy' : 'none';
+    marcar(c ? c.zona : null);
+  });
+  document.addEventListener('dragleave', e => { if (!e.relatedTarget) marcar(null); });
+  document.addEventListener('drop', e => {
+    if (!conArchivos(e)) return;
+    e.preventDefault();
+    marcar(null);
+    const c = campoDe(e.target);
+    if (!c) { aviso('Suelte el archivo sobre la zona donde está el botón de adjuntar (📎).'); return; }
+    let fs = [...e.dataTransfer.files].filter(f => f.size > 0 || f.type);   // las carpetas llegan vacías
+    const fuera = fs.filter(f => !acepta(c.input, f));
+    fs = fs.filter(f => acepta(c.input, f));
+    if (!fs.length) {
+      aviso(fuera.length ? 'Ese tipo de archivo no se acepta aquí (' + (c.input.getAttribute('accept') || '') + ').' +
+        ' Si es una carpeta, use el botón «Cargar carpeta».' : 'No se recibió ningún archivo.');
+      return;
+    }
+    if (!c.input.multiple) fs = fs.slice(0, 1);
+    const dt = new DataTransfer();
+    fs.forEach(f => dt.items.add(f));
+    c.input.files = dt.files;
+    c.input.dispatchEvent(new Event('change', { bubbles: true }));
+    if (fuera.length) aviso('Se omitió ' + fuera.length + (fuera.length === 1 ? ' archivo' : ' archivos') + ' de un tipo que no se acepta aquí.');
+  });
+  function aviso(t) {
+    let d = document.getElementById('avisoArrastre');
+    if (!d) { d = document.createElement('div'); d.id = 'avisoArrastre'; document.body.appendChild(d); }
+    d.textContent = t; d.classList.add('ver');
+    clearTimeout(d._t); d._t = setTimeout(() => d.classList.remove('ver'), 4500);
+  }
+})();
+</script>
+<style>
+.zona-arrastre{outline:3px dashed #1f7a52 !important;outline-offset:3px;background-color:rgba(31,122,82,.06) !important;border-radius:10px}
+#avisoArrastre{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(20px);opacity:0;pointer-events:none;
+  background:#1d2a24;color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;box-shadow:0 6px 20px rgba(0,0,0,.25);transition:all .25s;z-index:99999;max-width:90vw}
+#avisoArrastre.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
 </body>
 </html>
