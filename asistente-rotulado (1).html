@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Asistente de rotulado</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Source+Serif+4:opsz,wght@8..60,600&display=swap">
+<style>
+/* Layout: una sola columna centrada; arriba el nombre que se va armando, abajo una pregunta a la vez */
+:root{
+  --bg:#f5f6f2; --panel:#ffffff; --fg:#1d2721; --muted:#5a6a60; --line:#d5ddd6;
+  --accent:#1f5c46; --accent-fg:#ffffff; --accent-soft:#e3efe8;
+  --warn:#9a3b12; --warn-soft:#fbeadf;
+  --p1:#1f5c46; --p2:#7a4a00; --p3:#2d4f86; --p4:#7a2e5c; --p5:#5b5b1a; --p6:#8a2b2b;
+  --f-body:"Atkinson Hyperlegible",Verdana,"Segoe UI",sans-serif;
+  --f-head:"Source Serif 4",Georgia,serif;
+  --f-mono:"Consolas","Courier New",monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#141a17; --panel:#1c2420; --fg:#e8eee9; --muted:#a3b3a9; --line:#34413a;
+  --accent:#6fc59d; --accent-fg:#0e1a14; --accent-soft:#1f3329;
+  --warn:#f3a57f; --warn-soft:#3a2219;
+  --p1:#6fc59d; --p2:#e8b25c; --p3:#8fb1ee; --p4:#e39bc6; --p5:#cfcf6a; --p6:#ef8f8f; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141a17; --panel:#1c2420; --fg:#e8eee9; --muted:#a3b3a9; --line:#34413a;
+  --accent:#6fc59d; --accent-fg:#0e1a14; --accent-soft:#1f3329;
+  --warn:#f3a57f; --warn-soft:#3a2219;
+  --p1:#6fc59d; --p2:#e8b25c; --p3:#8fb1ee; --p4:#e39bc6; --p5:#cfcf6a; --p6:#ef8f8f; color-scheme:dark}
+*{box-sizing:border-box}
+body{margin:0}
+body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:20px;line-height:1.5;padding-inline:16px;padding-block:24px 48px}
+.wrap{max-width:760px;margin:0 auto;display:grid;gap:22px}
+h1{font-family:var(--f-head);font-weight:600;font-size:1.7rem;line-height:1.2;margin:0;text-wrap:balance}
+.sub{color:var(--muted);margin:4px 0 0;font-size:1.05rem}
+.nombre{background:var(--panel);border:2px solid var(--line);border-radius:10px;padding:14px 16px}
+.nombre .et{font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.nombre .txt{font-family:var(--f-mono);font-size:1.15rem;word-break:break-all;margin-top:4px;min-height:1.6em}
+.pz{font-weight:700}.pz.vacio{color:var(--muted);font-weight:400;opacity:.7}
+.c1{color:var(--p1)}.c2{color:var(--p2)}.c3{color:var(--p3)}.c4{color:var(--p4)}.c5{color:var(--p5)}.c6{color:var(--p6)}
+.paso{background:var(--panel);border:2px solid var(--accent);border-radius:10px;padding:22px 20px;display:grid;gap:16px}
+.cuenta{font-size:.95rem;color:var(--muted);font-weight:700}
+.preg{font-size:1.35rem;font-weight:700;margin:0;text-wrap:balance}
+.ayuda{color:var(--muted);margin:0}
+.ops{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.op{font:inherit;text-align:left;background:var(--bg);color:var(--fg);border:2px solid var(--line);border-radius:8px;padding:12px 14px;cursor:pointer;display:grid;gap:2px}
+.op b{font-size:1.1rem}.op span{color:var(--muted);font-size:.95rem}
+.op:hover{border-color:var(--accent)}
+.op[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.op .sig{font-family:var(--f-mono);font-weight:700;color:var(--accent)}
+input,select{font:inherit;font-size:1.2rem;padding:10px 12px;border:2px solid var(--line);border-radius:8px;background:var(--bg);color:var(--fg);width:100%;max-width:420px}
+input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.fila{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.fila select{width:auto}
+.btns{display:flex;flex-wrap:wrap;gap:12px}
+.b{font:inherit;font-weight:700;border-radius:8px;padding:12px 22px;cursor:pointer;border:2px solid var(--accent)}
+.b.pri{background:var(--accent);color:var(--accent-fg)}
+.b.sec{background:transparent;color:var(--accent)}
+.err{background:var(--warn-soft);color:var(--warn);border-radius:8px;padding:10px 14px;margin:0;font-weight:700}
+.res{font-family:var(--f-mono);font-size:1.3rem;font-weight:700;word-break:break-all;background:var(--accent-soft);border-radius:8px;padding:16px}
+.partes{display:grid;gap:6px;margin:0;padding:0;list-style:none}
+.partes li{display:flex;gap:10px;flex-wrap:wrap}
+.partes code{font-family:var(--f-mono);font-weight:700;min-width:7ch}
+.nota{border-top:2px solid var(--line);padding-top:14px;display:grid;gap:8px}
+.nota p{margin:0}
+.ok{color:var(--accent);font-weight:700;margin:0;min-height:1.5em}
+.pie{color:var(--muted);font-size:.95rem}
+@media (max-width:480px){body{font-size:18px}.preg{font-size:1.2rem}}
+@media (prefers-reduced-motion:no-preference){.paso{animation:entra .18s ease-out}@keyframes entra{from{transform:translateY(4px)}to{transform:none}}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Asistente de rotulado de evidencias</h1>
+    <p class="sub">Responda una pregunta a la vez. Al final tendrá el nombre correcto del archivo, según la directiva de rotulado de Calidad y Acreditación.</p>
+  </header>
+
+  <div class="nombre" aria-live="polite">
+    <div class="et">Así va quedando el nombre</div>
+    <div class="txt" id="vista"></div>
+  </div>
+
+  <section class="paso" id="paso"></section>
+
+  <p class="pie">Forma del nombre: CÓDIGO . TIPO . PERIODO . NOMBRE . MÉTRICA . NOTA . PDF. El nombre del estudiante, la métrica y la nota solo van en los trabajos resueltos por estudiantes, no en el examen o tarea en blanco.</p>
+</div>
+
+<script>
+const TIPOS=[
+  {s:'EP',n:'Examen Parcial',num:false},
+  {s:'EF',n:'Examen Final',num:false},
+  {s:'PC',n:'Prácticas',num:true,uno:'una práctica'},
+  {s:'TR',n:'Trabajos',num:true,uno:'un trabajo'},
+  {s:'LA',n:'Laboratorios',num:true,uno:'un laboratorio'},
+  {s:'TA',n:'Talleres',num:true,uno:'un taller'},
+  {s:'IN',n:'Investigaciones',num:true,uno:'una investigación'},
+  {s:'PR',n:'Proyectos',num:true,uno:'un proyecto'},
+  {s:'OTRO',n:'Otro',num:true,uno:'una evaluación de este tipo'}
+];
+const hoy=new Date(); const anioHoy=hoy.getFullYear(); const cicloHoy=hoy.getMonth()>=7?'II':'I';
+const D={clase:'evidencia',codigo:'IN0701',tipo:'TA',otro:'',varios:'si',numero:'1',anio:String(anioHoy),ciclo:cicloHoy,nombre:'Luis Morales',metrica:'Mayor',nota:'17'};
+// arranca vacío: el ejemplo solo se muestra en la vista previa como guía
+const R={clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',metrica:'',nota:''};
+let i=0;
+const $=s=>document.querySelector(s);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tipoObj=()=>TIPOS.find(t=>t.s===R.tipo);
+const pideNumero=()=>{const t=tipoObj();return t&&t.num};
+const siglaTipo=()=>{ if(!R.tipo) return ''; const base=R.tipo==='OTRO'?R.otro:R.tipo; if(!base) return ''; return base+(pideNumero()&&R.varios==='si'&&R.numero?R.numero:''); };
+const periodo=()=>R.anio&&R.ciclo?R.anio+'-'+R.ciclo:'';
+const limpiaNombre=t=>t.replace(/[.\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim();
+
+function partes(){
+  const p=[['c1','CÓDIGO',R.codigo],['c2','TIPO',siglaTipo()],['c3','PERIODO',periodo()]];
+  if(R.clase!=='enunciado'){p.push(['c4','NOMBRE',R.nombre],['c5','MÉTRICA',R.metrica],['c6','NOTA',R.nota]);}
+  return p;
+}
+function nombreFinal(conExt=true){return partes().map(x=>x[2]).join('.')+(conExt?'.PDF':'');}
+function pintaVista(){
+  $('#vista').innerHTML=partes().map(([c,et,v])=>'<span class="pz '+(v?c:'vacio')+'">'+esc(v||et)+'</span>').join('.')+'<span class="pz">.PDF</span>';
+}
+
+const PASOS=[
+ {id:'clase',ver:()=>true,
+  html:()=>`<p class="preg">¿Qué archivo va a rotular?</p>
+   <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio).</p>
+   <div class="ops">${op('clase','enunciado','El examen o tarea en blanco','Las preguntas que el docente entregó, sin resolver. Por ejemplo, el examen parcial tal como se tomó. Es 1 por evaluación.')}
+   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Son 3 por evaluación: mayor, menor y nota promedio.')}</div>`,
+  ok:()=>R.clase?'':'Elija una de las dos opciones.'},
+ {id:'codigo',ver:()=>true,
+  html:()=>`<label class="preg" for="inCodigo">¿Cuál es el código del curso?</label>
+   <p class="ayuda">Está en el sílabo. Por ejemplo: <b>IN0701</b> o <b>INEL01</b>.</p>
+   <input id="inCodigo" autocomplete="off" autocapitalize="characters" value="${esc(R.codigo)}" placeholder="IN0701">`,
+  lee:()=>{R.codigo=$('#inCodigo').value.toUpperCase().replace(/\s+/g,'')},
+  ok:()=>!R.codigo?'Escriba el código del curso.':(/^[A-Z]{2,5}\d{2,4}[A-Z]?$/.test(R.codigo)?'':'El código debe tener letras y luego números, sin espacios ni guiones. Ejemplo: IN0701.')},
+ {id:'tipo',ver:()=>true,
+  html:()=>`<p class="preg">¿Qué tipo de evaluación es?</p>
+   <div class="ops">${TIPOS.map(t=>`<button type="button" class="op" data-k="tipo" data-v="${t.s}" aria-pressed="${R.tipo===t.s}"><b>${t.n}</b><span class="sig">${t.s==='OTRO'?'nombre completo':t.s}</span></button>`).join('')}</div>
+   <div id="cajaOtro" ${R.tipo==='OTRO'?'':'hidden'}><label for="inOtro" class="ayuda">Escriba el nombre completo de la evaluación, en una sola palabra (por ejemplo, INFORME o EXPOSICION):</label><br>
+   <input id="inOtro" autocomplete="off" value="${esc(R.otro)}" placeholder="INFORME"></div>
+   <p class="ayuda">Si el informe es lo que se entrega en un taller, elija <b>Talleres</b>.</p>`,
+  lee:()=>{const e=$('#inOtro'); if(e) R.otro=e.value.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z]/g,'')},
+  ok:()=>!R.tipo?'Elija el tipo de evaluación.':(R.tipo==='OTRO'&&!R.otro?'Escriba el nombre de la evaluación.':'')},
+ {id:'numero',ver:()=>pideNumero(),
+  html:()=>{const u=tipoObj().uno; return `<p class="preg">¿El curso tiene más de ${u} en el ciclo?</p>
+   <div class="ops">${op('varios','no','No, solo uno','Se escribe sin número.')}${op('varios','si','Sí, hay varios','Se numeran: 1, 2, 3…')}</div>
+   <div id="cajaNum" ${R.varios==='si'?'':'hidden'}><label for="inNum" class="ayuda">¿Qué número es este?</label><br>
+   <select id="inNum">${Array.from({length:12},(_,k)=>`<option ${String(k+1)===R.numero?'selected':''}>${k+1}</option>`).join('')}</select></div>`},
+  lee:()=>{const e=$('#inNum'); if(e&&R.varios==='si') R.numero=e.value; if(R.varios==='no') R.numero=''},
+  ok:()=>R.varios?'':'Elija una de las dos opciones.'},
+ {id:'periodo',ver:()=>true,
+  html:()=>`<p class="preg">¿De qué periodo académico es?</p>
+   <div class="fila"><label for="inAnio" class="ayuda">Año</label>
+   <select id="inAnio">${[...new Set([anioHoy-2,anioHoy-1,anioHoy,anioHoy+1,+R.anio])].sort().map(a=>`<option ${String(a)===R.anio?'selected':''}>${a}</option>`).join('')}</select>
+   <label for="inCiclo" class="ayuda">Ciclo</label>
+   <select id="inCiclo">${['I','II'].map(c=>`<option ${c===R.ciclo?'selected':''}>${c}</option>`).join('')}</select></div>`,
+  lee:()=>{R.anio=$('#inAnio').value;R.ciclo=$('#inCiclo').value},
+  ok:()=>''},
+ {id:'nombre',ver:()=>R.clase==='evidencia',
+  html:()=>`<label class="preg" for="inNombre">¿Cómo se llama el estudiante?</label>
+   <p class="ayuda">Nombre y apellido, como en la lista. Por ejemplo: <b>Luis Morales</b>.</p>
+   <input id="inNombre" autocomplete="off" value="${esc(R.nombre)}" placeholder="Luis Morales">`,
+  lee:()=>{R.nombre=limpiaNombre($('#inNombre').value)},
+  ok:()=>R.nombre?'':'Escriba el nombre y apellido del estudiante.'},
+ {id:'metrica',ver:()=>R.clase==='evidencia',
+  html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
+   <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${op('metrica','Promedio','La nota promedio','')}</div>`,
+  ok:()=>R.metrica?'':'Elija una opción.'},
+ {id:'nota',ver:()=>R.clase==='evidencia',
+  html:()=>`<label class="preg" for="inNota">¿Qué nota obtuvo?</label>
+   <p class="ayuda">De 0 a 20, sin decimales. Por ejemplo: <b>17</b>.</p>
+   <input id="inNota" inputmode="numeric" autocomplete="off" value="${esc(R.nota)}" placeholder="17" style="max-width:140px">`,
+  lee:()=>{R.nota=$('#inNota').value.trim()},
+  ok:()=>/^\d{1,2}$/.test(R.nota)&&+R.nota<=20?'':(/[.,]/.test(R.nota)?'Escriba la nota sin decimales (redondeada). El punto no se puede usar porque separa las partes del nombre.':'Escriba un número entero de 0 a 20.')}
+];
+function op(k,v,t,s){return `<button type="button" class="op" data-k="${k}" data-v="${v}" aria-pressed="${R[k]===v}"><b>${t}</b>${s?`<span>${s}</span>`:''}</button>`}
+const visibles=()=>PASOS.filter(p=>p.ver());
+
+function pinta(msg){
+  const vs=visibles(); pintaVista();
+  if(i>=vs.length) return final();
+  const p=vs[i];
+  $('#paso').innerHTML=`<div class="cuenta">Pregunta ${i+1}</div>${p.html()}
+   ${msg?`<p class="err" role="alert">${esc(msg)}</p>`:''}
+   <div class="btns">${i>0?'<button type="button" class="b sec" id="atras">← Volver</button>':''}<button type="button" class="b pri" id="sigue">Siguiente →</button></div>`;
+  const foco=$('#paso input,#paso select'); if(foco&&!msg) foco.focus();
+}
+function avanza(){const p=visibles()[i]; if(p.lee)p.lee(); const m=p.ok(); if(m) return pinta(m); i++; pinta();}
+
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.k){
+    const p=visibles()[i]; if(p&&p.lee) p.lee();
+    R[b.dataset.k]=b.dataset.v;
+    if(b.dataset.k==='varios'&&b.dataset.v==='si'&&!R.numero) R.numero='1';
+    if(b.dataset.k==='tipo'&&b.dataset.v!=='OTRO'&&!tipoObj().num){R.varios='';R.numero='';}
+    const auto=['clase','metrica'].includes(b.dataset.k)||(b.dataset.k==='tipo'&&b.dataset.v!=='OTRO')||(b.dataset.k==='varios'&&b.dataset.v==='no');
+    if(auto){i++;pinta();} else pinta();
+    return;
+  }
+  if(b.id==='sigue') return avanza();
+  if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
+  if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
+  if(b.id==='otraEv'){R.nombre='';R.metrica='';R.nota='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
+  if(b.id==='nuevo'){Object.assign(R,{clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',metrica:'',nota:''});i=0;return pinta();}
+  if(b.id==='editar'){i=0;return pinta();}
+});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('#paso input')){e.preventDefault();avanza();}});
+
+function final(){
+  const n=nombreFinal();
+  $('#paso').innerHTML=`<div class="cuenta">Listo</div>
+   <p class="preg">Este es el nombre correcto del archivo:</p>
+   <div class="res" id="res">${esc(n)}</div>
+   <div class="btns"><button type="button" class="b pri" id="copiar">Copiar el nombre</button>
+   <button type="button" class="b sec" id="copiarSin">Copiar sin «.PDF»</button></div>
+   <p class="ok" id="avisoCopia" aria-live="polite"></p>
+   <ul class="partes">${partes().map(([c,et,v])=>`<li><code class="${c}">${esc(v)}</code><span>${et.toLowerCase()==='tipo'?'tipo de evaluación':et.toLowerCase()}</span></li>`).join('')}<li><code>PDF</code><span>el archivo debe estar en PDF</span></li></ul>
+   <div class="nota">
+    <p><b>Cómo cambiarle el nombre al archivo:</b> en la carpeta, haga clic derecho sobre el archivo, elija «Cambiar nombre», borre el nombre anterior y pegue (Ctrl + V).</p>
+    <p>Si en su computadora los archivos no muestran «.pdf» al final del nombre, use el botón <b>Copiar sin «.PDF»</b>. Así evita que el archivo quede como «….PDF.pdf».</p>
+   </div>
+   <div class="btns">${R.clase==='evidencia'?'<button type="button" class="b pri" id="otraEv">Rotular otro trabajo de esta misma evaluación</button>':''}
+   <button type="button" class="b sec" id="editar">Corregir respuestas</button>
+   <button type="button" class="b sec" id="nuevo">Empezar de nuevo</button></div>`;
+}
+function copia(conExt){
+  const t=nombreFinal(conExt), av=$('#avisoCopia');
+  const marca=()=>{const r=document.createRange();r.selectNodeContents($('#res'));const s=getSelection();s.removeAllRanges();s.addRange(r);};
+  try{navigator.clipboard.writeText(t).then(()=>{av.textContent='Copiado: '+t},()=>{marca();av.textContent='Seleccioné el nombre: presione Ctrl + C para copiarlo.'});}
+  catch(_){marca();av.textContent='Seleccioné el nombre: presione Ctrl + C para copiarlo.';}
+}
+function ejemplo(){$('#vista').innerHTML=`<span class="pz c1">${D.codigo}</span>.<span class="pz c2">${D.tipo}1</span>.<span class="pz c3">${D.anio}-${D.ciclo}</span>.<span class="pz c4">${D.nombre}</span>.<span class="pz c5">${D.metrica}</span>.<span class="pz c6">${D.nota}</span>.PDF <span class="pz vacio">(ejemplo)</span>`;}
+(function(){try{const q=new URLSearchParams(location.search);
+  const c=(q.get('codigo')||'').toUpperCase().replace(/[^A-Z0-9]/g,''); if(c) R.codigo=c;
+  const m=(q.get('periodo')||'').toUpperCase().match(/(\d{4})[\s\-_]*(II|I)\b/); if(m){R.anio=m[1];R.ciclo=m[2];}
+  const t=(q.get('tipo')||'').toUpperCase(); if(TIPOS.some(x=>x.s===t)) R.tipo=t;
+}catch(_){}})();
+pinta(); ejemplo();
+</script>
+
+</body>
+</html>
