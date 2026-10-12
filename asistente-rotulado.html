@@ -125,7 +125,7 @@ function pintaVista(){
 const PASOS=[
  {id:'clase',ver:()=>true,
   html:()=>`<p class="preg">¿Qué archivo va a rotular?</p>
-   <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio).</p>
+   <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio). Vale para <b>todas</b> las evaluaciones: exámenes, prácticas, trabajos, laboratorios, talleres, investigaciones y proyectos (Guía Operativa Docente, numeral 4.5).</p>
    <div class="ops">${op('clase','enunciado','El examen o tarea en blanco','Las preguntas que el docente entregó, sin resolver. Por ejemplo, el examen parcial tal como se tomó. Es 1 por evaluación.')}
    ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Son 3 por evaluación: mayor, menor y nota promedio.')}</div>`,
   ok:()=>R.clase?'':'Elija una de las dos opciones.'},
