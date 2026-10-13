@@ -264,6 +264,11 @@ tr.sin-leer{background:#fffdf6}
 .chat-clip{text-decoration:none;display:inline-flex;align-items:center;border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
   font-size:12.5px;padding:5px 8px;border-radius:8px}
 .chat-clip:hover{background:var(--fondo)}
+.buscador-lista{font:inherit;font-size:15px;padding:10px 12px;border:2px solid #b9d3c6;border-radius:10px;width:100%;max-width:640px;background:#fff}
+.buscador-lista:focus{outline:3px solid #1f5c4655;border-color:#1f5c46}
+.buscador-mapa{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 12px}
+.buscador-mapa .buscador-lista{flex:1 1 280px;width:auto}
+.buscador-mapa .ayuda{flex-basis:100%;margin:0}
 .banda-rotulado{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center;justify-content:space-between;
   background:#fff7e0;border:2px solid #e2b33c;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:15px;line-height:1.45;color:#3a2f12}
 .btn-rotulado{background:#1f5c46;color:#fff !important;text-decoration:none;font-weight:700;border-radius:8px;padding:10px 16px;white-space:nowrap}
@@ -1549,9 +1554,12 @@ label .req{color:var(--falla)}
 
           <!-- 3: asignación a cursos -->
           <div id="compPanelAsig" class="oculto">
-            <label for="compCurso" style="font-weight:600;font-size:15px">Curso</label>
-            <select id="compCurso" style="font-size:15px;padding:10px 12px;margin-top:4px"></select>
-            <p class="ayuda" style="margin:4px 0 14px">Solo aparecen los cursos de la carrera y el plan elegidos arriba.</p>
+            <label for="compCursoBuscar" style="font-weight:600;font-size:15px">Curso</label>
+            <input type="search" id="compCursoBuscar" class="buscador-lista" autocomplete="off"
+              placeholder="🔎 Buscar curso: escriba el código o parte del nombre (ej. IN1001 o proyectos)">
+            <select id="compCurso" style="font-size:15px;padding:10px 12px;margin-top:6px"></select>
+            <p class="ayuda" id="compCursoCuenta" style="margin:4px 0 0"></p>
+            <div style="height:10px"></div>
             <div class="comp-datos-ocultos">
               <input type="text" id="compCursoCodigo" readonly><input type="text" id="compCursoNombre" readonly>
               <input type="text" id="compCursoSemestre" readonly><input type="text" id="compCursoArea" readonly>
@@ -1927,7 +1935,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '12/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.19';
+  const VERSION_INTERNA = '2026-10-12.20';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4129,8 +4137,31 @@ label .req{color:var(--falla)}
       '<option value="' + esc(x.codigo) + '">' + esc(x.codigo) + ' — ' + esc(nombreCurso(x.curso)) +
       (x.semestre ? ' (semestre ' + esc(x.semestre) + ')' : '') + '</option>').join('');
     if (previo && cursos.some(x => x.codigo === previo)) $('compCurso').value = previo;
+    $('compCurso')._todas = [...$('compCurso').options].map(o => [o.value, o.text]);
+    filtrarCursosComp(false);
     elegirCursoComp();
   }
+
+  /* Buscador del desplegable de cursos: deja solo los que contienen todas las
+     palabras escritas (sin importar tildes ni mayúsculas). */
+  const normBusca = t => sinAcentos(String(t || '')).toLowerCase();
+  function filtrarCursosComp(elegirUnico) {
+    const sel = $('compCurso'), todas = sel._todas || [];
+    const q = normBusca($('compCursoBuscar').value).split(/\s+/).filter(Boolean);
+    const previo = sel.value;
+    const quedan = todas.filter(([v, t]) => !v || q.every(p => normBusca(t).includes(p)));
+    sel.innerHTML = quedan.map(([v, t]) => '<option value="' + esc(v) + '">' + esc(t) + '</option>').join('');
+    if (quedan.some(([v]) => v === previo)) sel.value = previo;
+    const n = quedan.filter(([v]) => v).length, total = todas.filter(([v]) => v).length;
+    $('compCursoCuenta').textContent = q.length
+      ? (n ? 'Se encontraron ' + n + ' de ' + total + ' cursos. Ábralo y elija.' : 'Ningún curso coincide con lo escrito. Pruebe con otra palabra.')
+      : 'Solo aparecen los cursos de la carrera y el plan elegidos arriba (' + total + ' cursos).';
+    if (elegirUnico && n === 1) {
+      sel.value = quedan.find(([v]) => v)[0];
+      sel.dispatchEvent(new Event('change'));
+    }
+  }
+  $('compCursoBuscar') && $('compCursoBuscar').addEventListener('input', () => filtrarCursosComp(true));
 
   // Tarjeta seleccionable de una competencia (genérica o específica).
   const tarjetaComp = (c, clase, tipo, marcada) =>
@@ -4225,6 +4256,28 @@ label .req{color:var(--falla)}
     });
   }
 
+  /* Buscador del mapa: filtra filas por texto y, si se elige, por competencia.
+     Se recuerda mientras no se cambie de página, aunque el mapa se vuelva a pintar. */
+  const MAPA_FILTRO = { texto: '', comp: '' };
+  function filtrarMapa() {
+    const caja = $('compMatriz'); if (!caja || !caja.querySelector('table')) return;
+    const q = normBusca(MAPA_FILTRO.texto).split(/\s+/).filter(Boolean);
+    let n = 0, total = 0, cabSem = null, visiblesSem = 0;
+    const cerrar = () => { if (cabSem) cabSem.style.display = visiblesSem ? '' : 'none'; };
+    caja.querySelectorAll('tbody tr').forEach(tr => {
+      if (tr.classList.contains('semestre')) { cerrar(); cabSem = tr; visiblesSem = 0; return; }
+      total++;
+      const okTxt = q.every(p => normBusca(tr.querySelector('td.curso').textContent).includes(p));
+      const okComp = !MAPA_FILTRO.comp || !!tr.querySelector('.cas-esp[value="' + MAPA_FILTRO.comp + '"]:checked');
+      const ver = okTxt && okComp;
+      tr.style.display = ver ? '' : 'none';
+      if (ver) { n++; visiblesSem++; }
+    });
+    cerrar();
+    const c = $('mapaCuenta');
+    if (c) c.textContent = (q.length || MAPA_FILTRO.comp) ? 'Mostrando ' + n + ' de ' + total + ' cursos.' : total + ' cursos.';
+  }
+
   function pintarMatriz(codElegido) {
     const esp = compDe('Específica');
     const cursos = cursosDelPlanComp();
@@ -4236,6 +4289,13 @@ label .req{color:var(--falla)}
     let semAnt = null;
     const nCol = esp.length + 2;
     $('compMatriz').innerHTML =
+      '<div class="buscador-mapa"><input type="search" id="mapaBuscar" class="buscador-lista" autocomplete="off" ' +
+        'placeholder="🔎 Buscar en el mapa: código o nombre del curso" value="' + esc(MAPA_FILTRO.texto) + '">' +
+        '<select id="mapaCompFiltro" class="buscador-lista" aria-label="Mostrar solo los cursos de una competencia">' +
+        '<option value="">Todas las competencias</option>' +
+        esp.map(c => '<option value="' + esc(c.codigo) + '"' + (MAPA_FILTRO.comp === c.codigo ? ' selected' : '') + '>Solo los cursos que desarrollan ' +
+          esc(c.codigo) + (c.nombre ? ' (' + esc(c.nombre) + ')' : '') + '</option>').join('') +
+        '</select><span class="ayuda" id="mapaCuenta"></span></div>' +
       '<div class="comp-info vacia" id="compMatrizInfo">Pase el mouse sobre una columna o una celda para ver de qué competencia se trata.</div>' +
       '<div class="comp-mapa"><table class="matriz-comp"><thead><tr><th class="curso">Curso</th>' +
       esp.map(c => '<th data-col="' + esc(c.codigo) + '"><div class="col-cab"><div class="barra"><i style="height:0"></i></div>' +
@@ -4279,6 +4339,9 @@ label .req{color:var(--falla)}
       if (celda) activar(celda.dataset.col);
     });
     $('compMatriz').querySelector('.comp-mapa').addEventListener('mouseleave', () => activar(null));
+    $('mapaBuscar').addEventListener('input', e => { MAPA_FILTRO.texto = e.target.value; filtrarMapa(); });
+    $('mapaCompFiltro').addEventListener('change', e => { MAPA_FILTRO.comp = e.target.value; filtrarMapa(); });
+    filtrarMapa();
 
     $('compMatriz').querySelectorAll('.cas-esp').forEach(cb => {
       cb.addEventListener('focus', () => activar(cb.value));
