@@ -1955,7 +1955,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '13/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-13.02';
+  const VERSION_INTERNA = '2026-10-13.03';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2466,7 +2466,16 @@ label .req{color:var(--falla)}
         '<div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:8px">' +
         '<label class="btn gris" style="cursor:pointer">' + (cr ? 'Volver a leer el sílabo' : 'Leer el sílabo (PDF o Word)') +
         '<input type="file" id="archCrono" accept=".pdf,.docx" style="display:none"></label>' +
+        (cr ? '<button type="button" class="btn gris" id="btnBorrarCrono">🗑 Borrar el cronograma y empezar de nuevo</button>' : '') +
         '<span id="avisoCrono" class="nota-crono"></span></div><div id="previaCrono"></div></div>';
+      if ($('btnBorrarCrono')) $('btnBorrarCrono').addEventListener('click', () => {
+        if (!confirm('¿Borrar el cronograma registrado de este curso? Luego podrá leer otra vez el sílabo.')) return;
+        $('btnBorrarCrono').disabled = true;
+        api('/cronograma', { method: 'POST', body: JSON.stringify({ programa: a.programa, ciclo, codigo: a.codigo, borrar: true }) })
+          .then(x => { if (x.error) throw new Error(x.error); return cargarCronogramas([a.programa], true); })
+          .then(() => pintarCajaCronograma())
+          .catch(e => { $('avisoCrono').textContent = 'No se pudo borrar: ' + e.message; $('btnBorrarCrono').disabled = false; });
+      });
       $('archCrono').addEventListener('change', async ev => {
         const arch = ev.target.files[0];
         if (!arch) return;
@@ -8815,6 +8824,32 @@ label .req{color:var(--falla)}
     return texto;
   }
 
+  // ¿Es el plan de estudios (o malla) y no el sílabo?
+  function esPlanDeEstudios(nombre, txt) {
+    const t = sinAcentos(String(txt || '').slice(0, 6000));
+    return /plan|malla|curricul/i.test(nombre || '') && !/logro de la asignatura|programacion de contenidos/.test(t) ||
+           (/plan de estudios|malla curricular/.test(t) && !/logro de la asignatura/.test(t));
+  }
+  function pareceSilabo(txt) {
+    const t = sinAcentos(String(txt || '').slice(0, 20000));
+    return /silabo/.test(t) && /(logro|sumilla|unidad|programacion)/.test(t);
+  }
+  // Deja del plan solo las filas del curso (por código o nombre) y la cabecera de la tabla.
+  function recortePlan(txt, codigo, nombre) {
+    const L = String(txt || '').split('\n');
+    const cod = String(codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const nom = sinAcentos(nombre || '').slice(0, 30);
+    const keep = new Set();
+    L.forEach((l, i) => {
+      const u = l.toUpperCase().replace(/\s+/g, ''), n = sinAcentos(l);
+      if ((cod && u.indexOf(cod) >= 0) || (nom.length > 8 && n.indexOf(nom) >= 0)) { for (let k = i - 1; k <= i + 2; k++) keep.add(k); }
+      if (/cr[eé]ditos|requisito|c[oó]digo|condici[oó]n|obligatori|electiv/i.test(l) && l.length < 200) keep.add(i);
+    });
+    const out = L.filter((l, i) => keep.has(i) && l.trim()).join('\n');
+    return out ? '[Extracto del plan de estudios: filas del curso ' + cod + ' y cabeceras de la tabla]\n' + out.slice(0, 6000)
+               : '[Plan de estudios: no se encontró el curso ' + cod + ' en el texto]';
+  }
+
   const esImagen = f => /^image\/(png|jpe?g|webp)$/i.test(f.type || '') || /\.(png|jpe?g|webp)$/i.test(f.name || '');
   // Una imagen se reduce (máximo 1600 px de lado) y se pasa a JPEG: así entra
   // en el límite del asistente y se lee igual de bien.
@@ -9037,10 +9072,11 @@ label .req{color:var(--falla)}
           hay: c => !!(c && c.competencias && ((c.competencias.delCurso || []).length || (c.competencias.especificas || []).length)),
           falta: 'Aún no están registradas: cárguelas en Coordinadores → Competencias, o adjunte el documento.' },
         { t: 'Formato institucional y patrón de calidad del sílabo', de: 'Estándar cargado en el portal (patrón del logro ' + PATRON_LOGRO.version + ')', hay: () => true },
-        { t: 'Plan de estudios (créditos, requisitos y logro del curso)', opcional: true,
-          falta: 'Aún no está en el portal. Adjúntelo si quiere que se compruebe el punto 01 (créditos y requisitos).' },
-        { t: 'Directiva de investigación formativa y responsabilidad social', opcional: true,
-          falta: 'Aún no está en el portal. Adjúntela si quiere que se compruebe el punto 05.' }
+        { t: 'Modelo Pedagógico de la URP (ejes transversales: punto 05)', de: 'Biblioteca del portal (copia resaltada)', hay: () => true },
+        { t: 'Plan de estudios (créditos, requisitos, condición y nombre del curso)', opcional: true,
+          hay: () => ADJUNTOS.some(f => /plan|malla|curricul/i.test(f.name)),
+          de: 'Adjuntado: se usa para el punto 01',
+          falta: 'Opcional. Adjúntelo junto con el sílabo si quiere que se compruebe el punto 01 (créditos, requisitos y condición).' }
       ]
     },
     formula: {
@@ -9245,12 +9281,22 @@ label .req{color:var(--falla)}
         estado.ultimosArchivos = archivos.map(f => f.name);
         // Se pueden subir varios: el sílabo y, aparte, el documento oficial
         // contra el que se compara.
+        let haySilabo = false, hayPlan = false;
         const partes = [];
         imagenes = [];
         const MAX_IMG = 6;
         for (const arch of archivos) {
           try {
-            partes.push('===== ' + arch.name + ' =====\n' + await textoDelArchivo(arch));
+            let txtArch = await textoDelArchivo(arch);
+            if (estado.modulo === 'silabo') {
+              if (esPlanDeEstudios(arch.name, txtArch)) {
+                // Del plan de estudios solo interesa la fila de este curso: así el
+                // análisis es mucho más rápido y no se confunde con otros cursos.
+                txtArch = recortePlan(txtArch, (estado.actual || {}).codigo, nombreCurso((estado.actual || {}).asignatura));
+                hayPlan = true;
+              } else if (pareceSilabo(txtArch)) haySilabo = true;
+            }
+            partes.push('===== ' + arch.name + ' =====\n' + txtArch);
             if (estado.modulo === 'formula' && (/\.pdf$/i.test(arch.name) || arch.type === 'application/pdf')) {
               const pf = await paginasDeFormula(arch, Math.min(2, MAX_IMG - imagenes.length));
               if (pf.length) {
@@ -9274,6 +9320,11 @@ label .req{color:var(--falla)}
         if (imagenes.length >= MAX_IMG) {
           const extra = archivos.filter(esImagen).length > MAX_IMG;
           if (extra) alert('Se enviarán solo las primeras ' + MAX_IMG + ' imágenes o páginas escaneadas.');
+        }
+        if (estado.modulo === 'silabo' && !haySilabo && !imagenes.length) {
+          btn.disabled = false;
+          throw new Error('Entre los archivos no está el sílabo del docente' + (hayPlan ? ' (solo el plan de estudios)' : '') +
+            '. Adjunte el sílabo: el plan de estudios solo sirve para comprobar el punto 01, junto con el sílabo.');
         }
         fuente = partes.join('\n\n');
         const nota = $('trIndicacion').value.trim();
@@ -9548,7 +9599,12 @@ label .req{color:var(--falla)}
       ((Array.isArray(p._sinComparar) ? p._sinComparar : (p._sinComparar ? [p._sinComparar] : [])).length
         ? '<div class="lo-escrito"><b>No pudo comprobar esto:</b><ul>' +
           (Array.isArray(p._sinComparar) ? p._sinComparar : [p._sinComparar])
-            .map(x => '<li>' + esc(String(x)) + '</li>').join('') + '</ul></div>'
+            .map(x => {
+              let t = typeof x === 'object' && x ? (x.item ? x.item + ': ' : '') + (x.falta || x.motivo || x.detalle || JSON.stringify(x)) : String(x);
+              const m = t.match(/^item:(\d{2})$/);
+              if (m) { const it = (M_ACTUAL().items || []).find(z => z.n === m[1]); t = m[1] + ' · ' + (it ? it.etiqueta : 'punto ' + m[1]); }
+              return '<li>' + esc(t) + '</li>';
+            }).join('') + '</ul></div>'
         : '') +
       (p._falta
         ? '<p><b>Para completar lo que falta</b> haría falta ' + esc(p._falta) + '.</p>'
