@@ -187,10 +187,11 @@ const PASOS=[
   ok:()=>R.metrica?'':'Elija una opción.'},
  {id:'nota',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNota">¿Qué nota obtuvo?</label>
-   <p class="ayuda">De 0 a 20, sin decimales. Por ejemplo: <b>17</b>.</p>
-   <input id="inNota" inputmode="numeric" autocomplete="off" value="${esc(R.nota)}" placeholder="17" style="max-width:140px">`,
-  lee:()=>{R.nota=$('#inNota').value.trim()},
-  ok:()=>/^\d{1,2}$/.test(R.nota)&&+R.nota<=20?'':(/[.,]/.test(R.nota)?'Escriba la nota sin decimales (redondeada). El punto no se puede usar porque separa las partes del nombre.':'Escriba un número entero de 0 a 20.')}
+   <p class="ayuda">De 0 a 20. Puede llevar decimales, por ejemplo <b>17</b> o <b>16,05</b>. En el nombre del archivo el decimal va con <b>coma</b>, porque el punto separa las partes del nombre.</p>
+   <input id="inNota" inputmode="decimal" autocomplete="off" value="${esc(R.nota)}" placeholder="16,05" style="max-width:160px">`,
+  lee:()=>{R.nota=$('#inNota').value.trim().replace('.',',')},
+  ok:()=>{if(!/^\d{1,2}(,\d{1,2})?$/.test(R.nota)) return 'Escriba la nota con números: entera (17) o con hasta dos decimales (16,05).';
+    return Number(R.nota.replace(',','.'))<=20?'':'La nota debe estar entre 0 y 20.';}}
 ];
 function op(k,v,t,s){return `<button type="button" class="op" data-k="${k}" data-v="${v}" aria-pressed="${R[k]===v}"><b>${t}</b>${s?`<span>${s}</span>`:''}</button>`}
 const visibles=()=>PASOS.filter(p=>p.ver());
