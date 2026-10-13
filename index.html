@@ -264,6 +264,24 @@ tr.sin-leer{background:#fffdf6}
 .chat-clip{text-decoration:none;display:inline-flex;align-items:center;border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
   font-size:12.5px;padding:5px 8px;border-radius:8px}
 .chat-clip:hover{background:var(--fondo)}
+.panel-rubricas{grid-column:1/-1;margin-top:10px;background:#f6faf7;border:1px solid #cfe2d6;border-radius:10px;padding:12px}
+.cab-rub{font-weight:700;margin-bottom:8px}
+.tabla-rub{border-collapse:collapse;width:100%;font-size:14px;background:#fff}
+.tabla-rub th{background:#0f3d2e;color:#fff;text-align:left;padding:7px 8px;font-size:13px}
+.tabla-rub td{border-top:1px solid #e1ebe5;padding:7px 8px;vertical-align:top}
+.tabla-rub small{display:block;color:#5a6a60}
+.tabla-rub small.aun{color:#8a948f;font-style:italic}
+.chk-ent{display:flex;gap:6px;align-items:center;cursor:pointer;font-weight:600}
+.chk-ent input{width:18px;height:18px;flex:0 0 auto}
+.chk-ent.auto{color:#1b7f4b}
+.debe-haber{background:#fff;border:1px solid #cfe2d6;border-radius:8px;padding:8px 12px;margin-bottom:10px}
+.debe-haber ul{margin:4px 0 0 18px;padding:0}
+.subir-rub{background:#fff7e0;border:1px solid #e2b33c;border-radius:8px;padding:10px 12px;margin-bottom:12px}
+.nota-moodle{font-size:13px;color:#6b5512;margin-top:6px;font-style:italic}
+.res-rub{margin-top:8px;font-size:14px;line-height:1.5}
+.res-rub.falta{background:#fdecea;border-radius:6px;padding:8px 10px;color:#7a1c12}
+.res-rub.falta ul{margin:4px 0 4px 18px;padding:0}
+.res-rub.ok{background:#e6f4ea;border-radius:6px;padding:8px 10px;color:#1b5e20}
 .paso-silabo{display:inline-block;background:#1f5c46;color:#fff;font-weight:700;font-size:13px;letter-spacing:.06em;border-radius:6px;padding:3px 10px;margin-bottom:8px}
 .para-que{background:#eef6f1;border-left:4px solid #1f5c46;border-radius:6px;padding:8px 12px;color:#1d2721}
 .buscador-lista{font:inherit;font-size:15px;padding:10px 12px;border:2px solid #b9d3c6;border-radius:10px;width:100%;max-width:640px;background:#fff}
@@ -1935,9 +1953,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '12/10/2026';
+  const VERSION_PORTAL = '13/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.22';
+  const VERSION_INTERNA = '2026-10-13.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7992,6 +8010,12 @@ label .req{color:var(--falla)}
     estado.hallazgos = {};          // hallazgos del asistente por ítem, para esta ficha
     estado.idBorrador = '';         // borrador del asistente vinculado a esta ficha
 
+    if (clave === 'aulaVirtual') {
+      // Punto de la rúbrica: se exige por cada entregable del cronograma, con
+      // la evaluación y la retroalimentación (Guía Operativa Docente 4.4).
+      M._itemsBaseAV = M._itemsBaseAV || (M.items || []).slice();
+      M.items = M._itemsBaseAV.map(it => esItemRubrica(it) ? Object.assign({}, it, ITEM_RUBRICA_AV) : it);
+    }
     if (clave === 'silabo') {
       M._itemsBase = M._itemsBase || (M.items || []).slice();
       const varios = docentesDelCurso(a);
@@ -8315,6 +8339,7 @@ label .req{color:var(--falla)}
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
     if (F === FORMULARIOS.silabo) { mostrarReferenciasSilabo(); pintarCajaCronograma(); }
     if (F === FORMULARIOS.silabo) mostrarSilaboUnicoEnOtrosGrupos(estado.actual);
+    if (estado.modulo === 'aulaVirtual') pintarRubricasPorEntregable();
 
     // Lo que el docente declaró en el formulario de la Escuela: el portal lo
     // trae y lo propone, en vez de pedir que se copie a mano.
@@ -8494,6 +8519,160 @@ label .req{color:var(--falla)}
   // docente —varios grupos, o teoría y laboratorio con profesores distintos—
   // debe publicar en el aula virtual un único sílabo. Solo en esos cursos se
   // añade el ítem 12. Los campos existen en la tabla PCA 1 (texto).
+  /* Aula virtual — rúbrica, evaluación y retroalimentación por entregable.
+     Sustento: Guía Operativa Docente 4.4 (publicar antes la rúbrica: mínimo dos días
+     para trabajos y proyectos, al inicio del semestre para exámenes; después de
+     cada evaluación, retroalimentación con evidencia, máximo 2 semanas; «rúbricas
+     utilizadas, antes y después de aplicadas, con retroalimentación», organizadas
+     por actividad evaluativa) y Guía para los Coordinadores de Área (confirmar que
+     las rúbricas estén publicadas antes de la evaluación). */
+  const esItemRubrica = it => /r[uú]brica/i.test((it.etiqueta || '') + ' ' + (it.nota || '')) || (!it.etiqueta && it.n === '04');
+  const ITEM_RUBRICA_AV = {
+    etiqueta: 'Rúbrica, evaluación y retroalimentación de cada entregable',
+    nota: 'Por CADA evaluación del cronograma del sílabo: (1) la rúbrica o instrumento está publicado en el aula virtual antes ' +
+      'de la evaluación —mínimo dos días antes en talleres, trabajos y proyectos; los exámenes, desde el inicio del semestre—; ' +
+      '(2) después de la evaluación está la rúbrica aplicada (la evaluación hecha con ella); y (3) está la retroalimentación ' +
+      'individual o grupal, a más tardar 2 semanas después. Guía Operativa Docente 4.4; Guía para los Coordinadores de Área.'
+  };
+  function pintarRubricasPorEntregable() {
+    const M = M_ACTUAL(), lista = M.items || [];
+    const i = lista.findIndex(esItemRubrica);
+    const fila = i >= 0 && $('listaItems') ? $('listaItems').querySelector('.item[data-i="' + i + '"]') : null;
+    if (!fila || fila.querySelector('.panel-rubricas')) return;
+    const a = estado.actual || {};
+    const caja = document.createElement('div');
+    caja.className = 'panel-rubricas';
+    caja.innerHTML = '<div class="nota-crono">Consultando el cronograma del sílabo…</div>';
+    fila.appendChild(caja);
+    Promise.all([cargarCalendario(), cargarCronogramas([a.programa])]).then(([cal]) => {
+      const cr = cronoDe(a.codigo, a.programa);
+      if (!cr || !(cr.evaluaciones || []).length) {
+        caja.innerHTML = '<p class="aviso-crono">Para revisar la rúbrica de cada entregable hace falta el cronograma de evaluaciones. ' +
+          'Regístrelo en el módulo <b>Sílabo → Paso 1</b> y vuelva a abrir esta ficha. Mientras tanto, revise las rúbricas a mano.</p>';
+        return;
+      }
+      const hoy = hoyLima();
+      const filas = cr.evaluaciones.map((e, k) => {
+        const nombre = e.tipo + (e.num ? ' ' + e.num : '');
+        const examen = /examen|parcial|final/i.test(e.tipo);
+        const ini = cal && e.semana ? sumarDias(cal.inicio, 7 * (e.semana - 1)) : '';
+        const fin = cal && e.semana ? finDeSemana(cal, e.semana) : '';
+        const rubHasta = examen ? (cal ? cal.inicio : '') : (ini ? sumarDias(ini, -2) : '');
+        const retroHasta = fin ? sumarDias(fin, 14) : '';
+        const yaEvaluada = fin && hoy > fin;
+        const tCelda = (clase, txt) => '<label class="chk-ent"><input type="checkbox" data-k="' + k + '" data-c="' + clase + '"> ' + txt + '</label>';
+        const uni = (cr.unidades || []).find(u => String(u.unidad) === String(e.unidad));
+        return '<tr data-k="' + k + '"><td><b>' + esc(nombre) + '</b><br><small>semana ' + esc(e.semana || '?') +
+          (e.unidad ? ' · Unidad ' + esc(e.unidad) + (uni && uni.nombre ? ': ' + esc(uni.nombre) : '') : '') + '</small></td>' +
+          '<td>' + tCelda('rub', 'Publicada') + '<small>' + (rubHasta ? (examen ? 'desde el inicio del semestre (' + fechaCal(rubHasta) + ')' : 'a más tardar el ' + fechaCal(rubHasta)) : '') + '</small></td>' +
+          '<td>' + (yaEvaluada ? tCelda('eva', 'Aplicada') + '<small>después del ' + fechaCal(fin) + '</small>' : '<small class="aun">Aún no se evalúa</small>') + '</td>' +
+          '<td>' + (yaEvaluada ? tCelda('ret', 'Brindada') + '<small>hasta el ' + fechaCal(retroHasta) + (hoy > retroHasta ? ' · <b>plazo vencido</b>' : '') + '</small>' : '<small class="aun">Aún no corresponde</small>') + '</td></tr>';
+      }).join('');
+      const evaluadas = cr.evaluaciones.filter(e => cal && e.semana && hoy > finDeSemana(cal, e.semana)).length;
+      const nE = cr.evaluaciones.length;
+      caja.innerHTML =
+        '<div class="debe-haber"><b>Según el sílabo, en el aula virtual debe haber:</b><ul>' +
+          '<li><b>' + nE + ' rúbricas</b> (una por entregable), publicadas antes de cada evaluación.</li>' +
+          '<li><b>' + evaluadas + ' evaluaciones con la rúbrica aplicada</b> y <b>' + evaluadas + ' retroalimentaciones</b>: las de los entregables que ya se evaluaron a la fecha' +
+          (nE > evaluadas ? ' (los otros ' + (nE - evaluadas) + ' todavía no corresponden)' : '') + '.</li></ul></div>' +
+        '<div class="subir-rub"><b>📎 Suba lo que el docente tiene en su aula virtual</b>: las rúbricas, las evaluaciones calificadas con la ' +
+          'rúbrica y las retroalimentaciones (PDF, Word o capturas). El portal reconoce de qué entregable es cada archivo y lo compara con lo ' +
+          'que debe haber. Conviene que el nombre del archivo diga qué es, por ejemplo «Rúbrica Taller 2» o «Retroalimentación Parcial».' +
+          '<div class="nota-moodle">Procedimiento provisional: mientras no esté la integración con el Moodle de la Facultad, esta información se carga al portal.</div>' +
+          '<label class="btn gris" style="cursor:pointer;margin-top:8px">Elegir archivos<input type="file" id="archRubricas" multiple ' +
+          'accept=".pdf,.docx,.png,.jpg,.jpeg,.webp" style="display:none"></label> <span class="nota-crono" id="avisoRubricas"></span>' +
+          '<div id="resultadoRubricas"></div></div>' +
+        '<div class="cab-rub">📋 Revise cada entregable en el aula virtual y marque lo que encuentre</div>' +
+        '<div style="overflow-x:auto"><table class="tabla-rub"><tr><th>Entregable</th><th>1. Rúbrica antes de la evaluación</th>' +
+        '<th>2. Evaluación con la rúbrica</th><th>3. Retroalimentación (máx. 2 semanas)</th></tr>' + filas + '</table></div>' +
+        '<p class="nota-crono">Las fechas salen del cronograma del sílabo y del calendario académico. Lo que marque se escribe solo en la ' +
+        'observación de este punto, para que quede constancia y se envíe al docente. La calificación del punto la decide usted.</p>';
+      const actualizar = () => {
+        const obs = $('listaItems').querySelector('[data-obs="' + i + '"]');
+        if (!obs) return;
+        const faltan = [], ok = [];
+        cr.evaluaciones.forEach((e, k) => {
+          const nombre = e.tipo + (e.num ? ' ' + e.num : '');
+          const v = c => { const x = caja.querySelector('input[data-k="' + k + '"][data-c="' + c + '"]'); return x ? x.checked : null; };
+          const f = [];
+          if (v('rub') === false) f.push('rúbrica no publicada antes');
+          if (v('eva') === false) f.push('sin la rúbrica aplicada');
+          if (v('ret') === false) f.push('sin retroalimentación');
+          (f.length ? faltan : ok).push(nombre + (f.length ? ': ' + f.join(', ') : ''));
+        });
+        obs.value = (faltan.length ? 'Falta — ' + faltan.join('; ') + '.' : 'Todos los entregables revisados tienen rúbrica, evaluación y retroalimentación.') +
+          (ok.length && faltan.length ? ' Completos: ' + ok.join(', ') + '.' : '');
+        const cont = obs.closest('.obs'); if (cont) cont.classList.remove('oculto');
+        obs.dispatchEvent(new Event('input', { bubbles: true }));
+      };
+      caja.querySelectorAll('input[type=checkbox]').forEach(x => x.addEventListener('change', actualizar));
+
+      // Archivos del aula virtual: se reconoce el entregable y si es rúbrica,
+      // evaluación con la rúbrica aplicada o retroalimentación.
+      const RAIZ = { taller: ['taller', 'ta'], practica: ['pr[aá]ctica', 'pc'], trabajo: ['trabajo', 'tr'], proyecto: ['proyecto', 'pr'],
+                     laboratorio: ['laboratorio', 'la'], investigacion: ['investigaci[oó]n', 'in'] };
+      const entregableDe = txt => {
+        const t = ' ' + sinAcentos(txt) + ' ';
+        return cr.evaluaciones.findIndex(e => {
+          const tipo = sinAcentos(e.tipo);
+          if (/parcial/.test(tipo)) return /parcial|[^a-z]ep[^a-z]/.test(t);
+          if (/final/.test(tipo)) return /final|[^a-z]ef[^a-z]/.test(t);
+          const clave = Object.keys(RAIZ).find(k => tipo.indexOf(k) >= 0);
+          if (!clave) return t.indexOf(tipo) >= 0;
+          const [largo, corto] = RAIZ[clave], num = e.num ? String(e.num) : '';
+          // Palabra completa («Taller 2», «Taller N° 2») o sigla con número («TA2», «TA02»).
+          const reLargo = new RegExp('[^a-z]' + largo + '[^a-z0-9]{0,12}(n[°ºo.]*\\s*)?' + (num ? '0?' + num + '(?!\\d)' : ''));
+          const reCorto = num ? new RegExp('[^a-z]' + corto + '[\\s._-]?0?' + num + '(?!\\d)') : null;
+          return reLargo.test(t) || (reCorto && reCorto.test(t));
+        });
+      };
+      const claseDe = txt => {
+        const t = sinAcentos(txt);
+        const rub = /rubric|lista de cotejo|instrumento/.test(t);
+        if (/retroaliment|feedback|solucionario|comentarios/.test(t)) return 'ret';
+        if (rub && /aplicad|calificad|evaluad|nota|puntaje obtenido/.test(t)) return 'eva';
+        if (rub) return 'rub';
+        if (/calificad|evaluad|corregid|revisad/.test(t)) return 'eva';
+        return '';
+      };
+      const NOMBRE_CLASE = { rub: 'rúbrica', eva: 'evaluación con la rúbrica aplicada', ret: 'retroalimentación' };
+      $('archRubricas').addEventListener('change', async ev => {
+        const archivos = [...ev.target.files]; ev.target.value = '';
+        if (!archivos.length) return;
+        $('avisoRubricas').textContent = 'Revisando ' + archivos.length + ' archivo(s)…';
+        const lineas = [];
+        for (const f of archivos) {
+          let txt = f.name;
+          if (!esImagen(f)) { try { txt += ' ' + String(await textoDelArchivo(f)).slice(0, 4000); } catch (e) {} }
+          const k = entregableDe(f.name) >= 0 ? entregableDe(f.name) : entregableDe(txt);
+          const c = claseDe(f.name) || claseDe(txt);
+          if (k >= 0 && c) {
+            const x = caja.querySelector('input[data-k="' + k + '"][data-c="' + c + '"]');
+            const e = cr.evaluaciones[k], nombre = e.tipo + (e.num ? ' ' + e.num : '');
+            if (x) { x.checked = true; x.closest('label').classList.add('auto'); lineas.push('✔ <b>' + esc(f.name) + '</b> → ' + esc(nombre) + ' · ' + NOMBRE_CLASE[c]); }
+            else lineas.push('⚠ <b>' + esc(f.name) + '</b> → ' + esc(nombre) + ' · ' + NOMBRE_CLASE[c] + ': ese entregable aún no se evalúa, no se exige todavía.');
+          } else {
+            lineas.push('⚠ <b>' + esc(f.name) + '</b>: no se pudo saber ' + (k < 0 ? 'de qué entregable es' : 'si es rúbrica, evaluación o retroalimentación') +
+              '. Ábralo y marque a mano, o cambie el nombre (por ejemplo «Rúbrica Taller 2»).');
+          }
+        }
+        actualizar();
+        // Lo que debía haber y no llegó.
+        const faltan = [];
+        cr.evaluaciones.forEach((e, k) => ['rub', 'eva', 'ret'].forEach(c => {
+          const x = caja.querySelector('input[data-k="' + k + '"][data-c="' + c + '"]');
+          if (x && !x.checked) faltan.push(e.tipo + (e.num ? ' ' + e.num : '') + ': ' + NOMBRE_CLASE[c]);
+        }));
+        $('avisoRubricas').textContent = '';
+        $('resultadoRubricas').innerHTML = '<div class="res-rub"><b>Lo que se reconoció:</b><br>' + lineas.join('<br>') + '</div>' +
+          (faltan.length
+            ? '<div class="res-rub falta"><b>Observaciones — no se encontró:</b><ul>' + faltan.map(x => '<li>' + esc(x) + '</li>').join('') +
+              '</ul>Si el docente sí lo tiene en el aula virtual, súbalo o márquelo a mano. Lo que falte queda en la observación del punto.</div>'
+            : '<div class="res-rub ok">Está todo lo que corresponde a la fecha: rúbricas, evaluaciones y retroalimentaciones.</div>');
+      });
+    }).catch(() => { caja.innerHTML = '<p class="aviso-crono">No se pudo consultar el cronograma. Revise las rúbricas a mano.</p>'; });
+  }
+
   const ITEM_SILABO_UNICO = {
     n: '12', etiqueta: 'Sílabo único del curso',
     nota: 'Todos los docentes del curso publican en el aula virtual el mismo sílabo. ' +
