@@ -1935,7 +1935,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '12/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.20';
+  const VERSION_INTERNA = '2026-10-12.21';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9119,6 +9119,7 @@ label .req{color:var(--falla)}
         if (contexto && estado.modulo === 'silabo') {
           contexto.requisitos = Object.keys(REFERENCIA_ITEM).map(n => ({
             item: n,
+            fuente: fuenteDeItem(n),
             necesita: REFERENCIA_ITEM[n].de === 'documento'
               ? 'un documento externo: ' + REFERENCIA_ITEM[n].pide
               : (REFERENCIA_ITEM[n].falta || 'el sílabo del docente')
@@ -9144,6 +9145,13 @@ label .req{color:var(--falla)}
       const d = await r.json();
       btn.disabled = false; btn.textContent = textoAntes;
       if (d.error) throw new Error(d.error);
+      // La fuente de cada punto del sílabo la fija el portal (el estándar), no el asistente.
+      if (estado.modulo === 'silabo' && d.propuesta && Array.isArray(d.propuesta._informe)) {
+        d.propuesta._informe.forEach(x => {
+          const n = (String(x.item || '').match(/\d{2}/) || [])[0];
+          if (n && fuenteDeItem(n)) x.fuente = fuenteDeItem(n);
+        });
+      }
       aplicarPropuesta(F, d.propuesta || {});
       ADJUNTOS = []; if ($('trAdjuntos')) $('trAdjuntos').innerHTML = '';
       pintarInsumos();
@@ -9487,6 +9495,30 @@ label .req{color:var(--falla)}
   // Documento oficial que respalda los puntos del sílabo.
   const GUIA_SILABOS = 'Guía de Elaboración de Sílabos (ODACA-GCA-G-02, rev. 01, 13.03.2025)';
   const MODELO_PEDAGOGICO = 'Modelo Pedagógico de la URP (ODACA)';
+  /* Contra qué estándar se compara cada punto del sílabo. El sílabo es lo que
+     se evalúa; nunca es su propia fuente. */
+  function fuenteDeItem(n) {
+    const a = estado.actual || {};
+    const otros = docentesDelCurso(a).filter(d => sinAcentos(d.docente) !== sinAcentos(a.docente || ''));
+    return ({
+      '01': 'Catálogo de cursos del portal (curso, código, carrera, plan y semestre) y carga del portal (docente, sesiones y horas); los ocho datos que exige la ' + GUIA_SILABOS + ' (p. 3). Créditos, requisitos y condición: plan de estudios (si se adjuntó)',
+      '02': 'Sumilla oficial del catálogo de cursos del portal (plan curricular vigente); ' + GUIA_SILABOS + ' (p. 4)',
+      '03': 'Competencias genéricas de la carrera registradas en el portal (Coordinadores → Competencias de las carreras); ' + GUIA_SILABOS + ' (p. 4) y ' + MODELO_PEDAGOGICO + ' (Figura 10, p. 83)',
+      '04': 'Competencias específicas del curso registradas en el portal (Coordinadores → Competencias de las carreras); ' + GUIA_SILABOS + ' (p. 5)',
+      '05': MODELO_PEDAGOGICO + ': ejes transversales Investigación y Responsabilidad social (2.2.2 y 2.2.3, pp. 75-76), la investigación formativa como componente transversal del currículo (p. 87) y el modelo de sílabo, sección IV «Desarrolla el componente de» (Anexo 1, p. 158); ' + GUIA_SILABOS + ' (p. 5)',
+      '06': 'Patrón de calidad del logro de la asignatura (' + PATRON_LOGRO.version + '), ' + GUIA_SILABOS + ' (Tabla 5, pp. 5-6) y Taxonomía de Bloom',
+      '07': GUIA_SILABOS + ': 3 a 4 unidades con logro y programación semanal, y la semana de «Evaluación del logro» (pp. 6-7); Guía Operativa Docente 4.1 (16 semanas)',
+      '08': MODELO_PEDAGOGICO + ' (4.1.1, Figura 14, p. 108; Figura 15, p. 109) y ' + GUIA_SILABOS + ' (p. 7)',
+      '09': GUIA_SILABOS + ': recursos — equipos, materiales y plataformas o software (p. 7)',
+      '10': GUIA_SILABOS + ': matriz de evaluación con unidad, criterios, instrumentos y ponderación, y tope del 35 % en la primera mitad (pp. 8-9); ' + MODELO_PEDAGOGICO + ' (4.1.4, p. 116); Guía Operativa Docente 4.1',
+      '11': GUIA_SILABOS + ': referencias en APA, básicas y complementarias, disponibles en las bibliotecas (pp. 9-10); Guía Operativa Docente 4.1 (últimos cinco años)',
+      '12': otros.length
+        ? 'Los sílabos que los demás docentes del curso publicaron en su aula virtual: ' + textoDocentesDelCurso(otros) +
+          '. Si no se adjuntaron, este punto NO se puede evaluar todavía'
+        : 'No aplica: este curso lo dicta un solo docente en el ciclo'
+    })[n] || '';
+  }
+
   const REFERENCIA_ITEM = {
     '12': { de: 'portal', titulo: 'Los sílabos de los demás grupos del curso',
             texto: () => {
@@ -9496,7 +9528,7 @@ label .req{color:var(--falla)}
                      'virtual de cada grupo y confirme que es el mismo documento.';
             },
             falta: 'los sílabos publicados en el aula virtual por los demás docentes del ' +
-                   'curso; si no se adjuntan, este punto lo verifica el coordinador' },
+                   'curso. Mientras no se adjunten, este punto NO se puede evaluar todavía: el asistente lo deja sin veredicto' },
     '01': { de: 'portal', titulo: 'Datos de la carga en el portal',
             texto: c => {
               const a = estado.actual || {};
@@ -9565,8 +9597,12 @@ label .req{color:var(--falla)}
             },
             vacio: 'Esta carrera todavía no tiene sus competencias específicas registradas en el portal ' +
                    '(Coordinadores → Competencias). Mientras tanto, adjunte el documento de competencias con el clip 📎.' },
-    '05': { de: 'formato', titulo: 'Componentes que desarrolla (' + GUIA_SILABOS + ')',
-            texto: () => 'El sílabo marca uno o dos componentes: Investigación formativa y/o Responsabilidad social. ' +
+    '05': { de: 'formato', titulo: 'Componentes: ' + MODELO_PEDAGOGICO + ' (ejes transversales) y ' + GUIA_SILABOS,
+            texto: () => 'Según el ' + MODELO_PEDAGOGICO + ', la Investigación y la Responsabilidad social son ejes transversales de la ' +
+              'formación profesional (2.2.2 y 2.2.3, pp. 75-76), y la investigación formativa «debe tejerse en el currículo, desde el perfil ' +
+              'de egreso, los logros de los cursos, las actividades académicas, los recursos y la evaluación» (p. 87). Por eso el modelo de ' +
+              'sílabo trae la sección IV «Desarrolla el componente de: Investigación formativa ( ) Responsabilidad social ( )» (Anexo 1, p. 158). ' +
+              'El sílabo marca uno o dos componentes: Investigación formativa y/o Responsabilidad social. ' +
               'Lo marcado debe verse en la Programación de contenidos: en las semanas se precisan las actividades de ' +
               'investigación formativa o de responsabilidad social que se desarrollarán (por ejemplo, proyectos de intervención social).',
             falta: SUBIR_SILABO },
@@ -9695,7 +9731,9 @@ label .req{color:var(--falla)}
     '02': [[PDF_GUIA, 4, 'Guía de sílabos, p. 4: sumilla'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1']],
     '03': [[PDF_GUIA, 4, 'Guía de sílabos, p. 4: competencias genéricas'], [PDF_MODELO, 83, 'Modelo Pedagógico, p. 83: Figura 10']],
     '04': [[PDF_GUIA, 5, 'Guía de sílabos, p. 5: competencias específicas']],
-    '05': [[PDF_GUIA, 5, 'Guía de sílabos, p. 5: componentes']],
+    '05': [[PDF_MODELO, 75, 'Modelo Pedagógico, pp. 75-76: ejes Investigación y Responsabilidad social'],
+           [PDF_MODELO, 87, 'p. 87: investigación formativa en el currículo'], [PDF_MODELO, 158, 'p. 158: Anexo 1, sección IV del sílabo'],
+           [PDF_GUIA, 5, 'Guía de sílabos, p. 5: componentes']],
     '06': [[PDF_GUIA, 5, 'Guía de sílabos, p. 5-6: logro (Tabla 5)'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1']],
     '07': [[PDF_GUIA, 6, 'Guía de sílabos, p. 6: unidades'], [PDF_GUIA, 7, 'p. 7: «Evaluación del logro»'], [PDF_GOD, 3, 'Guía Operativa Docente 4.1: 16 semanas']],
     '08': [[PDF_MODELO, 108, 'Modelo Pedagógico, p. 108: Figura 14'], [PDF_MODELO, 109, 'p. 109: estrategia y técnica (Figura 15)'],
