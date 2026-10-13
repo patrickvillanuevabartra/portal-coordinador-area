@@ -1955,7 +1955,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '13/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-13.03';
+  const VERSION_INTERNA = '2026-10-13.04';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10382,15 +10382,20 @@ label .req{color:var(--falla)}
       ev.evaluaciones.forEach(e => {
         const vacios = e.grupos.filter(g => g.faltan.length === 4);
         const nums = vacios.map(g => g.n).filter(Boolean);
-        if (vacios.length) falta.push('• ' + (nums.length > 1 ? e.nombre + 's ' + y(nums) + ': todavía no tienen archivos'
-          : e.nombre + (nums[0] ? ' ' + nums[0] : '') + ': todavía no tiene archivos') +
+        if (vacios.length) falta.push('• ' + (nums.length > 1 ? e.nombre + 's ' + y(nums) + ': 0 de 4 archivos en cada una'
+          : e.nombre + (nums[0] ? ' ' + nums[0] : '') + ': 0 de 4 archivos') +
           ' (enunciado y evidencias de la mayor, la menor y la nota promedio).');
         e.grupos.filter(g => g.faltan.length && g.faltan.length < 4).forEach(g =>
-          falta.push('• ' + e.nombre + (g.n ? ' ' + g.n : '') + ': falta ' +
+          falta.push('• ' + e.nombre + (g.n ? ' ' + g.n : '') + ': tiene ' + (4 - g.faltan.length) + ' de 4 archivos; falta ' +
             y(g.faltan.map(x => ({ enunciado: 'el enunciado', mayor: 'la evidencia de la mayor nota',
               menor: 'la evidencia de la menor nota', promedio: 'la evidencia de la nota promedio' })[x])) + '.'));
       });
-      if (falta.length) { L.push(''); L.push('Qué falta:'); falta.forEach(x => L.push(x)); }
+      if (falta.length) {
+        let hay = 0, deben = 0;
+        ev.evaluaciones.forEach(e => e.grupos.forEach(g => { deben += 4; hay += 4 - g.faltan.length; }));
+        L.push(''); L.push('Qué falta (se encontraron ' + hay + ' de ' + deben + ' archivos; cada evaluación lleva 4: enunciado y las evidencias de la mayor, la menor y la nota promedio):');
+        falta.forEach(x => L.push(x));
+      }
       const r = ev.rotulado;
       if (r && r.malos.length) {
         L.push(''); L.push('Archivos por corregir (' + r.malos.length + ' de ' + r.revisados + ' no siguen la directiva de rotulado):');
