@@ -264,6 +264,8 @@ tr.sin-leer{background:#fffdf6}
 .chat-clip{text-decoration:none;display:inline-flex;align-items:center;border:0;background:none;color:var(--tinta-media);cursor:pointer;font:inherit;
   font-size:12.5px;padding:5px 8px;border-radius:8px}
 .chat-clip:hover{background:var(--fondo)}
+.paso-silabo{display:inline-block;background:#1f5c46;color:#fff;font-weight:700;font-size:13px;letter-spacing:.06em;border-radius:6px;padding:3px 10px;margin-bottom:8px}
+.para-que{background:#eef6f1;border-left:4px solid #1f5c46;border-radius:6px;padding:8px 12px;color:#1d2721}
 .buscador-lista{font:inherit;font-size:15px;padding:10px 12px;border:2px solid #b9d3c6;border-radius:10px;width:100%;max-width:640px;background:#fff}
 .buscador-lista:focus{outline:3px solid #1f5c4655;border-color:#1f5c46}
 .buscador-mapa{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 12px}
@@ -1935,7 +1937,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '12/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-12.21';
+  const VERSION_INTERNA = '2026-10-12.22';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2430,8 +2432,11 @@ label .req{color:var(--falla)}
         evs.map(fila).join('') + '</table>';
       caja.innerHTML =
         '<div class="caja-crono">' +
+        '<div class="paso-silabo">PASO 1 de 2</div>' +
         '<b>📅 Cronograma de evaluaciones del sílabo</b> ' +
         (cr ? '<span style="color:#1b7f4b;font-weight:600">✔ Registrado</span>' : '<span style="color:#b42318;font-weight:600">Falta registrar</span>') +
+        '<p class="nota-crono para-que"><b>¿Para qué sirve?</b> Solo para saber <b>en qué semana se entrega cada evaluación</b> y así revisar a ' +
+        'tiempo el portafolio. <b>Aquí no se revisa la calidad del sílabo</b>: eso es el <b>Paso 2</b>, más abajo («Revisión de los 12 puntos»).</p>' +
         '<p class="nota-crono"><b>¿Qué hay que hacer?</b> Elija el PDF (o Word) del sílabo del curso. El portal lee en qué semana y unidad ' +
         'se entrega cada evaluación (talleres, prácticas, parcial, final) y lo muestra para que usted lo confirme. Se registra <b>una vez por ' +
         'curso y ciclo</b>: sirve para todos los grupos. Con esto, la revisión del portafolio exige cada evaluación ' + GRACIA_DIAS +
@@ -2448,6 +2453,10 @@ label .req{color:var(--falla)}
         const arch = ev.target.files[0];
         if (!arch) return;
         $('avisoCrono').textContent = 'Leyendo ' + arch.name + '…';
+        // El mismo sílabo sirve para el Paso 2: se deja adjuntado, para no buscarlo dos veces.
+        if ($('trAdjuntos') && !ADJUNTOS.some(x => x.name === arch.name && x.size === arch.size)) {
+          ADJUNTOS.push(arch); pintarAdjuntosDesde();
+        }
         try {
           const texto = await textoDelArchivo(arch);
           const r = leerCronogramaSilabo(texto);
@@ -8331,7 +8340,12 @@ label .req{color:var(--falla)}
             encodeURIComponent((estado.actual || {}).codigo || '') + '&periodo=' + encodeURIComponent(cicloVigente()) +
             '">Abrir el Asistente de rotulado</a></div>'
           : '') +
-        '<div class="chat-titulo">Apoyo para la revisión</div>' +
+        (estado.modulo === 'silabo'
+          ? '<div class="paso-silabo">PASO 2 de 2</div><div class="chat-titulo">Revisión de los 12 puntos del estándar del sílabo</div>' +
+            '<div class="chat-sub para-que"><b>¿Para qué sirve?</b> Para revisar la <b>calidad del sílabo</b>, punto por punto, contra la Guía de ' +
+            'sílabos y el Modelo Pedagógico. Adjunte el sílabo y pulse <b>Analizar</b>. Si ya lo eligió en el Paso 1, aparece adjuntado solo: ' +
+            'no necesita buscarlo otra vez.</div>'
+          : '<div class="chat-titulo">Apoyo para la revisión</div>') +
         '<div class="chat-sub">El asistente compara con los estándares del portal y le señala lo que ' +
         'encuentra. La evaluación y la decisión son suyas.</div>' +
         '<div class="insumos" id="insumos"></div>' +
