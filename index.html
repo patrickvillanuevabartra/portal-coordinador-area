@@ -1955,7 +1955,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '13/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-13.04';
+  const VERSION_INTERNA = '2026-10-13.05';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10603,7 +10603,9 @@ label .req{color:var(--falla)}
 
   function traerDeclarado(F) {
     if (estado.modulo === 'formularios') return traerFormularios(F);
-    if (estado.modulo === 'portafolios') { revisarPortafolioDrive(false); return traerPruebaEntrada(); }
+    // Al abrir la ficha se lee siempre el Drive en ese momento: lo que el docente
+    // acaba de subir o borrar se ve sin tener que pulsar «Volver a revisar».
+    if (estado.modulo === 'portafolios') { revisarPortafolioDrive(true); return traerPruebaEntrada(); }
     const a = estado.actual || {};
     const cfg = DE_FORMULARIO[estado.modulo];
     if (!cfg) return;
