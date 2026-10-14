@@ -71,6 +71,9 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 .nota p{margin:0}
 .ok{color:var(--accent);font-weight:700;margin:0;min-height:1.5em}
 .pie{color:var(--muted);font-size:.95rem}
+.extra{border:2px dashed var(--line);border-radius:8px;padding:10px 14px;display:grid;gap:8px}
+.extra summary{cursor:pointer;font-weight:700;color:var(--accent)}
+.extra[open]{border-color:var(--accent)}
 .archivo{background:var(--panel);border:2px dashed var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px}
 .archivo.encima{border-color:var(--accent);background:var(--accent-soft)}
 .archivo .et{font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
@@ -130,7 +133,12 @@ const TIPOS=[
 const hoy=new Date(); const anioHoy=hoy.getFullYear(); const cicloHoy=hoy.getMonth()>=7?'II':'I';
 const D={clase:'evidencia',codigo:'IN0701',tipo:'TA',otro:'',varios:'si',numero:'1',anio:String(anioHoy),ciclo:cicloHoy,nombre:'Luis Morales',metrica:'Mayor',nota:'17'};
 // arranca vacío: el ejemplo solo se muestra en la vista previa como guía
-const R={clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',metrica:'',nota:''};
+const R={clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',grupo:'',lider:false,entregable:'',metrica:'',nota:''};
+// Nombre tal como va en el rótulo: el estudiante y, si se indicó, su grupo y el entregable.
+// Ej.: «Jacomo Valentino Michel Curotto (líder Grupo 3) TIIN».
+const nombreRotulo=()=>{ if(!R.nombre) return ''; let t=R.nombre;
+  if(R.grupo) t+=' ('+(R.lider?'líder ':'')+'Grupo '+R.grupo+')'; else if(R.lider) t+=' (líder del grupo)';
+  if(R.entregable) t+=' '+R.entregable; return t; };
 let i=0;
 const $=s=>document.querySelector(s);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -144,7 +152,7 @@ const limpiaNombre=t=>t.replace(/[.\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim()
 
 function partes(){
   const p=[['c1','CÓDIGO',R.codigo],['c2','TIPO',siglaTipo()],['c3','PERIODO',periodo()]];
-  if(R.clase!=='enunciado'){p.push(['c4','NOMBRE',R.nombre],['c5','MÉTRICA',R.metrica],['c6','NOTA',R.nota]);}
+  if(R.clase!=='enunciado'){p.push(['c4','NOMBRE',nombreRotulo()],['c5','MÉTRICA',R.metrica],['c6','NOTA',R.nota]);}
   return p;
 }
 function nombreFinal(conExt=true){return partes().map(x=>x[2]).join('.')+(conExt?'.PDF':'');}
@@ -196,8 +204,19 @@ const PASOS=[
  {id:'nombre',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNombre">¿Cómo se llama el estudiante?</label>
    <p class="ayuda">Nombre y apellido, como en la lista. Por ejemplo: <b>Luis Morales</b>.</p>
-   <input id="inNombre" autocomplete="off" value="${esc(R.nombre)}" placeholder="Luis Morales">`,
-  lee:()=>{R.nombre=limpiaNombre($('#inNombre').value)},
+   <input id="inNombre" autocomplete="off" value="${esc(R.nombre)}" placeholder="Luis Morales">
+   <details class="extra" ${R.grupo||R.lider||R.entregable?'open':''}><summary>➕ Datos adicionales (opcional): grupo, líder y tipo de entregable</summary>
+    <p class="ayuda">Útil en trabajos en grupo. Se agrega al nombre, sin cambiar el resto del rótulo. Ejemplo: <b>Jacomo Michel Curotto (líder Grupo 3) TIIN</b>.</p>
+    <div class="fila"><label for="inGrupo" class="ayuda">N.º de grupo</label>
+     <input id="inGrupo" inputmode="numeric" autocomplete="off" value="${esc(R.grupo)}" placeholder="3" style="max-width:90px">
+     <label class="ayuda" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="inLider" ${R.lider?'checked':''} style="width:22px;height:22px"> Es el líder del grupo</label></div>
+    <label for="inEntregable" class="ayuda">Tipo de entregable (por ejemplo TIIN, Informe final, Avance 2)</label>
+    <input id="inEntregable" autocomplete="off" value="${esc(R.entregable)}" placeholder="TIIN">
+   </details>`,
+  lee:()=>{R.nombre=limpiaNombre($('#inNombre').value);
+    const g=$('#inGrupo'); if(g) R.grupo=g.value.replace(/[^0-9]/g,'').slice(0,2);
+    const l=$('#inLider'); if(l) R.lider=l.checked;
+    const e=$('#inEntregable'); if(e) R.entregable=limpiaNombre(e.value).slice(0,40);},
   ok:()=>R.nombre?'':'Escriba el nombre y apellido del estudiante.'},
  {id:'metrica',ver:()=>R.clase==='evidencia',
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
@@ -241,8 +260,8 @@ document.addEventListener('click',e=>{
   if(b.id==='sigue') return avanza();
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
   if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
-  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.nombre='';R.metrica='';R.nota='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
-  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',metrica:'',nota:''});i=0;return pinta();}
+  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
+  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',metrica:'',nota:''});i=0;return pinta();}
   if(b.id==='editar'){i=0;return pinta();}
 });
 document.addEventListener('input',e=>{
