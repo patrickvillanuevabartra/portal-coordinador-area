@@ -616,6 +616,8 @@ tr.sin-leer{background:#fffdf6}
 .porta-tabla .no-aplica{color:var(--tinta-media);font-style:italic}
 .nota-teoria{background:#efeafc;border-left:4px solid #6b4fbb;padding:8px 12px;border-radius:6px;margin:8px 0}
 .ev-chip{display:inline-block;margin:0 6px 4px 0;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.ev-detalle td.no-pide{color:var(--tinta-media);font-style:italic;background:#f4f6f5}
+.ev-detalle td.no-pide small{display:block;font-size:12px}
 .ev-chip:has(.ev-fecha){border-radius:10px;padding:4px 10px}
 .ev-chip .ev-fecha{display:block;font-weight:500;font-size:12px;opacity:.9}
 td>.ev-fecha{display:block;font-size:12px;color:var(--tinta-media);margin-top:2px}
@@ -1959,9 +1961,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '13/10/2026';
+  const VERSION_PORTAL = '14/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-13.07';
+  const VERSION_INTERNA = '2026-10-14.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2637,7 +2639,7 @@ label .req{color:var(--falla)}
     const area = [
       '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión; en verde los ya registrados.',
       '<b>Sílabo:</b> adjunte el sílabo del docente para revisarlo y, en la misma ficha, pulse <b>«Leer el sílabo»</b> para registrar el cronograma de evaluaciones (una vez por curso y ciclo). Sin cronograma, el portal no sabe cuándo debió subirse cada taller o práctica.',
-      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio, en PDF y bien rotuladas (para dar con el nombre correcto, use el <a href="docs/asistente-rotulado.html" target="_blank" rel="noopener">🏷️ Asistente de rotulado</a>). En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
+      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor), en PDF y bien rotuladas (para dar con el nombre correcto, use el <a href="docs/asistente-rotulado.html" target="_blank" rel="noopener">🏷️ Asistente de rotulado</a>). En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
       '<b>Cuándo supervisar</b> (Guía para los Coordinadores de Área, Cuadro 1): aula virtual en las semanas 3, 7 y 14; portafolios en las semanas 7, 12 y 16; reuniones con los docentes, mínimo dos (antes de la semana 8 y al cierre). Después de cada supervisión, comunique el resultado al docente por correo institucional y eleve el informe a la Escuela.',
       '<b>Delegados:</b> registre a los delegados de cada curso. <b>La reunión o entrevista con delegados y subdelegados la realiza el coordinador general de la carrera</b>, no el coordinador de área.',
       '<b>El asistente</b> (botón verde de abajo a la derecha) le muestra lo que encuentra y propone; <b>usted decide</b> y marca Cumple, Parcial o No cumple.'
@@ -6482,7 +6484,7 @@ label .req{color:var(--falla)}
       if (x.sinEvidencias) {
         F('integridad', 'Carpetas de evaluaciones creadas pero sin contenido: no hay ningún archivo de evidencia',
           'carpetas de evaluaciones sin contenido',
-          'Subir a cada carpeta el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio, en PDF.');
+          'Subir a cada carpeta el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor), en PDF.');
       } else {
         // Durante el ciclo, una carpeta vacía solo es falta si el calendario
         // dice que esa evaluación ya debía tomarse (parcial o final).
@@ -6503,7 +6505,7 @@ label .req{color:var(--falla)}
         } else vacias = vaciasF.map(f => nom(f.eval, f.nums));
         if (vacias.length) F('integridad', 'Carpetas de evaluaciones sin contenido: ' + y(vacias),
           'carpetas sin contenido (' + y(vacias) + ')',
-          'Subir a esas carpetas el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio, en PDF.');
+          'Subir a esas carpetas el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor), en PDF.');
         const partes = faltas.filter(f => f.tipo === 'partes');
         const enun = partes.filter(f => f.faltan.indexOf('enunciado') >= 0).map(f => nom(f.eval, [f.n]));
         if (enun.length) F('enunciado', 'Falta el enunciado de: ' + y(enun), 'falta el enunciado (' + y(enun) + ')',
@@ -6689,7 +6691,7 @@ label .req{color:var(--falla)}
       rec.push('Comunicar a cada docente observado las faltas del Anexo N.° 02 con su sustento normativo y la forma de subsanarlas, y fijar un plazo para la subsanación, luego del cual se realizará una nueva verificación.');
       const tiene = c => frec.some(f => f.c === c);
       if (tiene('carpeta') || tiene('integridad')) rec.push('Coordinar con el área de Calidad y Acreditación la creación o corrección de las carpetas faltantes, para que los docentes puedan subir sus evidencias.');
-      if (tiene('enunciado') || tiene('evidencias')) rec.push('Recordar que por cada evaluación se requieren cuatro archivos en PDF: el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (Numeral 4.5).');
+      if (tiene('enunciado') || tiene('evidencias')) rec.push('Recordar que por cada evaluación se requieren cuatro archivos en PDF: el enunciado y el desarrollo escaneado de la mayor, la menor y la nota promedio (Numeral 4.5). En talleres, laboratorios y proyectos, que se trabajan en grupo, son tres: el enunciado, la mayor y la menor nota.');
       if (tiene('formato')) rec.push('Convertir a PDF los archivos en otros formatos (DOCX, PPTX, XLSX) y descomprimir los .zip, subiendo cada evidencia en PDF (Numeral 4.5).');
       if (tiene('video')) rec.push('Retirar los videos del portafolio; el material audiovisual del curso corresponde al aula virtual (Numeral 4.5, literales c y d).');
       if (tiene('rotulado')) rec.push('Renombrar los archivos según la directiva de rotulado de Calidad y Acreditación. El reporte Excel de portafolios (hoja «Archivos por corregir») compara cada nombre con el estándar y propone el nombre correcto. Para rotular paso a paso se puede usar el Asistente de rotulado del portal: https://patrickvillanuevabartra.github.io/portal-coordinador-area/docs/asistente-rotulado.html');
@@ -6935,7 +6937,7 @@ label .req{color:var(--falla)}
     [
       'Cada curso y grupo se revisa contra la estructura de portafolio trabajada y presentada por el área de Calidad y ' +
         'Acreditación de la Facultad de Ingeniería: solo cuentan las evaluaciones que tiene ese curso; lo demás «No aplica».',
-      'En cada evaluación deben estar, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio, ' +
+      'En cada evaluación deben estar, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor), ' +
         'rotulados según la directiva (CÓDIGO.TIPO.PERIODO). La prueba de entrada se acredita con el F3.',
       'Una carpeta vacía puede ser normal si, según el cronograma del sílabo, esa evaluación todavía no se toma.',
       'Solo se revisan los cursos que tienen carpeta en el portafolio de la Escuela; los demás están en la hoja «Cursos sin portafolio».'
@@ -7079,7 +7081,7 @@ label .req{color:var(--falla)}
     guia.push([]);
     secG('4. Qué debe hacer el docente');
     ['1) Abra su carpeta del portafolio (el enlace está en la hoja «Por área y docente»).',
-     '2) En cada carpeta de evaluación suba, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio.',
+     '2) En cada carpeta de evaluación suba, en PDF, el enunciado y el desarrollo de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor).',
      '3) Póngales el nombre como indica la directiva (sección 2). Si ya los subió con otro nombre, renómbrelos: en Drive, clic derecho → Cambiar nombre.',
      '4) Si algún archivo está en Word, guárdelo como PDF (Archivo → Guardar como → PDF) y súbalo en lugar del original.',
      '5) No suba videos al portafolio; el material del curso va en el aula virtual.',
@@ -10398,9 +10400,10 @@ label .req{color:var(--falla)}
           const pl = plazoPorta(e, g);
           if (pl.completo && !/retraso/.test(pl.estado)) return;
           const nom = (e.grupos || []).length > 1 ? e.nombre + (g.n ? ' ' + g.n : '') : e.nombre;
-          partes.push(nom + ': ' + pl.estado + (pl.fecha ? ' (' + pl.fecha + ')' : ''));
+          const f = String(pl.fecha || '').replace(/\.\s*$/, '');
+          partes.push(nom + ': ' + pl.estado + (f ? '. ' + f.charAt(0).toUpperCase() + f.slice(1) : ''));
         }));
-        L.push('• ' + nombre + ' — ' + (partes.length ? partes.join('; ') : 'completo') + '.');
+        L.push('• ' + nombre + ' — ' + (partes.length ? partes.join('. ') : 'completo') + '.');
       } else {
         const x = h[k] || {};
         L.push('• ' + nombre + ': ' + (x.sugerido === 'Cumple' ? 'con evidencia.' : (x.para_docente || 'sin evidencia.')));
@@ -10408,21 +10411,28 @@ label .req{color:var(--falla)}
     });
     if (ev) {
       const falta = [];
+      // Solo lo que ya debía estar: lo que aún está en plazo no se le reclama.
+      let hay = 0, deben = 0;
+      const NOMP = { enunciado: 'el enunciado', mayor: 'la evidencia de la mayor nota',
+        menor: 'la evidencia de la menor nota', promedio: 'la evidencia de la nota promedio' };
       ev.evaluaciones.forEach(e => {
-        const vacios = e.grupos.filter(g => g.faltan.length === 4);
-        const nums = vacios.map(g => g.n).filter(Boolean);
-        if (vacios.length) falta.push('• ' + (nums.length > 1 ? e.nombre + 's ' + y(nums) + ': 0 de 4 archivos en cada una'
-          : e.nombre + (nums[0] ? ' ' + nums[0] : '') + ': 0 de 4 archivos') +
-          ' (enunciado y evidencias de la mayor, la menor y la nota promedio).');
-        e.grupos.filter(g => g.faltan.length && g.faltan.length < 4).forEach(g =>
-          falta.push('• ' + e.nombre + (g.n ? ' ' + g.n : '') + ': tiene ' + (4 - g.faltan.length) + ' de 4 archivos; falta ' +
-            y(g.faltan.map(x => ({ enunciado: 'el enunciado', mayor: 'la evidencia de la mayor nota',
-              menor: 'la evidencia de la menor nota', promedio: 'la evidencia de la nota promedio' })[x])) + '.'));
+        const PP = partesPorta(e), np = PP.length;
+        e.grupos.forEach(g => {
+          const pl = plazoPorta(e, g);
+          if (!pl.vencida && pl.tope !== undefined) return;            // aún en plazo
+          if (pl.clase === 'evc-plazo') return;
+          const faltan = (g.faltan || []).filter(x => PP.includes(x));
+          deben += np; hay += np - faltan.length;
+          if (!faltan.length) return;
+          const quien = e.nombre + (g.n ? ' ' + g.n : '');
+          falta.push('• ' + quien + (faltan.length === np
+            ? ': 0 de ' + np + ' archivos (' + (np === 3 ? 'enunciado y evidencias de la mayor y la menor nota' : 'enunciado y evidencias de la mayor, la menor y la nota promedio') + ')'
+            : ': tiene ' + (np - faltan.length) + ' de ' + np + ' archivos; falta ' + y(faltan.map(x => NOMP[x]))) +
+            (pl.tope ? '. Su fecha tope fue el ' + fechaCal(pl.tope) : '') + '.');
+        });
       });
       if (falta.length) {
-        let hay = 0, deben = 0;
-        ev.evaluaciones.forEach(e => e.grupos.forEach(g => { deben += 4; hay += 4 - g.faltan.length; }));
-        L.push(''); L.push('Qué falta (se encontraron ' + hay + ' de ' + deben + ' archivos; cada evaluación lleva 4: enunciado y las evidencias de la mayor, la menor y la nota promedio):');
+        L.push(''); L.push('Qué falta (de lo que ya debía estar, se encontraron ' + hay + ' de ' + deben + ' archivos. Cada evaluación lleva el enunciado y las evidencias de la mayor, la menor y la nota promedio; en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor):');
         falta.forEach(x => L.push(x));
       }
       const r = ev.rotulado;
@@ -10500,14 +10510,19 @@ label .req{color:var(--falla)}
   // la evaluación (cronograma del sílabo; para parcial y final, si no hay, el
   // calendario académico) + los días para devolver las evaluaciones corregidas.
   const PARTES_PORTA = ['enunciado', 'mayor', 'menor', 'promedio'];
+  // Talleres, laboratorios (informes) y proyectos se trabajan en grupo: pocos
+  // grupos, sin «nota promedio». Se piden enunciado, mayor y menor (3 archivos).
+  const PUNTOS_GRUPALES = ['03', '05'];
+  const partesPorta = e => (e && e.partes) || (PUNTOS_GRUPALES.includes(e && e.punto) ? ['enunciado', 'mayor', 'menor'] : PARTES_PORTA);
   function plazoPorta(e, g) {
     const a = estado.actual || {};
     const v = vencimientoEval(a.codigo, a.programa, e.nombre || e.carpeta, g && g.n);
     const arch = (g && g.archivos) || {};
-    const lleno = PARTES_PORTA.filter(x => (arch[x] || []).length).length;
-    const fechas = [].concat(...PARTES_PORTA.map(x => (arch[x] || []).map(f => f.fecha || ''))).filter(Boolean).sort();
+    const PP = partesPorta(e), np = PP.length;
+    const lleno = PP.filter(x => (arch[x] || []).length).length;
+    const fechas = [].concat(...PP.map(x => (arch[x] || []).map(f => f.fecha || ''))).filter(Boolean).sort();
     const ultimo = fechas[fechas.length - 1] || '';
-    const completo = lleno === PARTES_PORTA.length;
+    const completo = lleno === np;
     // Una sola carpeta (sin número) para una evaluación que el sílabo entrega
     // varias veces: p. ej. «Informe» y, en el cronograma, Taller 1 a Taller 4.
     if (v.sinFecha && !v.sinCrono && !(g && g.n)) {
@@ -10517,9 +10532,10 @@ label .req{color:var(--falla)}
         .sort((x, y) => x.tope < y.tope ? -1 : 1);
       if (ent.length > 1) {
         const hoyM = hoyLima(), venc = ent.filter(x => hoyM > x.tope), prox = ent.find(x => hoyM <= x.tope);
-        const nArch = PARTES_PORTA.reduce((t, x) => t + (arch[x] || []).length, 0), esper = 4 * venc.length;
+        const nArch = PP.reduce((t, x) => t + (arch[x] || []).length, 0), esper = np * venc.length;
         const lista = l => l.map(x => x.nom + ' (' + fechaCal(x.tope) + ')').join(', ');
-        const pie = 'El sílabo tiene ' + ent.length + ' entregas de este tipo; cada una lleva sus 4 archivos.' +
+        const pie = 'El sílabo tiene ' + ent.length + ' entregas de este tipo; cada una lleva sus ' + np + ' archivos (' +
+          (np === 3 ? 'enunciado, mayor y menor nota: se trabaja en grupo' : 'enunciado, mayor, menor y nota promedio') + ').' +
           (prox ? ' Próxima fecha tope: ' + lista([prox]) + '.' : '');
         if (!venc.length) return { clase: 'evc-plazo', completo: false, lleno, vencida: false,
           estado: 'aún en plazo' + (nArch ? ' · lleva ' + nArch + ' archivos' : ''), fecha: pie };
@@ -10553,7 +10569,7 @@ label .req{color:var(--falla)}
       estado: (lleno ? 'faltan archivos' : 'sin archivos') + ' · vencido',
       fecha: 'venció el ' + fechaCal(tope) + ' (hace ' + nd(dias(hoy, tope)) + ')' };
     return { clase: 'evc-plazo', completo, lleno, tope, vencida: false,
-      estado: 'aún en plazo' + (lleno ? ' · lleva ' + lleno + ' de 4' : ''),
+      estado: 'aún en plazo' + (lleno ? ' · lleva ' + lleno + ' de ' + np : ''),
       fecha: 'fecha tope ' + fechaCal(tope) + ' (faltan ' + nd(dias(tope, hoy)) + ')' };
   }
 
@@ -10605,14 +10621,16 @@ label .req{color:var(--falla)}
       '<small>carpeta ' + esc(e.carpeta) + (e.otro ? ' · código no reconocido' : '') + ' · punto ' + e.punto + ' ' +
       esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></th>' +
       '<td><span class="ev-chip ' + pl.clase + '">' + esc(pl.estado) + '</span><small class="ev-fecha">' + esc(pl.fecha) + '</small></td>' +
-      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => celda((g.archivos || {})[x])).join('') + '</tr>'); }).join('')).join('');
+      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => partesPorta(e).includes(x) ? celda((g.archivos || {})[x])
+        : '<td class="no-pide">No se pide<small>se trabaja en grupo: basta la mayor y la menor nota</small></td>').join('') + '</tr>'); }).join('')).join('');
     const r = ev.rotulado || { revisados: 0, bien: 0, malos: [], videos: [] };
     const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
     const raros = ev.evaluaciones.filter(e => e.otro).map(e => String(e.carpeta).toUpperCase());
     return '<div class="porta-sec"><h4>Archivos de cada evaluación</h4>' +
       '<div class="porta-directiva"><b>Qué pide la normativa</b> (Guía Operativa Docente, numeral 4.5; rotulado según la directiva de Calidad y Acreditación): por cada evaluación ' +
       'el docente sube al portafolio, en PDF, <b>a)</b> el enunciado de la evaluación y <b>b)</b> el escaneado del desarrollo ' +
-      'de la <b>mayor nota</b>, la <b>menor nota</b> y la <b>nota promedio</b>. Cada archivo se rotula ' +
+      'de la <b>mayor nota</b>, la <b>menor nota</b> y la <b>nota promedio</b>. En <b>talleres, laboratorios (sus informes) y proyectos</b>, ' +
+      'que se trabajan en grupos y son pocos, no se pide la nota promedio: bastan el enunciado, la mayor y la menor nota. Cada archivo se rotula ' +
       '<code>CÓDIGO.TIPO.PERIODO</code> (el enunciado) o <code>CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota</code> ' +
       '(las evidencias), separando las partes con puntos. No se suben videos. ' +
       '<a href="' + GUIA_ROTULADO + '" target="_blank" rel="noopener">📘 Ver la Guía rápida de rotulado</a> · ' +
