@@ -135,9 +135,9 @@ const D={clase:'evidencia',codigo:'IN0701',tipo:'TA',otro:'',varios:'si',numero:
 // arranca vacío: el ejemplo solo se muestra en la vista previa como guía
 const R={clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',grupo:'',lider:false,entregable:'',metrica:'',nota:''};
 // Nombre tal como va en el rótulo: el estudiante y, si se indicó, su grupo y el entregable.
-// Ej.: «Jacomo Valentino Michel Curotto (líder Grupo 3) TIIN».
+// Ej.: «Jacomo Valentino Michel Curotto (líder del grupo 3) TIIN».
 const nombreRotulo=()=>{ if(!R.nombre) return ''; let t=R.nombre;
-  if(R.grupo) t+=' ('+(R.lider?'líder ':'')+'Grupo '+R.grupo+')'; else if(R.lider) t+=' (líder del grupo)';
+  if(R.grupo) t+=' ('+(R.lider?'líder del grupo ':'grupo ')+R.grupo+')';
   if(R.entregable) t+=' '+R.entregable; return t; };
 let i=0;
 const $=s=>document.querySelector(s);
@@ -206,18 +206,18 @@ const PASOS=[
    <p class="ayuda">Nombre y apellido, como en la lista. Por ejemplo: <b>Luis Morales</b>.</p>
    <input id="inNombre" autocomplete="off" value="${esc(R.nombre)}" placeholder="Luis Morales">
    <details class="extra" ${R.grupo||R.lider||R.entregable?'open':''}><summary>➕ Datos adicionales (opcional): grupo, líder y tipo de entregable</summary>
-    <p class="ayuda">Útil en trabajos en grupo. Se agrega al nombre, sin cambiar el resto del rótulo. Ejemplo: <b>Jacomo Michel Curotto (líder Grupo 3) TIIN</b>.</p>
+    <p class="ayuda">Útil en trabajos en grupo. Se agrega al nombre, sin cambiar el resto del rótulo. Ejemplo: <b>Jacomo Michel Curotto (líder del grupo 3) TIIN</b>. <b>Escriba usted el número de grupo</b>: el recuadro empieza vacío.</p>
     <div class="fila"><label for="inGrupo" class="ayuda">N.º de grupo</label>
-     <input id="inGrupo" inputmode="numeric" autocomplete="off" value="${esc(R.grupo)}" placeholder="3" style="max-width:90px">
+     <input id="inGrupo" inputmode="numeric" autocomplete="off" value="${esc(R.grupo)}" placeholder="N.º" style="max-width:90px">
      <label class="ayuda" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="inLider" ${R.lider?'checked':''} style="width:22px;height:22px"> Es el líder del grupo</label></div>
     <label for="inEntregable" class="ayuda">Tipo de entregable (por ejemplo TIIN, Informe final, Avance 2)</label>
-    <input id="inEntregable" autocomplete="off" value="${esc(R.entregable)}" placeholder="TIIN">
+    <input id="inEntregable" autocomplete="off" value="${esc(R.entregable)}" placeholder="(opcional)">
    </details>`,
   lee:()=>{R.nombre=limpiaNombre($('#inNombre').value);
     const g=$('#inGrupo'); if(g) R.grupo=g.value.replace(/[^0-9]/g,'').slice(0,2);
     const l=$('#inLider'); if(l) R.lider=l.checked;
     const e=$('#inEntregable'); if(e) R.entregable=limpiaNombre(e.value).slice(0,40);},
-  ok:()=>R.nombre?'':'Escriba el nombre y apellido del estudiante.'},
+  ok:()=>!R.nombre?'Escriba el nombre y apellido del estudiante.':(R.lider&&!R.grupo?'Marcó «Es el líder del grupo»: escriba también el número de grupo (por ejemplo 3) en «N.º de grupo».':'')},
  {id:'metrica',ver:()=>R.clase==='evidencia',
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
    <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${esGrupal()?'':op('metrica','Promedio','La nota promedio','')}</div>
