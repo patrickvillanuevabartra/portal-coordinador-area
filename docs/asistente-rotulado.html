@@ -167,7 +167,7 @@ const PASOS=[
   html:()=>`<p class="preg">¿Qué archivo va a rotular?</p>
    <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio). En talleres, laboratorios y proyectos, que se trabajan en grupo, son <b>2</b>: la mayor y la menor nota. Vale para <b>todas</b> las evaluaciones: exámenes, prácticas, trabajos, laboratorios, talleres, investigaciones y proyectos (Guía Operativa Docente, numeral 4.5).</p>
    <div class="ops">${op('clase','enunciado','El examen o tarea en blanco','Las preguntas que el docente entregó, sin resolver. Por ejemplo, el examen parcial tal como se tomó. Es 1 por evaluación.')}
-   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Son 3 por evaluación: mayor, menor y nota promedio (en talleres, laboratorios y proyectos, que son en grupo, solo 2: mayor y menor).')}</div>`,
+   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Por evaluación se suben la mayor, la menor y la nota promedio (en talleres, laboratorios, informes y proyectos, que son en grupo, y en grupos de menos de 3 estudiantes, solo la mayor y la menor).')}</div>`,
   ok:()=>R.clase?'':'Elija una de las dos opciones.'},
  {id:'codigo',ver:()=>true,
   html:()=>`<label class="preg" for="inCodigo">¿Cuál es el curso?</label>
@@ -229,8 +229,8 @@ const PASOS=[
   ok:()=>!R.nombre?'Escriba el nombre y apellido del estudiante.':(R.lider&&!R.grupo?'Marcó «Es el líder del grupo»: escriba también el número de grupo (por ejemplo 3) en «N.º de grupo».':'')},
  {id:'metrica',ver:()=>R.clase==='evidencia',
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
-   <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${esGrupal()?'':op('metrica','Promedio','La nota promedio','')}</div>
-   ${esGrupal()?'<p class="ayuda">En talleres, laboratorios y proyectos, que se trabajan en grupo, solo se piden la <b>mayor</b> y la <b>menor</b> nota.</p>':''}`,
+   <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${esGrupal()?'':op('metrica','Promedio','La nota promedio','Solo si el grupo tiene 3 estudiantes o más.')}</div>
+   <p class="ayuda">${esGrupal()?'En talleres, laboratorios, informes y proyectos, que se trabajan en grupo, solo se piden la <b>mayor</b> y la <b>menor</b> nota. ':''}Un trabajo no presentado (0 sin entrega) no cuenta: la menor nota es la del trabajo presentado con la nota más baja.</p>`,
   ok:()=>!R.metrica?'Elija una opción.':(esGrupal()&&R.metrica==='Promedio'?'En trabajos en grupo solo se piden la mayor y la menor nota.':'')},
  {id:'nota',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNota">¿Qué nota obtuvo?</label>
@@ -261,7 +261,6 @@ document.addEventListener('click',e=>{
     R[b.dataset.k]=b.dataset.v;
     if(b.dataset.k==='varios'&&b.dataset.v==='si'&&!R.numero) R.numero='1';
     if(b.dataset.k==='tipo'&&b.dataset.v!=='OTRO'&&!tipoObj().num){R.varios='';R.numero='';}
-    if(b.dataset.k==='tipo'&&esGrupal()&&R.metrica==='Promedio') R.metrica='';
     const auto=['clase','metrica'].includes(b.dataset.k)||(b.dataset.k==='tipo'&&b.dataset.v!=='OTRO')||(b.dataset.k==='varios'&&b.dataset.v==='no');
     if(auto){i++;pinta();} else pinta();
     return;
@@ -269,6 +268,7 @@ document.addEventListener('click',e=>{
   if(b.id==='sigue') return avanza();
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
   if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
+    if(b.dataset.k==='tipo'&&esGrupal()&&R.metrica==='Promedio') R.metrica='';
   if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.desc='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
   if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''});i=0;return pinta();}
   if(b.id==='editar'){i=0;return pinta();}
