@@ -1961,7 +1961,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '13/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-13.06';
+  const VERSION_INTERNA = '2026-10-13.07';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10508,10 +10508,36 @@ label .req{color:var(--falla)}
     const fechas = [].concat(...PARTES_PORTA.map(x => (arch[x] || []).map(f => f.fecha || ''))).filter(Boolean).sort();
     const ultimo = fechas[fechas.length - 1] || '';
     const completo = lleno === PARTES_PORTA.length;
+    // Una sola carpeta (sin número) para una evaluación que el sílabo entrega
+    // varias veces: p. ej. «Informe» y, en el cronograma, Taller 1 a Taller 4.
+    if (v.sinFecha && !v.sinCrono && !(g && g.n)) {
+      const cr = cronoDe(a.codigo, a.programa), cal = CAL.datos, gr = grupoEval(e.nombre || e.carpeta);
+      const ent = ((cr && cr.evaluaciones) || []).filter(x => grupoEval(x.tipo) === gr && x.semana)
+        .map(x => ({ nom: x.tipo + (x.num ? ' ' + x.num : ''), tope: sumarDias(finDeSemana(cal, x.semana), GRACIA_DIAS) }))
+        .sort((x, y) => x.tope < y.tope ? -1 : 1);
+      if (ent.length > 1) {
+        const hoyM = hoyLima(), venc = ent.filter(x => hoyM > x.tope), prox = ent.find(x => hoyM <= x.tope);
+        const nArch = PARTES_PORTA.reduce((t, x) => t + (arch[x] || []).length, 0), esper = 4 * venc.length;
+        const lista = l => l.map(x => x.nom + ' (' + fechaCal(x.tope) + ')').join(', ');
+        const pie = 'El sílabo tiene ' + ent.length + ' entregas de este tipo; cada una lleva sus 4 archivos.' +
+          (prox ? ' Próxima fecha tope: ' + lista([prox]) + '.' : '');
+        if (!venc.length) return { clase: 'evc-plazo', completo: false, lleno, vencida: false,
+          estado: 'aún en plazo' + (nArch ? ' · lleva ' + nArch + ' archivos' : ''), fecha: pie };
+        const ok = nArch >= esper;
+        return { clase: ok ? 'evc-ok' : (nArch ? 'evc-parcial' : 'evc-vacio'), completo: ok && !prox, lleno, vencida: !ok,
+          estado: nArch + ' de ' + esper + ' archivos esperados a la fecha',
+          fecha: 'Ya vencieron ' + venc.length + ' de ' + ent.length + ': ' + lista(venc) + '. ' + pie };
+      }
+      if (!ent.length) return { clase: completo ? 'evc-ok' : (lleno ? 'evc-parcial' : 'evc-vacio'), completo, lleno,
+        estado: completo ? 'completo' : (lleno ? 'faltan archivos' : 'sin archivos'),
+        fecha: 'sin fecha tope: el cronograma registrado (Paso 1 del módulo Sílabo) no tiene esta evaluación; revíselo' };
+    }
     if (v.sinCalendario || v.sinFecha) {
       return { clase: completo ? 'evc-ok' : (lleno ? 'evc-parcial' : 'evc-vacio'), completo, lleno,
         estado: completo ? 'completo' : (lleno ? 'faltan archivos' : 'sin archivos'),
-        fecha: v.sinCalendario ? 'sin fecha tope: falta el calendario académico' : 'sin fecha tope: falta el cronograma del sílabo' };
+        fecha: v.sinCalendario ? 'sin fecha tope: falta el calendario académico'
+          : (v.sinCrono ? 'sin fecha tope: falta registrar el cronograma (Paso 1 del módulo Sílabo)'
+                        : 'sin fecha tope: el cronograma registrado no tiene esta evaluación con ese número') };
     }
     const tope = sumarDias(v.desde, -1), hoy = hoyLima();
     const dias = (x, y) => Math.round((new Date(x + 'T12:00:00Z') - new Date(y + 'T12:00:00Z')) / 86400000);
