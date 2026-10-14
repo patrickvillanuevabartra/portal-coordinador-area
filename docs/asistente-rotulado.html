@@ -135,6 +135,8 @@ let i=0;
 const $=s=>document.querySelector(s);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tipoObj=()=>TIPOS.find(t=>t.s===R.tipo);
+// Talleres, laboratorios y proyectos se trabajan en grupo: no se pide nota promedio.
+const esGrupal=()=>['TA','LA','PR'].includes(R.tipo);
 const pideNumero=()=>{const t=tipoObj();return t&&t.num};
 const siglaTipo=()=>{ if(!R.tipo) return ''; const base=R.tipo==='OTRO'?R.otro:R.tipo; if(!base) return ''; return base+(pideNumero()&&R.varios==='si'&&R.numero?R.numero:''); };
 const periodo=()=>R.anio&&R.ciclo?R.anio+'-'+R.ciclo:'';
@@ -153,9 +155,9 @@ function pintaVista(){
 const PASOS=[
  {id:'clase',ver:()=>true,
   html:()=>`<p class="preg">¿Qué archivo va a rotular?</p>
-   <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio). Vale para <b>todas</b> las evaluaciones: exámenes, prácticas, trabajos, laboratorios, talleres, investigaciones y proyectos (Guía Operativa Docente, numeral 4.5).</p>
+   <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio). En talleres, laboratorios y proyectos, que se trabajan en grupo, son <b>2</b>: la mayor y la menor nota. Vale para <b>todas</b> las evaluaciones: exámenes, prácticas, trabajos, laboratorios, talleres, investigaciones y proyectos (Guía Operativa Docente, numeral 4.5).</p>
    <div class="ops">${op('clase','enunciado','El examen o tarea en blanco','Las preguntas que el docente entregó, sin resolver. Por ejemplo, el examen parcial tal como se tomó. Es 1 por evaluación.')}
-   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Son 3 por evaluación: mayor, menor y nota promedio.')}</div>`,
+   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Son 3 por evaluación: mayor, menor y nota promedio (en talleres, laboratorios y proyectos, que son en grupo, solo 2: mayor y menor).')}</div>`,
   ok:()=>R.clase?'':'Elija una de las dos opciones.'},
  {id:'codigo',ver:()=>true,
   html:()=>`<label class="preg" for="inCodigo">¿Cuál es el curso?</label>
@@ -199,8 +201,9 @@ const PASOS=[
   ok:()=>R.nombre?'':'Escriba el nombre y apellido del estudiante.'},
  {id:'metrica',ver:()=>R.clase==='evidencia',
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
-   <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${op('metrica','Promedio','La nota promedio','')}</div>`,
-  ok:()=>R.metrica?'':'Elija una opción.'},
+   <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${esGrupal()?'':op('metrica','Promedio','La nota promedio','')}</div>
+   ${esGrupal()?'<p class="ayuda">En talleres, laboratorios y proyectos, que se trabajan en grupo, solo se piden la <b>mayor</b> y la <b>menor</b> nota.</p>':''}`,
+  ok:()=>!R.metrica?'Elija una opción.':(esGrupal()&&R.metrica==='Promedio'?'En trabajos en grupo solo se piden la mayor y la menor nota.':'')},
  {id:'nota',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNota">¿Qué nota obtuvo?</label>
    <p class="ayuda">De 0 a 20. Puede llevar decimales, por ejemplo <b>17</b> o <b>16,05</b>. En el nombre del archivo el decimal va con <b>coma</b>, porque el punto separa las partes del nombre.</p>
@@ -230,6 +233,7 @@ document.addEventListener('click',e=>{
     R[b.dataset.k]=b.dataset.v;
     if(b.dataset.k==='varios'&&b.dataset.v==='si'&&!R.numero) R.numero='1';
     if(b.dataset.k==='tipo'&&b.dataset.v!=='OTRO'&&!tipoObj().num){R.varios='';R.numero='';}
+    if(b.dataset.k==='tipo'&&esGrupal()&&R.metrica==='Promedio') R.metrica='';
     const auto=['clase','metrica'].includes(b.dataset.k)||(b.dataset.k==='tipo'&&b.dataset.v!=='OTRO')||(b.dataset.k==='varios'&&b.dataset.v==='no');
     if(auto){i++;pinta();} else pinta();
     return;
