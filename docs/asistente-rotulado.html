@@ -184,7 +184,7 @@ const PASOS=[
    <div class="ops">${TIPOS.map(t=>`<button type="button" class="op" data-k="tipo" data-v="${t.s}" aria-pressed="${R.tipo===t.s}"><b>${t.n}</b><span class="sig">${t.s==='OTRO'?'nombre completo':t.s}</span></button>`).join('')}</div>
    <div id="cajaOtro" ${R.tipo==='OTRO'?'':'hidden'}><label for="inOtro" class="ayuda">Escriba el nombre completo de la evaluación, en una sola palabra (por ejemplo, INFORME o EXPOSICION):</label><br>
    <input id="inOtro" autocomplete="off" value="${esc(R.otro)}" placeholder="INFORME"></div>
-   <p class="ayuda">Si el informe es lo que se entrega en un taller, elija <b>Talleres</b>.</p>`,
+   <p class="ayuda"><b>¿Es un informe?</b> Si es el informe de un taller, elija <b>Talleres</b> (TA); si es de un laboratorio, elija <b>Laboratorios</b> (LA). Aunque en el Moodle la carpeta se llame «Informe», el portal acepta así los archivos.</p>`,
   lee:()=>{const e=$('#inOtro'); if(e) R.otro=e.value.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z]/g,'')},
   ok:()=>!R.tipo?'Elija el tipo de evaluación.':(R.tipo==='OTRO'&&!R.otro?'Escriba el nombre de la evaluación.':'')},
  {id:'numero',ver:()=>pideNumero(),
