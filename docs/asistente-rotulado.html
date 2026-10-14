@@ -71,6 +71,15 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 .nota p{margin:0}
 .ok{color:var(--accent);font-weight:700;margin:0;min-height:1.5em}
 .pie{color:var(--muted);font-size:.95rem}
+.archivo{background:var(--panel);border:2px dashed var(--line);border-radius:10px;padding:14px 16px;display:grid;gap:8px}
+.archivo.encima{border-color:var(--accent);background:var(--accent-soft)}
+.archivo .et{font-size:.85rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+.archivo .fila{gap:10px}
+.archivo input[type=file]{position:absolute;width:1px;height:1px;opacity:0}
+.archivo .elegido{font-family:var(--f-mono);word-break:break-all}
+.descarga{background:var(--accent-soft);border-radius:10px;padding:16px;display:grid;gap:10px}
+.descarga .preg{font-size:1.15rem}
+
 @media (max-width:480px){body{font-size:18px}.preg{font-size:1.2rem}}
 @media (prefers-reduced-motion:no-preference){.paso{animation:entra .18s ease-out}@keyframes entra{from{transform:translateY(4px)}to{transform:none}}}
 </style>
@@ -80,12 +89,19 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 <div class="wrap">
   <header>
     <h1>Asistente de rotulado de evidencias</h1>
-    <p class="sub">Responda una pregunta a la vez. Al final tendrá el nombre correcto del archivo, según la directiva de rotulado de Calidad y Acreditación.</p>
+    <p class="sub">Responda una pregunta a la vez. Al final tendrá el nombre correcto del archivo, según la directiva de rotulado de Calidad y Acreditación, y si elige su PDF podrá descargarlo ya rotulado.</p>
   </header>
 
   <div class="nombre" aria-live="polite">
     <div class="et">Así va quedando el nombre</div>
     <div class="txt" id="vista"></div>
+  </div>
+
+  <div class="archivo" id="cajaArchivo">
+    <div class="et">Su archivo (opcional)</div>
+    <div id="archivoInfo"></div>
+    <input type="file" id="inArchivo" accept="application/pdf,.pdf">
+    <p class="ayuda" style="font-size:.95rem">Si elige aquí su PDF, al terminar podrá descargarlo ya con el nombre correcto. El archivo no se sube a internet: se queda en su computadora.</p>
   </div>
 
   <section class="paso" id="paso"></section>
@@ -221,8 +237,8 @@ document.addEventListener('click',e=>{
   if(b.id==='sigue') return avanza();
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
   if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
-  if(b.id==='otraEv'){R.nombre='';R.metrica='';R.nota='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
-  if(b.id==='nuevo'){Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',metrica:'',nota:''});i=0;return pinta();}
+  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.nombre='';R.metrica='';R.nota='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
+  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',metrica:'',nota:''});i=0;return pinta();}
   if(b.id==='editar'){i=0;return pinta();}
 });
 document.addEventListener('input',e=>{
@@ -244,9 +260,10 @@ function final(){
    <div class="btns"><button type="button" class="b pri" id="copiar">Copiar el nombre</button>
    <button type="button" class="b sec" id="copiarSin">Copiar sin «.PDF»</button></div>
    <p class="ok" id="avisoCopia" aria-live="polite"></p>
+   ${bloqueDescarga()}
    <ul class="partes">${partes().map(([c,et,v])=>`<li><code class="${c}">${esc(v)}</code><span>${et.toLowerCase()==='tipo'?'tipo de evaluación':et.toLowerCase()}</span></li>`).join('')}<li><code>PDF</code><span>el archivo debe estar en PDF</span></li></ul>
    <div class="nota">
-    <p><b>Cómo cambiarle el nombre al archivo:</b> en la carpeta, haga clic derecho sobre el archivo, elija «Cambiar nombre», borre el nombre anterior y pegue (Ctrl + V).</p>
+    <p><b>Si prefiere cambiarle el nombre usted mismo:</b> en la carpeta, haga clic derecho sobre el archivo, elija «Cambiar nombre», borre el nombre anterior y pegue (Ctrl + V).</p>
     <p>Si en su computadora los archivos no muestran «.pdf» al final del nombre, use el botón <b>Copiar sin «.PDF»</b>. Así evita que el archivo quede como «….PDF.pdf».</p>
    </div>
    <div class="btns">${R.clase==='evidencia'?'<button type="button" class="b pri" id="otraEv">Rotular otro trabajo de esta misma evaluación</button>':''}
@@ -265,6 +282,63 @@ function ejemplo(){$('#vista').innerHTML=`<span class="pz c1">${D.codigo}</span>
   const m=(q.get('periodo')||'').toUpperCase().match(/(\d{4})[\s\-_]*(II|I)\b/); if(m){R.anio=m[1];R.ciclo=m[2];}
   const t=(q.get('tipo')||'').toUpperCase(); if(TIPOS.some(x=>x.s===t)) R.tipo=t;
 }catch(_){}})();
+
+// ---- archivo a rotular: se elige aquí y se descarga con el nombre nuevo (no sale de la computadora)
+let ARCH=null;
+const pesoTxt=b=>b<1048576?Math.max(1,Math.round(b/1024))+' KB':(b/1048576).toFixed(1).replace('.',',')+' MB';
+const esPdf=f=>/\.pdf$/i.test(f.name)||f.type==='application/pdf';
+function pintaArchivo(msg){
+  const box=$('#archivoInfo');
+  box.innerHTML=ARCH
+    ? `<div class="fila"><span>📄 <span class="elegido">${esc(ARCH.name)}</span> <span class="ayuda">(${pesoTxt(ARCH.size)})</span></span>
+       <button type="button" class="b sec" id="cambiaArch">Elegir otro</button><button type="button" class="b sec" id="quitaArch">Quitar</button></div>`
+    : `<div class="fila"><button type="button" class="b sec" id="eligeArch">📂 Elegir el archivo PDF</button><span class="ayuda">o arrástrelo aquí</span></div>`;
+  if(msg) box.insertAdjacentHTML('beforeend',`<p class="err" role="alert">${esc(msg)}</p>`);
+}
+function tomaArchivo(f){
+  if(!f) return;
+  if(!esPdf(f)){ARCH=null;pintaArchivo('«'+f.name+'» no es un PDF. Primero guárdelo como PDF (en Word: Archivo → Guardar como → PDF) y vuelva a elegirlo.');}
+  else {ARCH=f;pintaArchivo();}
+  if($('#res')) final();
+}
+$('#inArchivo').addEventListener('change',e=>{tomaArchivo(e.target.files[0]);e.target.value='';});
+document.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b) return;
+  if(b.id==='eligeArch'||b.id==='cambiaArch'||b.id==='eligeArch2') $('#inArchivo').click();
+  if(b.id==='quitaArch'){ARCH=null;pintaArchivo(); if($('#res')) final();}
+  if(b.id==='bajar') bajar();
+});
+['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){e.preventDefault();$('#cajaArchivo').classList.add('encima');}}));
+['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{if(t==='dragleave'&&e.relatedTarget) return;$('#cajaArchivo').classList.remove('encima');}));
+document.addEventListener('drop',e=>{if(!e.dataTransfer||!e.dataTransfer.files.length) return;e.preventDefault();tomaArchivo(e.dataTransfer.files[0]);});
+let DESC=null;
+try{ if(window.claude&&claude.use) claude.use('downloads').then(d=>{DESC=d;}).catch(()=>{}); }catch(_){}
+async function bajar(){
+  const av=$('#avisoBaja'), nom=nombreFinal(true);
+  if(!ARCH){av.textContent='Primero elija el archivo PDF.';return;}
+  if(DESC){
+    try{await DESC.save({filename:nom,data:ARCH}); av.textContent='Listo: se descargó como '+nom+'. Búsquelo en su carpeta «Descargas».';}
+    catch(err){av.textContent=err&&err.code==='declined'?'No se descargó (usted canceló).':'No se pudo descargar aquí. Use «Copiar el nombre» y cámbielo a mano.';}
+    return;
+  }
+  const url=URL.createObjectURL(ARCH), a=document.createElement('a');
+  a.href=url; a.download=nom; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+  av.textContent='Listo: se descargó como '+nom+'. Búsquelo en su carpeta «Descargas».';
+}
+function bloqueDescarga(){
+  return ARCH
+   ? `<div class="descarga"><p class="preg">Descargue su archivo ya rotulado</p>
+      <p class="ayuda" style="color:var(--fg)">Archivo elegido: <span class="elegido">📄 ${esc(ARCH.name)}</span></p>
+      <div class="btns"><button type="button" class="b pri" id="bajar">⬇ Descargar con el nombre nuevo</button>
+      <button type="button" class="b sec" id="eligeArch2">Elegir otro archivo</button></div>
+      <p class="ok" id="avisoBaja" aria-live="polite"></p>
+      <p class="ayuda">Se guarda una copia con el nombre nuevo; su archivo original no cambia. Esa copia es la que sube al portafolio.</p></div>`
+   : `<div class="descarga"><p class="preg">¿Quiere que el asistente le entregue el archivo ya con este nombre?</p>
+      <p class="ayuda" style="color:var(--fg)">Elija su PDF y luego presione «Descargar». No se sube a internet.</p>
+      <div class="btns"><button type="button" class="b pri" id="eligeArch2">📂 Elegir el archivo PDF</button></div>
+      <p class="ok" id="avisoBaja" aria-live="polite"></p></div>`;
+}
+pintaArchivo();
 pinta(); ejemplo();
 </script>
 
