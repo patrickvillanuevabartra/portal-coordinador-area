@@ -128,6 +128,7 @@ const TIPOS=[
   {s:'TA',n:'Talleres',num:true,uno:'un taller'},
   {s:'IN',n:'Investigaciones',num:true,uno:'una investigación'},
   {s:'PR',n:'Proyectos',num:true,uno:'un proyecto'},
+  {s:'INFORME',n:'Informes',num:true,uno:'un informe'},
   {s:'OTRO',n:'Otro',num:true,uno:'una evaluación de este tipo'}
 ];
 const hoy=new Date(); const anioHoy=hoy.getFullYear(); const cicloHoy=hoy.getMonth()>=7?'II':'I';
@@ -144,7 +145,7 @@ const $=s=>document.querySelector(s);
 const esc=t=>String(t).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const tipoObj=()=>TIPOS.find(t=>t.s===R.tipo);
 // Talleres, laboratorios y proyectos se trabajan en grupo: no se pide nota promedio.
-const esGrupal=()=>['TA','LA','PR'].includes(R.tipo);
+const esGrupal=()=>['TA','LA','PR','INFORME'].includes(R.tipo);
 const pideNumero=()=>{const t=tipoObj();return t&&t.num};
 const siglaTipo=()=>{ if(!R.tipo) return ''; const base=R.tipo==='OTRO'?R.otro:R.tipo; if(!base) return ''; return base+(pideNumero()&&R.varios==='si'&&R.numero?R.numero:''); };
 const periodo=()=>R.anio&&R.ciclo?R.anio+'-'+R.ciclo:'';
@@ -184,7 +185,7 @@ const PASOS=[
    <div class="ops">${TIPOS.map(t=>`<button type="button" class="op" data-k="tipo" data-v="${t.s}" aria-pressed="${R.tipo===t.s}"><b>${t.n}</b><span class="sig">${t.s==='OTRO'?'nombre completo':t.s}</span></button>`).join('')}</div>
    <div id="cajaOtro" ${R.tipo==='OTRO'?'':'hidden'}><label for="inOtro" class="ayuda">Escriba el nombre completo de la evaluación, en una sola palabra (por ejemplo, INFORME o EXPOSICION):</label><br>
    <input id="inOtro" autocomplete="off" value="${esc(R.otro)}" placeholder="INFORME"></div>
-   <p class="ayuda"><b>¿Es un informe?</b> Si es el informe de un taller, elija <b>Talleres</b> (TA); si es de un laboratorio, elija <b>Laboratorios</b> (LA). Aunque en el Moodle la carpeta se llame «Informe», el portal acepta así los archivos.</p>`,
+   <p class="ayuda"><b>Consejo:</b> elija el tipo que tenga el mismo nombre que la carpeta del Moodle. Si la carpeta se llama «Informe», elija <b>Informes</b> (queda INFORME1, INFORME2…). Si es el informe de un taller o de un laboratorio guardado en la carpeta «Taller» o «Laboratorio», elija <b>Talleres</b> o <b>Laboratorios</b>.</p>`,
   lee:()=>{const e=$('#inOtro'); if(e) R.otro=e.value.toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Z]/g,'')},
   ok:()=>!R.tipo?'Elija el tipo de evaluación.':(R.tipo==='OTRO'&&!R.otro?'Escriba el nombre de la evaluación.':'')},
  {id:'numero',ver:()=>pideNumero(),
