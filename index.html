@@ -6142,7 +6142,8 @@ label .req{color:var(--falla)}
     filaLey(EST.no.txt, 'No se encontró el formulario de ese curso, grupo y docente en la hoja de respuestas.', 'rojo');
     filaLey(EST.sinHoja.txt, 'La carrera no tiene registrada la hoja de ese formulario; no se evalúa.', 'gris');
     filaLey(EST.noAplica.txt, 'El docente dicta solo la práctica, el laboratorio o el taller de un grupo cuya teoría la dicta otro docente. ' +
-      'El F1 (delegado y subdelegado, los mismos para todos los subgrupos del grupo) lo presenta el docente de teoría; a este docente no se le exige ni se le cuenta como falta.', 'gris');
+      'F1, F2 y F3 los presenta el docente de teoría: él elige al delegado y subdelegado (los mismos para todos los subgrupos), ellos envían la ' +
+      'constancia del sílabo (F2) y él toma la prueba de entrada (F3). A este docente no se le exigen ni se le cuentan como falta.', 'gris');
     par.push([]);
     par.push(['Situación del curso y grupo, y del docente', 'Qué significa']);
     const filaTitSit = par.length - 1;
@@ -10382,15 +10383,24 @@ label .req{color:var(--falla)}
     }
     L.push('');
     L.push('Situación de cada punto del portafolio:');
-    L.push('• Prueba de entrada: ' + (!f3 ? 'se acredita con el F3 (informe de la prueba de entrada).'
+    L.push('• Prueba de entrada: ' + (f3 && f3.teoria ? 'no le corresponde; la toma el docente de teoría del grupo.'
+      : !f3 ? 'se acredita con el F3 (informe de la prueba de entrada).'
       : (f3.presentado ? 'acreditada con el F3, presentado el ' + f3.fecha + '.' : 'no se encuentra presentado el F3 (informe de la prueba de entrada).')));
     Object.keys(NOMBRE_PUNTO_P).filter(k => k !== '01').forEach(k => {
       const nombre = NOMBRE_PUNTO_P[k];
       if (ev) {
         const mias = ev.evaluaciones.filter(e => e.punto === k);
         if (!mias.length) { L.push('• ' + nombre + ': no aplica.'); return; }
-        L.push('• ' + nombre + ' — ' + y(mias.map(nombreEvalPorta)) + ': ' +
-          (mias.every(e => e.completa) ? 'completo.' : (mias.some(e => e.archivos) ? 'faltan archivos.' : 'sin archivos.')));
+        if (mias.every(e => e.completa)) { L.push('• ' + nombre + ' — ' + y(mias.map(nombreEvalPorta)) + ': completo.'); return; }
+        // Con la fecha tope: lo que aún está en plazo no se le reclama al docente.
+        const partes = [];
+        mias.forEach(e => ((e.grupos && e.grupos.length) ? e.grupos : [{}]).forEach(g => {
+          const pl = plazoPorta(e, g);
+          if (pl.completo && !/retraso/.test(pl.estado)) return;
+          const nom = (e.grupos || []).length > 1 ? e.nombre + (g.n ? ' ' + g.n : '') : e.nombre;
+          partes.push(nom + ': ' + pl.estado + (pl.fecha ? ' (' + pl.fecha + ')' : ''));
+        }));
+        L.push('• ' + nombre + ' — ' + (partes.length ? partes.join('; ') : 'completo') + '.');
       } else {
         const x = h[k] || {};
         L.push('• ' + nombre + ': ' + (x.sugerido === 'Cumple' ? 'con evidencia.' : (x.para_docente || 'sin evidencia.')));
@@ -10606,6 +10616,20 @@ label .req{color:var(--falla)}
     if (!f3 || estado.modulo !== 'portafolios') return;
     if (estado.ultimaPorta) volcarObsPortafolio(estado.ultimaPorta);
     const celda = document.querySelector('.porta-tabla tr[data-punto="01"]');
+    if (f3.teoria) {
+      if (celda) {
+        celda.className = 'na';
+        celda.querySelector('.pc').textContent = '—';
+        celda.querySelector('.pa').innerHTML = '<span class="no-aplica">No le corresponde · la prueba de entrada la toma el docente de teoría (' +
+          esc(f3.teoria) + ')' + (f3.presentado ? ', que presentó el F3' + (f3.fecha ? ' el ' + esc(f3.fecha) : '') : ', que aún no presenta el F3') + '</span>';
+      }
+      estado.hallazgos = estado.hallazgos || {};
+      estado.hallazgos[0] = { sugerencia: 'No aplica', certeza: 'alta',
+        texto: 'La prueba de entrada del grupo la toma el docente de teoría, ' + f3.teoria + '.',
+        nota: 'En un grupo con docente de teoría distinto, el F3 lo presenta el de teoría.' };
+      mostrarHallazgos();
+      return;
+    }
     if (celda) {
       celda.className = f3.presentado ? 'con' : 'sin';
       celda.querySelector('.pc').textContent = f3.presentado ? 'F3' : '—';
@@ -10649,6 +10673,16 @@ label .req{color:var(--falla)}
         }
         const r = (d.coincidencias || [])[0];
         const fF3 = r ? String(r.fecha || '').slice(0, 10) : '';
+        if (d.cubiertoPor) {
+          const fT = fF3 && /^\d{4}/.test(fF3) ? fF3.split('-').reverse().join('/') : fF3;
+          estado.f3Portafolio = { teoria: d.cubiertoPor, presentado: !!r, fecha: fT };
+          aplicarF3Portafolio();
+          caja.className = 'declarado' + (r ? '' : ' sin-fuente');
+          caja.innerHTML = '<b>Punto 01 · La prueba de entrada la toma el docente de teoría del grupo ' + esc(a.grupo || '') + ', ' + esc(d.cubiertoPor) + '</b>' +
+            '<p>Este docente dicta solo la práctica, el laboratorio o el taller, así que <b>el F3 no le corresponde</b>. ' +
+            (r ? 'El docente de teoría lo presentó' + (fT ? ' el ' + esc(fT) : '') + '.' : 'El docente de teoría todavía no lo presenta; revíselo en su carga.') + '</p>';
+          return;
+        }
         estado.f3Portafolio = { presentado: !!r, fecha: fF3 ? fF3.split(/[-\/]/).length === 3 && /^\d{4}/.test(fF3) ? fF3.split('-').reverse().join('/') : fF3 : '' };
         aplicarF3Portafolio();
         if (!r) {
@@ -10876,6 +10910,12 @@ label .req{color:var(--falla)}
     });
   }
 
+  // Por qué un formulario lo presenta el docente de teoría del grupo.
+  const POR_TEORIA = {
+    F1: 'el delegado y el subdelegado los elige el docente de teoría y son los mismos para todos los subgrupos del grupo',
+    F2: 'la constancia de que el sílabo se presentó en la primera clase la envían el delegado y el subdelegado que eligió el docente de teoría',
+    F3: 'la prueba de entrada la toma el docente de teoría'
+  };
   // «24/8/2026 13:21:22» → «2026-08-24», que es lo que esperan los campos de fecha.
   async function traerFormularios(F) {
     const a = estado.actual || {};
@@ -10923,8 +10963,8 @@ label .req{color:var(--falla)}
       if (d.cubiertoPor) {
         const elFt = $('f_' + k);
         if (elFt && !elFt.value) { elFt.value = 'No aplica'; puestos++; }
-        lineas.push('<li><b>' + fmt + '</b> — <b>no le corresponde a este docente</b>: el delegado y el subdelegado del grupo ' +
-          esc(a.grupo || '') + ' los registra el docente de teoría, ' + esc(d.cubiertoPor) + ' (' +
+        lineas.push('<li><b>' + fmt + '</b> — <b>no le corresponde a este docente</b>: ' + esc(POR_TEORIA[fmt] || 'lo presenta el docente de teoría') +
+          ' del grupo ' + esc(a.grupo || '') + ', ' + esc(d.cubiertoPor) + ' (' +
           (r ? 'lo presentó el ' + esc(fechaCorta(fechaDeRespuesta(r.fecha)) || r.fecha) : 'aún no lo presenta') + ')' +
           (elFt ? ' · queda como <b>' + esc(elFt.value) + '</b>' : '') + '</li>');
         return;
@@ -10973,7 +11013,7 @@ label .req{color:var(--falla)}
       const d = res[i] || {};
       if (d.error || d.sinFuente) return;          // lo interno no se comunica al docente
       if (d.cubiertoPor) {
-        lineas.push('• ' + fmt + ': no le corresponde; el delegado y el subdelegado del grupo los registra el docente de teoría.');
+        lineas.push('• ' + fmt + ': no le corresponde; ' + (POR_TEORIA[fmt] || 'lo presenta el docente de teoría') + '.');
         return;
       }
       const p = plazoDe(fmt);
