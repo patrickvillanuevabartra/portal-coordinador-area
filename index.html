@@ -614,7 +614,13 @@ tr.sin-leer{background:#fffdf6}
 .rot-lista{margin:6px 0 0;padding:0;list-style:none;font-size:13.5px}
 .porta-tabla tr.na td.pc{color:var(--tinta-tenue)}
 .porta-tabla .no-aplica{color:var(--tinta-media);font-style:italic}
+.nota-teoria{background:#efeafc;border-left:4px solid #6b4fbb;padding:8px 12px;border-radius:6px;margin:8px 0}
 .ev-chip{display:inline-block;margin:0 6px 4px 0;padding:2px 10px;border-radius:999px;font-size:13px;font-weight:600}
+.ev-chip:has(.ev-fecha){border-radius:10px;padding:4px 10px}
+.ev-chip .ev-fecha{display:block;font-weight:500;font-size:12px;opacity:.9}
+td>.ev-fecha{display:block;font-size:12px;color:var(--tinta-media);margin-top:2px}
+.ev-chip.evc-plazo{background:#e6eefb;color:#1e3a6e}
+.porta-tabla tr.pend td.pc{color:#1e3a6e}
 .ev-chip.evc-ok{background:#e3f4e9;color:#14532d}.ev-chip.evc-parcial{background:#fff3d6;color:#7a4d00}.ev-chip.evc-vacio{background:#fde8e8;color:#9c0006}
 .ev-scroll{overflow-x:auto}
 .ref-enlaces{margin:8px 0 0}.ref-enlaces a{color:#1f5fa8;font-weight:600}
@@ -1955,7 +1961,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '13/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-13.05';
+  const VERSION_INTERNA = '2026-10-13.06';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5630,9 +5636,10 @@ label .req{color:var(--falla)}
       sinFecha: { txt: '✔ Presentó (sin fecha registrada)', color: 'verde',   cumple: true,  presento: true },
       tarde:    { txt: '▲ Presentó fuera de plazo',        color: 'amarillo', cumple: false, presento: true },
       no:       { txt: '✘ No presentó',                    color: 'rojo',     cumple: false, presento: false },
-      sinHoja:  { txt: '— No se consultó (sin hoja)',      color: 'gris',     cumple: false, presento: false }
+      sinHoja:  { txt: '— No se consultó (sin hoja)',      color: 'gris',     cumple: false, presento: false },
+      noAplica: { txt: '○ No le corresponde (lo presenta teoría)', color: 'gris', cumple: false, presento: false }
     };
-    const claseDe = e => e === 'Presentado a tiempo' ? 'aTiempo'
+    const claseDe = e => /^No aplica/.test(e || '') ? 'noAplica' : e === 'Presentado a tiempo' ? 'aTiempo'
       : (e === 'Fuera de plazo' ? 'tarde'
       : (e === 'No presentado' ? 'no'
       : (/sin plazo/i.test(e || '') ? 'sinPlazo'
@@ -5716,7 +5723,9 @@ label .req{color:var(--falla)}
       const exig = F.filter(f => r.fuentes[f] && !r.fuentes[f].error);
       r._exig = exig;
       r.detalle.forEach(x => {
-        x._carrera = r.programa; x._exig = exig; x._plazos = r.plazos || {};
+        x._carrera = r.programa; x._plazos = r.plazos || {};
+        // Un formulario que presenta el docente de teoría del grupo no se le exige a este docente.
+        x._exig = exig.filter(f => !/^No aplica/.test((x[f] || {}).estado || ''));
         x._area = x.area || 'Sin área';
         x._areaEtq = x._area + (reps.length > 1 && sinTildes(x._area).indexOf(sinTildes(corto(r.programa))) < 0
           ? ' (' + corto(r.programa) + ')' : '');
@@ -5726,7 +5735,7 @@ label .req{color:var(--falla)}
         F.forEach(f => {
           const cl = exig.indexOf(f) < 0 ? 'sinHoja' : claseDe((x[f] || {}).estado);
           x._cl[f] = cl;
-          if (exig.indexOf(f) < 0) return;
+          if (exig.indexOf(f) < 0 || cl === 'noAplica') return;
           if (EST[cl].cumple) { x._ok++; aTiempo.push(f); }
           else if (cl === 'tarde') {
             x._tarde++;
@@ -6132,6 +6141,8 @@ label .req{color:var(--falla)}
     filaLey(EST.tarde.txt, 'Se envió después del plazo. En «Qué falta» se indica cuántos días después.', 'amarillo');
     filaLey(EST.no.txt, 'No se encontró el formulario de ese curso, grupo y docente en la hoja de respuestas.', 'rojo');
     filaLey(EST.sinHoja.txt, 'La carrera no tiene registrada la hoja de ese formulario; no se evalúa.', 'gris');
+    filaLey(EST.noAplica.txt, 'El docente dicta solo la práctica, el laboratorio o el taller de un grupo cuya teoría la dicta otro docente. ' +
+      'El F1 (delegado y subdelegado, los mismos para todos los subgrupos del grupo) lo presenta el docente de teoría; a este docente no se le exige ni se le cuenta como falta.', 'gris');
     par.push([]);
     par.push(['Situación del curso y grupo, y del docente', 'Qué significa']);
     const filaTitSit = par.length - 1;
@@ -10286,6 +10297,9 @@ label .req{color:var(--falla)}
     api('/portafolio?idAsignacion=' + encodeURIComponent(id) + '&ciclo=' + encodeURIComponent(a.ciclo || '') +
         (fPegada ? '&formula=' + encodeURIComponent(fPegada) : '') +
         (recargar ? '&recargar=1' : ''), { limiteMs: 150000 })
+      // Las fechas tope salen del cronograma del sílabo y del calendario académico.
+      .then(d => Promise.all([cargarCalendario().catch(() => null),
+                              cargarCronogramas([a.programa]).catch(() => null)]).then(() => d))
       .then(d => {
         if (estado.actual !== a || estado.modulo !== 'portafolios') return;
         if (d.error) throw new Error(d.error);
@@ -10316,8 +10330,13 @@ label .req{color:var(--falla)}
           ' · <button type="button" class="btn-enlace" id="portaOtraVez">Volver a revisar</button></span></div>' +
           (evP ? introEstructuraPorta(evP) : '') +
           '<table class="porta-tabla"><thead><tr><th></th><th>Punto</th><th>Archivos</th><th>' +
-          (evP ? 'Evaluación del curso que lo cubre' : 'Evidencia encontrada') + '</th></tr></thead><tbody>' +
+          (evP ? 'Evaluación del curso que lo cubre y su fecha tope' : 'Evidencia encontrada') + '</th></tr></thead><tbody>' +
           filas + '</tbody></table>' +
+          (evP ? '<p class="porta-nota"><b>Fecha tope</b>: último día de la semana en que se toma la evaluación (según el cronograma del sílabo; ' +
+            'para parcial y final, si no lo hay, según el calendario académico) más ' + GRACIA_DIAS + ' días para devolver las evaluaciones corregidas. ' +
+            '<span class="ev-chip evc-plazo">azul</span> aún está en plazo · <span class="ev-chip evc-ok">verde</span> completo a tiempo · ' +
+            '<span class="ev-chip evc-parcial">ámbar</span> incompleto o subido con retraso · <span class="ev-chip evc-vacio">rojo</span> venció sin archivos. ' +
+            'La fecha de subida es la que registra Drive.</p>' : '') +
           pintarEvaluacionesPorta(d.evaluaciones) +
           '<p class="porta-nota">El inventario se hace por el nombre de las carpetas y archivos; no se lee el contenido de los trabajos de los estudiantes. ' +
           'Las sugerencias aparecen bajo cada punto: <b>usted marca la calificación</b>.</p>';
@@ -10466,6 +10485,42 @@ label .req{color:var(--falla)}
 
   // Tabla de los siete puntos con la estructura de Calidad: cada punto dice
   // qué evaluación del curso lo cubre y cómo está, o que no aplica.
+  // Fecha tope de cada evaluación en el portafolio y en qué va: a tiempo,
+  // con retraso, vencida o todavía en plazo. Fecha tope = fin de la semana de
+  // la evaluación (cronograma del sílabo; para parcial y final, si no hay, el
+  // calendario académico) + los días para devolver las evaluaciones corregidas.
+  const PARTES_PORTA = ['enunciado', 'mayor', 'menor', 'promedio'];
+  function plazoPorta(e, g) {
+    const a = estado.actual || {};
+    const v = vencimientoEval(a.codigo, a.programa, e.nombre || e.carpeta, g && g.n);
+    const arch = (g && g.archivos) || {};
+    const lleno = PARTES_PORTA.filter(x => (arch[x] || []).length).length;
+    const fechas = [].concat(...PARTES_PORTA.map(x => (arch[x] || []).map(f => f.fecha || ''))).filter(Boolean).sort();
+    const ultimo = fechas[fechas.length - 1] || '';
+    const completo = lleno === PARTES_PORTA.length;
+    if (v.sinCalendario || v.sinFecha) {
+      return { clase: completo ? 'evc-ok' : (lleno ? 'evc-parcial' : 'evc-vacio'), completo, lleno,
+        estado: completo ? 'completo' : (lleno ? 'faltan archivos' : 'sin archivos'),
+        fecha: v.sinCalendario ? 'sin fecha tope: falta el calendario académico' : 'sin fecha tope: falta el cronograma del sílabo' };
+    }
+    const tope = sumarDias(v.desde, -1), hoy = hoyLima();
+    const dias = (x, y) => Math.round((new Date(x + 'T12:00:00Z') - new Date(y + 'T12:00:00Z')) / 86400000);
+    const nd = n => n + (n === 1 ? ' día' : ' días');
+    if (completo) {
+      const tarde = ultimo && ultimo > tope;
+      return { clase: tarde ? 'evc-parcial' : 'evc-ok', completo, lleno, tope, vencida: v.vencida,
+        estado: tarde ? 'completo, con retraso' : 'completo, a tiempo',
+        fecha: tarde ? 'fecha tope ' + fechaCal(tope) + ' · último archivo subido el ' + fechaCal(ultimo) + ' (' + nd(dias(ultimo, tope)) + ' tarde)'
+                     : 'fecha tope ' + fechaCal(tope) };
+    }
+    if (v.vencida) return { clase: lleno ? 'evc-parcial' : 'evc-vacio', completo, lleno, tope, vencida: true,
+      estado: (lleno ? 'faltan archivos' : 'sin archivos') + ' · vencido',
+      fecha: 'venció el ' + fechaCal(tope) + ' (hace ' + nd(dias(hoy, tope)) + ')' };
+    return { clase: 'evc-plazo', completo, lleno, tope, vencida: false,
+      estado: 'aún en plazo' + (lleno ? ' · lleva ' + lleno + ' de 4' : ''),
+      fecha: 'fecha tope ' + fechaCal(tope) + ' (faltan ' + nd(dias(tope, hoy)) + ')' };
+  }
+
   function filasPuntosConEstructura(ev) {
     return Object.keys(NOMBRE_PUNTO_P).map(k => {
       if (k === '01') return '<tr data-punto="01" class="sin"><td class="pn">01</td><td class="pt">' + NOMBRE_PUNTO_P[k] +
@@ -10475,12 +10530,21 @@ label .req{color:var(--falla)}
         NOMBRE_PUNTO_P[k] + '</td><td class="pc">—</td><td class="pa"><span class="no-aplica">No aplica · según la ' +
         'estructura de portafolio de Calidad y Acreditación</span></td></tr>';
       const n = mias.reduce((t, e) => t + e.archivos, 0);
-      const completo = mias.every(e => e.completa);
-      return '<tr data-punto="' + k + '" class="' + (completo ? 'con' : 'sin') + '"><td class="pn">' + k + '</td><td class="pt">' +
-        NOMBRE_PUNTO_P[k] + '</td><td class="pc">' + (n || '—') + '</td><td class="pa">' +
-        mias.map(e => '<span class="ev-chip ' + (e.completa ? 'evc-ok' : (e.archivos ? 'evc-parcial' : 'evc-vacio')) + '">' +
-          esc(nombreEvalPorta(e)) + ' · ' + (e.completa ? 'completo' : (e.archivos ? 'faltan archivos' : 'sin archivos')) + '</span>').join(' ') +
-        '</td></tr>';
+      const chips = [];
+      let vencidas = 0, completas = 0, total = 0;
+      mias.forEach(e => {
+        const gs = (e.grupos && e.grupos.length) ? e.grupos : [{}];
+        gs.forEach(g => {
+          const pl = plazoPorta(e, g);
+          total++; if (pl.completo) completas++; else if (pl.vencida) vencidas++;
+          const nom = gs.length > 1 ? (e.otro ? String(e.carpeta).toUpperCase() : e.nombre) + (g.n ? ' ' + g.n : '') : nombreEvalPorta(e);
+          chips.push('<span class="ev-chip ' + pl.clase + '">' + esc(nom) + ' · ' + esc(pl.estado) +
+            '<small class="ev-fecha">' + esc(pl.fecha) + '</small></span>');
+        });
+      });
+      const clase = completas === total ? 'con' : (vencidas ? 'sin' : 'pend');
+      return '<tr data-punto="' + k + '" class="' + clase + '"><td class="pn">' + k + '</td><td class="pt">' +
+        NOMBRE_PUNTO_P[k] + '</td><td class="pc">' + (n || '—') + '</td><td class="pa">' + chips.join(' ') + '</td></tr>';
     }).join('');
   }
 
@@ -10500,11 +10564,12 @@ label .req{color:var(--falla)}
               : '<span class="rot-mal">✘ ' + esc(x.motivos.join('; ')) + '</span>' +
                 (x.sugerido ? '<span class="rot-sug">Nombre correcto: <code>' + esc(x.sugerido) + '</code></span>' : ''))).join('') + '</td>';
     };
-    const filas = ev.evaluaciones.map(e => e.grupos.map(g =>
+    const filas = ev.evaluaciones.map(e => e.grupos.map(g => { const pl = plazoPorta(e, g); return (
       '<tr><th>' + esc((e.otro ? String(e.carpeta).toUpperCase() : e.nombre) + (g.n ? ' ' + g.n : '')) +
       '<small>carpeta ' + esc(e.carpeta) + (e.otro ? ' · código no reconocido' : '') + ' · punto ' + e.punto + ' ' +
       esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></th>' +
-      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => celda((g.archivos || {})[x])).join('') + '</tr>').join('')).join('');
+      '<td><span class="ev-chip ' + pl.clase + '">' + esc(pl.estado) + '</span><small class="ev-fecha">' + esc(pl.fecha) + '</small></td>' +
+      ['enunciado', 'mayor', 'menor', 'promedio'].map(x => celda((g.archivos || {})[x])).join('') + '</tr>'); }).join('')).join('');
     const r = ev.rotulado || { revisados: 0, bien: 0, malos: [], videos: [] };
     const ej = (ev.evaluaciones[0] || {}).ejemplo || '';
     const raros = ev.evaluaciones.filter(e => e.otro).map(e => String(e.carpeta).toUpperCase());
@@ -10524,7 +10589,7 @@ label .req{color:var(--falla)}
       esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code>.</p>' +
       (raros.length ? '<p class="sub"><b class="ojo">Las carpetas ' + esc(raros.join(' y ')) + ' tienen un código que el portal ' +
         'todavía no reconoce</b>; se cuentan en «Trabajos y tareas». Confirme con Calidad y Acreditación qué evaluación es cada una.</p>' : '') +
-      '<div class="ev-scroll"><table class="ev-tabla ev-detalle"><thead><tr><th>Evaluación</th><th>Enunciado</th>' +
+      '<div class="ev-scroll"><table class="ev-tabla ev-detalle"><thead><tr><th>Evaluación</th><th>Plazo</th><th>Enunciado</th>' +
       '<th>Mayor nota</th><th>Menor nota</th><th>Nota promedio</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
       '<p class="sub" style="margin-top:8px">' + (r.revisados
         ? r.bien + ' de ' + r.revisados + ' archivos están bien rotulados.' : 'Todavía no hay archivos en las carpetas de evaluaciones.') +
@@ -10571,6 +10636,7 @@ label .req{color:var(--falla)}
         '&programa=' + encodeURIComponent(a.programa || '') +
         '&ciclo=' + encodeURIComponent(a.ciclo || '') +
         '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
+        '&codigo=' + encodeURIComponent(a.codigo || '') +
         '&grupo=' + encodeURIComponent(a.grupo || '') +
         '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
         '&docente=' + encodeURIComponent(a.docente || ''))
@@ -10619,6 +10685,7 @@ label .req{color:var(--falla)}
         '&programa=' + encodeURIComponent(a.programa || '') +
         '&ciclo=' + encodeURIComponent(a.ciclo || '') +
         '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
+        '&codigo=' + encodeURIComponent(a.codigo || '') +
         '&grupo=' + encodeURIComponent(a.grupo || '') +
         '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
         '&docente=' + encodeURIComponent(a.docente || ''))
@@ -10630,6 +10697,19 @@ label .req{color:var(--falla)}
           return;
         }
         const r = (d.coincidencias || [])[0];
+        const teo = d.cubiertoPor || '';
+        const notaTeo = teo ? '<p class="nota-teoria">👥 <b>Este docente dicta solo la parte de ' + esc(({ 'prá': 'práctica', 'pra': 'práctica', lab: 'laboratorio', tal: 'taller' })[String(a.tipo || '').toLowerCase()] || 'práctica') +
+          ' del grupo ' + esc(a.grupo || '') + (a.subGrupo ? ', subgrupo ' + esc(a.subGrupo) : '') + '</b>, y la teoría de ese grupo la dicta ' +
+          esc(teo) + '. El delegado y el subdelegado los elige el docente de teoría y son los mismos para todos los subgrupos del grupo; ' +
+          'por eso <b>el F1 lo presenta el docente de teoría</b>, no este docente.</p>' : '';
+        if (!r && teo) {
+          caja.className = 'declarado sin-fuente';
+          caja.innerHTML = '<b>El docente de teoría todavía no ha respondido el F1</b>' + notaTeo +
+            '<p>No hace falta escribirle a este docente. Cuando ' + esc(teo) + ' responda el F1, vuelva a abrir este formato: ' +
+            'los datos se llenan solos.</p>';
+          if (estado.modulo === 'delegados') observarDelegados('teoriaPendiente');
+          return;
+        }
         if (!r) {
           caja.className = 'declarado sin-fuente';
           caja.innerHTML = '<b>El docente todavía no ha respondido</b>' +
@@ -10681,7 +10761,7 @@ label .req{color:var(--falla)}
         }
 
         caja.className = 'declarado';
-        caja.innerHTML = '<b>Respondido por el docente el ' + esc(r.fecha || '') + '</b>' +
+        caja.innerHTML = '<b>Respondido por ' + (teo ? 'el docente de teoría, ' + esc(teo) + ',' : 'el docente') + ' el ' + esc(r.fecha || '') + '</b>' + notaTeo +
           '<p>' + (estado.modulo === 'formularios'
             ? 'Este formulario es el de delegados, así que aquí solo sirve para dar por ' +
               'presentado el F1 con su fecha. Los datos del delegado y el subdelegado se ' +
@@ -10731,6 +10811,14 @@ label .req{color:var(--falla)}
       .filter(Boolean).join(' o ');
     const sinHoja = estado.f1Delegados === 'sinFuente'
       ? '<li>Además, la Escuela no tiene registrada la hoja del F1 de esta carrera: avise al coordinador general.</li>' : '';
+    if (!notas.length && estado.f1Delegados === 'teoriaPendiente') {
+      g.className = 'guia-paso obs';
+      g.innerHTML = '<b class="t">⏳ Falta el F1 del docente de teoría del grupo</b>' +
+        '<ol><li>A este docente no se le pide nada: el delegado y el subdelegado los registra el docente de teoría.</li>' +
+        '<li>Si hace falta, recuérdeselo al docente de teoría desde su propia carga.</li>' +
+        '<li>Cuando responda, vuelva a abrir este formato y dé clic en «Guardar delegados».</li>' + sinHoja + '</ol>';
+      return;
+    }
     if (!notas.length) {
       g.className = 'guia-paso ok';
       g.innerHTML = '<b class="t">✔ Todo en orden</b>' +
@@ -10764,7 +10852,8 @@ label .req{color:var(--falla)}
     const v = k => (($('f_' + k) || {}).value || '').trim();
     const notas = [];
     if (estado.f1Delegados === 'sinRespuesta') notas.push(OBS_DELEGADOS.sinF1);
-    if (!v('delegado') && !v('subdelegado')) notas.push(OBS_DELEGADOS.sinAmbos);
+    if (estado.f1Delegados === 'teoriaPendiente') { /* lo debe el docente de teoría: nada que pedirle a este */ }
+    else if (!v('delegado') && !v('subdelegado')) notas.push(OBS_DELEGADOS.sinAmbos);
     else if (!v('delegado')) notas.push(OBS_DELEGADOS.sinDel);
     else if (!v('subdelegado')) notas.push(OBS_DELEGADOS.sinSub);
     let texto = obs.value;
@@ -10799,6 +10888,7 @@ label .req{color:var(--falla)}
       '&programa=' + encodeURIComponent(a.programa || '') +
       '&ciclo=' + encodeURIComponent(a.ciclo || '') +
       '&curso=' + encodeURIComponent(nombreCurso(a.asignatura || '')) +
+      '&codigo=' + encodeURIComponent(a.codigo || '') +
       '&grupo=' + encodeURIComponent(a.grupo || '') +
       '&subGrupo=' + encodeURIComponent(a.subGrupo === undefined ? '' : a.subGrupo) +
       '&docente=' + encodeURIComponent(a.docente || ''));
@@ -10830,6 +10920,15 @@ label .req{color:var(--falla)}
         return;
       }
       const r = (d.coincidencias || [])[0];
+      if (d.cubiertoPor) {
+        const elFt = $('f_' + k);
+        if (elFt && !elFt.value) { elFt.value = 'No aplica'; puestos++; }
+        lineas.push('<li><b>' + fmt + '</b> — <b>no le corresponde a este docente</b>: el delegado y el subdelegado del grupo ' +
+          esc(a.grupo || '') + ' los registra el docente de teoría, ' + esc(d.cubiertoPor) + ' (' +
+          (r ? 'lo presentó el ' + esc(fechaCorta(fechaDeRespuesta(r.fecha)) || r.fecha) : 'aún no lo presenta') + ')' +
+          (elFt ? ' · queda como <b>' + esc(elFt.value) + '</b>' : '') + '</li>');
+        return;
+      }
       if (!r) {
         lineas.push('<li><b>' + fmt + '</b> — el docente aún no lo ha presentado ' +
           '<small class="codigo">se revisaron ' + (d.total || 0) + ' respuestas</small></li>');
@@ -10873,6 +10972,10 @@ label .req{color:var(--falla)}
     formatos.forEach((fmt, i) => {
       const d = res[i] || {};
       if (d.error || d.sinFuente) return;          // lo interno no se comunica al docente
+      if (d.cubiertoPor) {
+        lineas.push('• ' + fmt + ': no le corresponde; el delegado y el subdelegado del grupo los registra el docente de teoría.');
+        return;
+      }
       const p = plazoDe(fmt);
       const r = (d.coincidencias || [])[0];
       if (r) {
