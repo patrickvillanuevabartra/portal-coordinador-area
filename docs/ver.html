@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Documento de referencia</title>
+<style>
+/* Visor de los documentos de referencia del portal: abre el PDF directamente
+   en la página indicada, con lo resaltado en amarillo, sin depender de cómo
+   el navegador de cada persona trate los PDF (algunos los descargan o abren
+   desde la primera página). */
+:root{--bg:#eef1ef;--panel:#fff;--tinta:#1d2721;--tenue:#5a6a60;--marca:#0f6b4a;--linea:#d5ddd6}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--tinta);font-family:"Segoe UI",Verdana,sans-serif;font-size:17px}
+.barra{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:2px solid var(--linea);
+  padding:10px 16px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.barra h1{font-size:17px;margin:0;flex:1 1 260px;line-height:1.3}
+.barra h1 small{display:block;font-weight:400;color:var(--tenue);font-size:14px}
+.b{font:inherit;font-size:15px;font-weight:600;border:2px solid var(--marca);border-radius:8px;padding:6px 12px;
+  background:var(--panel);color:var(--marca);cursor:pointer;text-decoration:none}
+.b.pri{background:var(--marca);color:#fff}
+.pag{font-size:15px;color:var(--tenue)}
+.pag input{width:64px;font:inherit;padding:4px 6px;border:2px solid var(--linea);border-radius:6px}
+#hojas{display:flex;flex-direction:column;align-items:center;gap:14px;padding:16px}
+.hoja{background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.18);position:relative;max-width:100%}
+.hoja canvas{display:block;width:100%;height:auto}
+.hoja.objetivo{outline:4px solid #f2c200;outline-offset:3px}
+.num{position:absolute;top:-2px;right:-2px;transform:translateY(-100%);font-size:12px;color:var(--tenue)}
+.aviso{max-width:760px;margin:30px auto;padding:16px 18px;background:#fff7e0;border-left:5px solid #c58b00;border-radius:8px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="barra">
+  <h1 id="titulo">Cargando el documento…<small id="sub"></small></h1>
+  <span class="pag">Página <input id="irA" inputmode="numeric" aria-label="Ir a la página"> de <span id="total">…</span></span>
+  <button class="b" id="ant" type="button">← Anterior</button>
+  <button class="b" id="sig" type="button">Siguiente →</button>
+  <a class="b pri" id="volver" href="#" title="Volver a la página indicada">⭐ Ir a lo resaltado</a>
+  <a class="b" id="descargar" href="#" download>Descargar PDF</a>
+</div>
+<div id="hojas"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(function () {
+  const q = new URLSearchParams(location.search);
+  // Solo documentos de esta misma carpeta: nada de direcciones externas.
+  const f = (q.get('f') || '').replace(/[^a-z0-9._-]/gi, '');
+  const objetivo = Math.max(1, parseInt(q.get('p'), 10) || 1);
+  const etiqueta = q.get('t') || '';
+  const NOMBRES = {
+    'modelo-pedagogico-urp.pdf': 'Modelo Pedagógico de la URP',
+    'guia-elaboracion-silabos.pdf': 'Guía de Elaboración de Sílabos',
+    'guia-operativa-docente.pdf': 'Guía Operativa Docente',
+    'guia-coordinador-area.pdf': 'Guía para los Coordinadores de Área',
+    'procedimiento-informacion-documentada.pdf': 'Procedimiento de Información Documentada',
+    'taxonomia-bloom.pdf': 'Taxonomía de Bloom',
+    'plan-estudios-civil-2015-II.pdf': 'Ingeniería Civil — Plan de estudios 2015-II',
+    'plan-estudios-civil-2024-I.pdf': 'Ingeniería Civil — Plan curricular 2024-I'
+  };
+  const $ = id => document.getElementById(id);
+  const fallo = msg => { $('titulo').textContent = 'No se pudo abrir el documento';
+    $('hojas').innerHTML = '<div class="aviso">' + msg + (f ? ' <a href="' + f + '#page=' + objetivo + '">Abrir el PDF directamente</a>.' : '') + '</div>'; };
+  if (!/\.pdf$/i.test(f)) return fallo('Falta indicar el documento.');
+  document.title = (NOMBRES[f] || f) + ' — p. ' + objetivo;
+  $('titulo').firstChild.textContent = NOMBRES[f] || f;
+  $('sub').textContent = 'Se abre en la página ' + objetivo + (etiqueta ? ' · ' + etiqueta : '') + (/^(plan|competencias)-/.test(f) ? '.' : '. Lo que el portal toma como referencia está resaltado en amarillo.');
+  $('descargar').href = f;
+  if (!window.pdfjsLib) return fallo('No cargó el visor (revise su conexión).');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  pdfjsLib.getDocument(f).promise.then(async pdf => {
+    const n = pdf.numPages, ancho = Math.min(980, window.innerWidth - 32);
+    $('total').textContent = n;
+    const p1 = await pdf.getPage(1), v1 = p1.getViewport({ scale: 1 });
+    const alto = ancho * v1.height / v1.width;
+    const cont = $('hojas'), hojas = [];
+    for (let i = 1; i <= n; i++) {
+      const d = document.createElement('div');
+      d.className = 'hoja' + (i === objetivo ? ' objetivo' : ''); d.id = 'p' + i;
+      d.style.width = ancho + 'px'; d.style.minHeight = alto + 'px';
+      d.innerHTML = '<span class="num">p. ' + i + '</span>';
+      cont.appendChild(d); hojas.push(d);
+    }
+    const hechas = {};
+    const pintar = async i => {
+      if (hechas[i] || i < 1 || i > n) return; hechas[i] = 1;
+      const pg = await pdf.getPage(i), esc = (ancho / pg.getViewport({ scale: 1 }).width) * (window.devicePixelRatio || 1);
+      const vp = pg.getViewport({ scale: esc }), c = document.createElement('canvas');
+      c.width = vp.width; c.height = vp.height;
+      // ENABLE: dibuja también lo resaltado (anotaciones) del documento.
+      await pg.render({ canvasContext: c.getContext('2d'), viewport: vp, annotationMode: pdfjsLib.AnnotationMode.ENABLE }).promise;
+      const h = hojas[i - 1]; h.style.minHeight = ''; h.appendChild(c);
+    };
+    const obs = new IntersectionObserver(es => es.forEach(e => {
+      if (!e.isIntersecting) return;
+      const i = +e.target.id.slice(1);
+      pintar(i); pintar(i + 1); pintar(i - 1);
+      $('irA').value = i;
+    }), { rootMargin: '300px 0px' });
+    hojas.forEach(h => obs.observe(h));
+    const ir = i => { i = Math.min(n, Math.max(1, i)); pintar(i).then(() => hojas[i - 1].scrollIntoView({ block: 'start' })); };
+    await pintar(objetivo); ir(objetivo);
+    $('irA').value = objetivo;
+    $('irA').addEventListener('change', e => ir(parseInt(e.target.value, 10) || 1));
+    $('ant').onclick = () => ir((parseInt($('irA').value, 10) || objetivo) - 1);
+    $('sig').onclick = () => ir((parseInt($('irA').value, 10) || objetivo) + 1);
+    $('volver').onclick = e => { e.preventDefault(); ir(objetivo); };
+  }).catch(e => fallo('El archivo no se encontró o no se pudo leer (' + (e && e.message || e) + ').'));
+})();
+</script>
+</body>
+</html>
