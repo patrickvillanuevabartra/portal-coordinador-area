@@ -1505,8 +1505,8 @@ label .req{color:var(--falla)}
         <div class="rejilla" style="margin-top:14px">
           <div><label for="nvNombre">Apellidos y nombres <span class="req">*</span></label>
             <input type="text" id="nvNombre"></div>
-          <div><label for="nvCorreo">Correo institucional <span class="req">*</span></label>
-            <input type="email" id="nvCorreo"></div>
+          <div><label for="nvCorreoCoord">Correo institucional <span class="req">*</span></label>
+            <input type="text" inputmode="email" id="nvCorreoCoord" placeholder="nombre.apellido@urp.edu.pe"></div>
           <div><label for="nvCelular">Celular</label><input type="text" id="nvCelular"></div>
         </div>
         <div class="pie" style="margin-top:14px">
@@ -2001,7 +2001,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '14/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-14.04';
+  const VERSION_INTERNA = '2026-10-14.05';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -7926,7 +7926,7 @@ label .req{color:var(--falla)}
         : $('nvCiclo').value,
       programa: $('nvPrograma').value,
       nombre: $('nvNombre').value.trim(),
-      correo: $('nvCorreo').value.trim(),
+      correo: $('nvCorreoCoord').value.trim(),
       celular: $('nvCelular').value.trim(),
       rol: $('nvRol').value
     };
@@ -7957,7 +7957,7 @@ label .req{color:var(--falla)}
         avisoCoord(general
           ? 'Coordinador general registrado en ' + base.ciclo + '.'
           : areas.length + ' área(s) registradas para ' + base.nombre + ' en ' + base.ciclo + '.', 'ok');
-        ['nvNombre','nvCorreo','nvCelular'].forEach(id => $(id).value = '');
+        ['nvNombre','nvCorreoCoord','nvCelular'].forEach(id => $(id).value = '');
         $('btnNuevo').disabled = false;
         cargarCoordinadores();
       })
