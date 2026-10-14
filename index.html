@@ -56,6 +56,45 @@ header{
 /* ------------------------------------------------------------------ layout */
 main{max-width:1180px;margin:0 auto;padding:20px}
 .oculto{display:none !important}
+/* Coordinadores y áreas por carrera */
+.ca-barra{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:12px}
+.ca-barra label{font-weight:600;margin:0}
+.ca-barra select{width:auto}
+.ca-barra input[type=search]{flex:1;min-width:240px}
+.ca-clonar{border:1px solid #f0c36d;background:#fff8e6;border-radius:12px;padding:12px 16px;margin-bottom:12px}
+.ca-kpi{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px}
+.ca-kpi div{border:1px solid var(--linea);border-radius:10px;padding:8px 14px;background:#fff;font-size:14px;color:var(--tinta-media)}
+.ca-kpi b{display:block;font-size:21px;color:var(--tinta)}
+.ca-kpi .al{border-color:#f0c36d;background:#fff8e6}
+.ca-car{border:1px solid var(--linea);border-radius:12px;margin-bottom:10px;background:#fff}
+.ca-car>summary{list-style:none;cursor:pointer;padding:12px 16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.ca-car>summary::-webkit-details-marker{display:none}
+.ca-car>summary::before{content:"▸";color:var(--brand);font-size:18px;width:14px}
+.ca-car[open]>summary::before{content:"▾"}
+.ca-car .ca-n{font-weight:700;font-size:17px;flex:1;min-width:200px}
+.ca-chip{font-size:13px;border-radius:999px;padding:3px 10px;background:#e6f4ee;color:#14532d;font-weight:600}
+.ca-chip.w{background:#fff3d6;color:#7a4d00}
+.ca-gen{margin:0 16px 10px;padding:10px 14px;border-left:4px solid var(--brand);background:#f4faf7;border-radius:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.ca-gen .q{flex:1;min-width:220px}.ca-gen small{display:block;color:var(--tinta-media)}
+.ca-tab{width:calc(100% - 32px);margin:0 16px 8px;border-collapse:collapse}
+.ca-tab th{text-align:left;font-size:12.5px;color:var(--tinta-media);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--linea)}
+.ca-tab td{padding:8px;border-bottom:1px solid #eef1ef;vertical-align:middle}
+.ca-tab td small{color:var(--tinta-media)}
+.ca-sin{color:#9a5b00;font-weight:600}
+.ca-chk{display:none}
+#tablaCoord.modo-clonar .ca-chk{display:inline-block}
+.ca-pie{margin:0 16px 12px;font-size:13.5px;color:var(--tinta-media);display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+.ca-pie details summary{cursor:pointer;color:var(--brand)}
+.ca-hist{list-style:none;padding:6px 0 0;margin:0}
+.ca-hist li{padding:4px 0;border-top:1px dashed #e3e9e5}
+.btn-mini{font:inherit;font-size:13px;border:1px solid var(--linea);background:#fff;border-radius:7px;padding:4px 10px;cursor:pointer;white-space:nowrap}
+.btn-mini.verde{border-color:var(--brand);color:var(--brand);font-weight:600}
+.ca-form{border:1px dashed var(--brand);border-radius:12px;margin-top:12px;background:#fbfdfc}
+.ca-form>summary{cursor:pointer;padding:12px 16px;font-weight:700;color:var(--brand)}
+.ca-form>summary span{font-weight:400;color:var(--tinta-media);font-size:14px;margin-left:6px}
+.ca-form-cuerpo{padding:0 16px 14px}
+.ca-oculta{display:none}
+
 
 .btn{
   border:1px solid var(--brand);background:var(--brand);color:#fff;
@@ -1410,35 +1449,42 @@ label .req{color:var(--falla)}
   <section id="coordinadores" class="oculto">
     <div class="migas"><button id="volverCoord">Mis cursos</button> / Gestión del ciclo</div>
 
-    <!-- A. Coordinadores del ciclo -->
+    <!-- A. Coordinadores y áreas por carrera: una sola vista, por carrera, en desplegables -->
     <section class="tarjeta">
       <header class="tarjeta-cab">
-        <div><span class="paso">1</span><h2>Coordinadores del ciclo</h2>
-          <p>Mira quién coordina cada área y clona la distribución al ciclo siguiente.</p></div>
+        <div><span class="paso">1</span><h2>Coordinadores y áreas por carrera</h2>
+          <p>Cada carrera con su coordinador general y sus áreas, y quién coordina cada una. Toque una carrera para verla.</p></div>
       </header>
       <div class="tarjeta-cuerpo">
-        <div class="rejilla">
-          <div><label for="cicloOrigen">Ciclo que estás viendo</label><select id="cicloOrigen"></select></div>
-          <div><label for="cicloDestino">Clonar hacia el ciclo <span class="req">*</span></label>
-            <input type="text" id="cicloDestino" placeholder="2027 I"></div>
+        <div class="ca-barra">
+          <label for="cicloOrigen">Ciclo</label><select id="cicloOrigen"></select>
+          <input type="search" id="caBuscar" placeholder="🔎 Buscar por nombre, correo o área" autocomplete="off">
+          <button class="btn gris" id="caAbrir" type="button">Abrir todas</button>
+          <button class="btn gris" id="caCerrar" type="button">Cerrar todas</button>
+          <button class="btn fantasma" id="btnExpCoord" type="button">⬇ Descargar padrón</button>
+          <button class="btn" id="caClonarAbrir" type="button">⧉ Clonar a otro ciclo…</button>
         </div>
-        <div class="tabla" id="tablaCoord"></div>
-        <div class="pie" style="margin-top:14px">
-          <button class="btn" id="btnClonar">Clonar seleccionados</button>
-          <button class="btn gris" id="btnTodos">Marcar todos</button>
-          <button class="btn fantasma" id="btnExpCoord">Descargar padrón</button>
-          <span class="aviso" id="avisoCoord"></span>
+        <div id="caClonar" class="ca-clonar oculto">
+          <b>Clonar los coordinadores a otro ciclo</b>
+          <p class="ayuda" style="margin:4px 0 10px">Se copian las filas marcadas (las vigentes ya vienen marcadas; las inactivas no se clonan).
+            Abra cada carrera para quitar la marca a quien no seguirá.</p>
+          <div class="rejilla"><div><label for="cicloDestino">Clonar hacia el ciclo <span class="req">*</span></label>
+            <input type="text" id="cicloDestino" placeholder="2027 I"></div></div>
+          <div class="pie" style="margin-top:10px">
+            <button class="btn" id="btnClonar" type="button">Clonar seleccionados</button>
+            <button class="btn gris" id="btnTodos" type="button">Marcar / desmarcar todos</button>
+            <button class="btn gris" id="caClonarCerrar" type="button">Cancelar</button>
+          </div>
         </div>
-      </div>
-    </section>
+        <div id="caResumen"></div>
+        <div id="tablaCoord"></div>
+        <span class="aviso" id="avisoCoord"></span>
+        <p class="nota-crono" style="margin-top:10px"><b>¿Cambió el coordinador de un área?</b> Use <b>✏️ Editar → Reemplazar</b>:
+          el anterior queda como «Inactivo» con su historial (🕘) y el nuevo entra con su correo. Para un error de tipeo, use <b>Corregir datos</b>.</p>
 
-    <!-- B. Registrar coordinador -->
-    <section class="tarjeta">
-      <header class="tarjeta-cab">
-        <div><span class="paso">2</span><h2>Registrar un coordinador</h2>
-          <p>Para las áreas que cambian de responsable, o para dar de alta a un coordinador general.</p></div>
-      </header>
-      <div class="tarjeta-cuerpo">
+        <details class="ca-form" id="panelNuevoCoord">
+          <summary>＋ Registrar un coordinador <span>para un área sin coordinador o un coordinador general nuevo</span></summary>
+          <div class="ca-form-cuerpo">
         <div class="rejilla">
           <div><label for="nvRol">Rol <span class="req">*</span></label>
             <select id="nvRol">
@@ -1464,27 +1510,15 @@ label .req{color:var(--falla)}
           <div><label for="nvCelular">Celular</label><input type="text" id="nvCelular"></div>
         </div>
         <div class="pie" style="margin-top:14px">
-          <button class="btn fantasma" id="btnNuevo">Agregar coordinador</button>
-        </div>
-      </div>
-    </section>
+              <button class="btn" id="btnNuevo" type="button">Agregar coordinador</button>
+            </div>
+          </div>
+        </details>
 
-    <!-- C. Áreas -->
-    <section class="tarjeta">
-      <header class="tarjeta-cab">
-        <div><span class="paso">3</span><h2>Áreas de la Facultad</h2>
-          <p>El catálogo de áreas por carrera. De aquí salen las opciones de todo lo demás.</p></div>
-      </header>
-      <div class="tarjeta-cuerpo">
-        <div class="subtitulo">Áreas que ya existen</div>
-        <p class="ayuda" style="margin:0 0 10px">Estas son las áreas registradas hoy. Sirven de
-          referencia: no hace falta volver a crearlas.</p>
-        <div class="tabla" id="tablaAreas" style="margin-bottom:20px"></div>
-
-        <div class="subtitulo">Crear un área nueva</div>
-        <p class="ayuda" style="margin:0 0 12px">Solo si el área no figura en la lista de arriba.
-          Elige la carrera y escribe el nombre corto: el portal le agrega la carrera entre
-          paréntesis, igual que en la lista.</p>
+        <details class="ca-form" id="panelNuevaArea">
+          <summary>＋ Crear un área nueva <span>solo si el área no figura en su carrera</span></summary>
+          <div class="ca-form-cuerpo">
+            <p class="ayuda" style="margin:0 0 12px">Elija la carrera y escriba el nombre corto: el portal le agrega la carrera entre paréntesis.</p>
         <div class="rejilla">
           <div><label for="arPrograma">Carrera</label><select id="arPrograma"></select></div>
           <div><label for="arNombre">Nombre del área</label>
@@ -1493,16 +1527,19 @@ label .req{color:var(--falla)}
               «Logística (Industrial)».</p></div>
         </div>
         <div class="pie" style="margin-top:14px">
-          <button class="btn fantasma" id="btnArea">Crear área</button>
-          <span class="aviso" id="avisoArea"></span>
-        </div>
+              <button class="btn" id="btnArea" type="button">Crear área</button>
+              <span class="aviso" id="avisoArea"></span>
+            </div>
+          </div>
+        </details>
+        <div id="tablaAreas" class="oculto"></div>
       </div>
     </section>
 
     <!-- D. Plazos de entrega -->
     <section class="tarjeta">
       <header class="tarjeta-cab">
-        <div><span class="paso">4</span><h2>Plazos de entrega de los formularios</h2>
+        <div><span class="paso">2</span><h2>Plazos de entrega de los formularios</h2>
           <p>La fecha límite que fija cada Escuela para F1, F2, F3 y F4. Con ella el portal
              marca solo si una entrega fue a tiempo o fuera de plazo.</p>
           <p class="ayuda">El ciclo se escribe como en el resto del portal: el año, un
@@ -1532,7 +1569,7 @@ label .req{color:var(--falla)}
     <!-- D2. Competencias de las carreras -->
     <section class="tarjeta" id="tarjetaCompetencias">
       <header class="tarjeta-cab">
-        <div><span class="paso">5</span><h2>Competencias de las carreras</h2>
+        <div><span class="paso">3</span><h2>Competencias de las carreras</h2>
           <p>Las competencias genéricas y específicas de cada carrera, y cuáles desarrolla cada
              curso. El sílabo se compara contra ellas en los ítems 03 y 04.</p></div>
       </header>
@@ -1542,6 +1579,7 @@ label .req{color:var(--falla)}
           <label for="compPlan">Plan</label><select id="compPlan"></select>
           <span class="conteo" id="compAviso"></span>
         </div>
+        <div id="compDocsCarrera" class="docs-carrera" style="margin:-4px 0 12px"></div>
         <div id="compElegir" class="vacio" style="font-size:15px">Elija la carrera y el plan para ver y registrar sus competencias.</div>
         <div id="compContenido" class="oculto">
           <div style="display:flex;gap:14px;align-items:center;flex-wrap:wrap;background:#f4f7f5;border:1px solid var(--linea);
@@ -1618,7 +1656,7 @@ label .req{color:var(--falla)}
     <!-- D3. Entrevista con los delegados de la carrera -->
     <section class="tarjeta" id="tarjetaEntrevistas">
       <header class="tarjeta-cab">
-        <div><span class="paso">6</span><h2>Entrevista con los delegados de la carrera</h2>
+        <div><span class="paso">4</span><h2>Entrevista con los delegados de la carrera</h2>
           <p>Una por carrera en cada ciclo, a cargo del coordinador general. Al guardarla, el informe se envía
              al Director de la Escuela con copia a usted.</p></div>
       </header>
@@ -1628,7 +1666,7 @@ label .req{color:var(--falla)}
     <!-- E. Plantillas -->
     <section class="tarjeta">
       <header class="tarjeta-cab">
-        <div><span class="paso">4</span><h2>Plantillas de notificación</h2>
+        <div><span class="paso">5</span><h2>Plantillas de notificación</h2>
           <p>El texto que se envía al docente por correo o WhatsApp desde cada módulo.</p></div>
       </header>
       <div class="tarjeta-cuerpo">
@@ -1963,7 +2001,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '14/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-14.01';
+  const VERSION_INTERNA = '2026-10-14.04';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2559,6 +2597,40 @@ label .req{color:var(--falla)}
   ];
   // Enlace para leer el documento: el subido al portal manda; si no hay, la
   // copia de consulta publicada con el portal (carpeta docs/).
+  // Enlace a una página exacta de un documento de referencia. Las copias de
+  // consulta (docs/) se abren en el visor del portal, que va directo a esa
+  // página con lo resaltado, en cualquier navegador: el «#page=» del PDF lo
+  // ignoran los navegadores que descargan los PDF o los abren en otro programa.
+  function verPdf(url, pag, etiqueta) {
+    const m = /^docs\/([a-z0-9._-]+\.pdf)$/i.exec(String(url || ''));
+    if (m) return 'docs/ver.html?f=' + encodeURIComponent(m[1]) + '&p=' + (pag || 1) + (etiqueta ? '&t=' + encodeURIComponent(etiqueta) : '');
+    return url + (pag ? '#page=' + pag : '');
+  }
+  // Planes de estudio y documentos de competencias que envió cada Escuela.
+  // Copias de consulta en docs/; se abren en el visor del portal.
+  const PLANES_CARRERA = {
+    'Ingeniería Civil': [
+      { plan: '2015-II', t: 'Plan de estudios 2015-II (revisado, febrero 2019)', url: 'docs/plan-estudios-civil-2015-II.pdf', p: 2,
+        nota: 'Cursos por semestre con código, créditos, horas y requisitos.' },
+      { plan: '2024-I', t: 'Plan curricular 2024-I', url: 'docs/plan-estudios-civil-2024-I.pdf', p: 2,
+        nota: 'Cursos por semestre con créditos, horas y requisitos (este documento no trae los códigos de los cursos).' }
+    ]
+    // Las demás Escuelas: agregar aquí sus planes cuando los envíen (y el PDF en docs/).
+  };
+  // El plan de estudios que el portal ya tiene para la carrera y el plan de una carga.
+  const nombreCarreraCorto = p => String(p || '').trim();
+  function planDelPortal(a) {
+    a = a || {};
+    const l = PLANES_CARRERA[Object.keys(PLANES_CARRERA).find(k => sinAcentos(k) === sinAcentos(a.programa || '')) || ''] || [];
+    const clave = t => sinAcentos(t || '').replace(/[^a-z0-9]/g, '');
+    return l.find(d => d.plan && clave(d.plan) === clave(a.planEstudio)) || null;
+  }
+  function docsCarreraHtml(carrera) {
+    const l = PLANES_CARRERA[Object.keys(PLANES_CARRERA).find(k => sinAcentos(k) === sinAcentos(carrera || '')) || ''];
+    if (!l) return '';
+    return '<b>📘 Documentos de la carrera:</b> ' + l.map(d => '<a href="' + esc(verPdf(d.url, d.p, d.t)) +
+      '" target="_blank" rel="noopener" title="' + esc(d.nota || '') + '">' + esc(d.t) + '</a>').join(' · ');
+  }
   function enlaceDoc(d, docs) {
     const x = (docs || DOCS_CARGADOS || {})[d.k];
     if (x && x.url) return { url: x.url, texto: 'abrir' + (x.version ? ' (' + x.version + ')' : ''), subido: true };
@@ -2622,15 +2694,23 @@ label .req{color:var(--falla)}
         ? '<a href="' + esc(e.url) + '" target="_blank" rel="noopener"><b>' + esc(d.n) + '</b></a>'
         : '<b>' + esc(d.n) + '</b> <span class="estado-doc pend">' + (d.aviso ? 'En aprobación' : 'Pendiente') + '</span>' +
           (e ? ' · <a href="' + esc(e.url) + '" target="_blank" rel="noopener">' + esc(e.texto) + '</a>' : '');
-      const atajos = (e && d.atajos && !e.subido) ? ' <span class="atajos-doc">Ir a: ' + d.atajos.map(a =>
-        '<a href="' + esc(e.url) + '#page=' + a.pag + '" target="_blank" rel="noopener">' + esc(a.t) + '</a>').join(' · ') + '</span>' : '';
+      // Los atajos van a la copia de consulta resaltada, aunque se haya subido otra versión.
+      const baseAtajo = d.local || (e && e.url);
+      const atajos = (baseAtajo && d.atajos) ? ' <span class="atajos-doc">Ir a: ' + d.atajos.map(a =>
+        '<a href="' + esc(verPdf(baseAtajo, a.pag, a.t)) + '" target="_blank" rel="noopener">' + esc(a.t) + '</a>').join(' · ') + '</span>' : '';
       return '<li>' + titulo + atajos +
         '<div class="nota-doc">' + esc(d.estudiar || d.para) + '</div>' +
         (d.aviso ? '<div class="aviso-doc">⚠ ' + esc(d.aviso) + '</div>' : '') + '</li>';
     }).join('');
+    const planes = Object.keys(PLANES_CARRERA).map(car => '<li><b>' + esc(car) + '</b><ul style="margin:4px 0 0 18px;padding:0">' +
+      PLANES_CARRERA[car].map(d => '<li><a href="' + esc(verPdf(d.url, d.p, d.t)) + '" target="_blank" rel="noopener">' + esc(d.t) + '</a>' +
+        '<div class="nota-doc">' + esc(d.nota || '') + '</div></li>').join('') + '</ul></li>').join('');
     return '<h4>📚 Documentos oficiales para estudiar</h4>' +
       '<p class="nota-crono">Son la base de lo que el portal revisa. Léalos con calma: cada observación que se hace al docente debe poder explicarse con uno de ellos.</p>' +
-      '<ul class="biblioteca">' + items + '</ul>';
+      '<ul class="biblioteca">' + items + '</ul>' +
+      (planes ? '<h4>🎓 Planes de estudio de las carreras</h4>' +
+        '<p class="nota-crono">Los que han enviado las Escuelas. En la revisión del sílabo se usan solos para el punto 01 (créditos, requisitos y condición del curso): no hace falta adjuntarlos.</p>' +
+        '<ul class="biblioteca">' + planes + '</ul>' : '');
   }
   function pintarGuiaRapida() {
     const caja = $('guiaRapida');
@@ -4023,6 +4103,7 @@ label .req{color:var(--falla)}
 
   function llenarPlanesComp() {
     const car = $('compCarrera').value;
+    if ($('compDocsCarrera')) $('compDocsCarrera').innerHTML = docsCarreraHtml(car);
     const planes = [...new Set((COMP.catalogo || []).filter(x => sinAcentos(x.programa) === sinAcentos(car))
       .map(x => x.plan).filter(Boolean))].sort();
     $('compPlan').innerHTML = !car ? '<option value="">Primero elija la carrera</option>'
@@ -5452,7 +5533,21 @@ label .req{color:var(--falla)}
           (puedeNotificarRep ? '<button class="btn fantasma" id="btnNotP">Notificar a los docentes</button>' : '') + '</div>' +
           '<div style="color:var(--tinta-media);font-size:13px;margin-top:8px">El informe sigue el modelo del profesor Juan Bendezú: ' +
           'resumen ejecutivo, sustento normativo (Guía Operativa Docente, numerales 4.4, 4.5 y 4.6), Anexo 01 tabla maestra ' +
-          '(Conforme / Observado) y Anexo 02 observaciones detalladas con el numeral que sustenta cada falta. Complete el número del informe al abrirlo en Word.</div></div>'
+          '(Conforme / Observado) y Anexo 02 observaciones detalladas con el numeral que sustenta cada falta. Complete el número del informe al abrirlo en Word.</div></div>' +
+          '<div style="flex-basis:100%;border:1px solid var(--linea);border-radius:10px;padding:12px 14px">' +
+          '<b>Otros reportes: delegados, fórmula y sílabo</b>' +
+          '<div style="color:var(--tinta-media);font-size:14px;margin-top:4px">Reúnen, por área, lo que cada coordinador registró en ' +
+          'esos formatos, y señalan qué cursos y grupos faltan registrar. Cada uno trae un resumen por área, el detalle y una hoja que explica cómo leerlo.' +
+          (!puedeNotificarRep && propiasRep.length ? ' Incluye solo ' +
+            (propiasRep.length === 1 ? 'su área: ' : 'sus áreas: ') + esc(propiasRep.join(', ')) + '.' : '') + '</div>' +
+          '<div style="display:flex;flex-wrap:wrap;gap:6px 16px;margin:8px 0 10px">' +
+          (progsRep.length > 1 ? '<label style="font-weight:600"><input type="checkbox" id="casTodasM"> Todas</label>' : '') +
+          progsRep.map(p => '<label><input type="checkbox" class="cas-carrera-m" value="' + esc(p) + '"' +
+            (progsRep.length === 1 ? ' checked' : '') + '> ' + esc(p.replace(/^Ingeniería\s+/i, '')) + '</label>').join('') +
+          '</div><div style="display:flex;gap:10px;flex-wrap:wrap">' +
+          '<button class="btn" data-repmod="delegados">👥 Delegados y subdelegados (Excel)</button>' +
+          '<button class="btn" data-repmod="formula">🧮 Fórmula de evaluación (Excel)</button>' +
+          '<button class="btn" data-repmod="silabo">📄 Revisión del sílabo (Excel)</button></div></div>'
         : '') +
       '</div>';
     h += '</div></section>';
@@ -5482,6 +5577,16 @@ label .req{color:var(--falla)}
     }
     if ($('btnRepP')) $('btnRepP').addEventListener('click', () =>
       generarReportePortafolios(marcadasP(), $('btnRepP'), 'excel'));
+    const marcadasM = () => [...document.querySelectorAll('.cas-carrera-m:checked')].map(c => c.value);
+    if ($('casTodasM')) {
+      $('casTodasM').addEventListener('change', e =>
+        document.querySelectorAll('.cas-carrera-m').forEach(c => { c.checked = e.target.checked; }));
+      document.querySelectorAll('.cas-carrera-m').forEach(c => c.addEventListener('change', () => {
+        $('casTodasM').checked = [...document.querySelectorAll('.cas-carrera-m')].every(x => x.checked);
+      }));
+    }
+    document.querySelectorAll('[data-repmod]').forEach(b => b.addEventListener('click', () =>
+      generarReporteModulo(b.dataset.repmod, marcadasM(), b)));
     if ($('btnInfP')) $('btnInfP').addEventListener('click', () =>
       generarReportePortafolios(marcadasP(), $('btnInfP'), 'informe'));
     if ($('btnNotP')) $('btnNotP').addEventListener('click', () =>
@@ -6220,18 +6325,11 @@ label .req{color:var(--falla)}
       (carreras.length === 1 ? ' carrera' : ' carreras') + '. Puede tardar varios minutos.');
     const fin = () => { cerrarEspera(); if (boton) { boton.disabled = false; boton.textContent = txt; } };
     const pedir = () => api('/reporte-portafolios?programas=' + encodeURIComponent(carreras.join('|')) +
-                           '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 330000 });
+                           '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 120000 });
     // Si el servidor no alcanzó a revisar todo, se vuelve a pedir: lo ya
     // revisado queda guardado y la segunda vuelta continúa donde quedó.
     (async () => {
-      let d = null;
-      for (let vuelta = 1; vuelta <= 8; vuelta++) {
-        d = await pedir();
-        if (d.error) throw new Error(d.error);
-        if (!d.pendientes) break;
-        const extra = document.querySelector('.capa .esp-extra');
-        if (extra) extra.textContent = 'Faltan ' + d.pendientes + ' cursos y grupos por revisar. Continuando…';
-      }
+      const d = await pedirPortafoliosPorTramos(pedir);
       const XLSX = await cargarLibreriaExcel();
       fin();
       const reps = (d.carreras || []).filter(r => r && r.filas);
@@ -6247,6 +6345,217 @@ label .req{color:var(--falla)}
     })().catch(e => { fin(); alert('No se pudo generar el reporte de portafolios: ' + e.message); });
   }
   window.generarReportePortafolios = generarReportePortafolios;
+  /* ------------------------------- reportes de delegados, fórmula y sílabo -- */
+  // Lo registrado por los coordinadores en cada formato, por área, con lo que
+  // falta registrar. Un libro de Excel con resumen, detalle y «Cómo leer».
+  async function generarReporteModulo(modulo, carreras, boton) {
+    if (!carreras.length) { alert('Marque al menos una carrera.'); return; }
+    const ciclo = ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO;
+    const NOMBRE = { delegados: 'delegados y subdelegados', formula: 'fórmula de evaluación', silabo: 'revisión del sílabo' }[modulo];
+    const txt = boton ? boton.textContent : '';
+    if (boton) { boton.disabled = true; boton.textContent = 'Preparando…'; }
+    const cerrar = mostrarEspera('Preparando el reporte de ' + NOMBRE, 'Se reúne lo registrado en los cursos de ' +
+      carreras.length + (carreras.length === 1 ? ' carrera.' : ' carreras.'));
+    try {
+      const d = await api('/reporte-modulo?modulo=' + modulo + '&programas=' + encodeURIComponent(carreras.join('|')) +
+                          '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 120000 });
+      if (d.error) throw new Error(d.error);
+      if (!(d.filas || []).length) { alert('No hay cursos de ' + carreras.join(', ') + ' en el ciclo ' + ciclo + '.'); return; }
+      const XLSX = await cargarLibreriaExcel();
+      const libro = armarLibroModulo(modulo, d, XLSX, ciclo, carreras);
+      XLSX.writeFile(libro.libro, libro.nombre);
+    } catch (e) { alert('No se pudo generar el reporte de ' + NOMBRE + ': ' + e.message); }
+    finally { cerrar(); if (boton) { boton.disabled = false; boton.textContent = txt; } }
+  }
+  window.generarReporteModulo = generarReporteModulo;
+
+  function armarLibroModulo(modulo, d, XLSX, ciclo, carreras) {
+    const es = (a, b) => String(a || '').localeCompare(String(b || ''), 'es', { numeric: true });
+    const corto = p => String(p).replace(/^Ingeniería\s+(de\s+)?/i, '');
+    const dos = n => ('0' + n).slice(-2), ah = new Date();
+    const hoy = dos(ah.getDate()) + '/' + dos(ah.getMonth() + 1) + '/' + ah.getFullYear();
+    const dma = t => { const m = String(t || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : (t || ''); };
+    const L = (v, n) => v ? leer(v, n) : '';
+    const borde = { style: 'thin', color: { rgb: 'B7C4BD' } }, BORDES = { top: borde, bottom: borde, left: borde, right: borde };
+    const COLOR = { verde: ['C6EFCE', '006100'], amarillo: ['FFEB9C', '7A4D00'], rojo: ['FFC7CE', '9C0006'], gris: ['EDEDED', '595959'] };
+    const est = c => ({ fill: { fgColor: { rgb: COLOR[c][0] } }, font: { color: { rgb: COLOR[c][1] } } });
+    const cab = titulo => [['UNIVERSIDAD RICARDO PALMA — FACULTAD DE INGENIERÍA'],
+      ['Sistema de Gestión para Organizaciones Educativas · ISO 21001'], [titulo],
+      ['Carrera(s): ' + carreras.map(corto).join(', ') + ((d.soloAreas || []).length ? ' · Área(s): ' + d.soloAreas.join(', ') : '') +
+       ' · Ciclo: ' + (d.ciclo || ciclo) + ' · Corte: ' + hoy + ' · Emitido por ' + (d.generadoPor || '')], []];
+    // Hoja: cabecera, notas, tabla con bordes, filtro y colores por celda.
+    const hoja = (titulo, notas, enc, filas, anchos, colorDe) => {
+      const aoa = cab(titulo).concat(notas.map(n => [n]), notas.length ? [[]] : [], [enc], filas);
+      const ws = XLSX.utils.aoa_to_sheet(aoa);
+      const f0 = aoa.length - filas.length - 1;
+      ws['!cols'] = anchos.map(w => ({ wch: w }));
+      ws['!autofilter'] = { ref: XLSX.utils.encode_range({ s: { r: f0, c: 0 }, e: { r: aoa.length - 1, c: enc.length - 1 } }) };
+      for (let r = 0; r < aoa.length; r++) for (let c = 0; c < (r >= f0 ? enc.length : 1); c++) {
+        const ref = XLSX.utils.encode_cell({ r, c });
+        if (!ws[ref]) ws[ref] = { t: 's', v: '' };
+        const st = {};
+        if (r === 0) st.font = { bold: true, sz: 13, color: { rgb: '0F8F5E' } };
+        if (r === 2) st.font = { bold: true, sz: 12 };
+        if (r >= f0) { st.border = BORDES; st.alignment = { vertical: 'top', wrapText: true }; }
+        if (r === f0) { st.fill = { fgColor: { rgb: '0B3B2E' } }; st.font = { bold: true, color: { rgb: 'FFFFFF' } };
+                        st.alignment = { wrapText: true, vertical: 'center', horizontal: 'center' }; }
+        if (r > f0 && colorDe) { const k = colorDe(r - f0 - 1, c); if (k) Object.assign(st, est(k)); }
+        ws[ref].s = st;
+      }
+      ws['!rows'] = []; ws['!rows'][f0] = { hpt: 34 };
+      return ws;
+    };
+    const libro = XLSX.utils.book_new();
+    const filas = (d.filas || []).slice().sort((a, b) => es(a.programa, b.programa) || es(a.area, b.area) ||
+      es(nombreCurso(a.curso), nombreCurso(b.curso)) || es(a.grupo, b.grupo) || es(a.docente, b.docente));
+    const pct = (a, b) => b ? Math.round(a / b * 100) + '%' : '—';
+    const resumenArea = (lista, cols) => {
+      const por = {};
+      lista.forEach(x => { const k = corto(x.programa) + '¦' + x.area; (por[k] = por[k] || { x, l: [] }).l.push(x); });
+      return Object.values(por).sort((a, b) => es(a.x.programa, b.x.programa) || es(a.x.area, b.x.area))
+        .map(o => [corto(o.x.programa), o.x.area, o.x.coordinador || ''].concat(cols(o.l)));
+    };
+    let nombreArchivo = '';
+
+    if (modulo === 'delegados') {
+      // Delegado y subdelegado son del GRUPO: los mismos para teoría y práctica,
+      // y para todos los subgrupos. Una fila por curso y grupo.
+      const por = {}, orden = [];
+      filas.forEach(x => {
+        const k = x.programa + '¦' + (x.codigo || x.curso) + '¦' + x.grupo;
+        if (!por[k]) { por[k] = { x, docentes: [], v: null }; orden.push(k); }
+        const o = por[k], doc = x.docente + (x.tipo ? ' (' + x.tipo + ')' : '');
+        if (o.docentes.indexOf(doc) < 0) o.docentes.push(doc);
+        if (x.v && (!o.v || /^teo/i.test(x.tipo || ''))) o.v = x.v;
+      });
+      const grupos = orden.map(k => por[k]);
+      const sit = o => !o.v || !L(o.v, 'Delegado (apellidos y nombres)') ? 'Sin registrar'
+        : (L(o.v, 'Subdelegado (apellidos y nombres)') ? 'Completo' : 'Falta el subdelegado');
+      const det = grupos.map(o => { const v = o.v;
+        return [corto(o.x.programa), o.x.area, o.x.codigo, nombreCurso(o.x.curso), o.x.grupo, o.docentes.join('; '),
+          sit(o), L(v, 'Delegado (apellidos y nombres)'), L(v, 'Codigo del delegado'), L(v, 'Correo del delegado'), L(v, 'Celular del delegado'),
+          L(v, 'Subdelegado (apellidos y nombres)'), L(v, 'Codigo del subdelegado'), L(v, 'Correo del subdelegado'), L(v, 'Celular del subdelegado'),
+          L(v, 'Observaciones')]; });
+      const res = resumenArea(grupos.map(o => Object.assign({}, o.x, { _s: sit(o) })), l => {
+        const c = l.filter(x => x._s === 'Completo').length, f = l.filter(x => x._s === 'Falta el subdelegado').length;
+        return [l.length, c, f, l.length - c - f, pct(c, l.length)]; });
+      XLSX.utils.book_append_sheet(libro, hoja('Delegados y subdelegados — resumen por área',
+        ['Cada curso y grupo tiene un delegado y un subdelegado: son los mismos para la teoría y la práctica y para todos los subgrupos.'],
+        ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Con delegado y subdelegado', 'Falta el subdelegado', 'Sin registrar', '% completos'],
+        res, [14, 26, 28, 12, 14, 14, 12, 11],
+        (i, c) => c === 7 ? (parseInt(res[i][7], 10) >= 90 ? 'verde' : parseInt(res[i][7], 10) >= 70 ? 'amarillo' : 'rojo') : null), 'Resumen');
+      XLSX.utils.book_append_sheet(libro, hoja('Delegados y subdelegados — detalle por curso y grupo',
+        ['Datos de contacto de estudiantes: uso interno de la coordinación, no se difunden.'],
+        ['Carrera', 'Área', 'Código', 'Curso', 'Grupo', 'Docente(s) del grupo', 'Situación', 'Delegado', 'Código', 'Correo', 'Celular',
+         'Subdelegado', 'Código', 'Correo', 'Celular', 'Observaciones'],
+        det, [12, 22, 9, 30, 6, 30, 16, 26, 11, 26, 11, 26, 11, 26, 11, 30],
+        (i, c) => c === 6 ? ({ 'Completo': 'verde', 'Falta el subdelegado': 'amarillo', 'Sin registrar': 'rojo' })[det[i][6]] : null), 'Detalle');
+      XLSX.utils.book_append_sheet(libro, hoja('Cómo leer este reporte', [], ['Situación', 'Qué significa'], [
+        ['Completo', 'Están registrados el delegado y el subdelegado del grupo.'],
+        ['Falta el subdelegado', 'Solo está registrado el delegado.'],
+        ['Sin registrar', 'El coordinador todavía no guardó el formato «Delegados» de ese curso y grupo. Los datos salen del F1 que llena el docente de teoría.']],
+        [24, 100], (i, c) => c === 0 ? ['verde', 'amarillo', 'rojo'][i] : null), 'Cómo leer');
+      nombreArchivo = 'Delegados';
+    }
+
+    if (modulo === 'formula') {
+      const sit = v => !v ? 'Sin verificar' : (L(v, 'Estado de la verificacion') || 'Verificada');
+      const det = filas.map(x => { const v = x.v;
+        return [corto(x.programa), x.area, x.docente, x.codigo, nombreCurso(x.curso), x.grupo, sit(v),
+          L(v, 'Registro en el sistema'), L(v, 'Coincide con el silabo'), L(v, 'Formula del silabo'), L(v, 'Formula en el sistema'),
+          L(v, 'Observaciones'), dma(L(v, 'Fecha de verificacion')), dma(L(v, 'Fecha de comunicacion al docente')), dma(L(v, 'Fecha de levantamiento'))]; });
+      const color = t => /conforme|levantad/i.test(t) ? 'verde' : /observ/i.test(t) ? 'amarillo' : /sin verificar/i.test(t) ? 'gris' : null;
+      const res = resumenArea(filas, l => {
+        const ver = l.filter(x => x.v), n = t => ver.filter(x => new RegExp(t, 'i').test(L(x.v, 'Estado de la verificacion'))).length;
+        const noReg = ver.filter(x => /no registrada/i.test(L(x.v, 'Registro en el sistema'))).length;
+        const noCo = ver.filter(x => /^no$/i.test(L(x.v, 'Coincide con el silabo'))).length;
+        return [l.length, ver.length, n('conforme'), n('observ'), n('levantad'), noReg, noCo, l.length - ver.length, pct(ver.length, l.length)]; });
+      XLSX.utils.book_append_sheet(libro, hoja('Fórmula de evaluación — resumen por área',
+        ['Se compara la fórmula del sílabo con la registrada en el Sistema de Evaluación (información oficial de la Unidad de Registros y Matrícula).'],
+        ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Verificados', 'Conforme', 'Observado', 'Levantado',
+         'No registrada en el sistema', 'No coincide con el sílabo', 'Sin verificar', '% verificado'],
+        res, [14, 26, 28, 11, 11, 11, 11, 11, 13, 13, 11, 11],
+        (i, c) => c === 11 ? (parseInt(res[i][11], 10) >= 90 ? 'verde' : parseInt(res[i][11], 10) >= 70 ? 'amarillo' : 'rojo') : null), 'Resumen');
+      XLSX.utils.book_append_sheet(libro, hoja('Fórmula de evaluación — detalle por curso y grupo', [],
+        ['Carrera', 'Área', 'Docente', 'Código', 'Curso', 'Grupo', 'Estado de la verificación', '¿Registrada en el sistema?',
+         '¿Coincide con el sílabo?', 'Fórmula del sílabo', 'Fórmula en el sistema', 'Observaciones', 'Fecha de verificación',
+         'Comunicado al docente', 'Fecha de levantamiento'],
+        det, [12, 22, 28, 9, 28, 6, 14, 14, 12, 34, 34, 40, 12, 12, 12],
+        (i, c) => c === 6 ? color(det[i][6]) : (c === 7 && /no registrada/i.test(det[i][7]) ? 'rojo' : (c === 8 && /^no$/i.test(det[i][8]) ? 'amarillo' : null))), 'Detalle');
+      XLSX.utils.book_append_sheet(libro, hoja('Cómo leer este reporte', [], ['Término', 'Qué significa'], [
+        ['Conforme', 'La fórmula del sílabo y la del sistema dicen lo mismo (aunque estén escritas distinto).'],
+        ['Observado', 'Hay una diferencia de fondo y se comunicó al docente para corregirla.'],
+        ['Levantado', 'La observación ya se corrigió.'],
+        ['No registrada en el sistema', 'El curso no tiene fórmula en el Sistema de Evaluación: se avisa a la Escuela.'],
+        ['Sin verificar', 'El coordinador todavía no guardó el formato «Fórmula» de ese curso y grupo.']],
+        [28, 100], (i, c) => c === 0 ? ['verde', 'amarillo', 'verde', 'rojo', 'gris'][i] : null), 'Cómo leer');
+      nombreArchivo = 'Formula';
+    }
+
+    if (modulo === 'silabo') {
+      const items = ((CFG.MODULOS.silabo || {}).items || []).filter(it => it.n);
+      const valItem = (v, it) => v ? (leerPrefijo(v, it.n + ' ') || leer(v, 'Item ' + it.n)) : '';
+      const pctDe = v => { const n = parseFloat(String(L(v, 'Porcentaje de cumplimiento')).replace(',', '.')); return isNaN(n) ? null : Math.round(n); };
+      const det = filas.map(x => { const v = x.v, p = pctDe(v);
+        const no = items.filter(it => valItem(v, it) === 'No cumple').map(it => it.n), pa = items.filter(it => valItem(v, it) === 'Parcial').map(it => it.n);
+        return [corto(x.programa), x.area, x.docente, x.codigo, nombreCurso(x.curso), x.grupo, v ? (p == null ? '' : p + '%') : 'Sin revisar',
+          v ? (L(v, 'Estado del silabo') || '') : '', no.join(', '), pa.join(', '), dma(L(v, 'Fecha de revision')), L(v, 'Observaciones generales')]; });
+      const res = resumenArea(filas, l => {
+        const rev = l.filter(x => x.v), ps = rev.map(x => pctDe(x.v)).filter(n => n != null);
+        const prom = ps.length ? Math.round(ps.reduce((a, b) => a + b, 0) / ps.length) + '%' : '—';
+        const ob = rev.filter(x => /observ/i.test(L(x.v, 'Estado del silabo'))).length;
+        return [l.length, rev.length, l.length - rev.length, prom, ob, pct(rev.length, l.length)]; });
+      const colPct = t => { const n = parseInt(t, 10); return isNaN(n) ? (/sin/i.test(t) ? 'gris' : null) : (n >= 70 ? 'verde' : n >= 40 ? 'amarillo' : 'rojo'); };
+      XLSX.utils.book_append_sheet(libro, hoja('Revisión del sílabo — resumen por área',
+        ['Cumplimiento = ítems que cumplen sobre los que aplican, de los 12 puntos del estándar del sílabo.'],
+        ['Carrera', 'Área', 'Coordinador del área', 'Cursos y grupos', 'Revisados', 'Sin revisar', 'Cumplimiento promedio', 'Observados', '% revisado'],
+        res, [14, 26, 28, 11, 11, 11, 13, 11, 11], (i, c) => c === 6 ? colPct(res[i][6]) : null), 'Resumen');
+      XLSX.utils.book_append_sheet(libro, hoja('Revisión del sílabo — detalle por curso y grupo', [],
+        ['Carrera', 'Área', 'Docente', 'Código', 'Curso', 'Grupo', 'Cumplimiento', 'Estado', 'Puntos que no cumplen', 'Puntos parciales',
+         'Fecha de revisión', 'Observaciones generales'],
+        det, [12, 22, 28, 9, 28, 6, 12, 12, 16, 16, 12, 50], (i, c) => c === 6 ? colPct(det[i][6]) : null), 'Detalle');
+      const pts = filas.map(x => [corto(x.programa), x.area, x.docente, x.codigo, nombreCurso(x.curso), x.grupo]
+        .concat(items.map(it => x.v ? (valItem(x.v, it) || '—') : '')));
+      const colIt = t => ({ 'Cumple': 'verde', 'Parcial': 'amarillo', 'No cumple': 'rojo', 'No aplica': 'gris' })[t] || null;
+      XLSX.utils.book_append_sheet(libro, hoja('Revisión del sílabo — los 12 puntos de cada curso',
+        ['Columnas: ' + items.map(it => it.n + ' ' + String(it.etiqueta || '').replace(/^\d+\.?\s*/, '')).join(' · ')],
+        ['Carrera', 'Área', 'Docente', 'Código', 'Curso', 'Grupo'].concat(items.map(it => it.n)),
+        pts, [12, 22, 28, 9, 28, 6].concat(items.map(() => 10)), (i, c) => c >= 6 ? colIt(pts[i][c]) : null), 'Puntos');
+      XLSX.utils.book_append_sheet(libro, hoja('Cómo leer este reporte', [], ['Término', 'Qué significa'], [
+        ['70% o más', 'Buen nivel de cumplimiento del estándar del sílabo.'],
+        ['De 40% a 69%', 'Cumplimiento parcial: hay puntos por mejorar.'],
+        ['Menos de 40%', 'Cumplimiento bajo: requiere atención.'],
+        ['Sin revisar', 'El coordinador todavía no guardó la revisión del sílabo de ese curso y grupo.']],
+        [20, 100], (i, c) => c === 0 ? ['verde', 'amarillo', 'rojo', 'gris'][i] : null), 'Cómo leer');
+      nombreArchivo = 'Silabo';
+    }
+    const sello = new Date().toISOString().slice(0, 10);
+    return { libro, nombre: String(d.ciclo || ciclo).replace(/\s+/g, '') + '_Reporte_' + nombreArchivo + '_' +
+      (carreras.length === 1 ? corto(carreras[0]).replace(/\s+/g, '_') : 'varias_carreras') + '_' + sello + '.xlsx' };
+  }
+
+  // El servidor revisa los portafolios por tramos de unos 40 segundos y guarda
+  // lo revisado; aquí se piden los tramos que hagan falta, mostrando el avance.
+  // Un tramo que falla por tiempo o por la red se reintenta: no se pierde nada.
+  async function pedirPortafoliosPorTramos(pedir) {
+    let d = null, fallos = 0, sinAvance = 0, previo = -1;
+    for (let vuelta = 1; vuelta <= 60; vuelta++) {
+      try { d = await pedir(); }
+      catch (e) {
+        if (++fallos > 3) throw e;
+        await new Promise(r => setTimeout(r, 3000));
+        continue;
+      }
+      if (d.error) throw new Error(d.error);
+      if (!d.pendientes) break;
+      if (d.pendientes === previo) { if (++sinAvance > 4) break; } else sinAvance = 0;
+      previo = d.pendientes;
+      const extra = document.querySelector('.capa .esp-extra');
+      if (extra) extra.textContent = 'Ya se revisaron ' + (d.revisados || 0) + ' cursos y grupos; faltan ' + d.pendientes +
+        '. Continuando… (no cierre esta ventana)';
+    }
+    return d;
+  }
   /* ---------------------------------- notificar portafolios a docentes ---- */
   // Usa la misma revisión y la misma auditoría del reporte y del informe al
   // Director: lo que el docente recibe es exactamente lo que dice el informe.
@@ -6260,15 +6569,8 @@ label .req{color:var(--falla)}
     const cerrarEspera = mostrarEspera('Revisando los portafolios en Drive',
       'Se recorre la carpeta de cada curso y grupo. Puede tardar varios minutos.');
     try {
-      let d = null;
-      for (let vuelta = 1; vuelta <= 8; vuelta++) {
-        d = await api('/reporte-portafolios?programas=' + encodeURIComponent(carreras.join('|')) +
-                      '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 330000 });
-        if (d.error) throw new Error(d.error);
-        if (!d.pendientes) break;
-        const extra = document.querySelector('.capa .esp-extra');
-        if (extra) extra.textContent = 'Faltan ' + d.pendientes + ' cursos y grupos por revisar. Continuando…';
-      }
+      const d = await pedirPortafoliosPorTramos(() => api('/reporte-portafolios?programas=' + encodeURIComponent(carreras.join('|')) +
+                      '&ciclo=' + encodeURIComponent(ciclo), { limiteMs: 120000 }));
       if (d.pendientes) throw new Error('quedaron ' + d.pendientes + ' cursos y grupos sin revisar por tiempo. ' +
                                         'Vuelva a intentarlo en unos minutos: lo ya revisado se conserva.');
       ULTIMA_REV_PORTA = { clave, d, t: Date.now() };
@@ -7463,41 +7765,104 @@ label .req{color:var(--falla)}
       .catch(e => { $('tablaCoord').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
+  // Coordinadores y áreas en una sola vista por carrera, en desplegables.
+  const CA_ABIERTAS = new Set();
   function pintarCoordinadores() {
     const ciclo = $('cicloOrigen').value;
-    const lista = estado.coordinadores.filter(c => ciclo === '__sin__' ? !c.ciclo : c.ciclo === ciclo);
-    if (!lista.length) {
-      $('tablaCoord').innerHTML = '<div class="vacio">No hay coordinadores registrados en ese ciclo.</div>';
-      return;
-    }
+    const lista = (estado.coordinadores || []).filter(c => ciclo === '__sin__' ? !c.ciclo : c.ciclo === ciclo);
     const inactivo = c => /inactiv/i.test(c.estado || '');
-    // Las vigentes primero; las inactivas (reemplazadas) se ven atenuadas y no
-    // se marcan para clonar.
-    lista.sort((a, b) => (inactivo(a) - inactivo(b)) || String(a.area).localeCompare(String(b.area)));
-    const filas = lista.map((c, i) =>
-      '<tr class="' + (inactivo(c) ? 'coord-inactivo' : '') + '"><td style="width:34px"><input type="checkbox" data-c="' + i + '"' + (inactivo(c) ? '' : ' checked') + '></td>' +
-      '<td><b>' + esc(c.area || (/general/i.test(c.rol) ? 'Toda la carrera' : '—')) + '</b>' +
-      '<small class="codigo">' + esc(c.programa || '—') + '</small></td>' +
-      '<td><b>' + esc(c.nombre) + '</b>' +
-      '<small class="codigo">' + esc(c.correo || 'sin correo') + '</small>' +
-      '<small class="codigo"><span class="tipo">' + esc(c.rol) + '</span>' +
-        (inactivo(c) ? ' <span class="tipo tipo-inactivo">Inactivo</span>' : '') + '</small>' +
-      (c.historial ? '<small class="codigo coord-hist">🕘 ' + esc(String(c.historial).split('\n').pop()) + '</small>' : '') + '</td>' +
-      '<td style="width:110px;text-align:right"><button type="button" class="btn gris btn-editar-coord" data-e="' + i + '">✏️ Editar</button></td></tr>').join('');
-    const nGen = lista.filter(c => /general/i.test(c.rol)).length;
-    const resumen = '<div class="resumen" style="margin:0 0 12px">' +
-      '<div><div class="cifra">' + lista.length + '</div><div class="det">registros en ' + esc(ciclo === '__sin__' ? 'sin ciclo' : ciclo) + '</div></div>' +
-      '<div class="det">' + (lista.length - nGen) + ' de área · ' + nGen + ' general(es)</div></div>';
-    $('tablaCoord').innerHTML = resumen +
-      '<table><thead><tr><th></th><th>Ámbito</th><th>Coordinador y rol</th><th></th></tr></thead><tbody>' + filas + '</tbody></table>' +
-      '<p class="nota-crono" style="margin-top:8px"><b>¿Cambió el coordinador de un área?</b> Use <b>✏️ Editar → Reemplazar</b>: ' +
-      'el anterior queda como «Inactivo» con su historial y el nuevo entra con su correo. Para un error de tipeo, ' +
-      'use <b>Corregir datos</b>. Las filas inactivas se ven atenuadas y no se clonan al ciclo siguiente.</p>';
-    $('tablaCoord').dataset.ciclo = ciclo;
+    const corto = a => String(a || '').replace(/\s*\([^)]*\)\s*$/, '');
+    const k = t => sinAcentos(t || '');
+    const areasCat = (estado.areas || []).filter(a => (a.estado || 'Vigente') === 'Vigente');
+    const progs = [...new Set(lista.map(c => c.programa).concat(areasCat.map(a => a.programa)).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'es'));
     estado.coordVista = lista;
+    if (!progs.length) { $('tablaCoord').innerHTML = '<div class="vacio">No hay coordinadores registrados en ese ciclo.</div>'; $('caResumen').innerHTML = ''; return; }
+    let nSin = 0, nDobles = 0;
+    const idx = c => lista.indexOf(c);
+    const chk = c => '<input type="checkbox" class="ca-chk" data-c="' + idx(c) + '"' + (inactivo(c) ? '' : ' checked') + ' title="Clonar esta fila"> ';
+    const editar = c => '<button type="button" class="btn-mini btn-editar-coord" data-e="' + idx(c) + '">✏️ Editar</button>';
+    const html = progs.map(p => {
+      const deP = lista.filter(c => k(c.programa) === k(p));
+      const vig = deP.filter(c => !inactivo(c)), ina = deP.filter(inactivo);
+      const gens = vig.filter(c => /general/i.test(c.rol));
+      const areas = [...new Set(areasCat.filter(a => k(a.programa) === k(p)).map(a => a.nombre)
+        .concat(vig.filter(c => !/general/i.test(c.rol) && c.area).map(c => c.area)))]
+        .sort((a, b) => corto(a).localeCompare(corto(b), 'es'));
+      const filasA = areas.map(a => {
+        const cs = vig.filter(c => !/general/i.test(c.rol) && k(c.area) === k(a));
+        if (!cs.length) nSin++;
+        const busca = k([corto(a)].concat(cs.map(c => c.nombre + ' ' + c.correo)).join(' '));
+        return '<tr data-busca="' + esc(busca) + '"><td><b>' + esc(corto(a)) + '</b></td>' + (cs.length
+          ? '<td>' + cs.map(c => chk(c) + esc(c.nombre)).join('<br>') + '</td><td><small>' + cs.map(c => esc(c.correo || 'sin correo')).join('<br>') +
+            '</small></td><td style="text-align:right">' + cs.map(editar).join('<br>') + '</td>'
+          : '<td class="ca-sin">⚠ Sin coordinador</td><td></td><td style="text-align:right"><button type="button" class="btn-mini verde" data-asig="' +
+            esc(p) + '|' + esc(a) + '">＋ Asignar</button></td>') + '</tr>';
+      }).join('');
+      const sinA = areas.filter(a => !vig.some(c => !/general/i.test(c.rol) && k(c.area) === k(a))).length;
+      if (gens.length > 1) nDobles++;
+      const gensHtml = gens.length ? gens.map(c => '<div class="ca-gen" data-busca="' + esc(k(c.nombre + ' ' + c.correo + ' general')) + '">' + chk(c) +
+          '<div class="q"><b>' + esc(c.nombre) + '</b><small>Coordinador general · ' + esc(c.correo || 'sin correo') + '</small></div>' + editar(c) + '</div>').join('')
+        : '<div class="ca-gen"><div class="q ca-sin">⚠ Sin coordinador general</div><button type="button" class="btn-mini verde" data-asig="' + esc(p) + '|">＋ Asignar</button></div>';
+      const chips = '<span class="ca-chip' + (gens.length === 1 ? '' : ' w') + '">' + (gens.length === 1 ? '1 general' : gens.length ? gens.length + ' generales: revisar' : 'sin general') + '</span>' +
+        '<span class="ca-chip">' + areas.length + (areas.length === 1 ? ' área' : ' áreas') + '</span>' +
+        '<span class="ca-chip' + (sinA ? ' w' : '') + '">' + (sinA ? sinA + ' sin coordinador' : 'todas con coordinador') + '</span>';
+      const hist = ina.length ? '<details><summary>🕘 ' + ina.length + (ina.length === 1 ? ' coordinador reemplazado o inactivo' : ' coordinadores reemplazados o inactivos') + '</summary><ul class="ca-hist">' +
+        ina.map(c => '<li>' + chk(c) + '<b>' + esc(c.nombre) + '</b> · ' + esc(c.area ? corto(c.area) : 'Coordinador general') +
+          (c.historial ? ' · <small>' + esc(String(c.historial).split('\n').pop()) + '</small>' : '') + ' ' + editar(c) + '</li>').join('') + '</ul></details>' : '';
+      return '<details class="ca-car" data-p="' + esc(p) + '"' + (CA_ABIERTAS.has(p) ? ' open' : '') + '><summary><span class="ca-n">' + esc(p) + '</span>' + chips + '</summary>' +
+        gensHtml +
+        (areas.length ? '<table class="ca-tab"><thead><tr><th style="width:26%">Área</th><th>Coordinador</th><th style="width:30%">Correo</th><th style="width:100px"></th></tr></thead><tbody>' + filasA + '</tbody></table>'
+                      : '<p class="ayuda" style="margin:0 16px 10px">Esta carrera no tiene áreas registradas.</p>') +
+        '<div class="ca-pie">' + hist + '<button type="button" class="btn-mini verde" data-nueva-area="' + esc(p) + '">＋ Agregar un área a ' + esc(p.replace(/^Ingeniería\s+/i, '')) + '</button></div></details>';
+    }).join('');
+    const vigentes = lista.filter(c => !inactivo(c)), nGen = vigentes.filter(c => /general/i.test(c.rol)).length;
+    $('caResumen').innerHTML = '<div class="ca-kpi"><div><b>' + progs.length + '</b>carreras</div><div><b>' + vigentes.length + '</b>coordinadores vigentes en ' +
+      esc(ciclo === '__sin__' ? 'filas sin ciclo' : ciclo) + '</div><div><b>' + nGen + '</b>generales · ' + (vigentes.length - nGen) + ' de área</div>' +
+      '<div class="' + (nSin ? 'al' : '') + '"><b>' + (nSin ? '⚠ ' : '') + nSin + '</b>' + (nSin === 1 ? 'área sin coordinador' : 'áreas sin coordinador') + '</div>' +
+      (nDobles ? '<div class="al"><b>⚠ ' + nDobles + '</b>' + (nDobles === 1 ? 'carrera con más de un coordinador general' : 'carreras con más de un coordinador general') + '</div>' : '') + '</div>';
+    $('tablaCoord').innerHTML = html;
+    $('tablaCoord').dataset.ciclo = ciclo;
+    $('tablaCoord').querySelectorAll('.ca-car').forEach(d => d.addEventListener('toggle', () => {
+      if (d.open) CA_ABIERTAS.add(d.dataset.p); else CA_ABIERTAS.delete(d.dataset.p); }));
     $('tablaCoord').querySelectorAll('.btn-editar-coord').forEach(b =>
       b.addEventListener('click', () => abrirEditarCoord(lista[Number(b.dataset.e)])));
+    $('tablaCoord').querySelectorAll('[data-asig]').forEach(b => b.addEventListener('click', () => {
+      const [p, a] = b.dataset.asig.split('|');
+      const panel = $('panelNuevoCoord'); panel.open = true;
+      $('nvRol').value = a ? 'Coordinador de área' : 'Coordinador general';
+      $('nvPrograma').value = p; refrescarAlta();
+      if ([...$('nvCiclo').options].some(o => o.value === ciclo)) $('nvCiclo').value = ciclo;
+      if (a) $('nvAreas').querySelectorAll('input').forEach(x => { x.checked = k(x.value) === k(a); });
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('nvNombre').focus(), 350);
+    }));
+    $('tablaCoord').querySelectorAll('[data-nueva-area]').forEach(b => b.addEventListener('click', () => {
+      const panel = $('panelNuevaArea'); panel.open = true;
+      $('arPrograma').value = b.dataset.nuevaArea;
+      panel.scrollIntoView({ behavior: 'smooth', block: 'start' }); setTimeout(() => $('arNombre').focus(), 350);
+    }));
+    filtrarCoordinadores();
   }
+  // Buscador: muestra solo lo que coincide y abre las carreras donde está.
+  function filtrarCoordinadores() {
+    const q = sinAcentos(($('caBuscar') || {}).value || '').trim();
+    document.querySelectorAll('#tablaCoord .ca-car').forEach(d => {
+      let hay = false;
+      d.querySelectorAll('[data-busca]').forEach(el => {
+        const ok = !q || el.dataset.busca.indexOf(q) >= 0 || sinAcentos(d.dataset.p).indexOf(q) >= 0;
+        el.classList.toggle('ca-oculta', !ok); if (ok) hay = true;
+      });
+      const enNombre = q && sinAcentos(d.dataset.p).indexOf(q) >= 0;
+      d.classList.toggle('ca-oculta', !!q && !hay && !enNombre);
+      if (q && (hay || enNombre)) d.open = true;
+    });
+  }
+  if ($('caBuscar')) $('caBuscar').addEventListener('input', filtrarCoordinadores);
+  $('caAbrir').addEventListener('click', () => document.querySelectorAll('#tablaCoord .ca-car').forEach(d => { d.open = true; }));
+  $('caCerrar').addEventListener('click', () => document.querySelectorAll('#tablaCoord .ca-car').forEach(d => { d.open = false; }));
+  $('caClonarAbrir').addEventListener('click', () => {
+    $('caClonar').classList.remove('oculto'); $('tablaCoord').classList.add('modo-clonar'); $('cicloDestino').focus(); });
+  $('caClonarCerrar').addEventListener('click', () => {
+    $('caClonar').classList.add('oculto'); $('tablaCoord').classList.remove('modo-clonar'); });
 
   // "Otro ciclo" abre un campo de texto para escribirlo.
   $('nvCiclo').addEventListener('change', () => {
@@ -7599,23 +7964,8 @@ label .req{color:var(--falla)}
       .catch(e => { avisoCoord(e.message, 'error'); $('btnNuevo').disabled = false; });
   });
 
-  function pintarAreas() {
-    const lista = estado.areas || [];
-    if (!lista.length) { $('tablaAreas').innerHTML = '<div class="vacio">Sin áreas registradas.</div>'; return; }
-    const porPrograma = [];
-    lista.forEach(a => {
-      let g = porPrograma.find(x => x.p === a.programa);
-      if (!g) { g = { p: a.programa, areas: [] }; porPrograma.push(g); }
-      g.areas.push(a);
-    });
-    $('tablaAreas').innerHTML = '<table><tbody>' + porPrograma.map(g =>
-      '<tr class="curso-cab"><td><b>' + esc(g.p || 'Sin carrera') + '</b>' +
-      '<small class="codigo">' + g.areas.length + ' áreas</small></td></tr>' +
-      g.areas.map(a => '<tr><td class="carga">' + esc(a.nombre) +
-        (a.estado !== 'Vigente' ? ' <span class="pendiente">' + esc(a.estado) + '</span>' : '') +
-      '</td></tr>').join('')
-    ).join('') + '</tbody></table>';
-  }
+  // Las áreas se muestran dentro de cada carrera, junto a su coordinador.
+  function pintarAreas() { if ($('cicloOrigen') && $('cicloOrigen').options.length) pintarCoordinadores(); }
 
   function cargarAreas() {
     api('/areas')
@@ -7626,7 +7976,7 @@ label .req{color:var(--falla)}
           progs.map(p => '<option>' + esc(p) + '</option>').join('');
         pintarAreas();
       })
-      .catch(e => { $('tablaAreas').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
+      .catch(e => { avisoCoord('No se pudieron leer las áreas: ' + e.message, 'error'); });
   }
 
   $('btnArea').addEventListener('click', () => {
@@ -9088,8 +9438,9 @@ label .req{color:var(--falla)}
         { t: 'Formato institucional y patrón de calidad del sílabo', de: 'Estándar cargado en el portal (patrón del logro ' + PATRON_LOGRO.version + ')', hay: () => true },
         { t: 'Modelo Pedagógico de la URP (ejes transversales: punto 05)', de: 'Biblioteca del portal (copia resaltada)', hay: () => true },
         { t: 'Plan de estudios (créditos, requisitos, condición y nombre del curso)', opcional: true,
-          hay: () => ADJUNTOS.some(f => /plan|malla|curricul/i.test(f.name)),
-          de: 'Adjuntado: se usa para el punto 01',
+          hay: () => ADJUNTOS.some(f => /plan|malla|curricul/i.test(f.name)) || !!planDelPortal(estado.actual),
+          de: () => ADJUNTOS.some(f => /plan|malla|curricul/i.test(f.name)) ? 'Adjuntado: se usa para el punto 01'
+            : 'Biblioteca del portal: ' + planDelPortal(estado.actual).t + ' de ' + nombreCarreraCorto((estado.actual || {}).programa) + '. Se usa solo para el punto 01; no hace falta adjuntarlo.',
           falta: 'Opcional. Adjúntelo junto con el sílabo si quiere que se compruebe el punto 01 (créditos, requisitos y condición).' }
       ]
     },
@@ -9168,7 +9519,7 @@ label .req{color:var(--falla)}
         clase = n ? 'hay' : 'falta'; ic = n ? '✔' : '📎';
         txt = n ? 'Adjuntado: ' + ADJUNTOS.map(f => f.name).join(', ') : x.falta;
       } else if (x.hay && (c || !/competencias|sumilla/i.test(x.t)) && x.hay(c || {})) {
-        clase = 'hay'; ic = '✔'; txt = 'Ya está en el portal · ' + x.de;
+        clase = 'hay'; ic = '✔'; txt = 'Ya está en el portal · ' + (typeof x.de === 'function' ? x.de(c) : x.de);
       } else if (x.hay && !c && estado.modulo === 'silabo') {
         clase = 'opc'; ic = '…'; txt = 'Consultando el portal…';
       } else {
@@ -9330,6 +9681,17 @@ label .req{color:var(--falla)}
                 r.imagenes.length + ' de sus ' + r.total + ' páginas como imágenes; léelas.]');
             } else throw e;
           }
+        }
+        // Si no se adjuntó el plan de estudios y el portal lo tiene, se usa ese.
+        const planP = estado.modulo === 'silabo' && !hayPlan ? planDelPortal(estado.actual) : null;
+        if (planP) {
+          try {
+            const blob = await (await fetch(planP.url)).blob();
+            const txtPlan = await textoDelArchivo(new File([blob], planP.url.split('/').pop(), { type: 'application/pdf' }));
+            partes.push('===== ' + planP.t + ' (biblioteca del portal) =====\n' +
+              recortePlan(txtPlan, (estado.actual || {}).codigo, nombreCurso((estado.actual || {}).asignatura)));
+            hayPlan = true;
+          } catch (e) { console.warn('Portal: no se pudo leer el plan de la biblioteca →', e.message); }
         }
         if (imagenes.length >= MAX_IMG) {
           const extra = archivos.filter(esImagen).length > MAX_IMG;
@@ -10009,11 +10371,11 @@ label .req{color:var(--falla)}
 
   function enlacesRef(r, texto, n) {
     if (n && REF_PAGINAS[n]) return (r.enlaces || []).concat(REF_PAGINAS[n].map(x =>
-      ({ url: x[0] + '#page=' + x[1], texto: (x[0] === PDF_MODELO ? '📗 ' : x[0] === PDF_GOD ? '📕 ' : '📙 ') + x[2] })));
+      ({ url: verPdf(x[0], x[1], x[2]), texto: (x[0] === PDF_MODELO ? '📗 ' : x[0] === PDF_GOD ? '📕 ' : '📙 ') + x[2] })));
     const l = (r.enlaces || []).slice();
     const t = String(texto || '');
     if (t.indexOf(MODELO_PEDAGOGICO) >= 0) {
-      if (/Figura 14/.test(t)) l.push({ url: 'docs/modelo-pedagogico-urp.pdf#page=108', texto: '📗 Modelo Pedagógico: Figura 14 (p. 108)' });
+      if (/Figura 14/.test(t)) l.push({ url: verPdf('docs/modelo-pedagogico-urp.pdf', 108, 'Figura 14: estrategias didácticas'), texto: '📗 Modelo Pedagógico: Figura 14 (p. 108)' });
       else l.push({ url: 'docs/modelo-pedagogico-urp.pdf', texto: '📗 Ver el Modelo Pedagógico' });
     }
     if (t.indexOf(GUIA_SILABOS) >= 0) l.push({ url: 'docs/guia-elaboracion-silabos.pdf', texto: '📙 Ver la Guía de Elaboración de Sílabos' });
@@ -10634,7 +10996,7 @@ label .req{color:var(--falla)}
       '<code>CÓDIGO.TIPO.PERIODO</code> (el enunciado) o <code>CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota</code> ' +
       '(las evidencias), separando las partes con puntos. No se suben videos. ' +
       '<a href="' + GUIA_ROTULADO + '" target="_blank" rel="noopener">📘 Ver la Guía rápida de rotulado</a> · ' +
-      '<a href="docs/guia-operativa-docente.pdf#page=5" target="_blank" rel="noopener">📕 Guía Operativa Docente, 4.5 (resaltado)</a></div>' +
+      '<a href="' + verPdf('docs/guia-operativa-docente.pdf', 5, '4.5 portafolio') + '" target="_blank" rel="noopener">📕 Guía Operativa Docente, 4.5 (resaltado)</a></div>' +
       '<p class="sub"><b>Cómo leer esta tabla:</b> detalla la tabla de arriba. Cada fila es una evaluación del curso —una ' +
       'carpeta que creó Calidad y Acreditación dentro de «EVALUACIONES»— y dice a qué punto del portafolio corresponde. ' +
       'Las cuatro columnas son las evidencias que exige la directiva. En cada casilla aparece el archivo que se encontró, ' +
