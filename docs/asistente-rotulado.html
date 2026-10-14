@@ -133,7 +133,7 @@ const TIPOS=[
 const hoy=new Date(); const anioHoy=hoy.getFullYear(); const cicloHoy=hoy.getMonth()>=7?'II':'I';
 const D={clase:'evidencia',codigo:'IN0701',tipo:'TA',otro:'',varios:'si',numero:'1',anio:String(anioHoy),ciclo:cicloHoy,nombre:'Luis Morales',metrica:'Mayor',nota:'17'};
 // arranca vacío: el ejemplo solo se muestra en la vista previa como guía
-const R={clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',grupo:'',lider:false,entregable:'',metrica:'',nota:''};
+const R={clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''};
 // Nombre tal como va en el rótulo: el estudiante y, si se indicó, su grupo y el entregable.
 // Ej.: «Jacomo Valentino Michel Curotto (líder del grupo 3) TIIN».
 const nombreRotulo=()=>{ if(!R.nombre) return ''; let t=R.nombre;
@@ -153,6 +153,7 @@ const limpiaNombre=t=>t.replace(/[.\\/:*?"<>|]/g,' ').replace(/\s+/g,' ').trim()
 function partes(){
   const p=[['c1','CÓDIGO',R.codigo],['c2','TIPO',siglaTipo()],['c3','PERIODO',periodo()]];
   if(R.clase!=='enunciado'){p.push(['c4','NOMBRE',nombreRotulo()],['c5','MÉTRICA',R.metrica],['c6','NOTA',R.nota]);}
+  else if(R.desc) p.push(['c4','DESCRIPCIÓN',R.desc]);
   return p;
 }
 function nombreFinal(conExt=true){return partes().map(x=>x[2]).join('.')+(conExt?'.PDF':'');}
@@ -198,9 +199,16 @@ const PASOS=[
    <div class="fila"><label for="inAnio" class="ayuda">Año</label>
    <select id="inAnio">${[...new Set([anioHoy-2,anioHoy-1,anioHoy,anioHoy+1,+R.anio])].sort().map(a=>`<option ${String(a)===R.anio?'selected':''}>${a}</option>`).join('')}</select>
    <label for="inCiclo" class="ayuda">Ciclo</label>
-   <select id="inCiclo">${['I','II'].map(c=>`<option ${c===R.ciclo?'selected':''}>${c}</option>`).join('')}</select></div>`,
-  lee:()=>{R.anio=$('#inAnio').value;R.ciclo=$('#inCiclo').value},
-  ok:()=>''},
+   <select id="inCiclo">${['I','II'].map(c=>`<option ${c===R.ciclo?'selected':''}>${c}</option>`).join('')}</select></div>
+   ${R.clase==='enunciado'?`<details class="extra" ${R.desc?'open':''}><summary>➕ Añadir más información (opcional): de qué trata esta evaluación</summary>
+    <p class="ayuda">Útil cuando hay varias del mismo tipo. Se agrega al final del nombre, sin cambiar el resto. Ejemplo: <b>IN1001.TA1.2026-II.Estudio de mercado cap 2 DEPI.PDF</b></p>
+    <label for="inDesc" class="ayuda">Breve descripción (por ejemplo: Estudio de mercado cap 2 DEPI)</label>
+    <input id="inDesc" autocomplete="off" maxlength="50" value="${esc(R.desc)}" placeholder="(opcional)">
+    <p class="ayuda">No use las palabras <b>Mayor</b>, <b>Menor</b> ni <b>Promedio</b>: el portal las reserva para los trabajos de los estudiantes. Los puntos se cambian por espacios.</p>
+   </details>`:''}`,
+  lee:()=>{R.anio=$('#inAnio').value;R.ciclo=$('#inCiclo').value;
+    const d=$('#inDesc'); if(d) R.desc=limpiaNombre(d.value).slice(0,50);},
+  ok:()=>R.clase==='enunciado'&&/(^|\s)(mayor|menor|promedio)(\s|$)/i.test(R.desc)?'En la descripción no use las palabras Mayor, Menor ni Promedio (son para los trabajos de los estudiantes).':''},
  {id:'nombre',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNombre">¿Cómo se llama el estudiante?</label>
    <p class="ayuda">Nombre y apellido, como en la lista. Por ejemplo: <b>Luis Morales</b>.</p>
@@ -260,8 +268,8 @@ document.addEventListener('click',e=>{
   if(b.id==='sigue') return avanza();
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
   if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
-  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
-  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',metrica:'',nota:''});i=0;return pinta();}
+  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.desc='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
+  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''});i=0;return pinta();}
   if(b.id==='editar'){i=0;return pinta();}
 });
 document.addEventListener('input',e=>{
