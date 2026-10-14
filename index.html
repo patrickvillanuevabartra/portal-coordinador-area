@@ -2001,7 +2001,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '14/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-14.06';
+  const VERSION_INTERNA = '2026-10-14.08';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2620,6 +2620,12 @@ label .req{color:var(--falla)}
         nota: 'Cursos por semestre con código, créditos, horas y requisitos.' },
       { plan: '2024-I', t: 'Plan de estudios 2024-I (con códigos)', url: 'docs/plan-estudios-industrial-2024-I.pdf', p: 2,
         nota: 'Cursos por semestre con código, horas, créditos y requisitos. Documento escaneado: se le agregó texto reconocido para que el portal lo pueda leer.' }
+    ],
+    'Ingeniería Mecatrónica': [
+      { plan: '2015-II', t: 'Plan de estudios 2015-II (revisado)', url: 'docs/plan-estudios-mecatronica-2015-II.pdf', p: 1,
+        nota: 'Cursos por semestre con código, créditos, horas y requisitos, más el total de créditos y la malla. Documento escaneado: se le agregó texto reconocido para que el portal lo pueda leer.' },
+      { plan: '2024-I', t: 'Plan de estudios 2024-I', url: 'docs/plan-estudios-mecatronica-2024-I.pdf', p: 1,
+        nota: 'Cursos por semestre con código, horas, créditos y requisitos, los electivos por mención y la malla (páginas 37 a 42 del plan curricular).' }
     ]
     // Las demás Escuelas: agregar aquí sus planes cuando los envíen (y el PDF en docs/).
   };
@@ -7368,7 +7374,7 @@ label .req{color:var(--falla)}
                  ' · ' + NOMBRE_P[k.punto]]); });
     guia.push([]);
     secG('2. Cómo debe llamarse cada archivo (directiva de la Facultad)');
-    [['Enunciado', 'CÓDIGO.TIPO.PERIODO.PDF  →  ejemplo: IN0701.EP.2026-II.PDF'],
+    [['Enunciado', 'CÓDIGO.TIPO.PERIODO.PDF  →  ejemplo: IN0701.EP.2026-II.PDF  (opcional: una breve descripción antes de .PDF, por ejemplo IN1001.TA1.2026-II.Estudio de mercado cap 2 DEPI.PDF)'],
      ['Desarrollo de la mayor nota', 'CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor.Nota.PDF  →  IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF'],
      ['Desarrollo de la menor nota', '…Nombre Apellido.Menor.Nota.PDF  →  IN0701.EP.2026-II.José Vega.Menor.12.PDF'],
      ['Desarrollo de la nota promedio', '…Nombre Apellido.Promedio.Nota.PDF  →  IN0701.EP.2026-II.Samuel Díaz.Promedio.14.PDF'],
@@ -9212,8 +9218,9 @@ label .req{color:var(--falla)}
     const keep = new Set();
     L.forEach((l, i) => {
       // «IN-0404» (plan 2024-I) y «IN0404» son el mismo código.
-      const u = l.toUpperCase().replace(/[\s-]+/g, ''), n = sinAcentos(l);
-      if ((cod && u.indexOf(cod) >= 0) || (nom.length > 8 && n.indexOf(nom) >= 0)) { for (let k = i - 1; k <= i + 2; k++) keep.add(k); }
+      // En los planes escaneados el lector a veces confunde la letra O con el cero («EMO2» = «EM02»).
+      const u = l.toUpperCase().replace(/[\s-]+/g, '').replace(/O/g, '0'), n = sinAcentos(l);
+      if ((cod && u.indexOf(cod.replace(/O/g, '0')) >= 0) || (nom.length > 8 && n.indexOf(nom) >= 0)) { for (let k = i - 1; k <= i + 2; k++) keep.add(k); }
       if (/cr[eé]ditos|requisito|c[oó]digo|condici[oó]n|obligatori|electiv/i.test(l) && l.length < 200) keep.add(i);
     });
     const out = L.filter((l, i) => keep.has(i) && l.trim()).join('\n');
