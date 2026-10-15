@@ -230,8 +230,17 @@ const PASOS=[
  {id:'metrica',ver:()=>R.clase==='evidencia',
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
    <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${esGrupal()?'':op('metrica','Promedio','La nota promedio','Solo si el grupo tiene 3 estudiantes o más.')}</div>
-   <p class="ayuda">${esGrupal()?'En talleres, laboratorios, informes y proyectos, que se trabajan en grupo, solo se piden la <b>mayor</b> y la <b>menor</b> nota. ':''}Un trabajo no presentado (0 sin entrega) no cuenta: la menor nota es la del trabajo presentado con la nota más baja.</p>`,
-  ok:()=>!R.metrica?'Elija una opción.':(esGrupal()&&R.metrica==='Promedio'?'En trabajos en grupo solo se piden la mayor y la menor nota.':'')},
+   <p class="ayuda">${esGrupal()?'En talleres, laboratorios, informes y proyectos, que se trabajan en grupo, solo se piden la <b>mayor</b> y la <b>menor</b> nota. ':''}Un trabajo no presentado (0 sin entrega) no cuenta: la menor nota es la del trabajo presentado con la nota más baja.</p>
+   <details class="extra" ${/-/.test(R.metrica)?'open':''}><summary>➕ ¿Un mismo trabajo vale para dos notas? (un solo grupo o notas iguales)</summary>
+    <p class="ayuda">Úselo solo cuando <b>no existe otro trabajo con nota distinta</b>. Así sube un solo archivo y el portal lo cuenta en las dos casillas.</p>
+    <div class="ops">
+     ${op('metrica','Mayor-Menor','Es el único trabajo: vale como mayor y como menor nota','Ejemplo 1: en el laboratorio se formó un solo grupo, así que hay una sola nota. Ejemplo 2: los 4 estudiantes sacaron 15.')}
+     ${esGrupal()?'':op('metrica','Mayor-Promedio','Vale como mayor nota y como nota promedio','Ejemplo: notas 12, 16, 16 y 16. El promedio es 15 y el trabajo más cercano es uno de 16, que también es la mayor nota.')}
+     ${esGrupal()?'':op('metrica','Menor-Promedio','Vale como menor nota y como nota promedio','Ejemplo: notas 14, 14, 14 y 18. El promedio es 15 y el trabajo más cercano es uno de 14, que también es la menor nota.')}
+    </div>
+    <p class="ayuda"><b>No lo use si hay notas distintas.</b> Ejemplo: 2 grupos de laboratorio con 13 y 17 → suba el de 17 como <b>Mayor</b> y el de 13 como <b>Menor</b>, en dos archivos.</p>
+   </details>`,
+  ok:()=>!R.metrica?'Elija una opción.':(esGrupal()&&/Promedio/.test(R.metrica)?'En trabajos en grupo solo se piden la mayor y la menor nota.':'')},
  {id:'nota',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNota">¿Qué nota obtuvo?</label>
    <p class="ayuda">De 0 a 20. Puede llevar decimales, por ejemplo <b>17</b> o <b>16,05</b>. En el nombre del archivo el decimal va con <b>coma</b>, porque el punto separa las partes del nombre.</p>
@@ -268,7 +277,7 @@ document.addEventListener('click',e=>{
   if(b.id==='sigue') return avanza();
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
   if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
-    if(b.dataset.k==='tipo'&&esGrupal()&&R.metrica==='Promedio') R.metrica='';
+    if(b.dataset.k==='tipo'&&esGrupal()&&/Promedio/.test(R.metrica)) R.metrica='';
   if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.desc='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
   if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''});i=0;return pinta();}
   if(b.id==='editar'){i=0;return pinta();}
