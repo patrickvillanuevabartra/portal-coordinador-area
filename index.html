@@ -1999,9 +1999,9 @@ label .req{color:var(--falla)}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '14/10/2026';
+  const VERSION_PORTAL = '15/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-14.12';
+  const VERSION_INTERNA = '2026-10-15.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -8750,8 +8750,9 @@ label .req{color:var(--falla)}
       caja.className = 'chat-asistente';
       caja.innerHTML =
         (ins.rotulado
-          ? '<div class="banda-rotulado"><span>🏷️ <b>¿Necesita saber cómo debe llamarse un archivo del portafolio?</b> ' +
-            'El asistente le hace unas preguntas sencillas y le da el nombre correcto.</span>' +
+          ? '<div class="banda-rotulado"><span>🏷️ <b>Recomendado: rotule cada archivo con el Asistente de rotulado.</b> ' +
+            'Le hace unas preguntas sencillas y le da el nombre que este portal entiende, también en los casos difíciles ' +
+            '(trabajos en grupo, informes, un solo grupo, pocos alumnos). Así cada archivo cae en su casilla y no aparecen errores que no existen.</span>' +
             '<a class="btn-rotulado" target="_blank" rel="noopener" href="docs/asistente-rotulado.html?codigo=' +
             encodeURIComponent((estado.actual || {}).codigo || '') + '&periodo=' + encodeURIComponent(cicloVigente()) +
             '">Abrir el Asistente de rotulado</a></div>'
@@ -11043,9 +11044,9 @@ label .req{color:var(--falla)}
       'en <b>talleres, laboratorios (sus informes) y proyectos</b>, que se trabajan en grupos y son pocos, no se pide la nota promedio; ' +
       'tampoco en las evaluaciones individuales de un grupo con menos de 3 estudiantes matriculados (según el F3' +
       (ev.matriculados ? ': aquí, ' + ev.matriculados : ', que en este grupo no lo indica') + '). Un trabajo no presentado (0 sin entrega) no es evidencia. ' +
-      'Si <b>un mismo trabajo vale para dos notas</b>, se sube una sola vez juntando las métricas con un guion: por ejemplo, un laboratorio con un solo grupo ' +
-      '(una sola nota) → <code>…Grupo único.Mayor-Menor.15.PDF</code>; notas 14, 14, 14 y 18 (el de 14 es la menor y el más cercano al promedio, 15) → ' +
-      '<code>…Ana Torres.Menor-Promedio.14.PDF</code>. El portal cuenta ese archivo en las dos casillas. ' +
+      'Si <b>hay un solo trabajo</b> (por ejemplo, un laboratorio con un solo grupo y una sola nota), se sube una sola vez como ' +
+      '<code>…Grupo único.Mayor-Menor.15.PDF</code> y el portal lo cuenta como mayor y como menor nota. Con notas repetidas (14, 14, 14 y 18) se suben ' +
+      'trabajos distintos: el de 18 como Mayor, un 14 como Menor y otro 14 como Promedio. ' +
       'Cada archivo se rotula ' +
       '<code>CÓDIGO.TIPO.PERIODO</code> (el enunciado) o <code>CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota</code> ' +
       '(las evidencias), separando las partes con puntos. No se suben videos. ' +
