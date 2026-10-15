@@ -71,6 +71,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 .nota p{margin:0}
 .ok{color:var(--accent);font-weight:700;margin:0;min-height:1.5em}
 .pie{color:var(--muted);font-size:.95rem}
+.valor{margin-top:12px;background:var(--accent-soft);border-left:5px solid var(--accent);border-radius:8px;padding:10px 14px;line-height:1.5}.valor ul{margin:6px 0 0;padding-left:20px}.valor li{margin:4px 0}
+.cuantos ul{margin:6px 0;padding-left:20px}.cuantos li{margin:4px 0}
 .extra{border:2px dashed var(--line);border-radius:8px;padding:10px 14px;display:grid;gap:8px}
 .extra summary{cursor:pointer;font-weight:700;color:var(--accent)}
 .extra[open]{border-color:var(--accent)}
@@ -93,6 +95,12 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
   <header>
     <h1>Asistente de rotulado de evidencias</h1>
     <p class="sub">Responda una pregunta a la vez. Al final tendrá el nombre correcto del archivo, según la directiva de rotulado de Calidad y Acreditación, y si elige su PDF podrá descargarlo ya rotulado.</p>
+    <div class="valor"><b>✅ Use este asistente para cada archivo del portafolio.</b>
+     <ul>
+      <li><b>El portal entiende sus nombres.</b> El portal revisa el portafolio leyendo el nombre de cada archivo. Con los nombres de este asistente, cada archivo cae en su casilla y no aparecen errores que no existen.</li>
+      <li><b>Le resuelve los casos difíciles:</b> trabajos en grupo, el líder y el número de grupo, informes, un solo grupo en el laboratorio, cursos con pocos alumnos.</li>
+      <li><b>No tiene que recordar ninguna regla:</b> el asistente las aplica por usted.</li>
+     </ul></div>
   </header>
 
   <div class="nombre" aria-live="polite">
@@ -165,9 +173,21 @@ function pintaVista(){
 const PASOS=[
  {id:'clase',ver:()=>true,
   html:()=>`<p class="preg">¿Qué archivo va a rotular?</p>
-   <p class="ayuda">En el portafolio, cada evaluación lleva 4 archivos: <b>1 en blanco</b> (las preguntas) y <b>3 resueltos por estudiantes</b> (el de mayor nota, el de menor nota y el de nota promedio). En talleres, laboratorios y proyectos, que se trabajan en grupo, son <b>2</b>: la mayor y la menor nota. Vale para <b>todas</b> las evaluaciones: exámenes, prácticas, trabajos, laboratorios, talleres, investigaciones y proyectos (Guía Operativa Docente, numeral 4.5).</p>
+   <div class="ayuda cuantos"><b>¿Cuántos archivos se suben por cada evaluación?</b>
+    <ul>
+     <li><b>Exámenes, prácticas, trabajos e investigaciones</b> (se resuelven de forma individual): <b>4 archivos</b> → 1 en blanco (las preguntas) + 3 resueltos por estudiantes: el de <b>mayor</b> nota, el de <b>menor</b> nota y el de nota <b>promedio</b>.</li>
+     <li><b>Talleres, laboratorios (con sus informes) y proyectos</b> (se trabajan en grupo): <b>3 archivos</b> → 1 en blanco + 2 resueltos: el de <b>mayor</b> nota y el de <b>menor</b> nota.</li>
+    </ul>
+    <b>¿Por qué en los trabajos en grupo no va la nota promedio?</b> Porque hay pocos grupos y el promedio no se parece a ningún trabajo. <i>Ejemplo:</i> 3 grupos sacan 5, 16 y 17; el promedio es 12.7, y ningún grupo sacó algo parecido. Por eso bastan la mayor y la menor nota. (La Guía Operativa Docente, numeral 4.5, pide el enunciado y las tres notas.)
+    <br><b>Casos especiales.</b> A veces el curso no es como en la lista de arriba. Así se resuelve:
+    <ul>
+     <li><b>Curso con menos de 3 estudiantes:</b> no hay nota promedio. <i>Ejemplo:</i> un curso con 2 alumnos → suba el examen en blanco, el de mayor nota y el de menor nota (3 archivos).</li>
+     <li><b>Hay un solo trabajo:</b> <i>ejemplo:</i> en el laboratorio se formó un solo grupo, así que hay un único informe con una sola nota (15). Ese informe es al mismo tiempo el de mayor y el de menor nota. Súbalo <b>una sola vez</b>; el asistente le pondrá <b>Mayor-Menor</b> en el nombre: <code>…Grupo único.Mayor-Menor.15.PDF</code>.</li>
+     <li><b>Notas repetidas:</b> <i>ejemplo:</i> 4 alumnos sacaron 14, 14, 14 y 18. El promedio es 15 y la nota más cercana es 14, igual que la menor. Suba el de 18 como <b>Mayor</b> y <b>dos trabajos distintos de 14</b>: uno como <b>Menor</b> y otro como <b>Promedio</b> (cualquiera de los tres de 14 sirve). Siguen siendo 3 archivos resueltos.</li>
+    </ul>
+    Estas opciones aparecen más adelante, en la pregunta «¿Qué nota representa este trabajo?».</div>
    <div class="ops">${op('clase','enunciado','El examen o tarea en blanco','Las preguntas que el docente entregó, sin resolver. Por ejemplo, el examen parcial tal como se tomó. Es 1 por evaluación.')}
-   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno. Por evaluación se suben la mayor, la menor y la nota promedio (en talleres, laboratorios, informes y proyectos, que son en grupo, y en grupos de menos de 3 estudiantes, solo la mayor y la menor).')}</div>`,
+   ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno, o el informe de un grupo: el de mayor, menor o nota promedio.')}</div>`,
   ok:()=>R.clase?'':'Elija una de las dos opciones.'},
  {id:'codigo',ver:()=>true,
   html:()=>`<label class="preg" for="inCodigo">¿Cuál es el curso?</label>
@@ -231,14 +251,12 @@ const PASOS=[
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
    <div class="ops">${op('metrica','Mayor','La mayor nota','')}${op('metrica','Menor','La menor nota','')}${esGrupal()?'':op('metrica','Promedio','La nota promedio','Solo si el grupo tiene 3 estudiantes o más.')}</div>
    <p class="ayuda">${esGrupal()?'En talleres, laboratorios, informes y proyectos, que se trabajan en grupo, solo se piden la <b>mayor</b> y la <b>menor</b> nota. ':''}Un trabajo no presentado (0 sin entrega) no cuenta: la menor nota es la del trabajo presentado con la nota más baja.</p>
-   <details class="extra" ${/-/.test(R.metrica)?'open':''}><summary>➕ ¿Un mismo trabajo vale para dos notas? (un solo grupo o notas iguales)</summary>
-    <p class="ayuda">Úselo solo cuando <b>no existe otro trabajo con nota distinta</b>. Así sube un solo archivo y el portal lo cuenta en las dos casillas.</p>
+   <details class="extra" ${/-/.test(R.metrica)?'open':''}><summary>➕ ¿Hay un solo trabajo? (por ejemplo, un solo grupo en el laboratorio)</summary>
+    <p class="ayuda">Úselo solo cuando <b>no existe ningún otro trabajo</b> que subir. Así sube un solo archivo y el portal lo cuenta como mayor y como menor nota.</p>
     <div class="ops">
-     ${op('metrica','Mayor-Menor','Es el único trabajo: vale como mayor y como menor nota','Ejemplo 1: en el laboratorio se formó un solo grupo, así que hay una sola nota. Ejemplo 2: los 4 estudiantes sacaron 15.')}
-     ${esGrupal()?'':op('metrica','Mayor-Promedio','Vale como mayor nota y como nota promedio','Ejemplo: notas 12, 16, 16 y 16. El promedio es 15 y el trabajo más cercano es uno de 16, que también es la mayor nota.')}
-     ${esGrupal()?'':op('metrica','Menor-Promedio','Vale como menor nota y como nota promedio','Ejemplo: notas 14, 14, 14 y 18. El promedio es 15 y el trabajo más cercano es uno de 14, que también es la menor nota.')}
+     ${op('metrica','Mayor-Menor','Es el único trabajo: vale como mayor y como menor nota','Ejemplo: en el laboratorio se formó un solo grupo, así que hay un único informe con una sola nota.')}
     </div>
-    <p class="ayuda"><b>No lo use si hay notas distintas.</b> Ejemplo: 2 grupos de laboratorio con 13 y 17 → suba el de 17 como <b>Mayor</b> y el de 13 como <b>Menor</b>, en dos archivos.</p>
+    <p class="ayuda"><b>No lo use si hay otros trabajos, aunque tengan la misma nota.</b> Ejemplo 1: 2 grupos con 13 y 17 → suba el de 17 como <b>Mayor</b> y el de 13 como <b>Menor</b>. Ejemplo 2: notas 14, 14, 14 y 18 → el de 18 como <b>Mayor</b>, un trabajo de 14 como <b>Menor</b> y <b>otro</b> de 14 como <b>Promedio</b>.</p>
    </details>`,
   ok:()=>!R.metrica?'Elija una opción.':(esGrupal()&&/Promedio/.test(R.metrica)?'En trabajos en grupo solo se piden la mayor y la menor nota.':'')},
  {id:'nota',ver:()=>R.clase==='evidencia',
