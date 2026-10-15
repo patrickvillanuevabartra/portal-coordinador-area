@@ -1415,12 +1415,12 @@ label .req{color:var(--falla)}
       <h3>Editar coordinador</h3>
       <p class="det" id="ecAmbito"></p>
       <div class="ec-modos">
-        <label class="ec-modo"><input type="radio" name="ecModo" value="reemplazar" checked>
+        <label class="ec-modo"><input type="radio" name="ecModo" value="corregir" checked>
+          <span><b>Corregir o completar datos de la misma persona</b><br>
+          <small>Para completar el celular o corregir un error en el nombre o el correo. Los datos actuales aparecen abajo para que los revise. No cambia quién coordina.</small></span></label>
+        <label class="ec-modo"><input type="radio" name="ecModo" value="reemplazar">
           <span><b>Reemplazar por otra persona</b><br>
-          <small>Otra persona asume el área (licencia, renuncia, reasignación). El anterior queda como «Inactivo» con su historial y sus supervisiones siguen a su nombre; el nuevo entra con su correo y desde ese momento ve los cursos del área.</small></span></label>
-        <label class="ec-modo"><input type="radio" name="ecModo" value="corregir">
-          <span><b>Corregir datos de la misma persona</b><br>
-          <small>Solo para errores de tipeo en el nombre, el correo o el celular. No cambia quién coordina.</small></span></label>
+          <small>Otra persona asume el área (licencia, renuncia, reasignación). Los campos quedan en blanco para escribir los datos de quien asume. El anterior queda como «Inactivo» con su historial y sus supervisiones siguen a su nombre.</small></span></label>
       </div>
       <label for="ecNombre">Apellidos y nombres <span class="req">*</span></label>
       <input type="text" id="ecNombre" placeholder="APELLIDOS, Nombres">
@@ -2001,7 +2001,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '15/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-15.03';
+  const VERSION_INTERNA = '2026-10-15.06';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2872,17 +2872,21 @@ label .req{color:var(--falla)}
   const igual_ = (a, b) => !b || sinAcentos(a || '') === sinAcentos(b);
 
   function filtrar(lista) {
-    const q = sinAcentos($('buscar').value.trim());
+    const q = sinAcentos($('buscar').value.trim()).replace(/\s+/g, ' ');
     const prog = $('fPrograma').value, area = $('fArea').value, tipo = $('fTipo').value;
-    return lista.filter(a => {
-      if (!igual_(a.programa, prog)) return false;
-      if (!igual_(a.area, area)) return false;
-      if (!igual_(a.tipo, tipo)) return false;
-      if (!q) return true;
-      // Cada palabra debe aparecer en algun campo: permite "logistica bendezu".
+    const base = lista.filter(a => igual_(a.programa, prog) && igual_(a.area, area) && igual_(a.tipo, tipo));
+    if (!q) return base;
+    // 1.º El nombre exacto del curso o del docente, como palabras completas:
+    //    «Telecomunicaciones II» no trae Telecomunicaciones I ni III.
+    const esc = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const frase = new RegExp('(^|[^a-z0-9])' + esc + '($|[^a-z0-9])');
+    const exactos = base.filter(a => frase.test(sinAcentos([a.asignatura, a.codigo, a.docente].join(' | '))));
+    if (exactos.length) return exactos;
+    // 2.º Si no, cada palabra debe aparecer en algún campo: permite «logistica bendezu».
+    return base.filter(a => {
       const texto = sinAcentos([a.asignatura,a.codigo,a.docente,a.area,a.programa,
         a.planEstudio,a.semestre,a.grupo,a.subGrupo,a.tipo,a.idAsignacion].join(' '));
-      return q.split(/\s+/).every(p => texto.includes(p));
+      return q.split(' ').every(p => texto.includes(p));
     });
   }
 
@@ -7809,9 +7813,10 @@ label .req{color:var(--falla)}
       const filasA = areas.map(a => {
         const cs = vig.filter(c => !/general/i.test(c.rol) && k(c.area) === k(a));
         if (!cs.length) nSin++;
-        const busca = k([corto(a)].concat(cs.map(c => c.nombre + ' ' + c.correo)).join(' '));
+        const busca = k([corto(a)].concat(cs.map(c => c.nombre + ' ' + c.correo + ' ' + (c.celular || ''))).join(' '));
         return '<tr data-busca="' + esc(busca) + '"><td><b>' + esc(corto(a)) + '</b></td>' + (cs.length
-          ? '<td>' + cs.map(c => chk(c) + esc(c.nombre)).join('<br>') + '</td><td><small>' + cs.map(c => esc(c.correo || 'sin correo')).join('<br>') +
+          ? '<td>' + cs.map(c => chk(c) + esc(c.nombre)).join('<br>') + '</td><td><small>' + cs.map(c => esc(c.correo || 'sin correo') +
+              ' · ' + (c.celular ? '📱 ' + esc(c.celular) : '<span class="ca-sin">sin celular</span>')).join('<br>') +
             '</small></td><td style="text-align:right">' + cs.map(editar).join('<br>') + '</td>'
           : '<td class="ca-sin">⚠ Sin coordinador</td><td></td><td style="text-align:right"><button type="button" class="btn-mini verde" data-asig="' +
             esc(p) + '|' + esc(a) + '">＋ Asignar</button></td>') + '</tr>';
@@ -7819,7 +7824,8 @@ label .req{color:var(--falla)}
       const sinA = areas.filter(a => !vig.some(c => !/general/i.test(c.rol) && k(c.area) === k(a))).length;
       if (gens.length > 1) nDobles++;
       const gensHtml = gens.length ? gens.map(c => '<div class="ca-gen" data-busca="' + esc(k(c.nombre + ' ' + c.correo + ' general')) + '">' + chk(c) +
-          '<div class="q"><b>' + esc(c.nombre) + '</b><small>Coordinador general · ' + esc(c.correo || 'sin correo') + '</small></div>' + editar(c) + '</div>').join('')
+          '<div class="q"><b>' + esc(c.nombre) + '</b><small>Coordinador general · ' + esc(c.correo || 'sin correo') + ' · ' +
+          (c.celular ? '📱 ' + esc(c.celular) : '<span class="ca-sin">sin celular</span>') + '</small></div>' + editar(c) + '</div>').join('')
         : '<div class="ca-gen"><div class="q ca-sin">⚠ Sin coordinador general</div><button type="button" class="btn-mini verde" data-asig="' + esc(p) + '|">＋ Asignar</button></div>';
       const chips = '<span class="ca-chip' + (gens.length === 1 ? '' : ' w') + '">' + (gens.length === 1 ? '1 general' : gens.length ? gens.length + ' generales: revisar' : 'sin general') + '</span>' +
         '<span class="ca-chip">' + areas.length + (areas.length === 1 ? ' área' : ' áreas') + '</span>' +
@@ -8066,7 +8072,8 @@ label .req{color:var(--falla)}
     const inact = /inactiv/i.test(c.estado || '');
     $('ecAmbito').textContent = (c.area || 'Toda la carrera') + ' · ' + (c.programa || '') + ' · ' + (c.rol || '') +
       ' · ciclo ' + (c.ciclo || 'sin ciclo') + (inact ? ' · INACTIVO' : '');
-    document.querySelector('input[name="ecModo"][value="' + (inact ? 'corregir' : 'reemplazar') + '"]').checked = true;
+    // Por defecto se corrige: así se ven los datos actuales y nadie se reemplaza sin querer.
+    document.querySelector('input[name="ecModo"][value="corregir"]').checked = true;
     document.querySelector('input[name="ecModo"][value="reemplazar"]').disabled = inact;
     $('ecHist').textContent = c.historial || '';
     $('ecHistCaja').classList.toggle('oculto', !c.historial);
