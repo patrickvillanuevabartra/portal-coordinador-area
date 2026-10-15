@@ -2001,7 +2001,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '14/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-14.11';
+  const VERSION_INTERNA = '2026-10-14.12';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -11018,7 +11018,10 @@ label .req{color:var(--falla)}
       'sílabo. Se revisó solo por el nombre de los archivos.</p></div>';
     const celda = lista => {
       if (!lista || !lista.length) return '<td class="falta-celda">Falta</td>';
+      const NC = { mayor: 'mayor', menor: 'menor', promedio: 'nota promedio' };
       return '<td>' + lista.map(x => '<a href="' + esc(x.url || '#') + '" target="_blank" rel="noopener">' + esc(x.nombre) + '</a>' +
+        (x.cubre ? '<span class="rot-sug">Un mismo archivo para dos casillas: vale como ' + x.cubre.map(c => NC[c] || c).join(' y como ') +
+          ' (un solo grupo o notas iguales).</span>' : '') +
         (x.ok ? '<span class="rot-ok">✔ bien rotulado</span>'
               : '<span class="rot-mal">✘ ' + esc(x.motivos.join('; ')) + '</span>' +
                 (x.sugerido ? '<span class="rot-sug">Nombre correcto: <code>' + esc(x.sugerido) + '</code></span>' : ''))).join('') + '</td>';
@@ -11040,6 +11043,9 @@ label .req{color:var(--falla)}
       'en <b>talleres, laboratorios (sus informes) y proyectos</b>, que se trabajan en grupos y son pocos, no se pide la nota promedio; ' +
       'tampoco en las evaluaciones individuales de un grupo con menos de 3 estudiantes matriculados (según el F3' +
       (ev.matriculados ? ': aquí, ' + ev.matriculados : ', que en este grupo no lo indica') + '). Un trabajo no presentado (0 sin entrega) no es evidencia. ' +
+      'Si <b>un mismo trabajo vale para dos notas</b>, se sube una sola vez juntando las métricas con un guion: por ejemplo, un laboratorio con un solo grupo ' +
+      '(una sola nota) → <code>…Grupo único.Mayor-Menor.15.PDF</code>; notas 14, 14, 14 y 18 (el de 14 es la menor y el más cercano al promedio, 15) → ' +
+      '<code>…Ana Torres.Menor-Promedio.14.PDF</code>. El portal cuenta ese archivo en las dos casillas. ' +
       'Cada archivo se rotula ' +
       '<code>CÓDIGO.TIPO.PERIODO</code> (el enunciado) o <code>CÓDIGO.TIPO.PERIODO.Nombre Apellido.Mayor|Menor|Promedio.Nota</code> ' +
       '(las evidencias), separando las partes con puntos. No se suben videos. ' +
