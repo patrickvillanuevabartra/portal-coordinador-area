@@ -224,11 +224,11 @@ const PASOS=[
    ${R.clase==='enunciado'?`<details class="extra" ${R.desc?'open':''}><summary>➕ Añadir más información (opcional): de qué trata esta evaluación</summary>
     <p class="ayuda">Útil cuando hay varias del mismo tipo. Se agrega al final del nombre, sin cambiar el resto. Ejemplo: <b>IN1001.TA1.2026-II.Estudio de mercado cap 2 DEPI GR 01.PDF</b></p>
     <label for="inDesc" class="ayuda">Breve descripción (por ejemplo: Estudio de mercado cap 2 DEPI GR 01)</label>
-    <input id="inDesc" autocomplete="off" maxlength="50" value="${esc(R.desc)}" placeholder="(opcional)">
+    <input id="inDesc" autocomplete="off" maxlength="100" value="${esc(R.desc)}" placeholder="(opcional)">
     <p class="ayuda">No use las palabras <b>Mayor</b>, <b>Menor</b> ni <b>Promedio</b>: el portal las reserva para los trabajos de los estudiantes. Los puntos se cambian por espacios.</p>
    </details>`:''}`,
   lee:()=>{R.anio=$('#inAnio').value;R.ciclo=$('#inCiclo').value;
-    const d=$('#inDesc'); if(d) R.desc=limpiaNombre(d.value).slice(0,50);},
+    const d=$('#inDesc'); if(d) R.desc=limpiaNombre(d.value).slice(0,100);},
   ok:()=>R.clase==='enunciado'&&/(^|\s)(mayor|menor|promedio)(\s|$)/i.test(R.desc)?'En la descripción no use las palabras Mayor, Menor ni Promedio (son para los trabajos de los estudiantes).':''},
  {id:'nombre',ver:()=>R.clase==='evidencia',
   html:()=>`<label class="preg" for="inNombre">¿Cómo se llama el estudiante?</label>
@@ -240,12 +240,13 @@ const PASOS=[
      <input id="inGrupo" inputmode="numeric" autocomplete="off" value="${esc(R.grupo)}" placeholder="N.º" style="max-width:90px">
      <label class="ayuda" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="inLider" ${R.lider?'checked':''} style="width:22px;height:22px"> Es el líder del grupo</label></div>
     <label for="inEntregable" class="ayuda">Tipo de entregable (por ejemplo TIIN, Informe final, Avance 2)</label>
-    <input id="inEntregable" autocomplete="off" value="${esc(R.entregable)}" placeholder="(opcional)">
+    <input id="inEntregable" autocomplete="off" maxlength="100" value="${esc(R.entregable)}" placeholder="(opcional)">
+    <p class="ayuda">Aquí no repita «(líder del grupo 1)»: el asistente ya lo agrega con los datos de arriba. Hasta 100 letras.</p>
    </details>`,
   lee:()=>{R.nombre=limpiaNombre($('#inNombre').value);
     const g=$('#inGrupo'); if(g) R.grupo=g.value.replace(/[^0-9]/g,'').slice(0,2);
     const l=$('#inLider'); if(l) R.lider=l.checked;
-    const e=$('#inEntregable'); if(e) R.entregable=limpiaNombre(e.value).slice(0,40);},
+    const e=$('#inEntregable'); if(e) R.entregable=limpiaNombre(e.value.replace(/\(\s*(l[ií]der del\s+)?grupo\s*\d*\s*\)/gi,' ')).slice(0,100);},
   ok:()=>!R.nombre?'Escriba el nombre y apellido del estudiante.':(R.lider&&!R.grupo?'Marcó «Es el líder del grupo»: escriba también el número de grupo (por ejemplo 3) en «N.º de grupo».':'')},
  {id:'metrica',ver:()=>R.clase==='evidencia',
   html:()=>`<p class="preg">¿Qué nota representa este trabajo?</p>
