@@ -2002,7 +2002,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '16/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-16.01';
+  const VERSION_INTERNA = '2026-10-16.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -8232,7 +8232,7 @@ label .req{color:var(--falla)}
           { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha' }
         ]},
         { tipo:'grid', ancho:true, campos:[
-          { k:'observaciones', etq:'Observaciones generales', tipo:'textarea',
+          { k:'observaciones', etq:'Observaciones generales', tipo:'textarea', opcional:true,
             ayuda:'Lo que se comunicó al docente y con qué plazo.' },
           { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
         ]}
@@ -8292,7 +8292,7 @@ label .req{color:var(--falla)}
           { k:'fechaF4', etq:'Fecha F4', tipo:'fecha' }
         ], contar:{ desde:['f1','f2','f3'], valor:['Presentado','Fuera de plazo'], campo:'presentados', rotulo:'formularios presentados' } },
         { tipo:'grid', ancho:true, campos:[
-          { k:'observaciones', etq:'Observaciones', tipo:'textarea' }
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true }
         ]}
       ]
     },
@@ -8308,7 +8308,7 @@ label .req{color:var(--falla)}
           cuenta:'Cumple', excluye:'No aplica',
           campoCuenta:'cumplidos', campoPct:'porcentaje', rotulo:'cumplimiento' },
         { tipo:'grid', ancho:true, campos:[
-          { k:'observaciones', etq:'Observaciones', tipo:'textarea' },
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true },
           { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
         ]}
       ]
@@ -8325,7 +8325,7 @@ label .req{color:var(--falla)}
           cuenta:'Cumple', excluye:'No aplica',
           campoCuenta:'cumplidas', campoPct:'porcentaje', rotulo:'cumplimiento' },
         { tipo:'grid', ancho:true, campos:[
-          { k:'observaciones', etq:'Observaciones', tipo:'textarea' },
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true },
           { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
         ]}
       ]
@@ -8360,7 +8360,7 @@ label .req{color:var(--falla)}
           { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha' }
         ]},
         { tipo:'grid', ancho:true, campos:[
-          { k:'observaciones', etq:'Observaciones', tipo:'textarea',
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true,
             ayuda:'Qué diferencia se detectó y qué se comunicó para su regularización.' },
           { k:'enlace', etq:'Enlace de evidencia', tipo:'url' }
         ]}
@@ -8378,19 +8378,19 @@ label .req{color:var(--falla)}
           { k:'delegado', etq:'Apellidos y nombres', col:'Delegado (apellidos y nombres)', tipo:'texto', req:true },
           { k:'correoDelegado', etq:'Correo', col:'Correo del delegado', tipo:'correo', req:true },
           { k:'celularDelegado', etq:'Celular', col:'Celular del delegado', tipo:'texto' },
-          { k:'fijoDelegado', etq:'Teléfono fijo', col:'Telefono fijo del delegado', tipo:'texto' }
+          { k:'fijoDelegado', etq:'Teléfono fijo', col:'Telefono fijo del delegado', tipo:'texto', opcional:true }
         ]},
         { tipo:'grid', titulo:'Subdelegado', campos:[
           { k:'codigoSubdelegado', etq:'Código', col:'Codigo del subdelegado', tipo:'texto' },
           { k:'subdelegado', etq:'Apellidos y nombres', col:'Subdelegado (apellidos y nombres)', tipo:'texto' },
           { k:'correoSubdelegado', etq:'Correo', col:'Correo del subdelegado', tipo:'correo' },
           { k:'celularSubdelegado', etq:'Celular', col:'Celular del subdelegado', tipo:'texto' },
-          { k:'fijoSubdelegado', etq:'Teléfono fijo', col:'Telefono fijo del subdelegado', tipo:'texto' }
+          { k:'fijoSubdelegado', etq:'Teléfono fijo', col:'Telefono fijo del subdelegado', tipo:'texto', opcional:true }
         ]},
         { tipo:'grid', ancho:true, campos:[
           // «¿Cómo llegaron al cargo?» se retiró: eso lo declara el docente, no el
           // coordinador. Cuando exista el portal del docente se traerá de allí.
-          { k:'observaciones', etq:'Observaciones', tipo:'textarea',
+          { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true,
             ayuda:'Arriba van los datos de quien está HOY en el cargo. Si sabe de un cambio, puede anotarlo ' +
                   'aquí. Ejemplo: Desde el 15/09/2026 el delegado Juan Pérez fue reemplazado por Carlos Ruiz.' }
         ]}
@@ -8529,19 +8529,23 @@ label .req{color:var(--falla)}
 
   function campoHTML(c, idx) {
     const id = 'f_' + c.k;
-    const req = c.req ? ' <span class="req">*</span>' : '';
+    // Un campo opcional (p. ej. teléfono fijo, observaciones) no cuenta para el
+    // porcentaje de avance ni se marca como faltante si queda vacío.
+    const req = c.req ? ' <span class="req">*</span>'
+      : (c.opcional ? ' <span class="ayuda" style="font-weight:400">(opcional)</span>' : '');
+    const opc = c.opcional ? ' data-opcional="1"' : '';
     let control;
     if (c.tipo === 'select') {
-      control = '<select id="' + id + '"><option value="">Seleccione</option>' +
+      control = '<select id="' + id + '"' + opc + '><option value="">Seleccione</option>' +
         c.opciones.map(o => typeof o === 'object'
           ? '<option value="' + esc(o.v) + '">' + esc(o.t) + '</option>'
           : '<option>' + esc(o) + '</option>').join('') + '</select>';
     } else if (c.tipo === 'textarea') {
-      control = '<textarea id="' + id + '"' +
+      control = '<textarea id="' + id + '"' + opc +
         (c.ayuda ? ' placeholder="' + esc(c.ayuda) + '"' : '') + '></textarea>';
     } else {
       const tipos = { fecha:'date', fechahora:'datetime-local', url:'url', correo:'email' };
-      control = '<input type="' + (tipos[c.tipo] || 'text') + '" id="' + id + '"' +
+      control = '<input type="' + (tipos[c.tipo] || 'text') + '" id="' + id + '"' + opc +
         (c.tipo === 'url' ? ' placeholder="https://drive.google.com/..."' : '') + '>';
     }
     // Las evidencias se manejan aparte: son varias, cada una con su enlace y
@@ -11538,7 +11542,7 @@ label .req{color:var(--falla)}
       const lleno = String(el.value || '').trim() && el.value !== 'Seleccione';
       const soloLectura = el.disabled || el.readOnly;
       caja.classList.toggle('campo-lleno', !!lleno && !soloLectura);
-      caja.classList.toggle('campo-vacio', !lleno && !soloLectura);
+      caja.classList.toggle('campo-vacio', !lleno && !soloLectura && !el.dataset.opcional);
       caja.classList.toggle('campo-auto', soloLectura);
     });
   }
@@ -11548,7 +11552,7 @@ label .req{color:var(--falla)}
     marcarCampos();
     if (!$('rcPorcentaje')) return;
     const campos = [...$('fichaForm').querySelectorAll('[id^="f_"], [data-tema]')]
-      .filter(el => !el.disabled && !el.readOnly && el.type !== 'hidden');
+      .filter(el => !el.disabled && !el.readOnly && el.type !== 'hidden' && !el.dataset.opcional);
     const llenos = campos.filter(el => String(el.value || '').trim() &&
                                       el.value !== 'Seleccione').length;
     const pct = campos.length ? Math.round(llenos / campos.length * 100) : 0;
