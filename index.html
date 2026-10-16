@@ -912,6 +912,8 @@ label .req{color:var(--falla)}
 .item[data-estado="Cumple"]{box-shadow:inset 3px 0 0 var(--ok)}
 .item[data-estado="Parcial"]{box-shadow:inset 3px 0 0 var(--parcial)}
 .item[data-estado="No cumple"]{box-shadow:inset 3px 0 0 var(--falla)}
+.item[data-estado="Subió"],.item[data-estado="Existen"]{box-shadow:inset 3px 0 0 var(--ok)}
+.item[data-estado="No subió"],.item[data-estado="No existen"]{box-shadow:inset 3px 0 0 var(--falla)}
 .item[data-estado="No aplica"]{box-shadow:inset 3px 0 0 var(--neutro)}
 
 .resumen{
@@ -2002,7 +2004,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '16/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-16.02';
+  const VERSION_INTERNA = '2026-10-16.04';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5426,6 +5428,7 @@ label .req{color:var(--falla)}
       .catch(e => { $('indCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
+  const AV_ABIERTAS = new Set();
   function clasePorc(p) { return p >= 70 ? '' : (p >= 40 ? ' baja' : ' critica'); }
 
   function pintarIndicadores(d) {
@@ -5462,7 +5465,7 @@ label .req{color:var(--falla)}
         api('/entrevistas-carrera?ciclo=' + encodeURIComponent($('filtroCiclo').value)).then(r => {
           const caja = $('indEntrevistas'); if (!caja) return;
           caja.innerHTML = (r.entrevistas || []).map(e => '<div class="fila-mod"><span>' + esc(e.carrera) + '</span>' +
-            '<span class="barrota' + (e.registrada ? '' : ' critica') + '"><i style="width:' + (e.registrada ? 100 : 4) + '%"></i></span>' +
+            '<span class="barrota"><i style="width:' + (e.registrada ? 100 : 0) + '%"></i></span>' +
             '<span class="val">' + (e.registrada ? 'Realizada' + (e.prioridad === 'Si' ? ' · urgente' : '') : 'Pendiente') + '</span></div>').join('') ||
             '<div class="vacio">Sin carreras a cargo.</div>';
         }).catch(() => { const caja = $('indEntrevistas'); if (caja) caja.innerHTML = ''; });
@@ -5470,21 +5473,41 @@ label .req{color:var(--falla)}
     }
     h += '</div></section>';
 
-    // Por área: lo que mira el coordinador general y la auditoría.
+    // Por área: lo que mira el coordinador general y la auditoría. Se agrupa
+    // por carrera, en desplegables, como «Coordinadores y áreas por carrera».
     if ((d.areas || []).length > 1 || estado.admin || estado.general) {
+      const corto = t => String(t || '').replace(/\s*\([^)]*\)\s*$/, '');
+      const barra = p => '<span style="display:block;margin-bottom:4px" class="barrota' + clasePorc(p) + '"><i style="width:' + (p > 0 ? p : 0) + '%"></i></span>';
+      const porProg = {};
+      (d.areas || []).forEach(a => { const k = a.programa || 'Sin carrera'; (porProg[k] = porProg[k] || []).push(a); });
+      const progs = Object.keys(porProg).sort((x, y) => x.localeCompare(y, 'es'));
       h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
-        '<h2>Avance por área</h2><p>De menor a mayor, para ver primero lo que está atrasado.</p>' +
-        '</div></header><div class="tarjeta-cuerpo"><div class="tabla"><table>' +
-        '<thead><tr><th>Área</th><th>Coordinador</th><th>Cargas</th><th>Avance</th></tr></thead><tbody>';
-      d.areas.forEach(a => {
-        h += '<tr><td><b>' + esc(a.area) + '</b><small class="codigo">' + esc(a.programa || '') + '</small></td>' +
-          '<td>' + esc(a.coordinador || '—') + '</td>' +
-          '<td>' + a.cargas + '</td>' +
-          '<td style="min-width:150px"><span class="barrota' + clasePorc(a.porcentaje) + '">' +
-          '<i style="width:' + a.porcentaje + '%"></i></span>' +
-          '<small class="codigo">' + a.porcentaje + '% · ' + a.registrados + ' de ' + a.posibles + '</small></td></tr>';
+        '<h2>Avance por área</h2><p>Por carrera. Dentro de cada carrera, las áreas van de menor a mayor avance, para ver primero lo que está atrasado.</p>' +
+        '</div></header><div class="tarjeta-cuerpo">' +
+        '<div class="ca-barra"><button type="button" class="btn-mini" id="avAbrir">Abrir todas</button>' +
+        '<button type="button" class="btn-mini" id="avCerrar">Cerrar todas</button></div>';
+      progs.forEach(pr => {
+        const ls = porProg[pr].slice().sort((x, y) => (x.porcentaje - y.porcentaje) || corto(x.area).localeCompare(corto(y.area), 'es'));
+        const cargas = ls.reduce((t, a) => t + (a.cargas || 0), 0);
+        const reg = ls.reduce((t, a) => t + (a.registrados || 0), 0);
+        const pos = ls.reduce((t, a) => t + (a.posibles || 0), 0);
+        const pc = pos ? Math.round(reg / pos * 1000) / 10 : 0;
+        const sinCoord = ls.filter(a => !a.coordinador).length;
+        h += '<details class="ca-car av-car" data-p="' + esc(pr) + '"' + (AV_ABIERTAS.has(pr) ? ' open' : '') + '><summary>' +
+          '<span class="ca-n">' + esc(pr) + '</span>' +
+          '<span class="ca-chip' + (pc < 70 ? ' w' : '') + '">' + pc + '% de avance</span>' +
+          '<span class="ca-chip">' + ls.length + (ls.length === 1 ? ' área' : ' áreas') + '</span>' +
+          '<span class="ca-chip">' + cargas + ' cargas</span>' +
+          (sinCoord ? '<span class="ca-chip w">' + sinCoord + ' sin coordinador</span>' : '') +
+          '</summary>' +
+          '<table class="ca-tab"><thead><tr><th style="width:28%">Área</th><th>Coordinador</th><th style="width:80px">Cargas</th><th style="width:30%">Avance</th></tr></thead><tbody>' +
+          ls.map(a => '<tr><td><b>' + esc(corto(a.area)) + '</b></td>' +
+            '<td>' + (a.coordinador ? esc(a.coordinador) : '<span class="ca-sin">⚠ Sin coordinador</span>') + '</td>' +
+            '<td>' + a.cargas + '</td>' +
+            '<td>' + barra(a.porcentaje) + '<small>' + a.porcentaje + '% · ' + a.registrados + ' de ' + a.posibles + '</small></td></tr>').join('') +
+          '</tbody></table></details>';
       });
-      h += '</tbody></table></div></div></section>';
+      h += '</div></section>';
     }
 
     // Lo que exige acción.
@@ -5586,6 +5609,10 @@ label .req{color:var(--falla)}
 
     $('indCuerpo').innerHTML = h;
     estado.indicadores = d;
+    document.querySelectorAll('#indCuerpo .av-car').forEach(x => x.addEventListener('toggle', () => {
+      if (x.open) AV_ABIERTAS.add(x.dataset.p); else AV_ABIERTAS.delete(x.dataset.p); }));
+    if ($('avAbrir')) $('avAbrir').addEventListener('click', () => document.querySelectorAll('#indCuerpo .av-car').forEach(x => { x.open = true; }));
+    if ($('avCerrar')) $('avCerrar').addEventListener('click', () => document.querySelectorAll('#indCuerpo .av-car').forEach(x => { x.open = false; }));
     $('btnExpInd').addEventListener('click', () => descargarIndicadores(d));
     const marcadas = () => [...document.querySelectorAll('.cas-carrera:checked')].map(c => c.value);
     if ($('casTodas')) {
@@ -8419,10 +8446,20 @@ label .req{color:var(--falla)}
     estado.idBorrador = '';         // borrador del asistente vinculado a esta ficha
 
     if (clave === 'aulaVirtual') {
+      // Puntos que solo verifican si el elemento está (acuerdo de los
+      // coordinadores, octubre 2026): dos opciones en vez de la escala.
+      M._critBaseAV = M._critBaseAV || (M.criterios || []).slice();
+      M.criterios = M._critBaseAV.map(it => {
+        const o = OPCIONES_AV[sinAcentos(it.etiqueta || '')];
+        return o ? Object.assign({}, it, { opciones: o.opciones, nota: o.nota }) : it;
+      });
       // Punto de la rúbrica: se exige por cada entregable del cronograma, con
       // la evaluación y la retroalimentación (Guía Operativa Docente 4.4).
       M._itemsBaseAV = M._itemsBaseAV || (M.items || []).slice();
-      M.items = M._itemsBaseAV.map(it => esItemRubrica(it) ? Object.assign({}, it, ITEM_RUBRICA_AV) : it);
+      // Solo si el formato define «items»: si se dejara una lista vacía, taparía
+      // a «criterios» en los lugares que leen «items || criterios».
+      if (M._itemsBaseAV.length) M.items = M._itemsBaseAV.map(it => esItemRubrica(it) ? Object.assign({}, it, ITEM_RUBRICA_AV) : it);
+      else delete M.items;
     }
     if (clave === 'silabo') {
       M._itemsBase = M._itemsBase || (M.items || []).slice();
@@ -8651,8 +8688,8 @@ label .req{color:var(--falla)}
 
       if (b.tipo === 'escala') {
         const lista = M[b.fuente] || [];
-        const opciones = '<option value="">Seleccione</option>' +
-          b.opciones.map(v => '<option>' + esc(v) + '</option>').join('');
+        const opcionesDe = it => '<option value="">Seleccione</option>' +
+          (it.opciones || b.opciones).map(v => '<option>' + esc(v) + '</option>').join('');
         const filas = lista.map((it, i) => {
           const n = it.n || String(i + 1).padStart(2, '0');
           const obs = b.obs
@@ -8662,7 +8699,7 @@ label .req{color:var(--falla)}
             '<div class="n mono">' + esc(n) + '</div>' +
             '<div class="txt">' + esc(it.etiqueta) +
               (it.nota ? '<small class="nota-item">' + esc(it.nota) + '</small>' : '') + '</div>' +
-            '<div><select data-estado="' + i + '">' + opciones + '</select></div>' +
+            '<div><select data-estado="' + i + '">' + opcionesDe(it) + '</select></div>' +
             obs + '</div>';
         }).join('');
         return '<div class="items" id="listaItems">' + filas + '</div>' +
@@ -8729,7 +8766,7 @@ label .req{color:var(--falla)}
           const fila = sel.closest('.item');
           fila.dataset.estado = sel.value;
           const obs = fila.querySelector('.obs');
-          if (obs) obs.classList.toggle('oculto', !(sel.value === 'Parcial' || sel.value === 'No cumple'));
+          if (obs) obs.classList.toggle('oculto', !NO_CONFORMES.includes(sel.value));
           recalcularEscala(F);
         recalcularCompleto(F);
         });
@@ -8939,6 +8976,30 @@ label .req{color:var(--falla)}
      utilizadas, antes y después de aplicadas, con retroalimentación», organizadas
      por actividad evaluativa) y Guía para los Coordinadores de Área (confirmar que
      las rúbricas estén publicadas antes de la evaluación). */
+  // Escala de dos opciones de algunos puntos del aula virtual. «Subió» y
+  // «Existen» cuentan como conformes; «No subió» y «No existen», como no.
+  const CONFORMES = ['Cumple', 'Subió', 'Existen'];
+  const NO_CONFORMES = ['Parcial', 'No cumple', 'No subió', 'No existen'];
+  const OPC_SUBIO = ['Subió', 'No subió', 'No aplica'], OPC_EXISTEN = ['Existen', 'No existen', 'No aplica'];
+  const OPCIONES_AV = {
+    'silabo': { opciones: OPC_SUBIO,
+      nota: 'Marque «Subió» si el sílabo del semestre está publicado en el aula virtual; «No subió» si no está.' },
+    'mensaje de sensibilizacion': { opciones: OPC_SUBIO,
+      nota: 'Marque «Subió» si el mensaje de sensibilización está publicado en el aula virtual; «No subió» si no está.' },
+    'materiales adicionales': { opciones: OPC_EXISTEN,
+      nota: 'Marque «Existen» si hay recursos complementarios publicados (lecturas, videos, enlaces); «No existen» si no hay ninguno.' },
+    'links y grabaciones de sesiones': { opciones: OPC_EXISTEN,
+      nota: 'Marque «Existen» si están publicados los enlaces o las grabaciones de las sesiones; «No existen» si no hay. ' +
+            'Si el curso no tiene sesiones virtuales, marque «No aplica».' }
+  };
+  // Un valor guardado con la escala anterior (Cumple, Parcial, No cumple) se
+  // muestra con las opciones nuevas: Cumple o Parcial → Subió/Existen; No cumple → No subió/No existen.
+  function valorSegunOpciones(v, ops) {
+    if (!ops || !v || ops.includes(v)) return v;
+    if (/^(cumple|parcial)$/i.test(v)) return ops[0];
+    if (/^no cumple$/i.test(v)) return ops[1];
+    return v;
+  }
   const esItemRubrica = it => /r[uú]brica/i.test((it.etiqueta || '') + ' ' + (it.nota || '')) || (!it.etiqueta && it.n === '04');
   const ITEM_RUBRICA_AV = {
     etiqueta: 'Rúbrica, evaluación y retroalimentación de cada entregable',
@@ -10572,7 +10633,8 @@ label .req{color:var(--falla)}
       if (!fila || !(h.texto || h.sugerencia)) return;
       const d = document.createElement('div');
       d.className = 'hallazgo-ia';
-      d.innerHTML = '<b>Hallazgo del asistente' + (h.sugerencia ? ' (sugiere «' + esc(h.sugerencia) + '»)' : '') + ':</b> ' +
+      const itH = (M_ACTUAL().items || M_ACTUAL().criterios || [])[i] || {};
+      d.innerHTML = '<b>Hallazgo del asistente' + (h.sugerencia ? ' (sugiere «' + esc(valorSegunOpciones(h.sugerencia, itH.opciones)) + '»)' : '') + ':</b> ' +
         esc(h.texto || 'sin detalle.') +
         (h.nota ? '<span class="nota-interna">Nota para usted (no se envía al docente): ' + esc(h.nota) + '</span>' : '');
       fila.appendChild(d);
@@ -11594,7 +11656,7 @@ label .req{color:var(--falla)}
     // pintarse de color, y si se cuenta también sale el doble.
     const valores = [...$('listaItems').querySelectorAll('select[data-estado]')].map(s => s.value);
     const aplicables = valores.filter(v => v && v !== b.excluye).length;
-    const conformes = valores.filter(v => v === b.cuenta).length;
+    const conformes = valores.filter(v => v === b.cuenta || CONFORMES.includes(v)).length;
     const evaluados = valores.filter(v => v).length;
     const pct = aplicables ? Math.round((conformes / aplicables) * 1000) / 10 : 0;
 
@@ -11651,7 +11713,7 @@ label .req{color:var(--falla)}
             const guardado = it.n ? (leerPrefijo(v, it.n + ' ') || leer(v, 'Item ' + it.n))
                                   : leer(v, it.etiqueta);
             const sel = $('listaItems').querySelector('[data-estado="' + i + '"]');
-            if (guardado && sel) { sel.value = guardado; sel.dispatchEvent(new Event('change')); }
+            if (guardado && sel) { sel.value = valorSegunOpciones(guardado, it.opciones); sel.dispatchEvent(new Event('change')); }
             if (b.obs && it.n) {
               const obs = leer(v, 'Obs ' + it.n);
               const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
@@ -11808,7 +11870,7 @@ label .req{color:var(--falla)}
       const lista = M[be.fuente] || [];
       const sel = [...$('listaItems').querySelectorAll('select[data-estado]')];
       const malos = lista.map((it, i) => ({ it, v: sel[i] ? sel[i].value : '', i }))
-        .filter(x => x.v === 'Parcial' || x.v === 'No cumple');
+        .filter(x => NO_CONFORMES.includes(x.v));
       obs = malos.map(x => {
         const campo = $('listaItems').querySelector('[data-obs="' + x.i + '"]');
         const texto = campo && campo.value.trim() ? ': ' + campo.value.trim() : '';
@@ -12099,7 +12161,7 @@ label .req{color:var(--falla)}
         const falta = lista.findIndex((it, i) => {
           const v = selects[i].value;
           const campo = $('listaItems').querySelector('[data-obs="' + i + '"]');
-          return (v === 'Parcial' || v === 'No cumple') && campo && !campo.value.trim();
+          return NO_CONFORMES.includes(v) && campo && !campo.value.trim();
         });
         if (falta >= 0) {
           return aviso('El ítem ' + lista[falta].n + ' está observado y necesita una observación.', 'error');
