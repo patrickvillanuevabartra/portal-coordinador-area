@@ -1129,8 +1129,9 @@ label .req{color:var(--falla)}
       </div></header>
       <div class="tarjeta-cuerpo">
         <p class="ayuda" style="margin-top:0">Con estas fechas el portal decide solo si el semestre está en curso o en
-          cierre, y exige el examen parcial (o el final) en el portafolio a los 3 días de terminada su
-          semana de exámenes (plazo para devolver las evaluaciones corregidas). Mientras falte, Mis cursos muestra un aviso.</p>
+          cierre, y exige el examen parcial (o el final) en el portafolio <b>una semana (7 días) después</b> de terminada su
+          semana de exámenes: 3 días para devolverlos corregidos a los estudiantes y el resto de la semana siguiente para subirlos.
+          Ejemplo: si un docente toma el parcial el sábado, lo sube a más tardar el sábado siguiente. Mientras falte, Mis cursos muestra un aviso.</p>
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 14px;margin:10px 0">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Inicio de clases<input type="date" id="cal_inicio"></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:14px">Parciales · desde<input type="date" id="cal_parcialesIni"></label>
@@ -2001,7 +2002,7 @@ label .req{color:var(--falla)}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '15/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-15.06';
+  const VERSION_INTERNA = '2026-10-15.07';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2256,11 +2257,18 @@ label .req{color:var(--falla)}
   // Uno por ciclo, para toda la Facultad. Lo registra el administrador en
   // Preparar el ciclo. Con él, el portal decide solo si el semestre está en
   // curso o en cierre, y desde cuándo un examen parcial o final ya debía estar
-  // en el portafolio (una semana después de su semana de exámenes).
+  // en el portafolio (7 días después del sábado de su semana de exámenes).
   const CAL = { ciclo: null, datos: undefined };
-  // Plazo del docente para devolver las evaluaciones corregidas: 3 días,
-  // contados desde el último día de la semana de exámenes.
+  // Plazo del docente para subir las evidencias al portafolio, contado desde
+  // el último día (sábado) de la semana en que se toma la evaluación:
+  // - talleres, prácticas, laboratorios, trabajos: 3 días;
+  // - examen parcial y final: 7 días (una semana). El docente tiene 3 días
+  //   para devolver los exámenes corregidos y la semana siguiente para
+  //   subirlos; no debe pasar de esa semana.
   const GRACIA_DIAS = 3;
+  const PLAZO_EXAMEN_DIAS = 7;
+  function esExamen(nombre) { const g = grupoEval(nombre); return g === 'parcial' || g === 'final'; }
+  function plazoDias(nombre) { return esExamen(nombre) ? PLAZO_EXAMEN_DIAS : GRACIA_DIAS; }
   function cicloVigente() { return ($('filtroCiclo') && $('filtroCiclo').value) || CFG.CICLO_ACTIVO || ''; }
   function hoyLima() { return new Date(Date.now() - 5 * 3600 * 1000).toISOString().slice(0, 10); }
   function sumarDias(iso, n) {
@@ -2286,8 +2294,8 @@ label .req{color:var(--falla)}
   function evaluacionVencida(nombreEval) {
     const cal = CAL.datos, hoy = hoyLima();
     if (!cal) return false;
-    if (/parcial/i.test(nombreEval)) return hoy > sumarDias(cal.parcialesFin, GRACIA_DIAS);
-    if (/final/i.test(nombreEval)) return hoy > sumarDias(cal.finalesFin, GRACIA_DIAS);
+    if (/parcial/i.test(nombreEval)) return hoy > sumarDias(cal.parcialesFin, PLAZO_EXAMEN_DIAS);
+    if (/final/i.test(nombreEval) && !/trabajo/i.test(nombreEval)) return hoy > sumarDias(cal.finalesFin, PLAZO_EXAMEN_DIAS);
     return false;
   }
   function resumenCalendario(cal) {
@@ -2474,7 +2482,7 @@ label .req{color:var(--falla)}
     if (!fin && g === 'parcial') { fin = cal.parcialesFin; fuente = 'calendario académico'; }
     if (!fin && g === 'final') { fin = cal.finalesFin; fuente = 'calendario académico'; }
     if (!fin) return { sinFecha: true, sinCrono: !cr };
-    const desde = sumarDias(fin, GRACIA_DIAS + 1);
+    const desde = sumarDias(fin, plazoDias(evalNombre) + 1);
     return { vencida: hoyLima() >= desde, desde, semana, fuente };
   }
 
@@ -2490,7 +2498,7 @@ label .req{color:var(--falla)}
         const fin = cal && e.semana ? finDeSemana(cal, e.semana) : '';
         return '<tr><td>' + esc(e.tipo + (e.num ? ' ' + e.num : '')) + '</td><td style="text-align:center">' + esc(e.semana || '') +
           '</td><td style="text-align:center">' + esc(e.unidad || '') + '</td><td>' +
-          (fin ? 'hasta el ' + fechaCal(fin) + ' · se exige desde el ' + fechaCal(sumarDias(fin, GRACIA_DIAS + 1)) : 'sin calendario') + '</td></tr>';
+          (fin ? 'hasta el ' + fechaCal(fin) + ' · se exige desde el ' + fechaCal(sumarDias(fin, plazoDias(e.tipo) + 1)) : 'sin calendario') + '</td></tr>';
       };
       const tabla = evs => '<table class="tabla-crono"><tr><th>Evaluación</th><th>Semana</th><th>Unidad</th><th>En el portafolio</th></tr>' +
         evs.map(fila).join('') + '</table>';
@@ -2504,7 +2512,9 @@ label .req{color:var(--falla)}
         '<p class="nota-crono"><b>¿Qué hay que hacer?</b> Elija el PDF (o Word) del sílabo del curso. El portal lee en qué semana y unidad ' +
         'se entrega cada evaluación (talleres, prácticas, parcial, final) y lo muestra para que usted lo confirme. Se registra <b>una vez por ' +
         'curso y ciclo</b>: sirve para todos los grupos. Con esto, la revisión del portafolio exige cada evaluación ' + GRACIA_DIAS +
-        ' días después de terminada su semana (plazo para devolver las evaluaciones corregidas).' +
+        ' días después de terminada su semana, y el examen parcial y el final ' + PLAZO_EXAMEN_DIAS + ' días después (una semana). ' +
+        'Por ejemplo: si el parcial se tomó el jueves de la semana de exámenes, el docente tiene 3 días para devolverlo corregido a los ' +
+        'estudiantes y toda la semana siguiente para subirlo: debe estar en el portafolio a más tardar el sábado de esa semana siguiente.' +
         (cal ? '' : ' <b>Falta el calendario académico ' + esc(ciclo) + '</b>: sin él no se pueden calcular las fechas.') + '</p>' +
         (cr ? tabla(cr.evaluaciones || []) + ((cr.avisos || []).length ? '<p class="aviso-crono">⚠ ' + cr.avisos.map(esc).join('<br>⚠ ') + '</p>' : '') +
               '<p class="nota-crono">Registrado' + (cr.registrado ? ' el ' + esc(cr.registrado) : '') + (cr.por ? ' por ' + esc(cr.por) : '') +
@@ -2737,7 +2747,7 @@ label .req{color:var(--falla)}
     const area = [
       '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión; en verde los ya registrados.',
       '<b>Sílabo:</b> adjunte el sílabo del docente para revisarlo y, en la misma ficha, pulse <b>«Leer el sílabo»</b> para registrar el cronograma de evaluaciones (una vez por curso y ciclo). Sin cronograma, el portal no sabe cuándo debió subirse cada taller o práctica.',
-      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor; tampoco hay nota promedio si el grupo tiene menos de 3 estudiantes), en PDF y bien rotuladas (para dar con el nombre correcto, use el <a href="docs/asistente-rotulado.html?v=2026-10-15" target="_blank" rel="noopener">🏷️ Asistente de rotulado</a>). En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación.',
+      '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor; tampoco hay nota promedio si el grupo tiene menos de 3 estudiantes), en PDF y bien rotuladas (para dar con el nombre correcto, use el <a href="docs/asistente-rotulado.html?v=2026-10-15" target="_blank" rel="noopener">🏷️ Asistente de rotulado</a>). En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación; el examen parcial y el final, ' + PLAZO_EXAMEN_DIAS + ' días (una semana) después.',
       '<b>Cuándo supervisar</b> (Guía para los Coordinadores de Área, Cuadro 1): aula virtual en las semanas 3, 7 y 14; portafolios en las semanas 7, 12 y 16; reuniones con los docentes, mínimo dos (antes de la semana 8 y al cierre). Después de cada supervisión, comunique el resultado al docente por correo institucional y eleve el informe a la Escuela.',
       '<b>Delegados:</b> registre a los delegados de cada curso. <b>La reunión o entrevista con delegados y subdelegados la realiza el coordinador general de la carrera</b>, no el coordinador de área.',
       '<b>El asistente</b> (botón verde de abajo a la derecha) le muestra lo que encuentra y propone; <b>usted decide</b> y marca Cumple, Parcial o No cumple.'
@@ -5627,12 +5637,12 @@ label .req{color:var(--falla)}
       const r = document.querySelector('input[name="modoPorta"][value="' + m + '"]');
       if (r) r.checked = true;
       const hoy = hoyLima();
-      const parc = hoy > sumarDias(cal.parcialesFin, GRACIA_DIAS), fin = hoy > sumarDias(cal.finalesFin, GRACIA_DIAS);
+      const parc = hoy > sumarDias(cal.parcialesFin, PLAZO_EXAMEN_DIAS), fin = hoy > sumarDias(cal.finalesFin, PLAZO_EXAMEN_DIAS);
       nota.innerHTML = '<span style="color:#1b7f4b">📅 Elegido según el calendario académico ' + esc(cicloVigente()) + '</span> (' +
         esc(resumenCalendario(cal)) + '). ' + (m === 'cierre' ? 'Ya empezó el cierre de actas: toda carpeta vacía es falta.'
           : (fin ? 'Ya se exigen los exámenes parciales y finales.'
             : (parc ? 'Ya se exigen los exámenes parciales; los finales todavía no.'
-              : 'Todavía no se exigen los exámenes parciales: se exigen desde el ' + fechaCal(sumarDias(cal.parcialesFin, GRACIA_DIAS + 1)) + '.')));
+              : 'Todavía no se exigen los exámenes parciales: se exigen desde el ' + fechaCal(sumarDias(cal.parcialesFin, PLAZO_EXAMEN_DIAS + 1)) + '.')));
     });
   }
 
@@ -6989,7 +6999,7 @@ label .req{color:var(--falla)}
       'enunciado y las evidencias de la mayor, la menor y la nota promedio; (iii) el formato PDF; (iv) la ausencia de videos; y (v) el rotulado ' +
       'de cada archivo, parte por parte, contra la directiva de rotulado de Calidad y Acreditación. Las evaluaciones que el curso no tiene se consideran «no aplica».');
     h += P('<b>CONFORME:</b> cumple todos los puntos anteriores. <b>OBSERVADO:</b> presenta al menos una falta, detallada con su sustento en el Anexo N.° 02.' +
-      (modo === 'cierre' ? ' Revisión de <b>cierre de ciclo</b>: toda carpeta de evaluación vacía se considera falta.' : (' Revisión <b>durante el ciclo</b>' + (CAL.datos ? ', según el calendario académico (' + resumenCalendario(CAL.datos) + '); un examen parcial o final se exige a los 3 días de terminada su semana de exámenes.' : '.'))));
+      (modo === 'cierre' ? ' Revisión de <b>cierre de ciclo</b>: toda carpeta de evaluación vacía se considera falta.' : (' Revisión <b>durante el ciclo</b>' + (CAL.datos ? ', según el calendario académico (' + resumenCalendario(CAL.datos) + '); un examen parcial o final se exige una semana (7 días) después de terminada su semana de exámenes.' : '.'))));
 
     h += '<h2>4. Resultados</h2>';
     h += '<table border="1" cellpadding="4">' + th(['Área', 'Portafolios revisados', 'Conformes', 'Observados', 'Sin carpeta del docente']) +
@@ -7460,7 +7470,7 @@ label .req{color:var(--falla)}
     // -------------------- anexos con sustento normativo (modelo Bendezú) --
     filas.forEach(x => { x._aud = auditarPortafolio(x, modo); });
     const modoTxt = modo === 'cierre' ? 'Revisión de cierre de ciclo: toda carpeta de evaluación vacía es falta.'
-      : ('Revisión durante el ciclo: una evaluación sin archivos se observa solo si, según el calendario académico, ya debía tomarse (parciales y finales, a los 3 días de terminada su semana de exámenes); las demás se indican para verificarlas con el cronograma del sílabo.' + (CAL.datos ? ' Calendario: ' + resumenCalendario(CAL.datos) + '.' : ' No hay calendario académico registrado: ninguna evaluación vacía se observa.'));
+      : ('Revisión durante el ciclo: una evaluación sin archivos se observa solo si, según el calendario académico, ya debía tomarse (parciales y finales, una semana después de terminada su semana de exámenes); las demás se indican para verificarlas con el cronograma del sílabo.' + (CAL.datos ? ' Calendario: ' + resumenCalendario(CAL.datos) + '.' : ' No hay calendario académico registrado: ninguna evaluación vacía se observa.'));
     const fA1 = cab('ANEXO N.° 01 — Tabla maestra de auditoría de portafolios (' + filas.length + ' registros)').concat([
       ['Sustento: Guía Operativa Docente FI-GFP-GA-001 v01, Numerales 4.4, 4.5 y 4.6 «Proceso de supervisión», y directiva de rotulado de Calidad y Acreditación. ' + modoTxt], []]);
     const encA1 = fA1.length;
@@ -10355,7 +10365,7 @@ label .req{color:var(--falla)}
       'Parcial: más de cuatro unidades, unidades sin logro, o no se indica en qué semana se evalúa o se entrega cada producto.',
       'Nota aclaratoria: la Guía dice «se sugiere» entre tres y cuatro unidades; cinco unidades no invalidan el sílabo, pero se recomienda agruparlas.',
       'Nota aclaratoria: la Guía Operativa Docente (4.1) pide además que los contenidos se distribuyan equilibradamente en las 16 semanas del semestre.',
-      'Nota aclaratoria: la semana de entrega importa también para el portafolio: el portal usa esas semanas para saber desde cuándo exigir cada evidencia (' + GRACIA_DIAS + ' días después de la semana de la evaluación).'],
+      'Nota aclaratoria: la semana de entrega importa también para el portafolio: el portal usa esas semanas para saber desde cuándo exigir cada evidencia (' + GRACIA_DIAS + ' días después de la semana de la evaluación; el parcial y el final, ' + PLAZO_EXAMEN_DIAS + ' días).'],
     '09': [
       'Cumple: indica equipos, materiales y plataformas (software) concretos del curso.',
       'Parcial: solo pone «computadora y proyector» o una lista genérica que no corresponde al curso.',
@@ -10726,7 +10736,7 @@ label .req{color:var(--falla)}
           (evP ? 'Evaluación del curso que lo cubre y su fecha tope' : 'Evidencia encontrada') + '</th></tr></thead><tbody>' +
           filas + '</tbody></table>' +
           (evP ? '<p class="porta-nota"><b>Fecha tope</b>: último día de la semana en que se toma la evaluación (según el cronograma del sílabo; ' +
-            'para parcial y final, si no lo hay, según el calendario académico) más ' + GRACIA_DIAS + ' días para devolver las evaluaciones corregidas. ' +
+            'para parcial y final, si no lo hay, según el calendario académico) más ' + GRACIA_DIAS + ' días (el examen parcial y el final: ' + PLAZO_EXAMEN_DIAS + ' días, una semana, porque primero se devuelven corregidos a los estudiantes). ' +
             '<span class="ev-chip evc-plazo">azul</span> aún está en plazo · <span class="ev-chip evc-ok">verde</span> completo a tiempo · ' +
             '<span class="ev-chip evc-parcial">ámbar</span> incompleto o subido con retraso · <span class="ev-chip evc-vacio">rojo</span> venció sin archivos. ' +
             'La fecha de subida es la que registra Drive.</p>' : '') +
@@ -10942,7 +10952,7 @@ label .req{color:var(--falla)}
     if (v.sinFecha && !v.sinCrono && !(g && g.n)) {
       const cr = cronoDe(a.codigo, a.programa), cal = CAL.datos, gr = grupoEval(e.nombre || e.carpeta);
       const ent = ((cr && cr.evaluaciones) || []).filter(x => grupoEval(x.tipo) === gr && x.semana)
-        .map(x => ({ nom: x.tipo + (x.num ? ' ' + x.num : ''), tope: sumarDias(finDeSemana(cal, x.semana), GRACIA_DIAS) }))
+        .map(x => ({ nom: x.tipo + (x.num ? ' ' + x.num : ''), tope: sumarDias(finDeSemana(cal, x.semana), plazoDias(x.tipo)) }))
         .sort((x, y) => x.tope < y.tope ? -1 : 1);
       if (ent.length > 1) {
         const hoyM = hoyLima(), venc = ent.filter(x => hoyM > x.tope), prox = ent.find(x => hoyM <= x.tope);
