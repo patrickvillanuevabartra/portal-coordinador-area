@@ -222,8 +222,8 @@ const PASOS=[
    <label for="inCiclo" class="ayuda">Ciclo</label>
    <select id="inCiclo">${['I','II'].map(c=>`<option ${c===R.ciclo?'selected':''}>${c}</option>`).join('')}</select></div>
    ${R.clase==='enunciado'?`<details class="extra" ${R.desc?'open':''}><summary>➕ Añadir más información (opcional): de qué trata esta evaluación</summary>
-    <p class="ayuda">Útil cuando hay varias del mismo tipo. Se agrega al final del nombre, sin cambiar el resto. Ejemplo: <b>IN1001.TA1.2026-II.Estudio de mercado cap 2 DEPI.PDF</b></p>
-    <label for="inDesc" class="ayuda">Breve descripción (por ejemplo: Estudio de mercado cap 2 DEPI)</label>
+    <p class="ayuda">Útil cuando hay varias del mismo tipo. Se agrega al final del nombre, sin cambiar el resto. Ejemplo: <b>IN1001.TA1.2026-II.Estudio de mercado cap 2 DEPI GR 01.PDF</b></p>
+    <label for="inDesc" class="ayuda">Breve descripción (por ejemplo: Estudio de mercado cap 2 DEPI GR 01)</label>
     <input id="inDesc" autocomplete="off" maxlength="50" value="${esc(R.desc)}" placeholder="(opcional)">
     <p class="ayuda">No use las palabras <b>Mayor</b>, <b>Menor</b> ni <b>Promedio</b>: el portal las reserva para los trabajos de los estudiantes. Los puntos se cambian por espacios.</p>
    </details>`:''}`,
