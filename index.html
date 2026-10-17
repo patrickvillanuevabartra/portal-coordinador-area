@@ -1076,18 +1076,71 @@ label .req{color:var(--falla)}
   z-index:30;min-width:230px}
 .menu-descargar-lista .btn{text-align:left;border-color:transparent;white-space:nowrap}
 
-/* Formatos como columnas: cada botón dice el formato y su estado */
-#tableroTabla .chips{display:grid;grid-template-columns:repeat(6,minmax(84px,1fr));gap:6px}
-#tableroTabla .chip{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;
-  text-align:left;border-radius:8px;padding:5px 8px;min-height:44px;margin:0;line-height:1.2}
-.chip-mod{font-size:11px;font-weight:500;opacity:.85}
-.chip-est{font-size:12.5px;font-weight:600}
+/* Formatos como columnas, como en la maqueta: ícono + estado + dato */
+#tableroTabla .chips{display:grid;grid-template-columns:repeat(6,minmax(96px,1fr));gap:6px}
+#tableroTabla .chip{display:flex;flex-direction:row;align-items:center;gap:7px;text-align:left;
+  border-radius:8px;padding:6px 9px;min-height:46px;margin:0;line-height:1.2;font-size:12.5px}
+.chip-ico{flex:none}
+.chip-txt{display:flex;flex-direction:column;min-width:0}
+.chip-mod{display:none;font-size:11px;font-weight:500;opacity:.85}
+.chip-est{font-size:13px;font-weight:600}
+.chip-sub{font-size:11px;font-weight:600;opacity:.9}
+.chip-sub.toca{color:#7a5200;opacity:1}
 #tableroTabla .chip.activo{border-color:#c3ccc7;color:#4a5550;background:var(--papel)}   /* pendiente: gris */
+#tableroTabla .chip.activo .chip-est{font-weight:500}
 #tableroTabla .chip.activo:hover{border-color:var(--brand-oscuro);color:var(--tinta);background:#fbfdfc}
+#tableroTabla .chip:disabled{opacity:.6;border-style:dashed;background:var(--fondo)}
 .chip.hecho{background:var(--brand-oscuro);border-color:var(--brand-oscuro)}
 #tableroTabla th .chips-cab span{display:flex;flex-direction:column;text-transform:none;letter-spacing:0;
-  font-size:12px;color:var(--tinta);line-height:1.25}
-#tableroTabla th .chips-cab small{font-weight:400;color:var(--tinta-media);font-size:11px}
+  font-size:13px;color:var(--tinta);line-height:1.25}
+#tableroTabla th .chips-cab small{font-weight:400;color:var(--tinta-media);font-size:11.5px}
+.avance span{font-family:inherit;font-size:11.5px}
+
+/* Cabecera: pestañas con subrayado */
+header #btnInicio,header #btnCiclo,header #btnDatos,header #btnTablero,header #btnCoord{
+  background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;color:var(--tinta-media);
+  padding:0 12px;min-height:44px;align-self:stretch;font-weight:500}
+header #btnInicio:hover,header #btnCiclo:hover,header #btnDatos:hover,header #btnTablero:hover,header #btnCoord:hover{
+  color:var(--tinta);background:transparent}
+header #btnInicio.activo,header #btnCiclo.activo,header #btnDatos.activo,header #btnTablero.activo,header #btnCoord.activo{
+  color:var(--brand-oscuro);border-bottom-color:var(--brand-oscuro);font-weight:600;background:transparent}
+body>header{padding-top:0;padding-bottom:0;min-height:58px}
+
+/* Esta semana toca: tarjetas */
+.es-item.toca{border-color:var(--brand-oscuro);background:#f4faf7}
+.es-item .es-sello{font-size:11.5px;font-weight:600;color:#fff;background:var(--brand-oscuro);border-radius:999px;padding:1px 9px}
+.es-item b{font-size:14.5px}
+.es-item .btn{margin-top:4px}
+
+/* Aviso de una línea */
+.alerta-plegable{font-size:13.5px;padding:10px 14px}
+.alerta-plegable summary{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.alerta-plegable .al-ico{flex:none}
+.alerta-plegable .al-txt{flex:1;min-width:240px}
+.alerta-plegable .ver-detalle{margin-left:auto}
+
+/* Guía: tarjeta blanca, como el resto */
+.guia-rapida{background:var(--papel);border-color:var(--linea);padding:12px 16px}
+.guia-meta{font-weight:400;color:var(--tinta-media);font-size:14px}
+
+/* Búsqueda y tabla en una sola tarjeta */
+.panel-cursos{background:var(--papel);border:1px solid var(--linea);border-radius:10px}
+.panel-cursos .buscador{border:0;border-bottom:1px solid var(--linea);border-radius:10px 10px 0 0;margin:0;
+  padding:14px 16px;align-items:flex-end;gap:12px}
+.panel-cursos .tabla{border:0;border-radius:0 0 10px 10px}
+.panel-cursos #filtroEstadoAviso .filtro-activo{margin:0;border-radius:0;border-width:0 0 1px}
+.bf-campo{display:flex;flex-direction:column;gap:4px}
+.bf-campo label,.bf-eti{font-size:12.5px;font-weight:600;color:var(--tinta-media);margin:0}
+.bf-buscar{flex:1 1 240px}
+.panel-cursos .buscador input[type=search]{min-width:0;width:100%;font-size:14px;padding:9px 12px}
+.panel-cursos .buscador select{font-size:14px;padding:8px 10px;min-height:40px}
+.bf-acciones{display:flex;gap:8px;margin-left:auto;align-items:flex-end}
+.panel-cursos .buscador .btn{padding:9px 14px;font-size:13.5px;min-height:40px}
+.segmentos{display:flex;border:1px solid #c3ccc7;border-radius:8px;overflow:hidden;background:var(--papel)}
+.seg{border:0;background:var(--papel);color:var(--tinta);font:inherit;font-size:13.5px;padding:0 14px;min-height:40px;cursor:pointer}
+.seg+.seg{border-left:1px solid var(--linea)}
+.seg:hover{background:var(--fondo)}
+.seg.activo{background:var(--brand-oscuro);color:#fff;font-weight:600}
 
 /* Ficha: Guardar siempre a la vista, con lo que falta */
 #ficha .ficha{overflow:clip}
@@ -1100,6 +1153,9 @@ label .req{color:var(--falla)}
 @media (max-width:760px){
   .resumen-area{grid-template-columns:repeat(2,minmax(0,1fr))}
   #tableroTabla .chips{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .chip-mod{display:block}
+  .bf-acciones{margin-left:0}
+  .segmentos{flex-wrap:wrap}
   #ficha .ficha-cuerpo>.pie{padding-right:80px}
   .menu-descargar-lista{left:0;right:auto}
 }
@@ -1168,23 +1224,48 @@ label .req{color:var(--falla)}
     <div id="tableroAlertas"></div>
     <div id="guiaRapida"></div>
 
-    <div class="buscador">
-      <input type="search" id="buscar" placeholder="Buscar por curso, código, docente, área…" autocomplete="off">
-      <select id="fPrograma"><option value="">Todas las carreras</option></select>
-      <select id="fArea"><option value="">Todas las áreas</option></select>
-      <select id="fTipo"><option value="">Todos los tipos</option></select>
-      <select id="fEstado" aria-label="Estado de la supervisión"><option value="">Todos los estados</option></select>
-      <button class="btn gris" id="limpiar">Limpiar</button>
-      <details class="menu-descargar">
-        <summary class="btn fantasma">Descargar</summary>
-        <div class="menu-descargar-lista">
-          <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
-          <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
+    <div class="panel-cursos">
+    <div class="buscador barra-filtros">
+      <div class="bf-campo bf-buscar">
+        <label for="buscar">Buscar</label>
+        <input type="search" id="buscar" placeholder="Curso, código o docente" autocomplete="off">
+      </div>
+      <div class="bf-campo">
+        <span class="bf-eti" id="mostrarEti">Mostrar</span>
+        <div class="segmentos" role="group" aria-labelledby="mostrarEti">
+          <button type="button" class="seg activo" data-seg="" aria-pressed="true">Todo</button>
+          <button type="button" class="seg" data-seg="pend" aria-pressed="false">Pendientes</button>
+          <button type="button" class="seg" data-seg="obs" aria-pressed="false">Con observaciones</button>
         </div>
-      </details>
+        <!-- El filtro real: los segmentos y «Esta semana toca» le dan su valor. -->
+        <select id="fEstado" class="oculto" aria-hidden="true" tabindex="-1"><option value="">Todos los estados</option></select>
+      </div>
+      <div class="bf-campo" id="campoPrograma">
+        <label for="fPrograma">Carrera</label>
+        <select id="fPrograma"><option value="">Todas las carreras</option></select>
+      </div>
+      <div class="bf-campo" id="campoArea">
+        <label for="fArea">Área</label>
+        <select id="fArea"><option value="">Todas las áreas</option></select>
+      </div>
+      <div class="bf-campo">
+        <label for="fTipo">Tipo</label>
+        <select id="fTipo"><option value="">Todos los tipos</option></select>
+      </div>
+      <div class="bf-acciones">
+        <button class="btn gris" id="limpiar">Limpiar</button>
+        <details class="menu-descargar">
+          <summary class="btn fantasma">Descargar</summary>
+          <div class="menu-descargar-lista">
+            <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
+            <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
+          </div>
+        </details>
+      </div>
     </div>
     <div id="filtroEstadoAviso"></div>
     <div class="tabla" id="tableroTabla"></div>
+    </div>
   </section>
 
   <!-- ============================================ preparar el ciclo -->
@@ -2863,7 +2944,8 @@ label .req{color:var(--falla)}
     // queda plegada para que lo primero que vea sean sus cursos.
     let primeraVez = false;
     try { primeraVez = !localStorage.getItem('pca_guia_vista'); localStorage.setItem('pca_guia_vista', '1'); } catch (e) {}
-    caja.innerHTML = '<details class="guia-rapida"' + (rol === 'area' && primeraVez ? ' open' : '') + '><summary>📘 ¿Qué tengo que hacer? Guía rápida</summary>' +
+    caja.innerHTML = '<details class="guia-rapida"' + (rol === 'area' && primeraVez ? ' open' : '') + '><summary>📘 ¿Qué tengo que hacer? Guía rápida' +
+      '<span class="guia-meta"> · ' + area.length + ' pasos y los documentos de referencia</span></summary>' +
       '<div class="guia-cuerpo"><h4>Coordinador de área</h4>' + lista(area) +
       (rol !== 'area' ? '<h4>Coordinador general de carrera</h4>' + lista(general) : '') +
       (rol === 'admin' ? '<h4>Administrador</h4>' + lista(admin) : '') +
@@ -2977,6 +3059,13 @@ label .req{color:var(--falla)}
     llenar('fPrograma', l.map(a => a.programa), 'Todas las carreras');
     llenar('fArea', l.map(a => a.area), 'Todas las áreas');
     llenar('fTipo', l.map(a => a.tipo), 'Todos los tipos');
+    // Mejora 2026-10: si hay una sola carrera o una sola área, el selector no
+    // aporta nada y se oculta (el administrador y el coordinador general, con
+    // varias, lo siguen viendo).
+    [['fPrograma', 'campoPrograma'], ['fArea', 'campoArea']].forEach(([s, c]) => {
+      const sel = $(s), caja = $(c);
+      if (sel && caja) caja.classList.toggle('oculto', sel.options.length <= 2 && !sel.value);
+    });
   }
 
   // Se compara sin tildes ni mayúsculas: «Ingeniería electrónica» y
@@ -3049,6 +3138,17 @@ label .req{color:var(--falla)}
     if (t && t.scrollIntoView) t.scrollIntoView({ block: 'start', behavior: 'smooth' });
   }
 
+  document.querySelectorAll('.segmentos .seg').forEach(b =>
+    b.addEventListener('click', () => { prepararFiltroEstado(); $('fEstado').value = b.dataset.seg; pintarTablero(); }));
+  function sincronizarSegmentos() {
+    const v = ($('fEstado') && $('fEstado').value) || '';
+    document.querySelectorAll('.segmentos .seg').forEach(b => {
+      const on = b.dataset.seg === v;
+      b.classList.toggle('activo', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+  }
+
   ['buscar','fPrograma','fArea','fTipo','fEstado'].forEach(id =>
     $(id).addEventListener('input', () => pintarTablero()));
   $('limpiar').addEventListener('click', () => {
@@ -3067,6 +3167,34 @@ label .req{color:var(--falla)}
     if (!ok) return 'Pendiente';
     if (niv) return niv.e || niv.t || 'Registrado';
     return 'Registrado';
+  }
+
+  // Cada celda de la tabla: ícono, estado en palabras y un dato debajo (el
+  // porcentaje, o «Toca esta semana» si el formato pendiente toca ahora).
+  const ICONOS_CHIP = {
+    c: '<path d="M3.5 8.5l3 3 6-7"/>',
+    p: '<circle cx="8" cy="8" r="5.5"/><path d="M8 2.5a5.5 5.5 0 0 1 0 11z" fill="currentColor"/>',
+    n: '<path d="M4.5 4.5l7 7"/><path d="M11.5 4.5l-7 7"/>',
+    r: '<path d="M3.5 8.5l3 3 6-7"/>',
+    pe: '<circle cx="8" cy="8" r="5.5"/>',
+    bl: '<rect x="3.5" y="7" width="9" height="6.5" rx="1.5"/><path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2"/>',
+    esp: '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2 2"/>'
+  };
+  function tocaEstaSemana(clave) {
+    const sem = CAL.ciclo === cicloVigente() ? semanaDelCiclo(CAL.datos) : null;
+    return !!(sem && SEMANAS_SUPERVISION[clave] && SEMANAS_SUPERVISION[clave].indexOf(sem) >= 0);
+  }
+  function contenidoChip(clave, m, ok, niv, bloqueada, sinAvance) {
+    const tipo = bloqueada ? 'bl' : sinAvance ? 'esp' : !ok ? 'pe'
+      : niv && niv.n === 'alto' ? 'c' : niv && niv.n === 'medio' ? 'p' : niv && niv.n === 'bajo' ? 'n' : 'r';
+    const sub = (niv && niv.e && niv.t && niv.e !== niv.t) ? niv.t
+      : (tipo === 'pe' && tocaEstaSemana(clave)) ? 'Toca esta semana' : '';
+    return '<svg class="chip-ico" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+      'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONOS_CHIP[tipo] + '</svg>' +
+      '<span class="chip-txt"><span class="chip-mod">' + esc(m.corto) + '</span>' +
+      '<span class="chip-est">' + esc(textoEstadoChip(ok, niv, bloqueada, sinAvance)) + '</span>' +
+      (sub ? '<span class="chip-sub' + (sub === 'Toca esta semana' ? ' toca' : '') + '">' + esc(sub) + '</span>' : '') +
+      '</span>';
   }
 
   // Cuenta por carga (docente en un grupo, con sus subgrupos juntos), como el
@@ -3155,6 +3283,13 @@ label .req{color:var(--falla)}
     pintarEstaSemana.enVuelo.then(cal => {
       if (ciclo !== cicloVigente()) return;
       const sem = semanaDelCiclo(cal);
+      // Recién llegado el calendario, se repinta una vez la tabla para marcar
+      // «Toca esta semana» en las celdas pendientes.
+      pintarEstaSemana.repintado = pintarEstaSemana.repintado || {};
+      if (sem != null && !pintarEstaSemana.repintado[ciclo]) {
+        pintarEstaSemana.repintado[ciclo] = true;
+        if (estado.asignaciones.length) { pintarTablero(); return; }
+      }
       if (sem == null) {
         caja.innerHTML = '<p class="es-nota">Cuando se registre el calendario académico ' + esc(ciclo) +
           ', aquí verá lo que toca supervisar cada semana.</p>';
@@ -3164,27 +3299,38 @@ label .req{color:var(--falla)}
         caja.innerHTML = '<p class="es-nota">El ciclo ' + esc(ciclo) + ' empieza el ' + esc(fechaCal(cal.inicio)) + '.</p>';
         return;
       }
+      // Mejora 2026-10: siempre tres tarjetas, como en la maqueta: aula virtual,
+      // portafolios y reunión con los docentes. Si no toca esta semana, dicen
+      // cuándo es la próxima revisión.
       const items = [];
       const nombre = { aulaVirtual: 'Aula virtual', portafolios: 'Portafolios' };
+      const que = { aulaVirtual: 'Revisar que sílabo, sumilla y materiales estén subidos.',
+                    portafolios: 'Enunciado y evidencias de la mayor, la menor y la nota promedio.' };
       Object.keys(SEMANAS_SUPERVISION).forEach(k => {
-        const i = SEMANAS_SUPERVISION[k].indexOf(sem);
-        if (i < 0 || !CFG.MODULOS[k]) return;
+        if (!CFG.MODULOS[k]) return;
+        const semanas = SEMANAS_SUPERVISION[k];
+        const i = semanas.indexOf(sem);
+        const sig = semanas.find(x => x > sem);
         const n = r.pendMod[k] || 0;
-        items.push('<div class="es-item"><b>' + nombre[k] + ' · ' + (i + 1) + '.ª revisión</b>' +
-          '<span>' + (estado.avanceListo ? (n ? n + (n === 1 ? ' carga pendiente.' : ' cargas pendientes.') : 'Todas registradas.') : '') + '</span>' +
-          (n ? '<button type="button" class="btn" data-filtro-estado="mod:' + k + '">Ver esas cargas</button>' : '') + '</div>');
+        const titulo = i >= 0 ? nombre[k] + ' · ' + (i + 1) + '.ª revisión'
+          : sig ? nombre[k] + ' · ' + (semanas.indexOf(sig) + 1) + '.ª revisión en la semana ' + sig
+          : nombre[k] + ' · revisiones del ciclo terminadas';
+        const cuenta = estado.avanceListo ? (n ? n + (n === 1 ? ' carga pendiente. ' : ' cargas pendientes. ') : 'Todas registradas. ') : '';
+        items.push('<div class="es-item' + (i >= 0 ? ' toca' : '') + '">' +
+          (i >= 0 ? '<span class="es-sello">Toca esta semana</span>' : '') +
+          '<b>' + esc(titulo) + '</b><span>' + cuenta + que[k] + '</span>' +
+          (n ? '<button type="button" class="' + (i >= 0 ? 'btn' : 'btn fantasma') + '" data-filtro-estado="mod:' + k + '">Ver esas cargas</button>' : '') +
+          '</div>');
       });
-      if (sem < 8) items.push('<div class="es-item"><b>Primera reunión con los docentes</b><span>Debe hacerse antes de la semana 8' +
-        (sem === 7 ? ': queda esta semana.' : '.') + '</span></div>');
-      if (sem >= 15 && sem <= 17) items.push('<div class="es-item"><b>Reunión de cierre con los docentes</b><span>Al terminar el ciclo.</span></div>');
-      if (!items.length) {
-        const prox = Object.keys(SEMANAS_SUPERVISION).map(k => {
-          const s = SEMANAS_SUPERVISION[k].find(x => x > sem);
-          return s ? nombre[k] + ' en la semana ' + s : '';
-        }).filter(Boolean);
-        items.push('<div class="es-item"><b>Esta semana no hay supervisión programada.</b><span>' +
-          (prox.length ? 'Próximas: ' + esc(prox.join('; ')) + '.' : 'El cronograma de supervisión del ciclo ya terminó.') + '</span></div>');
-      }
+      const reunion = sem < 8
+        ? ['Primera reunión con los docentes', 'Debe hacerse antes de la semana 8. ' +
+           (sem === 7 ? 'Queda esta semana.' : 'Quedan ' + (8 - sem) + ' semanas.'), sem === 7]
+        : sem < 15
+          ? ['Reunión de cierre con los docentes', 'Al final del ciclo. La primera reunión debía hacerse antes de la semana 8.', false]
+          : ['Reunión de cierre con los docentes', 'Toca ahora, al cierre del ciclo.', true];
+      items.push('<div class="es-item' + (reunion[2] ? ' toca' : '') + '">' +
+        (reunion[2] ? '<span class="es-sello">Toca esta semana</span>' : '') +
+        '<b>' + reunion[0] + '</b><span>' + reunion[1] + '</span></div>');
       caja.innerHTML = '<section class="esta-semana" aria-labelledby="esTitulo">' +
         '<div class="es-cab"><h3 id="esTitulo">Esta semana toca</h3><span>Semana ' + sem + ' de 16 · según la Guía para los ' +
         'Coordinadores de Área (Cuadro 1)</span></div><div class="es-lista">' + items.join('') + '</div></section>';
@@ -3196,7 +3342,10 @@ label .req{color:var(--falla)}
   function pintarAvisoFiltroEstado() {
     const caja = $('filtroEstadoAviso'), sel = $('fEstado');
     if (!caja || !sel) return;
-    if (!sel.value) { caja.innerHTML = ''; return; }
+    sincronizarSegmentos();
+    // Todo, Pendientes y Con observaciones ya se ven en los botones; la franja
+    // solo hace falta para el filtro de un formato (desde «Esta semana toca»).
+    if (sel.value.indexOf('mod:') !== 0) { caja.innerHTML = ''; return; }
     const txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : '';
     caja.innerHTML = '<div class="filtro-activo"><span>Mostrando solo cargas: <b>' + esc(txt) + '</b></span>' +
       '<button type="button" class="btn gris" id="quitarFiltroEstado">Quitar filtro</button></div>';
@@ -3223,9 +3372,18 @@ label .req{color:var(--falla)}
 
     const incompletas = lista.filter(a => a.faltantes.length);
     $('tableroAlertas').innerHTML = incompletas.length
-      ? '<div class="alerta alerta-plegable"><details><summary><b>' + incompletas.length +
-        (incompletas.length === 1 ? ' carga no se puede registrar' : ' cargas no se pueden registrar') +
-        ':</b> les faltan datos en la tabla Docentes DAI. <span class="ver-detalle">Ver cuáles</span></summary>' +
+      ? '<div class="alerta alerta-plegable"><details><summary>' +
+        '<svg class="al-ico" width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" ' +
+        'stroke-linecap="round" aria-hidden="true"><path d="M10 3l8 14H2z"/><path d="M10 8v4"/><path d="M10 14.5v.5"/></svg>' +
+        '<span class="al-txt"><b>' + incompletas.length +
+        (incompletas.length === 1 ? ' carga no se puede registrar:' : ' cargas no se pueden registrar:') + '</b> ' +
+        (incompletas.length === 1
+          ? 'a «' + esc(nombreCurso(incompletas[0].asignatura) || 'un curso') + '» le falta ' +
+            esc((incompletas[0].faltantes || []).map(x => x === 'código' ? 'el código' : x === 'ciclo' ? 'el ciclo' : 'el grupo').join(' y ')) +
+            ' en la tabla de cargas.'
+          : 'les faltan datos en la tabla de cargas.') +
+        (estado.admin ? ' Corríjalo en Docentes DAI.' : ' Lo corrige el administrador.') + '</span>' +
+        '<span class="ver-detalle">Ver detalle</span></summary>' +
         '<b>' + incompletas.length + (incompletas.length === 1 ? ' carga incompleta' : ' cargas incompletas') +
         ' en la tabla Docentes DAI.</b> Sin esos datos el portal no puede generarles su identificador (ID), y sin ID no se ' +
         'puede registrar su supervisión. Complete en Docentes DAI lo que falta; si es una fila repetida, elimínela:' +
@@ -3396,10 +3554,7 @@ label .req{color:var(--falla)}
                   : ' — pendiente') + '">' +
               // Mejora 2026-10: el botón dice el formato y, debajo, su estado en
               // palabras («Pendiente», o cómo salió si ya se registró).
-              '<span class="chip-mod">' + esc(m.corto) + '</span>' +
-              '<span class="chip-est">' + esc(textoEstadoChip(ok, niv, bloqueada, sinAvance)) +
-                (niv && niv.e && niv.t && niv.e !== niv.t ? ' <span class="chip-val">' + esc(niv.t) + '</span>' : '') +
-              '</span>' +
+              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance) +
               '</button>';
           }).join('');
 
@@ -3409,7 +3564,7 @@ label .req{color:var(--falla)}
               '<div class="barra"><i style="width:0"></i></div><span>…</span></div>'
             : '<div class="avance" title="' + hechos.size + ' de ' + totalMod + ' módulos">' +
               '<div class="barra"><i style="width:' + pct + '%"></i></div>' +
-              '<span>' + hechos.size + '/' + totalMod + '</span></div>';
+              '<span>' + hechos.size + ' de ' + totalMod + ' formatos</span></div>';
 
           // Sin boton de reasignacion: escribir en Docentes DAI por REST borra
           // los campos de relacion de la fila. El area se cambia desde QuintaDB.
