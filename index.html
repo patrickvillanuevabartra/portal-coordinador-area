@@ -1020,6 +1020,89 @@ label .req{color:var(--falla)}
   .vista{font-size:12px;padding:7px 10px}
   .kpi .n{font-size:22px}
 }
+
+/* ==========================================================================
+   MEJORA 2026-10 · diseño de «Mis cursos» y de la ficha.
+   Todo está en este bloque: si algo no convence, se quita y el portal vuelve
+   a verse como antes. No cambia datos ni comportamiento.
+   ========================================================================== */
+:root{ --tinta-tenue:#66706b; }                 /* antes #8c948f: no se leía bien */
+.btn{background:var(--brand-oscuro);border-color:var(--brand-oscuro)}   /* texto blanco legible */
+.btn:hover{background:#084f34;border-color:#084f34}
+.btn.fantasma{color:var(--brand-oscuro)}
+
+/* Resumen del área */
+.resumen-area{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:0 0 14px}
+.ra-tile{background:var(--papel);border:1px solid var(--linea);border-radius:10px;padding:12px 16px;
+  display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--tinta)}
+.ra-boton{cursor:pointer}
+.ra-boton:hover{border-color:var(--brand-oscuro);background:#fbfdfc}
+.ra-eti{font-size:13px;color:var(--tinta-media)}
+.ra-num{font-size:26px;font-weight:600;line-height:1.2}
+.ra-num small{font-size:15px;font-weight:500;color:var(--tinta-media)}
+.ra-det{font-size:12.5px;color:var(--tinta-media)}
+.ra-obs{background:#fff8f0;border-color:#f0d3b0}
+.ra-obs .ra-eti,.ra-obs .ra-num,.ra-obs .ra-det{color:#6b4700}
+.ra-obs:hover{background:#fff3e3;border-color:#d99a1b}
+.ra-barra{height:6px;background:#e8ecea;border-radius:999px;overflow:hidden;margin-top:8px}
+.ra-barra i{display:block;height:100%;background:var(--brand)}
+
+/* Esta semana toca */
+.esta-semana{background:var(--papel);border:1px solid var(--linea);border-radius:10px;padding:14px 16px;margin:0 0 14px}
+.es-cab{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:10px}
+.es-cab h3{font-size:16px}
+.es-cab span{font-size:12.5px;color:var(--tinta-media)}
+.es-lista{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.es-item{border:1px solid var(--linea);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.es-item span{font-size:13px;color:var(--tinta-media)}
+.es-nota{font-size:13px;color:var(--tinta-media);margin:0 0 12px}
+
+/* Aviso de cargas incompletas, plegado en una línea */
+.alerta-plegable summary{cursor:pointer;list-style:none}
+.alerta-plegable summary::-webkit-details-marker{display:none}
+.alerta-plegable .ver-detalle{text-decoration:underline;font-weight:600;margin-left:6px}
+.alerta-plegable details[open] summary{margin-bottom:8px}
+
+/* Filtro por estado y menú Descargar */
+.filtro-activo{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--brand-suave);
+  border:1px solid #bfe0cf;border-radius:8px;padding:8px 12px;margin:0 0 12px;font-size:13.5px}
+.filtro-activo span{flex:1}
+.menu-descargar{position:relative}
+.menu-descargar>summary{list-style:none;display:inline-block}
+.menu-descargar>summary::-webkit-details-marker{display:none}
+.menu-descargar>summary::after{content:" ▾"}
+.menu-descargar-lista{position:absolute;right:0;top:calc(100% + 4px);background:var(--papel);border:1px solid var(--linea);
+  border-radius:8px;box-shadow:0 6px 18px rgba(21,32,27,.12);padding:6px;display:flex;flex-direction:column;gap:4px;
+  z-index:30;min-width:230px}
+.menu-descargar-lista .btn{text-align:left;border-color:transparent;white-space:nowrap}
+
+/* Formatos como columnas: cada botón dice el formato y su estado */
+#tableroTabla .chips{display:grid;grid-template-columns:repeat(6,minmax(84px,1fr));gap:6px}
+#tableroTabla .chip{display:flex;flex-direction:column;align-items:flex-start;justify-content:center;gap:1px;
+  text-align:left;border-radius:8px;padding:5px 8px;min-height:44px;margin:0;line-height:1.2}
+.chip-mod{font-size:11px;font-weight:500;opacity:.85}
+.chip-est{font-size:12.5px;font-weight:600}
+#tableroTabla .chip.activo{border-color:#c3ccc7;color:#4a5550;background:var(--papel)}   /* pendiente: gris */
+#tableroTabla .chip.activo:hover{border-color:var(--brand-oscuro);color:var(--tinta);background:#fbfdfc}
+.chip.hecho{background:var(--brand-oscuro);border-color:var(--brand-oscuro)}
+#tableroTabla th .chips-cab span{display:flex;flex-direction:column;text-transform:none;letter-spacing:0;
+  font-size:12px;color:var(--tinta);line-height:1.25}
+#tableroTabla th .chips-cab small{font-weight:400;color:var(--tinta-media);font-size:11px}
+
+/* Ficha: Guardar siempre a la vista, con lo que falta */
+#ficha .ficha{overflow:clip}
+#ficha .ficha-cuerpo>.pie{position:sticky;bottom:0;z-index:15;background:var(--papel);border-top:1px solid var(--linea);
+  margin:16px -18px -18px;padding:12px 96px 12px 18px;box-shadow:0 -4px 12px rgba(21,32,27,.06);flex-wrap:wrap}
+.ficha-avance{display:flex;flex-direction:column;gap:4px;flex:1 1 220px;min-width:200px;font-size:13px}
+.ficha-avance-barra{height:6px;background:#e8ecea;border-radius:999px;overflow:hidden;max-width:320px}
+.ficha-avance-barra i{display:block;height:100%;background:var(--brand)}
+
+@media (max-width:760px){
+  .resumen-area{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #tableroTabla .chips{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #ficha .ficha-cuerpo>.pie{padding-right:80px}
+  .menu-descargar-lista{left:0;right:auto}
+}
 </style>
 </head>
 <body>
@@ -1068,7 +1151,8 @@ label .req{color:var(--falla)}
         <h2>Mis cursos</h2>
         <div class="sub" id="tableroSub"></div>
         <p class="ayuda" style="max-width:62ch">Cada fila es una carga: un docente en un curso
-          y grupo. Los seis botones son los formatos de supervisión; en verde los ya registrados.</p>
+          y grupo. Cada botón es un formato de supervisión: <b>Pendiente</b> si aún no se registra;
+          si ya se registró, dice cómo salió.</p>
       </div>
       <div class="espacio"></div>
       <div class="filtro">
@@ -1077,18 +1161,29 @@ label .req{color:var(--falla)}
       </div>
     </div>
 
+    <!-- Mejora 2026-10: resumen del área y lo que toca esta semana. -->
+    <div id="tableroResumen"></div>
+    <div id="estaSemana"></div>
+    <div id="avisoCalendario"></div>
+    <div id="tableroAlertas"></div>
+    <div id="guiaRapida"></div>
+
     <div class="buscador">
       <input type="search" id="buscar" placeholder="Buscar por curso, código, docente, área…" autocomplete="off">
       <select id="fPrograma"><option value="">Todas las carreras</option></select>
       <select id="fArea"><option value="">Todas las áreas</option></select>
       <select id="fTipo"><option value="">Todos los tipos</option></select>
+      <select id="fEstado" aria-label="Estado de la supervisión"><option value="">Todos los estados</option></select>
       <button class="btn gris" id="limpiar">Limpiar</button>
-      <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
-      <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
+      <details class="menu-descargar">
+        <summary class="btn fantasma">Descargar</summary>
+        <div class="menu-descargar-lista">
+          <button class="btn fantasma" id="btnExpTablero" title="Descargar lo que estás viendo">Descargar cumplimiento</button>
+          <button class="btn fantasma" id="btnExpRegistro" title="Descargar las supervisiones registradas">Registro de supervisiones</button>
+        </div>
+      </details>
     </div>
-    <div id="guiaRapida"></div>
-    <div id="avisoCalendario"></div>
-    <div id="tableroAlertas"></div>
+    <div id="filtroEstadoAviso"></div>
     <div class="tabla" id="tableroTabla"></div>
   </section>
 
@@ -2747,7 +2842,7 @@ label .req{color:var(--falla)}
     if (!caja) return;
     const rol = estado.admin ? 'admin' : (estado.general ? 'general' : 'area');
     const area = [
-      '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión; en verde los ya registrados.',
+      '<b>Cada fila es una carga</b> (un docente en un curso y grupo). Los seis botones son los formatos de supervisión: <b>Pendiente</b> en gris si aún no se registra; si ya se registró, dice cómo salió (en verde, ámbar o rojo). Arriba, el resumen del área y lo que toca supervisar esta semana.',
       '<b>Sílabo:</b> adjunte el sílabo del docente para revisarlo y, en la misma ficha, pulse <b>«Leer el sílabo»</b> para registrar el cronograma de evaluaciones (una vez por curso y ciclo). Sin cronograma, el portal no sabe cuándo debió subirse cada taller o práctica.',
       '<b>Portafolios:</b> revise que cada evaluación tenga el enunciado y las evidencias de la mayor, la menor y la nota promedio (en talleres, laboratorios y proyectos, que se trabajan en grupo, solo la mayor y la menor; tampoco hay nota promedio si el grupo tiene menos de 3 estudiantes), en PDF y bien rotuladas (para dar con el nombre correcto, use el <a href="docs/asistente-rotulado.html?v=2026-10-15" target="_blank" rel="noopener">🏷️ Asistente de rotulado</a>). En las evaluaciones escritas (parciales, finales, prácticas calificadas), cada pregunta debe indicar la unidad del sílabo que evalúa y su puntaje (Guía Operativa Docente, 4.4). Las evidencias se exigen ' + GRACIA_DIAS + ' días después de la semana de la evaluación; el examen parcial y el final, ' + PLAZO_EXAMEN_DIAS + ' días (una semana) después.',
       '<b>Cuándo supervisar</b> (Guía para los Coordinadores de Área, Cuadro 1): aula virtual en las semanas 3, 7 y 14; portafolios en las semanas 7, 12 y 16; reuniones con los docentes, mínimo dos (antes de la semana 8 y al cierre). Después de cada supervisión, comunique el resultado al docente por correo institucional y eleve el informe a la Escuela.',
@@ -2764,7 +2859,11 @@ label .req{color:var(--falla)}
       '<b>Documentos de referencia</b> (Guía Operativa Docente, Guía del Coordinador, directiva de rotulado…): súbalos en <b>Preparar el ciclo → Documentos de referencia</b> cuando tenga la versión vigente. Mientras falten, el portal dice qué está usando en su lugar.'
     ];
     const lista = l => '<ol>' + l.map(x => '<li>' + x + '</li>').join('') + '</ol>';
-    caja.innerHTML = '<details class="guia-rapida"' + (rol === 'area' ? ' open' : '') + '><summary>📘 ¿Qué tengo que hacer? Guía rápida</summary>' +
+    // La guía se abre sola solo la primera vez que el coordinador entra: después
+    // queda plegada para que lo primero que vea sean sus cursos.
+    let primeraVez = false;
+    try { primeraVez = !localStorage.getItem('pca_guia_vista'); localStorage.setItem('pca_guia_vista', '1'); } catch (e) {}
+    caja.innerHTML = '<details class="guia-rapida"' + (rol === 'area' && primeraVez ? ' open' : '') + '><summary>📘 ¿Qué tengo que hacer? Guía rápida</summary>' +
       '<div class="guia-cuerpo"><h4>Coordinador de área</h4>' + lista(area) +
       (rol !== 'area' ? '<h4>Coordinador general de carrera</h4>' + lista(general) : '') +
       (rol === 'admin' ? '<h4>Administrador</h4>' + lista(admin) : '') +
@@ -2857,6 +2956,7 @@ label .req{color:var(--falla)}
   }
 
   function prepararFiltros() {
+    prepararFiltroEstado();
     const llenar = (id, valores, etiquetaTodos) => {
       const sel = $(id), actual = sel.value;
       // Un mismo valor escrito con distinta acentuación o mayúsculas no debe
@@ -2886,7 +2986,9 @@ label .req{color:var(--falla)}
   function filtrar(lista) {
     const q = sinAcentos($('buscar').value.trim()).replace(/\s+/g, ' ');
     const prog = $('fPrograma').value, area = $('fArea').value, tipo = $('fTipo').value;
-    const base = lista.filter(a => igual_(a.programa, prog) && igual_(a.area, area) && igual_(a.tipo, tipo));
+    const fEst = ($('fEstado') && $('fEstado').value) || '';
+    const base = lista.filter(a => igual_(a.programa, prog) && igual_(a.area, area) && igual_(a.tipo, tipo) &&
+      cumpleFiltroEstado(a, fEst));
     if (!q) return base;
     // 1.º El nombre exacto del curso o del docente, como palabras completas:
     //    «Telecomunicaciones II» no trae Telecomunicaciones I ni III.
@@ -2902,12 +3004,204 @@ label .req{color:var(--falla)}
     });
   }
 
-  ['buscar','fPrograma','fArea','fTipo'].forEach(id =>
+  /* ------------------------------ Mejora 2026-10: filtro por estado ------ */
+  // Lo registrado de una carga se junta con el de sus partes (teoría y
+  // subgrupos del mismo docente y grupo), igual que hace el tablero.
+  function partesDeLaCarga(a) {
+    return estado.asignaciones.filter(x => x.programa === a.programa && x.codigo === a.codigo &&
+      x.asignatura === a.asignatura && (x.docente || '') === (a.docente || '') && (x.grupo || '') === (a.grupo || ''));
+  }
+  function hechosDeLaCarga(a) {
+    const h = new Set();
+    partesDeLaCarga(a).forEach(p => (estado.avance[p.idAsignacion] || []).forEach(m => h.add(m)));
+    return h;
+  }
+  function conObservaciones(a) {
+    return partesDeLaCarga(a).some(p => {
+      const n = estado.nivel && estado.nivel[p.idAsignacion];
+      return n && ORDEN_MODULOS.some(k => n[k] && (n[k].n === 'medio' || n[k].n === 'bajo'));
+    });
+  }
+  function cumpleFiltroEstado(a, f) {
+    if (!f) return true;
+    // Las cargas en consulta o sin datos no son trabajo pendiente propio.
+    if (a.soloConsulta || (a.faltantes || []).length) return false;
+    if (!estado.avanceListo) return true;
+    const h = hechosDeLaCarga(a);
+    if (f === 'pend') return ORDEN_MODULOS.some(k => !h.has(k));
+    if (f === 'obs') return conObservaciones(a);
+    if (f.indexOf('mod:') === 0) return !h.has(f.slice(4));
+    return true;
+  }
+  function prepararFiltroEstado() {
+    const sel = $('fEstado');
+    if (!sel || sel.options.length > 1) return;
+    sel.innerHTML = '<option value="">Todos los estados</option>' +
+      '<option value="pend">Con formatos pendientes</option>' +
+      '<option value="obs">Con observaciones (Parcial o No cumple)</option>' +
+      ORDEN_MODULOS.map(k => '<option value="mod:' + k + '">' + esc(CFG.MODULOS[k].corto) + ' pendiente</option>').join('');
+  }
+  function aplicarFiltroEstado(valor) {
+    prepararFiltroEstado();
+    $('fEstado').value = valor || '';
+    pintarTablero();
+    const t = $('tableroTabla');
+    if (t && t.scrollIntoView) t.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  }
+
+  ['buscar','fPrograma','fArea','fTipo','fEstado'].forEach(id =>
     $(id).addEventListener('input', () => pintarTablero()));
   $('limpiar').addEventListener('click', () => {
     $('buscar').value=''; $('fPrograma').value=''; $('fArea').value=''; $('fTipo').value='';
+    if ($('fEstado')) $('fEstado').value = '';
     pintarTablero();
   });
+
+  /* ---------------------- Mejora 2026-10: resumen y «Esta semana toca» ---- */
+  // Nada de esto cambia datos ni llama al servidor: lee lo que el tablero ya
+  // tiene (asignaciones, avance, nivel) y el calendario que ya se consulta.
+
+  function textoEstadoChip(ok, niv, bloqueada, sinAvance) {
+    if (bloqueada) return 'Sin datos';
+    if (sinAvance) return '…';
+    if (!ok) return 'Pendiente';
+    if (niv) return niv.e || niv.t || 'Registrado';
+    return 'Registrado';
+  }
+
+  // Cuenta por carga (docente en un grupo, con sus subgrupos juntos), como el
+  // tablero. Las cargas en consulta no son trabajo propio y van aparte.
+  function resumenCargas(lista) {
+    const r = { cargas: 0, cursos: 0, bloq: 0, consulta: 0, aplicables: 0, hechos: 0, obs: 0, pendMod: {} };
+    ORDEN_MODULOS.forEach(k => { r.pendMod[k] = 0; });
+    const cargas = new Map(), cursos = new Set();
+    (lista || []).forEach(a => {
+      if (a.soloConsulta) { r.consulta++; return; }
+      const k = [a.programa, a.codigo, a.asignatura, a.docente || '', a.grupo || ''].join('¦');
+      if (!cargas.has(k)) cargas.set(k, []);
+      cargas.get(k).push(a);
+      cursos.add([a.programa, a.codigo, a.asignatura].join('¦'));
+    });
+    r.cursos = cursos.size;
+    cargas.forEach(partes => {
+      if (partes.some(p => (p.faltantes || []).length)) { r.bloq++; return; }
+      r.cargas++;
+      const h = new Set();
+      partes.forEach(p => (estado.avance[p.idAsignacion] || []).forEach(m => h.add(m)));
+      ORDEN_MODULOS.forEach(k => {
+        r.aplicables++;
+        if (h.has(k)) {
+          r.hechos++;
+          const conObs = partes.some(p => { const n = estado.nivel && estado.nivel[p.idAsignacion] && estado.nivel[p.idAsignacion][k];
+            return n && (n.n === 'medio' || n.n === 'bajo'); });
+          if (conObs) r.obs++;
+        } else r.pendMod[k]++;
+      });
+    });
+    return r;
+  }
+
+  function cabeceraModulos(lista) {
+    const r = resumenCargas(lista);
+    return '<div class="chips chips-cab">' + ORDEN_MODULOS.map(k =>
+      '<span><b>' + esc(CFG.MODULOS[k].corto) + '</b>' +
+      (estado.avanceListo ? '<small>' + r.pendMod[k] + (r.pendMod[k] === 1 ? ' pendiente' : ' pendientes') + '</small>' : '') +
+      '</span>').join('') + '</div>';
+  }
+
+  function pintarResumenTablero(todas) {
+    const caja = $('tableroResumen');
+    if (!caja) return;
+    if (!todas || !todas.length) { caja.innerHTML = ''; if ($('estaSemana')) $('estaSemana').innerHTML = ''; return; }
+    const r = resumenCargas(todas);
+    const listo = estado.avanceListo;
+    const pend = r.aplicables - r.hechos;
+    const pct = r.aplicables ? Math.round(r.hechos / r.aplicables * 100) : 0;
+    const extra = [r.cursos + (r.cursos === 1 ? ' curso' : ' cursos')];
+    if (r.bloq) extra.push(r.bloq + ' sin datos para registrar');
+    if (r.consulta) extra.push(r.consulta + ' en consulta');
+    caja.innerHTML = '<section class="resumen-area" aria-label="Resumen del área">' +
+      '<div class="ra-tile"><span class="ra-eti">Cargas a supervisar</span><b class="ra-num">' + r.cargas + '</b>' +
+        '<span class="ra-det">' + esc(extra.join(' · ')) + '</span></div>' +
+      '<div class="ra-tile"><span class="ra-eti">Formatos registrados</span><b class="ra-num">' + (listo ? r.hechos : '…') +
+        ' <small>de ' + r.aplicables + '</small></b>' +
+        '<div class="ra-barra"><i style="width:' + (listo ? pct : 0) + '%"></i></div></div>' +
+      '<button type="button" class="ra-tile ra-boton" data-filtro-estado="pend"><span class="ra-eti">Pendientes</span>' +
+        '<b class="ra-num">' + (listo ? pend : '…') + '</b><span class="ra-det">formatos aún sin registrar · ver cuáles</span></button>' +
+      '<button type="button" class="ra-tile ra-boton ra-obs" data-filtro-estado="obs"><span class="ra-eti">Con observaciones</span>' +
+        '<b class="ra-num">' + (listo ? r.obs : '…') + '</b><span class="ra-det">Parcial o No cumple: avisar al docente</span></button>' +
+      '</section>';
+    caja.querySelectorAll('[data-filtro-estado]').forEach(b =>
+      b.addEventListener('click', () => aplicarFiltroEstado(b.dataset.filtroEstado)));
+    pintarEstaSemana(r);
+  }
+
+  // Cuándo supervisar, según la Guía para los Coordinadores de Área (Cuadro 1).
+  const SEMANAS_SUPERVISION = { aulaVirtual: [3, 7, 14], portafolios: [7, 12, 16] };
+  function semanaDelCiclo(cal) {
+    if (!cal || !cal.inicio) return null;
+    const dias = Math.floor((new Date(hoyLima() + 'T12:00:00Z') - new Date(cal.inicio + 'T12:00:00Z')) / 86400000);
+    return Math.floor(dias / 7) + 1;
+  }
+  function pintarEstaSemana(r) {
+    const caja = $('estaSemana');
+    if (!caja) return;
+    const ciclo = cicloVigente();
+    // Una sola consulta en vuelo: el tablero se repinta en cada tecla del buscador.
+    if (!pintarEstaSemana.enVuelo || pintarEstaSemana.ciclo !== ciclo) {
+      pintarEstaSemana.ciclo = ciclo;
+      pintarEstaSemana.enVuelo = cargarCalendario(ciclo).finally(() => { pintarEstaSemana.enVuelo = null; });
+    }
+    pintarEstaSemana.enVuelo.then(cal => {
+      if (ciclo !== cicloVigente()) return;
+      const sem = semanaDelCiclo(cal);
+      if (sem == null) {
+        caja.innerHTML = '<p class="es-nota">Cuando se registre el calendario académico ' + esc(ciclo) +
+          ', aquí verá lo que toca supervisar cada semana.</p>';
+        return;
+      }
+      if (sem < 1) {
+        caja.innerHTML = '<p class="es-nota">El ciclo ' + esc(ciclo) + ' empieza el ' + esc(fechaCal(cal.inicio)) + '.</p>';
+        return;
+      }
+      const items = [];
+      const nombre = { aulaVirtual: 'Aula virtual', portafolios: 'Portafolios' };
+      Object.keys(SEMANAS_SUPERVISION).forEach(k => {
+        const i = SEMANAS_SUPERVISION[k].indexOf(sem);
+        if (i < 0 || !CFG.MODULOS[k]) return;
+        const n = r.pendMod[k] || 0;
+        items.push('<div class="es-item"><b>' + nombre[k] + ' · ' + (i + 1) + '.ª revisión</b>' +
+          '<span>' + (estado.avanceListo ? (n ? n + (n === 1 ? ' carga pendiente.' : ' cargas pendientes.') : 'Todas registradas.') : '') + '</span>' +
+          (n ? '<button type="button" class="btn" data-filtro-estado="mod:' + k + '">Ver esas cargas</button>' : '') + '</div>');
+      });
+      if (sem < 8) items.push('<div class="es-item"><b>Primera reunión con los docentes</b><span>Debe hacerse antes de la semana 8' +
+        (sem === 7 ? ': queda esta semana.' : '.') + '</span></div>');
+      if (sem >= 15 && sem <= 17) items.push('<div class="es-item"><b>Reunión de cierre con los docentes</b><span>Al terminar el ciclo.</span></div>');
+      if (!items.length) {
+        const prox = Object.keys(SEMANAS_SUPERVISION).map(k => {
+          const s = SEMANAS_SUPERVISION[k].find(x => x > sem);
+          return s ? nombre[k] + ' en la semana ' + s : '';
+        }).filter(Boolean);
+        items.push('<div class="es-item"><b>Esta semana no hay supervisión programada.</b><span>' +
+          (prox.length ? 'Próximas: ' + esc(prox.join('; ')) + '.' : 'El cronograma de supervisión del ciclo ya terminó.') + '</span></div>');
+      }
+      caja.innerHTML = '<section class="esta-semana" aria-labelledby="esTitulo">' +
+        '<div class="es-cab"><h3 id="esTitulo">Esta semana toca</h3><span>Semana ' + sem + ' de 16 · según la Guía para los ' +
+        'Coordinadores de Área (Cuadro 1)</span></div><div class="es-lista">' + items.join('') + '</div></section>';
+      caja.querySelectorAll('[data-filtro-estado]').forEach(b =>
+        b.addEventListener('click', () => aplicarFiltroEstado(b.dataset.filtroEstado)));
+    });
+  }
+
+  function pintarAvisoFiltroEstado() {
+    const caja = $('filtroEstadoAviso'), sel = $('fEstado');
+    if (!caja || !sel) return;
+    if (!sel.value) { caja.innerHTML = ''; return; }
+    const txt = sel.options[sel.selectedIndex] ? sel.options[sel.selectedIndex].textContent : '';
+    caja.innerHTML = '<div class="filtro-activo"><span>Mostrando solo cargas: <b>' + esc(txt) + '</b></span>' +
+      '<button type="button" class="btn gris" id="quitarFiltroEstado">Quitar filtro</button></div>';
+    $('quitarFiltroEstado').addEventListener('click', () => { sel.value = ''; pintarTablero(); });
+  }
 
   function pintarTablero() {
     const todas = estado.asignaciones;
@@ -2929,15 +3223,20 @@ label .req{color:var(--falla)}
 
     const incompletas = lista.filter(a => a.faltantes.length);
     $('tableroAlertas').innerHTML = incompletas.length
-      ? '<div class="alerta"><b>' + incompletas.length + (incompletas.length === 1 ? ' carga incompleta' : ' cargas incompletas') +
+      ? '<div class="alerta alerta-plegable"><details><summary><b>' + incompletas.length +
+        (incompletas.length === 1 ? ' carga no se puede registrar' : ' cargas no se pueden registrar') +
+        ':</b> les faltan datos en la tabla Docentes DAI. <span class="ver-detalle">Ver cuáles</span></summary>' +
+        '<b>' + incompletas.length + (incompletas.length === 1 ? ' carga incompleta' : ' cargas incompletas') +
         ' en la tabla Docentes DAI.</b> Sin esos datos el portal no puede generarles su identificador (ID), y sin ID no se ' +
         'puede registrar su supervisión. Complete en Docentes DAI lo que falta; si es una fila repetida, elimínela:' +
         '<ul style="margin:6px 0 0 18px">' + incompletas.map(a => '<li>' + esc(nombreCurso(a.asignatura) || 'Curso sin nombre') +
           (a.tipo ? ' (' + esc(a.tipo) + ')' : '') + (a.grupo ? ' · grupo ' + esc(a.grupo) : '') + ' · ' + esc(a.docente || 'sin docente') +
           ' — falta: <b>' + esc(a.faltantes.map(x => x === 'código' ? 'el código del curso (columna «Codigo texto»)' :
-            x === 'ciclo' ? 'el ciclo (columna «Ciclo texto»)' : 'el grupo').join(', ')) + '</b></li>').join('') + '</ul></div>'
+            x === 'ciclo' ? 'el ciclo (columna «Ciclo texto»)' : 'el grupo').join(', ')) + '</b></li>').join('') + '</ul></details></div>'
       : '';
 
+    pintarResumenTablero(todas);
+    pintarAvisoFiltroEstado();
     if (!lista.length) {
       $('tableroTabla').innerHTML = todas.length
         ? '<div class="vacio"><b>Ningún curso coincide con la búsqueda</b>Prueba con otros términos o limpia los filtros.</div>'
@@ -3095,8 +3394,12 @@ label .req{color:var(--falla)}
               ' title="' + esc(m.nombre) +
               (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
                   : ' — pendiente') + '">' +
-              esc(m.corto) +
-              (niv ? '<span class="chip-val">' + esc(niv.t) + '</span>' : '') +
+              // Mejora 2026-10: el botón dice el formato y, debajo, su estado en
+              // palabras («Pendiente», o cómo salió si ya se registró).
+              '<span class="chip-mod">' + esc(m.corto) + '</span>' +
+              '<span class="chip-est">' + esc(textoEstadoChip(ok, niv, bloqueada, sinAvance)) +
+                (niv && niv.e && niv.t && niv.e !== niv.t ? ' <span class="chip-val">' + esc(niv.t) + '</span>' : '') +
+              '</span>' +
               '</button>';
           }).join('');
 
@@ -3143,7 +3446,7 @@ label .req{color:var(--falla)}
     }).join('');
 
     $('tableroTabla').innerHTML =
-      '<table><thead><tr><th>Carga</th><th>Docente</th><th>Módulos</th></tr></thead>' +
+      '<table><thead><tr><th>Carga</th><th>Docente</th><th>' + cabeceraModulos(lista) + '</th></tr></thead>' +
       '<tbody>' + filas + '</tbody></table>';
 
     $('tableroTabla').querySelectorAll('[data-mover]').forEach(b => {
@@ -11607,6 +11910,39 @@ label .req{color:var(--falla)}
       caja.classList.toggle('campo-vacio', !lleno && !soloLectura && !el.dataset.opcional);
       caja.classList.toggle('campo-auto', soloLectura);
     });
+    actualizarAvanceFicha();
+  }
+
+  // Mejora 2026-10: la barra de Guardar queda fija abajo y dice cuánto falta.
+  // Solo lee el formulario; no cambia ningún valor.
+  function actualizarAvanceFicha() {
+    const form = $('fichaForm'), guardar = $('btnGuardar');
+    if (!form || !guardar || !guardar.parentNode) return;
+    let caja = $('fichaAvance');
+    if (!caja) {
+      caja = document.createElement('div');
+      caja.id = 'fichaAvance';
+      caja.className = 'ficha-avance';
+      caja.setAttribute('aria-live', 'polite');
+      guardar.parentNode.insertBefore(caja, guardar.parentNode.firstChild);
+    }
+    const items = [...form.querySelectorAll('#listaItems select[data-estado]')];
+    let hechos, total, nombre;
+    if (items.length) {
+      total = items.length; hechos = items.filter(s => s.value).length; nombre = 'puntos evaluados';
+    } else {
+      const campos = [...form.querySelectorAll('[id^="f_"], [data-tema]')]
+        .filter(el => !el.disabled && !el.readOnly && el.type !== 'hidden' && !el.dataset.opcional);
+      total = campos.length;
+      hechos = campos.filter(el => String(el.value || '').trim() && el.value !== 'Seleccione').length;
+      nombre = 'campos completos';
+    }
+    if (!total || estado.soloLectura) { caja.innerHTML = ''; caja.classList.add('oculto'); return; }
+    caja.classList.remove('oculto');
+    const pct = Math.round(hechos / total * 100);
+    caja.innerHTML = '<span><b>' + hechos + ' de ' + total + '</b> ' + nombre +
+      (hechos < total ? ' · faltan ' + (total - hechos) : ' · listo para guardar') + '</span>' +
+      '<div class="ficha-avance-barra"><i style="width:' + pct + '%"></i></div>';
   }
 
   // Cuánto del formato está lleno, sin contar lo que el portal completa solo.
