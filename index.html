@@ -1142,6 +1142,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 .seg:hover{background:var(--fondo)}
 .seg.activo{background:var(--brand-oscuro);color:#fff;font-weight:600}
 
+/* Punto 01: el plan de estudios ya está en la biblioteca del portal */
+.referencia-item p.plan-biblioteca{color:#0b5a38;background:#eef7f2;border-radius:6px;padding:6px 10px;margin-top:8px}
+
 /* Ficha: Guardar siempre a la vista, con lo que falta */
 #ficha .ficha{overflow:clip}
 #ficha .ficha-cuerpo>.pie{position:sticky;bottom:0;z-index:15;background:var(--papel);border-top:1px solid var(--linea);
@@ -2828,8 +2831,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   function planDelPortal(a) {
     a = a || {};
     const l = PLANES_CARRERA[Object.keys(PLANES_CARRERA).find(k => sinAcentos(k) === sinAcentos(a.programa || '')) || ''] || [];
-    const clave = t => sinAcentos(t || '').replace(/[^a-z0-9]/g, '');
+    // El reporte del Departamento Académico escribe el plan 2015-II como «52»
+    // y el 2024-I como «P24»: se tratan como el mismo plan.
+    const EQUIV = { '52': '2015ii', 'p24': '2024i', '2024': '2024i', '2015': '2015ii' };
+    const clave = t => { const k = sinAcentos(t || '').replace(/[^a-z0-9]/g, ''); return EQUIV[k] || k; };
     return l.find(d => d.plan && clave(d.plan) === clave(a.planEstudio)) || null;
+  }
+  // Los planes que el portal tiene de una carrera (aunque no sea el de la carga).
+  function planesDeCarrera(programa) {
+    return PLANES_CARRERA[Object.keys(PLANES_CARRERA).find(k => sinAcentos(k) === sinAcentos(programa || '')) || ''] || [];
   }
   function docsCarreraHtml(carrera) {
     const l = PLANES_CARRERA[Object.keys(PLANES_CARRERA).find(k => sinAcentos(k) === sinAcentos(carrera || '')) || ''];
@@ -10751,9 +10761,27 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               l.push('Correo institucional: ' + (a.correoDocente || 'no registrado en el portal'));
               return l.join('\n');
             },
-            falta: 'Los créditos, los requisitos y si el curso es obligatorio o electivo no ' +
-                   'se registran en el portal. Adjunte el plan de estudios de la carrera con ' +
-                   'el clip 📎 del asistente para que se puedan comprobar.' },
+            // Créditos, requisitos y condición no están en las tablas del
+            // portal, pero sí en los planes de estudio de su biblioteca: si el
+            // plan de la carga está, se usa solo; si no, se pide adjuntarlo.
+            falta: c => {
+              const a = estado.actual || {};
+              const prog = (c && c.programa) || a.programa || '';
+              const planCarga = (c && c.plan) || a.planEstudio || '';
+              const p = planDelPortal({ programa: prog, planEstudio: planCarga });
+              if (p) return { ok: true, html: 'Los créditos, los requisitos y si el curso es obligatorio o electivo se comprueban con el ' +
+                '<a href="' + esc(verPdf(p.url, p.p, p.t)) + '" target="_blank" rel="noopener">' + esc(p.t) + '</a> de ' +
+                esc(prog) + ', que ya está en la biblioteca del portal. El asistente lo lee solo al pulsar <b>Analizar</b>: ' +
+                'no hace falta adjuntarlo.' };
+              const otros = planesDeCarrera(prog);
+              if (otros.length) return { ok: false, html: 'El portal tiene ' + otros.map(d => '<a href="' + esc(verPdf(d.url, d.p, d.t)) +
+                '" target="_blank" rel="noopener">' + esc(d.t) + '</a>').join(' y ') + ' de ' + esc(prog) + ', pero no el plan ' +
+                esc(planCarga || 'de este curso') + '. Para comprobar los créditos, los requisitos y si es obligatorio o electivo, ' +
+                'adjunte ese plan con el clip 📎 del asistente.' };
+              return { ok: false, html: 'Los créditos, los requisitos y si el curso es obligatorio o electivo no se registran en ' +
+                'el portal y su biblioteca aún no tiene el plan de estudios de ' + esc(prog || 'esta carrera') + '. Adjúntelo con el ' +
+                'clip 📎 del asistente para que se puedan comprobar.' };
+            } },
     '02': { de: 'portal', titulo: 'Sumilla oficial',
             texto: c => c.sumilla ? c.sumilla + '\n\nSegún la ' + GUIA_SILABOS + ', la sumilla se transcribe tal cual aparece en el ' +
               'plan curricular vigente, sin ninguna alteración (naturaleza, propósito y principales contenidos).' : '' },
@@ -10976,7 +11004,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             '" target="_blank" rel="noopener">' + esc(e.texto) + '</a>').join(' · ') + '</p>' : '') +
           ((r.orienta || ORIENTA_ITEM[it.n]) ? '<details class="orienta-item"><summary>📝 Notas aclaratorias: cómo valorarlo y cómo orientar al docente</summary><ul>' +
             (r.orienta || ORIENTA_ITEM[it.n]).map(o => '<li>' + esc(o) + '</li>').join('') + '</ul></details>' : '') +
-          (r.falta ? '<p class="pide-archivo">' + esc(r.falta) + '</p>' : '');
+          (typeof r.falta === 'function'
+            ? (f => f ? '<p class="' + (f.ok ? 'plan-biblioteca' : 'pide-archivo') + '">' + f.html + '</p>' : '')(r.falta(contexto))
+            : (r.falta ? '<p class="pide-archivo">' + esc(r.falta) + '</p>' : ''));
       }
       fila.appendChild(caja);
     });
@@ -11462,6 +11492,25 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     });
     return ev;
   }
+  // Nombre que tiene en el cronograma del sílabo la evaluación de una carpeta
+  // del portafolio (p. ej. carpeta INFORME 1 → «Taller 1»; PROYECTO →
+  // «Trabajo»). Usa el mismo emparejamiento que la fecha tope: tipo y número.
+  function nombreSegunSilabo(e, g) {
+    const a = estado.actual || {};
+    const cr = cronoDe(a.codigo, a.programa);
+    if (!cr || !e) return '';
+    const gr = grupoEval(e.nombre || e.carpeta);
+    const cands = (cr.evaluaciones || []).filter(x => grupoEval(x.tipo) === gr);
+    if (!cands.length) return '';
+    const etq = x => x.tipo + (x.num ? ' ' + x.num : '');
+    const n = g && g.n;
+    let x = n ? cands.find(c => Number(c.num) === Number(n)) : null;
+    if (!x && cands.length === 1 && (!n || Number(n) === 1)) x = cands[0];
+    if (x) return etq(x);
+    // Una sola carpeta para varias entregas del sílabo (Taller 1 a Taller 4).
+    if (!n && cands.length > 1) return etq(cands[0]) + ' a ' + etq(cands[cands.length - 1]);
+    return '';
+  }
   function plazoPorta(e, g) {
     const a = estado.actual || {};
     const v = vencimientoEval(a.codigo, a.programa, e.nombre || e.carpeta, g && g.n);
@@ -11568,8 +11617,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               : '<span class="rot-mal">✘ ' + esc(x.motivos.join('; ')) + '</span>' +
                 (x.sugerido ? '<span class="rot-sug">Nombre correcto: <code>' + esc(x.sugerido) + '</code></span>' : ''))).join('') + '</td>';
     };
-    const filas = ev.evaluaciones.map(e => e.grupos.map(g => { const pl = plazoPorta(e, g); return (
-      '<tr><th>' + esc((e.otro ? String(e.carpeta).toUpperCase() : e.nombre) + (g.n ? ' ' + g.n : '')) +
+    const filas = ev.evaluaciones.map(e => e.grupos.map(g => { const pl = plazoPorta(e, g);
+      // Mejora 2026-10: la fila lleva el nombre que usa el sílabo (el mismo del
+      // cronograma del Paso 1) y, debajo, la carpeta que creó Calidad.
+      const nomCarpeta = (e.otro ? String(e.carpeta).toUpperCase() : e.nombre) + (g.n ? ' ' + g.n : '');
+      const nomSil = nombreSegunSilabo(e, g);
+      const distinto = nomSil && sinAcentos(nomSil).replace(/\s+/g, '') !== sinAcentos(nomCarpeta).replace(/\s+/g, '');
+      return (
+      '<tr><th>' + esc(distinto ? nomSil : nomCarpeta) +
+      (distinto ? '<small class="ev-sil">así figura en el sílabo; en el portafolio es «' + esc(nomCarpeta) + '»</small>' : '') +
       '<small>carpeta ' + esc(e.carpeta) + (e.otro ? ' · código no reconocido' : '') + ' · punto ' + e.punto + ' ' +
       esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></th>' +
       '<td><span class="ev-chip ' + pl.clase + '">' + esc(pl.estado) + '</span><small class="ev-fecha">' + esc(pl.fecha) + '</small></td>' +
