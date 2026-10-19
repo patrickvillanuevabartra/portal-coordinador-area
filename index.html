@@ -1162,6 +1162,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   #ficha .ficha-cuerpo>.pie{padding-right:80px}
   .menu-descargar-lista{left:0;right:auto}
 }
+
+/* Mis cursos: la fila de títulos (Carga, Docente, Sílabo… Delegados) queda fija
+   debajo de la barra superior al bajar o subir. «overflow:clip» mantiene las
+   esquinas redondeadas sin impedir que la fila se quede fija; --alto-cab es la
+   altura de la barra superior, que se mide al cargar y al cambiar el tamaño. */
+#tableroTabla{overflow:clip}
+#tableroTabla thead th{position:sticky;top:var(--alto-cab,0px);z-index:6;background:var(--fondo);
+  box-shadow:0 1px 0 var(--linea)}
 </style>
 </head>
 <body>
@@ -2181,9 +2189,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '16/10/2026';
+  const VERSION_PORTAL = '17/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-16.04';
+  const VERSION_INTERNA = '2026-10-17.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5896,6 +5904,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       .catch(e => { $('indCuerpo').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
+
+  // Altura de la barra superior: la usa la fila de títulos fija de Mis cursos.
+  (function medirCabecera() {
+    const cab = document.querySelector('body > header') || document.querySelector('header');
+    if (!cab) return;
+    const fijar = () => document.documentElement.style.setProperty('--alto-cab', cab.offsetHeight + 'px');
+    fijar();
+    window.addEventListener('resize', fijar);
+    if (window.ResizeObserver) new ResizeObserver(fijar).observe(cab);
+  })();
   const AV_ABIERTAS = new Set();
   function clasePorc(p) { return p >= 70 ? '' : (p >= 40 ? ' baja' : ' critica'); }
 
