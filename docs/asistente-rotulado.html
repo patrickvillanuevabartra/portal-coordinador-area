@@ -295,7 +295,7 @@ document.addEventListener('click',e=>{
   }
   if(b.id==='sigue') return avanza();
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
-  if(b.id==='copiar'||b.id==='copiarSin') return copia(b.id==='copiar');
+  if(b.id==='copiar') return copia(true);
     if(b.dataset.k==='tipo'&&esGrupal()&&/Promedio/.test(R.metrica)) R.metrica='';
   if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.desc='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
   if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''});i=0;return pinta();}
@@ -317,14 +317,13 @@ function final(){
   $('#paso').innerHTML=`<div class="cuenta">Listo</div>
    <p class="preg">Este es el nombre correcto del archivo:</p>
    <div class="res" id="res">${esc(n)}</div>
-   <div class="btns"><button type="button" class="b pri" id="copiar">Copiar el nombre</button>
-   <button type="button" class="b sec" id="copiarSin">Copiar sin «.PDF»</button></div>
+   <div class="btns"><button type="button" class="b pri" id="copiar">Copiar el nombre</button></div>
    <p class="ok" id="avisoCopia" aria-live="polite"></p>
    ${bloqueDescarga()}
    <ul class="partes">${partes().map(([c,et,v])=>`<li><code class="${c}">${esc(v)}</code><span>${et.toLowerCase()==='tipo'?'tipo de evaluación':et.toLowerCase()}</span></li>`).join('')}<li><code>PDF</code><span>el archivo debe estar en PDF</span></li></ul>
    <div class="nota">
     <p><b>Si prefiere cambiarle el nombre usted mismo:</b> en la carpeta, haga clic derecho sobre el archivo, elija «Cambiar nombre», borre el nombre anterior y pegue (Ctrl + V).</p>
-    <p>Si en su computadora los archivos no muestran «.pdf» al final del nombre, use el botón <b>Copiar sin «.PDF»</b>. Así evita que el archivo quede como «….PDF.pdf».</p>
+    <p>Si al cambiarle el nombre el archivo queda como «….PDF.pdf», no se preocupe: el portal lo reconoce igual. Lo más sencillo es usar <b>Descargar con el nombre nuevo</b>, que deja el nombre exacto.</p>
    </div>
    <div class="btns">${R.clase==='evidencia'?'<button type="button" class="b pri" id="otraEv">Rotular otro trabajo de esta misma evaluación</button>':''}
    <button type="button" class="b sec" id="editar">Corregir respuestas</button>
@@ -389,13 +388,12 @@ function bloqueDescarga(){
   return ARCH
    ? `<div class="descarga"><p class="preg">Descargue su archivo ya rotulado</p>
       <p class="ayuda" style="color:var(--fg)">Archivo elegido: <span class="elegido">📄 ${esc(ARCH.name)}</span></p>
-      <div class="btns"><button type="button" class="b pri" id="bajar">⬇ Descargar con el nombre nuevo</button>
-      <button type="button" class="b sec" id="eligeArch2">Elegir otro archivo</button></div>
+      <div class="btns"><button type="button" class="b pri" id="bajar">⬇ Descargar con el nombre nuevo</button></div>
+      <p class="ayuda">¿Es otro archivo? Cámbielo arriba, en «Su archivo».</p>
       <p class="ok" id="avisoBaja" aria-live="polite"></p>
       <p class="ayuda">Se guarda una copia con el nombre nuevo; su archivo original no cambia. Esa copia es la que sube al portafolio.</p></div>`
    : `<div class="descarga"><p class="preg">¿Quiere que el asistente le entregue el archivo ya con este nombre?</p>
-      <p class="ayuda" style="color:var(--fg)">Elija su PDF y luego presione «Descargar». No se sube a internet.</p>
-      <div class="btns"><button type="button" class="b pri" id="eligeArch2">📂 Elegir el archivo PDF</button></div>
+      <p class="ayuda" style="color:var(--fg)">Elija su PDF arriba, en <b>«Su archivo»</b>, y aquí aparecerá el botón para descargarlo con el nombre nuevo. No se sube a internet.</p>
       <p class="ok" id="avisoBaja" aria-live="polite"></p></div>`;
 }
 pintaArchivo();
