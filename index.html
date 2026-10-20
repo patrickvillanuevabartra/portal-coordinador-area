@@ -915,6 +915,8 @@ label .req{color:var(--falla)}
 .item[data-estado="Subió"],.item[data-estado="Existen"]{box-shadow:inset 3px 0 0 var(--ok)}
 .item[data-estado="No subió"],.item[data-estado="No existen"]{box-shadow:inset 3px 0 0 var(--falla)}
 .item[data-estado="No aplica"]{box-shadow:inset 3px 0 0 var(--neutro)}
+.item.item-no-aplica{opacity:.6}
+.item.item-no-aplica select{cursor:not-allowed;background:var(--fondo)}
 
 .resumen{
   display:flex;align-items:center;gap:20px;flex-wrap:wrap;
@@ -2191,7 +2193,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '19/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-19.01';
+  const VERSION_INTERNA = '2026-10-19.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -11363,6 +11365,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         });
         mostrarHallazgos();
         aplicarF3Portafolio();
+        bloquearNoAplicaPortafolio();
         estado.ultimaPorta = d;
         const texto = volcarObsPortafolio(d);
         estado.ultimosArchivos = [d.carpetaNombre];
@@ -11721,6 +11724,25 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // entrada se acredita con el formulario F3 (informe de la prueba de entrada).
   // El punto 01 se acredita con el F3: la tabla del portafolio y la sugerencia
   // del punto dicen lo mismo que el recuadro del F3, sea cual sea el que llegue antes.
+  // Los puntos que, según la estructura de portafolio de Calidad y Acreditación,
+  // este curso no tiene: se marcan «No aplica» y se bloquean, para que el
+  // coordinador solo califique lo que corresponde.
+  function bloquearNoAplicaPortafolio() {
+    Object.keys(estado.hallazgos || {}).forEach(i => {
+      const h = estado.hallazgos[i];
+      if (!h || h.sugerencia !== 'No aplica' || !/estructura de portafolio/i.test(h.nota || '')) return;
+      const sel = document.querySelector('#listaItems select[data-estado="' + i + '"]');
+      if (!sel) return;
+      sel.value = 'No aplica';
+      sel.dispatchEvent(new Event('change'));
+      sel.disabled = true;
+      sel.title = 'No aplica: este curso no tiene esta evaluación según la estructura de portafolio de Calidad y Acreditación.';
+      const fila = sel.closest('.item');
+      if (fila) fila.classList.add('item-no-aplica');
+    });
+    if (typeof actualizarAvanceFicha === 'function') actualizarAvanceFicha();
+  }
+
   function aplicarF3Portafolio() {
     const f3 = estado.f3Portafolio;
     if (!f3 || estado.modulo !== 'portafolios') return;
@@ -12192,7 +12214,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     const items = [...form.querySelectorAll('#listaItems select[data-estado]')];
     let hechos, total, nombre;
     if (items.length) {
-      total = items.length; hechos = items.filter(s => s.value).length; nombre = 'puntos evaluados';
+      // Los puntos bloqueados como «No aplica» no se cuentan: no hay nada que calificar.
+      const activos = items.filter(s => !s.disabled), noAplican = items.length - activos.length;
+      total = activos.length; hechos = activos.filter(s => s.value).length;
+      nombre = noAplican ? 'puntos que aplican evaluados (' + noAplican + ' no aplican)' : 'puntos evaluados';
     } else {
       const campos = [...form.querySelectorAll('[id^="f_"], [data-tema]')]
         .filter(el => !el.disabled && !el.readOnly && el.type !== 'hidden' && !el.dataset.opcional);
