@@ -908,6 +908,11 @@ label .req{color:var(--falla)}
 .item .txt{font-size:13px}
 .item .obs{grid-column:2 / -1;margin-top:6px}
 .item .obs input{width:100%;font-size:12px}
+/* La observación de cada punto se ve completa: el cuadro crece con el texto. */
+.item .obs textarea{width:100%;font:inherit;font-size:13.5px;line-height:1.45;field-sizing:content;min-height:2.8em;
+  resize:vertical;padding:6px 9px;border:1px solid var(--linea);border-radius:8px;background:#fff}
+.item .ok-std{grid-column:2 / -1;margin-top:6px;font-size:13px;color:#1b7f4b;background:#eaf7ef;
+  border:1px solid #a9d8b8;border-radius:8px;padding:6px 10px}
 .item select{width:100%}
 .item[data-estado="Cumple"]{box-shadow:inset 3px 0 0 var(--ok)}
 .item[data-estado="Parcial"]{box-shadow:inset 3px 0 0 var(--parcial)}
@@ -2191,9 +2196,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
   // Versión del portal: se ve al pie de la página. Sirve para comprobar que el
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
-  const VERSION_PORTAL = '19/10/2026';
+  const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-19.02';
+  const VERSION_INTERNA = '2026-10-20.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9215,7 +9220,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         const filas = lista.map((it, i) => {
           const n = it.n || String(i + 1).padStart(2, '0');
           const obs = b.obs
-            ? '<div class="obs oculto"><input type="text" data-obs="' + i + '" placeholder="Qué falta o qué corregir"></div>'
+            ? '<div class="obs oculto"><textarea data-obs="' + i + '" rows="2" placeholder="Qué falta o qué corregir"></textarea></div>' +
+              '<div class="ok-std oculto">✔ Cumple con el estándar: no se encontraron desviaciones.</div>'
             : '';
           return '<div class="item" data-i="' + i + '">' +
             '<div class="n mono">' + esc(n) + '</div>' +
@@ -9289,6 +9295,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           fila.dataset.estado = sel.value;
           const obs = fila.querySelector('.obs');
           if (obs) obs.classList.toggle('oculto', !NO_CONFORMES.includes(sel.value));
+          // Si cumple, se dice expresamente que no hay desviaciones con el estándar.
+          const okStd = fila.querySelector('.ok-std');
+          if (okStd) okStd.classList.toggle('oculto', !CONFORMES.includes(sel.value));
           recalcularEscala(F);
         recalcularCompleto(F);
         });
@@ -9743,7 +9752,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           const base = v.slice().sort((p, q) => String(q.fecha).localeCompare(String(p.fecha)))[0];
           const sel = fila.querySelector('select[data-estado="' + i12 + '"]');
           if (sel) { sel.value = base.item12; sel.dispatchEvent(new Event('change', { bubbles: true })); }
-          const obs = fila.querySelector('input[data-obs="' + i12 + '"]');
+          const obs = fila.querySelector('[data-obs="' + i12 + '"]');
           if (obs) {
             obs.value = base.obs12 || ('Verificado en G' + base.grupo + ' (' + base.docente + ').');
             obs.dispatchEvent(new Event('input', { bubbles: true }));
