@@ -84,6 +84,27 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 .archivo .elegido{font-family:var(--f-mono);word-break:break-all}
 .descarga{background:var(--accent-soft);border-radius:10px;padding:16px;display:grid;gap:10px}
 .descarga .preg{font-size:1.15rem}
+/* Procedimiento paso a paso */
+.proc{background:var(--panel);border:2px solid var(--accent);border-radius:10px;margin-top:14px}
+.proc>summary{cursor:pointer;font-weight:700;font-size:1.15rem;color:var(--accent);padding:14px 16px;list-style:none}
+.proc>summary::-webkit-details-marker{display:none}
+.proc>summary::before{content:"▶ ";font-size:.9em}.proc[open]>summary::before{content:"▼ "}
+.proc .cuerpo{padding:0 16px 16px;display:grid;gap:14px}
+.proc h3{font-family:var(--f-head);font-size:1.2rem;margin:0}
+.proc ol.pasos{margin:0;padding:0;list-style:none;display:grid;gap:10px;counter-reset:p}
+.proc ol.pasos>li{counter-increment:p;display:grid;grid-template-columns:2.2em 1fr;gap:10px;align-items:start;background:var(--bg);border-radius:8px;padding:10px 12px}
+.proc ol.pasos>li::before{content:counter(p);display:grid;place-items:center;width:1.9em;height:1.9em;border-radius:50%;background:var(--accent);color:var(--accent-fg);font-weight:700}
+.proc ul{margin:6px 0 0;padding-left:22px}.proc li li{margin:3px 0}
+.proc .boton{display:inline-block;border:2px solid var(--accent);border-radius:6px;padding:0 6px;font-weight:700;color:var(--accent);white-space:nowrap}
+.proc .ej{font-family:var(--f-mono);font-size:.95rem;word-break:break-all;background:var(--accent-soft);border-radius:8px;padding:10px 12px;display:grid;gap:4px}
+.proc .ej span{color:var(--muted);font-family:var(--f-body)}
+.proc .check{list-style:none;padding-left:0}.proc .check li::before{content:"☐ ";font-size:1.1em}
+@media print{
+  body{background:#fff;color:#000;font-size:15px;padding:0}
+  .wrap>*:not(header),header>*:not(.proc),.no-imprimir{display:none!important}
+  .proc{border:0;margin:0}.proc>summary::before{content:""}
+  .proc ol.pasos>li{break-inside:avoid}
+}
 
 @media (max-width:480px){body{font-size:18px}.preg{font-size:1.2rem}}
 @media (prefers-reduced-motion:no-preference){.paso{animation:entra .18s ease-out}@keyframes entra{from{transform:translateY(4px)}to{transform:none}}}
@@ -101,6 +122,47 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
       <li><b>Le resuelve los casos difíciles:</b> trabajos en grupo, el líder y el número de grupo, informes, un solo grupo en el laboratorio, cursos con pocos alumnos.</li>
       <li><b>No tiene que recordar ninguna regla:</b> el asistente las aplica por usted.</li>
      </ul></div>
+    <details class="proc" id="proc">
+     <summary>📋 Procedimiento paso a paso: cómo rotular y subir las evidencias (clic para ver)</summary>
+     <div class="cuerpo">
+      <h3>Antes de empezar</h3>
+      <ul>
+       <li><b>Todos los archivos deben estar en PDF.</b> Si están en Word: <i>Archivo → Guardar como → elija «PDF»</i>. No se suben videos.</li>
+       <li><b>Separe los archivos de una evaluación</b> (por ejemplo, el Examen Parcial):
+        <ul>
+         <li><b>Exámenes, prácticas, trabajos e investigaciones: 4 archivos</b> → el enunciado en blanco + el trabajo con la <b>mayor</b> nota + el de la <b>menor</b> nota + el de nota <b>promedio</b>.</li>
+         <li><b>Talleres, laboratorios (informes) y proyectos: 3 archivos</b> → el enunciado en blanco + el de <b>mayor</b> nota + el de <b>menor</b> nota.</li>
+        </ul></li>
+       <li><b>Anote al lado de cada trabajo</b> el nombre del estudiante y su nota. Así responde rápido.</li>
+      </ul>
+      <h3>Paso a paso</h3>
+      <ol class="pasos">
+       <li><div><b>Elija el archivo.</b> Más abajo, en el recuadro «Su archivo», pulse <span class="boton">📂 Elegir el archivo PDF</span> (o arrastre el archivo encima del recuadro).<br><i>Consejo:</i> empiece por el <b>enunciado en blanco</b>.</div></li>
+       <li><div><b>Responda las preguntas.</b> Aparecen de una en una. Elija la opción y pulse <span class="boton">Siguiente →</span>. Si se equivoca, pulse <span class="boton">← Volver</span>.</div></li>
+       <li><div><b>Descargue el archivo con el nombre correcto.</b> Al final pulse <span class="boton">⬇ Descargar con el nombre nuevo</span>. La copia queda en su carpeta <b>«Descargas»</b>. Su archivo original no cambia.</div></li>
+       <li><div><b>Siga con los demás trabajos de la misma evaluación.</b> Pulse <span class="boton">Rotular otro trabajo de esta misma evaluación</span>. El asistente ya recuerda el curso, el tipo y el periodo: solo le pregunta el nombre del estudiante y la nota. Elija el nuevo PDF en «Su archivo» y repita los pasos 2 y 3.<br>Para otra evaluación (por ejemplo, el Examen Final), pulse <span class="boton">Empezar de nuevo</span>.</div></li>
+       <li><div><b>Suba los archivos al portafolio en Drive.</b> Abra la carpeta de su portafolio → entre a la carpeta <b>«EVALUACIONES»</b> → entre a la carpeta de esa evaluación (por ejemplo <b>«EXAMEN PARCIAL»</b>) → arrastre ahí los archivos desde «Descargas» (o use <i>+ Nuevo → Subir archivo</i>).</div></li>
+       <li><div><b>Revise antes de terminar:</b>
+        <ul class="check">
+         <li>Están los 4 archivos (o 3, si es un trabajo en grupo).</li>
+         <li>Todos son PDF y no hay videos.</li>
+         <li>Cada nombre salió de este asistente.</li>
+         <li>Están dentro de la carpeta de la evaluación que corresponde.</li>
+         <li>No hay archivos repetidos.</li>
+        </ul></div></li>
+      </ol>
+      <h3>Ejemplo completo: Examen Parcial de IN0701, ciclo 2026-II</h3>
+      <div class="ej">
+       <div>IN0701.EP.2026-II.PDF <span>← el examen en blanco</span></div>
+       <div>IN0701.EP.2026-II.Luis Morales.Mayor.17.PDF <span>← mayor nota</span></div>
+       <div>IN0701.EP.2026-II.José Vega.Menor.12.PDF <span>← menor nota</span></div>
+       <div>IN0701.EP.2026-II.Samuel Díaz.Promedio.14.PDF <span>← nota promedio</span></div>
+      </div>
+      <p class="ayuda" style="margin:0"><b>¿Su evaluación no tiene carpeta dentro de «EVALUACIONES»?</b> Entonces no se pide en su curso. Si cree que falta, avise a su coordinador de área.</p>
+      <div class="btns no-imprimir"><button type="button" class="b sec" id="imprimirProc">🖨 Imprimir este procedimiento</button>
+       <button type="button" class="b sec" id="cerrarProc">Cerrar el procedimiento</button></div>
+     </div>
+    </details>
   </header>
 
   <div class="nombre" aria-live="polite">
@@ -325,7 +387,7 @@ function final(){
     <p><b>Si prefiere cambiarle el nombre usted mismo:</b> en la carpeta, haga clic derecho sobre el archivo, elija «Cambiar nombre», borre el nombre anterior y pegue (Ctrl + V).</p>
     <p>Si al cambiarle el nombre el archivo queda como «….PDF.pdf», no se preocupe: el portal lo reconoce igual. Lo más sencillo es usar <b>Descargar con el nombre nuevo</b>, que deja el nombre exacto.</p>
    </div>
-   <div class="btns">${R.clase==='evidencia'?'<button type="button" class="b pri" id="otraEv">Rotular otro trabajo de esta misma evaluación</button>':''}
+   <div class="btns"><button type="button" class="b pri" id="otraEv">${R.clase==='evidencia'?'Rotular otro trabajo de esta misma evaluación':'Ahora rotular un trabajo de un estudiante de esta evaluación'}</button>
    <button type="button" class="b sec" id="editar">Corregir respuestas</button>
    <button type="button" class="b sec" id="nuevo">Empezar de nuevo</button></div>`;
 }
@@ -365,6 +427,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)
   if(b.id==='eligeArch'||b.id==='cambiaArch'||b.id==='eligeArch2') $('#inArchivo').click();
   if(b.id==='quitaArch'){ARCH=null;pintaArchivo(); if($('#res')) final();}
   if(b.id==='bajar') bajar();
+  if(b.id==='imprimirProc'){const d=$('#proc'); d.open=true; window.print();}
+  if(b.id==='cerrarProc'){const d=$('#proc'); d.open=false; d.scrollIntoView({block:'nearest'});}
 });
 ['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){e.preventDefault();$('#cajaArchivo').classList.add('encima');}}));
 ['dragleave','drop'].forEach(t=>document.addEventListener(t,e=>{if(t==='dragleave'&&e.relatedTarget) return;$('#cajaArchivo').classList.remove('encima');}));
