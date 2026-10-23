@@ -98,6 +98,12 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
 .proc .boton{display:inline-block;border:2px solid var(--accent);border-radius:6px;padding:0 6px;font-weight:700;color:var(--accent);white-space:nowrap}
 .proc .ej{font-family:var(--f-mono);font-size:.95rem;word-break:break-all;background:var(--accent-soft);border-radius:8px;padding:10px 12px;display:grid;gap:4px}
 .proc .ej span{color:var(--muted);font-family:var(--f-body)}
+.proc details.faq{border:2px solid var(--line);border-radius:8px;background:var(--bg)}
+.proc details.faq>summary{cursor:pointer;font-weight:700;padding:10px 12px}
+.proc details.faq[open]{border-color:var(--accent)}
+.proc details.faq>div{padding:0 12px 12px}
+.btn-faq{font:inherit;background:none;border:0;padding:0;color:var(--accent);font-weight:700;text-decoration:underline;cursor:pointer}
+@media print{.proc details.faq>div{display:block}}
 .proc .check{list-style:none;padding-left:0}.proc .check li::before{content:"☐ ";font-size:1.1em}
 @media print{
   body{background:#fff;color:#000;font-size:15px;padding:0}
@@ -158,7 +164,26 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
        <div>IN0701.EP.2026-II.José Vega.Menor.12.PDF <span>← menor nota</span></div>
        <div>IN0701.EP.2026-II.Samuel Díaz.Promedio.14.PDF <span>← nota promedio</span></div>
       </div>
-      <p class="ayuda" style="margin:0"><b>¿Su evaluación no tiene carpeta dentro de «EVALUACIONES»?</b> Entonces no se pide en su curso. Si cree que falta, avise a su coordinador de área.</p>
+      <h3 id="faq">Preguntas frecuentes</h3>
+      <details class="faq"><summary>¿Cuántos archivos se suben por cada evaluación?</summary><div>
+       <ul>
+        <li><b>Exámenes, prácticas, trabajos e investigaciones</b> (se resuelven de forma individual): <b>4 archivos</b> → 1 en blanco (las preguntas) + 3 resueltos por estudiantes: el de <b>mayor</b> nota, el de <b>menor</b> nota y el de nota <b>promedio</b>.</li>
+        <li><b>Talleres, laboratorios (con sus informes) y proyectos</b> (se trabajan en grupo): <b>3 archivos</b> → 1 en blanco + 2 resueltos: el de <b>mayor</b> nota y el de <b>menor</b> nota.</li>
+       </ul></div></details>
+      <details class="faq"><summary>¿Por qué en los trabajos en grupo no va la nota promedio?</summary><div>
+       <p style="margin:0">Porque hay pocos grupos y el promedio no se parece a ningún trabajo. <i>Ejemplo:</i> 3 grupos sacan 5, 16 y 17; el promedio es 12,7 y ningún grupo sacó algo parecido. Por eso bastan la mayor y la menor nota. (La Guía Operativa Docente, numeral 4.5, pide el enunciado y las tres notas.)</p></div></details>
+      <details class="faq"><summary>¿Y si el curso tiene menos de 3 estudiantes?</summary><div>
+       <p style="margin:0">No hay nota promedio. <i>Ejemplo:</i> un curso con 2 alumnos → suba el examen en blanco, el de mayor nota y el de menor nota (3 archivos).</p></div></details>
+      <details class="faq"><summary>¿Y si hay un solo trabajo (por ejemplo, un solo grupo en el laboratorio)?</summary><div>
+       <p style="margin:0">Ese único trabajo es a la vez el de mayor y el de menor nota. Súbalo <b>una sola vez</b>. En la pregunta «¿Qué nota representa este trabajo?» abra «¿Hay un solo trabajo?» y elija esa opción: el nombre llevará <b>Mayor-Menor</b>, por ejemplo <code>…Grupo único.Mayor-Menor.15.PDF</code>.</p></div></details>
+      <details class="faq"><summary>¿Y si varias notas se repiten?</summary><div>
+       <p style="margin:0"><i>Ejemplo:</i> 4 alumnos sacaron 14, 14, 14 y 18. El promedio es 15 y la nota más cercana es 14, igual que la menor. Suba el de 18 como <b>Mayor</b> y <b>dos trabajos distintos de 14</b>: uno como <b>Menor</b> y otro como <b>Promedio</b> (cualquiera de los de 14 sirve). Siguen siendo 3 archivos resueltos.</p></div></details>
+      <details class="faq"><summary>¿Cuenta un trabajo no presentado (0 sin entrega)?</summary><div>
+       <p style="margin:0">No. La menor nota es la del trabajo <b>presentado</b> con la nota más baja.</p></div></details>
+      <details class="faq"><summary>Al cambiar el nombre, el archivo quedó «….PDF.pdf». ¿Está mal?</summary><div>
+       <p style="margin:0">No se preocupe: el portal lo reconoce igual. Para evitarlo, use el botón <b>«Descargar con el nombre nuevo»</b>, que deja el nombre exacto.</p></div></details>
+      <details class="faq"><summary>Mi evaluación no tiene carpeta dentro de «EVALUACIONES». ¿Qué hago?</summary><div>
+       <p style="margin:0">Entonces esa evaluación no se pide en su curso. Si cree que falta, avise a su coordinador de área.</p></div></details>
       <div class="btns no-imprimir"><button type="button" class="b sec" id="imprimirProc">🖨 Imprimir este procedimiento</button>
        <button type="button" class="b sec" id="cerrarProc">Cerrar el procedimiento</button></div>
      </div>
@@ -235,19 +260,7 @@ function pintaVista(){
 const PASOS=[
  {id:'clase',ver:()=>true,
   html:()=>`<p class="preg">¿Qué archivo va a rotular?</p>
-   <div class="ayuda cuantos"><b>¿Cuántos archivos se suben por cada evaluación?</b>
-    <ul>
-     <li><b>Exámenes, prácticas, trabajos e investigaciones</b> (se resuelven de forma individual): <b>4 archivos</b> → 1 en blanco (las preguntas) + 3 resueltos por estudiantes: el de <b>mayor</b> nota, el de <b>menor</b> nota y el de nota <b>promedio</b>.</li>
-     <li><b>Talleres, laboratorios (con sus informes) y proyectos</b> (se trabajan en grupo): <b>3 archivos</b> → 1 en blanco + 2 resueltos: el de <b>mayor</b> nota y el de <b>menor</b> nota.</li>
-    </ul>
-    <b>¿Por qué en los trabajos en grupo no va la nota promedio?</b> Porque hay pocos grupos y el promedio no se parece a ningún trabajo. <i>Ejemplo:</i> 3 grupos sacan 5, 16 y 17; el promedio es 12.7, y ningún grupo sacó algo parecido. Por eso bastan la mayor y la menor nota. (La Guía Operativa Docente, numeral 4.5, pide el enunciado y las tres notas.)
-    <br><b>Casos especiales.</b> A veces el curso no es como en la lista de arriba. Así se resuelve:
-    <ul>
-     <li><b>Curso con menos de 3 estudiantes:</b> no hay nota promedio. <i>Ejemplo:</i> un curso con 2 alumnos → suba el examen en blanco, el de mayor nota y el de menor nota (3 archivos).</li>
-     <li><b>Hay un solo trabajo:</b> <i>ejemplo:</i> en el laboratorio se formó un solo grupo, así que hay un único informe con una sola nota (15). Ese informe es al mismo tiempo el de mayor y el de menor nota. Súbalo <b>una sola vez</b>; el asistente le pondrá <b>Mayor-Menor</b> en el nombre: <code>…Grupo único.Mayor-Menor.15.PDF</code>.</li>
-     <li><b>Notas repetidas:</b> <i>ejemplo:</i> 4 alumnos sacaron 14, 14, 14 y 18. El promedio es 15 y la nota más cercana es 14, igual que la menor. Suba el de 18 como <b>Mayor</b> y <b>dos trabajos distintos de 14</b>: uno como <b>Menor</b> y otro como <b>Promedio</b> (cualquiera de los tres de 14 sirve). Siguen siendo 3 archivos resueltos.</li>
-    </ul>
-    Estas opciones aparecen más adelante, en la pregunta «¿Qué nota representa este trabajo?».</div>
+   <p class="ayuda">¿Tiene dudas sobre cuántos archivos subir o sobre un caso especial (pocos alumnos, un solo grupo, notas repetidas)? <button type="button" class="btn-faq" id="verFaq">Vea las preguntas frecuentes</button></p>
    <div class="ops">${op('clase','enunciado','El examen o tarea en blanco','Las preguntas que el docente entregó, sin resolver. Por ejemplo, el examen parcial tal como se tomó. Es 1 por evaluación.')}
    ${op('clase','evidencia','El trabajo de un estudiante','Un examen o tarea ya resuelto por un alumno, o el informe de un grupo: el de mayor, menor o nota promedio.')}</div>`,
   ok:()=>R.clase?'':'Elija una de las dos opciones.'},
@@ -427,7 +440,8 @@ document.addEventListener('click',e=>{const b=e.target.closest('button'); if(!b)
   if(b.id==='eligeArch'||b.id==='cambiaArch'||b.id==='eligeArch2') $('#inArchivo').click();
   if(b.id==='quitaArch'){ARCH=null;pintaArchivo(); if($('#res')) final();}
   if(b.id==='bajar') bajar();
-  if(b.id==='imprimirProc'){const d=$('#proc'); d.open=true; window.print();}
+  if(b.id==='imprimirProc'){const d=$('#proc'); d.open=true; d.querySelectorAll('details.faq').forEach(x=>x.open=true); window.print();}
+  if(b.id==='verFaq'){const d=$('#proc'); d.open=true; d.querySelector('details.faq').open=true; $('#faq').scrollIntoView({behavior:'smooth',block:'start'});}
   if(b.id==='cerrarProc'){const d=$('#proc'); d.open=false; d.scrollIntoView({block:'nearest'});}
 });
 ['dragenter','dragover'].forEach(t=>document.addEventListener(t,e=>{if(e.dataTransfer&&[...e.dataTransfer.types].includes('Files')){e.preventDefault();$('#cajaArchivo').classList.add('encima');}}));
