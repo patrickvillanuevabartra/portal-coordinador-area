@@ -1924,7 +1924,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
-<script src="mbz-aula.js?v=2026-10-24.01"></script>
+<script src="mbz-aula.js?v=2026-10-24.02"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2199,7 +2199,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-24.01';
+  const VERSION_INTERNA = '2026-10-24.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10369,7 +10369,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       aviso: otros.length ? 'Se analizó solo la copia del aula. Los otros archivos adjuntos (' + esc(otros.map(f => f.name).join(', ')) +
         ') no se revisaron; si quiere que el asistente los lea, quite la copia de los adjuntos y pulse Analizar otra vez.' : '',
       botones:
-        '<button type="button" id="mbzMarcar">Marcar las sugerencias en los puntos 01, 02, 05 y 07</button>' +
+        '<button type="button" id="mbzMarcar">Marcar las sugerencias en los puntos ' + MBZ_y(res.resumen.autos) + '</button>' +
         '<button type="button" class="sec" id="mbzImprimir">Imprimir o guardar el reporte en PDF</button>' +
         '<button type="button" class="sec" id="mbzVerBorrador">Ver lo que se guardaría en «Borradores del asistente»</button>'
     }) + '<div id="mbzBorrador" class="oculto"></div>';
@@ -10426,6 +10426,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     });
   }
 
+  const MBZ_y = l => l.length < 2 ? l.join('') : l.slice(0, -1).join(', ') + ' y ' + l[l.length - 1];
   // Índice del punto en el formulario: por su nombre; si no, por su número.
   function indicePuntoAV(lista, n, et) {
     let i = lista.findIndex(it => sinAcentos(it.etiqueta || '') === sinAcentos(et));
