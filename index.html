@@ -10317,7 +10317,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     }
     const a = estado.actual || {};
     const cruce = MBZ.cruzar(H, a);
-    const seguir = () => mostrarAnalisisMbz(F, H, archivo, caja);
+    const seguir = () => { mostrarAnalisisMbz(F, H, archivo, caja); };
     if (cruce.claro) return seguir();
     caja.innerHTML = '<div class="mbz-preg"><b>Antes de seguir: ¿es esta el aula correcta?</b><br>' +
       'La copia es del aula <b>' + esc(H.aula.nombre) + '</b> (' + esc(H.aula.corto) + ', ' + esc(H.aula.tipo) + ').<br>' +
@@ -10331,12 +10331,19 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     });
   }
 
-  function mostrarAnalisisMbz(F, H, archivo, caja) {
+  let HORARIO_GUIA = null;   // filas pegadas de la guía de matrícula (mientras no se cierre la página)
+  async function mostrarAnalisisMbz(F, H, archivo, caja, avisoHorario) {
     const MBZ = window.MBZ, a = estado.actual || {};
     const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
     // El estándar literal es el de config.js (la lista vigente tiene encima la nota de las dos opciones).
     const base = M_ACTUAL()._critBaseAV || lista;
-    const res = MBZ.evaluar(H, { codigo: a.codigo, criterios: MBZ.PUNTOS.map(([n, et]) => base[indicePuntoAV(base, n, et)] || {}) });
+    // Horario del grupo: el publicado por el portal o el que pegó el coordinador.
+    if (!HORARIO_GUIA) { const pub = await MBZ.cargarHorarioPublicado(H.aula.periodo); if (Array.isArray(pub) && pub.length) HORARIO_GUIA = pub; }
+    const delAula = HORARIO_GUIA ? MBZ.horarioDelAula(HORARIO_GUIA, H, estado.mbzCodigoGuia || a.codigo) : [];
+    if (HORARIO_GUIA && !delAula.length && !avisoHorario)
+      avisoHorario = 'En el horario pegado no hay filas de este curso, grupo ' + H.aula.grupo + ' y ' + H.aula.tipo + '. Revise que sea el semestre correcto o escriba el código del curso como figura en la guía.';
+    const res = MBZ.evaluar(H, { codigo: a.codigo, horario: delAula.length ? delAula : undefined,
+      criterios: MBZ.PUNTOS.map(([n, et]) => base[indicePuntoAV(base, n, et)] || {}) });
     estado.mbz = res;
     estado.ultimosArchivos = [archivo.name];
 
@@ -10371,8 +10378,22 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       botones:
         '<button type="button" id="mbzMarcar">Marcar las sugerencias en los puntos ' + MBZ_y(res.resumen.autos) + '</button>' +
         '<button type="button" class="sec" id="mbzImprimir">Imprimir o guardar el reporte en PDF</button>' +
-        '<button type="button" class="sec" id="mbzVerBorrador">Ver lo que se guardaría en «Borradores del asistente»</button>'
+        '<button type="button" class="sec" id="mbzVerBorrador">Ver lo que se guardaría en «Borradores del asistente»</button>',
+      pedirHorario: !delAula.length, horarioAviso: avisoHorario ? esc(avisoHorario) : '',
+      codigoHorario: HORARIO_GUIA ? (estado.mbzCodigoGuia || a.codigo || '') : undefined,
+      horarioUsado: delAula.length ? delAula.map(f => f.tipo + ' ' + f.dia + ' ' + f.horario + ' (' + f.aula + ')').join('; ') : ''
     }) + '<div id="mbzBorrador" class="oculto"></div>';
+
+    if ($('mbzHorarioUsar')) $('mbzHorarioUsar').addEventListener('click', () => {
+      const filas = MBZ.leerHorario($('mbzHorarioTxt').value);
+      if ($('mbzHorarioCod')) estado.mbzCodigoGuia = $('mbzHorarioCod').value.trim();
+      if (!filas.length && !HORARIO_GUIA) {
+        mostrarAnalisisMbz(F, H, archivo, caja, 'No se reconocieron filas del horario. Copie la tabla desde la guía de matrícula (desde la columna Semestre hasta Docente) y péguela de nuevo.');
+        return;
+      }
+      if (filas.length) HORARIO_GUIA = (HORARIO_GUIA || []).concat(filas);
+      mostrarAnalisisMbz(F, H, archivo, caja);
+    });
 
     // Marcar: solo con el clic del coordinador, y solo los puntos automáticos.
     $('mbzMarcar').addEventListener('click', () => {

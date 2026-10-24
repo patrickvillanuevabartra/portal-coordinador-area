@@ -32,7 +32,7 @@ input[type=text]{font:inherit;padding:6px 10px;border:1px solid #c9d3cd;border-r
   <div class="caja">
     <label for="archivo">1. Elija la copia de seguridad del aula (.mbz)</label>
     <div class="fila"><input type="file" id="archivo"></div>
-    <div class="fila"><label for="codigo">Código del curso en el portal (opcional):</label><input type="text" id="codigo" placeholder="p. ej. IN1001"></div>
+    <div class="fila"><label for="codigo">Código del curso (opcional, como figura en la guía de matrícula):</label><input type="text" id="codigo" placeholder="p. ej. IN-1001"></div>
     <div class="fila"><button type="button" id="analizar" disabled>2. Analizar ➤</button></div>
   </div>
   <div id="salida"></div>
@@ -43,6 +43,23 @@ input[type=text]{font:inherit;padding:6px 10px;border:1px solid #c9d3cd;border-r
 (function () {
   const $ = id => document.getElementById(id);
   MBZ.ponerEstilos();
+  let filasGuia = null;
+  function pintar(H, aviso) {
+    const out = $('salida'), crit = ((window.PCA_CONFIG || {}).MODULOS || {}).aulaVirtual;
+    const cod = $('codigo').value.trim();
+    const delAula = filasGuia ? MBZ.horarioDelAula(filasGuia, H, cod) : [];
+    if (filasGuia && !delAula.length && !aviso) aviso = 'En el horario pegado no hay filas de este curso y grupo. Escriba el código del curso como figura en la guía (p. ej. IN-1001).';
+    const res = MBZ.evaluar(H, { codigo: cod, horario: delAula.length ? delAula : undefined, criterios: (crit && crit.criterios) || [] });
+    window.ultimoResultado = res;
+    out.innerHTML = MBZ.reporteHTML(res, { aviso: 'Página de prueba: aquí no se marcan los puntos ni se guarda nada. En el portal, el reporte aparece debajo del panel «Apoyo para la revisión».',
+      pedirHorario: !delAula.length, horarioAviso: aviso || '',
+      horarioUsado: delAula.map(f => f.tipo + ' ' + f.dia + ' ' + f.horario + ' (' + f.aula + ')').join('; ') });
+    if ($('mbzHorarioUsar')) $('mbzHorarioUsar').addEventListener('click', () => {
+      const f = MBZ.leerHorario($('mbzHorarioTxt').value);
+      if (!f.length) return pintar(H, 'No se reconocieron filas del horario. Copie la tabla desde la columna Semestre hasta Docente y péguela de nuevo.');
+      filasGuia = (filasGuia || []).concat(f); pintar(H);
+    });
+  }
   $('archivo').addEventListener('change', () => { $('analizar').disabled = !$('archivo').files.length; });
   $('analizar').addEventListener('click', async () => {
     const f = $('archivo').files[0], out = $('salida'), btn = $('analizar');
@@ -53,10 +70,7 @@ input[type=text]{font:inherit;padding:6px 10px;border:1px solid #c9d3cd;border-r
       if (!(await MBZ.esCopiaMbz(f))) throw new Error('El archivo no parece una copia de seguridad de Moodle (.mbz).');
       const H = await MBZ.leer(f, (p, t) => { const e = $('prog'); if (!e) return; if (t) e.querySelector('span').textContent = t; e.querySelector('progress').value = Math.round(p * 100); });
       if (H.conUsuarios) { out.innerHTML = '<div class="mbz-alto"><b>Esta copia trae datos de estudiantes.</b> No se analiza. Descárguela de nuevo sin usuarios.</div>'; return; }
-      const crit = ((window.PCA_CONFIG || {}).MODULOS || {}).aulaVirtual;
-      const res = MBZ.evaluar(H, { codigo: $('codigo').value.trim(), criterios: (crit && crit.criterios) || [] });
-      window.ultimoResultado = res;
-      out.innerHTML = MBZ.reporteHTML(res, { aviso: 'Página de prueba: aquí no se marcan los puntos ni se guarda nada. En el portal, el reporte aparece debajo del panel «Apoyo para la revisión».' });
+      pintar(H);
     } catch (e) {
       console.error(e);
       out.innerHTML = '<div class="mbz-alto"><b>No se pudo leer la copia.</b> ' + String(e.message).replace(/</g, '&lt;') + '</div>';

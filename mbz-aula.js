@@ -504,7 +504,7 @@
     }
     r.automatico = true;
     const virt = horario.filter(esVirtual);
-    const txtH = h => [h.dia, h.horario || [h.inicio, h.fin].filter(Boolean).join('–'), h.aula].filter(Boolean).join(' ');
+    const txtH = h => [h.tipo, h.dia, h.horario || [h.inicio, h.fin].filter(Boolean).join('–'), esVirtual(h) ? '(virtual)' : '(presencial, ' + (h.aula || '').replace(/\s*-\s*$/, '') + ')'].filter(Boolean).join(' ');
     if (!virt.length) {
       r.sugerido = 'No aplica'; r.certeza = 'alta'; r.para_docente = '';
       r.evidencia.unshift('Según la guía de matrícula, todas las clases de este grupo son presenciales (' + y(horario.map(txtH)) + ').');
@@ -541,6 +541,34 @@
     }
     r.nota.push('Las grabaciones se reconocen por el nombre («grabación», «clase grabada») o porque son videos subidos al aula. Si el docente las nombra de otra forma, confírmelo a mano.');
     return r;
+  }
+
+  /* ---------------------------------- horario de la guía de matrícula */
+  // Se pegan las filas copiadas de webapp.urp.edu.pe/guia-matricula/horario
+  // (Semestre · Curso · Grp · SGrp · Tipo · Aula · Día · Horas · Horario · Docente).
+  // Sirve pegar la tabla entera del semestre: se toman solo las del grupo.
+  const RX_FILA = /^\s*(\d{1,2})\s+([A-Z]{2,5}-?\s?\d{2,5})\s*-\s*(.+?)\s+(\d{1,2})\s+(\d)\s+(Teo|Tal|Pr[aá]|Lab)\s+(.+?)\s+(Lunes|Martes|Mi[ée]rcoles|Jueves|Viernes|S[áa]bado|Domingo)\s+(\d+)\s+(\d{1,2}:\d{2}\s*-\s*\d{1,2}:\d{2})\s*(.*)$/i;
+  function leerHorario(texto) {
+    const filas = [];
+    String(texto || '').split(/\r?\n/).forEach(l => {
+      const m = l.replace(/ /g, ' ').match(RX_FILA);
+      if (m) filas.push({ semestre: m[1], codigo: m[2].replace(/[\s-]/g, '').toUpperCase(), curso: m[3].trim(), grupo: String(+m[4]), subgrupo: m[5],
+        tipo: m[6], aula: m[7].trim(), dia: m[8], horas: +m[9], horario: m[10].replace(/\s+/g, ' '), docente: m[11].trim() });
+    });
+    return filas;
+  }
+  // Las filas del aula analizada: mismo curso, grupo y subgrupo (0 teoría, 1 taller).
+  function horarioDelAula(filas, H, codigo) {
+    const A = H.aula, cod = String(codigo || '').replace(/[\s-]/g, '').toUpperCase();
+    const pal = s => norm(s).split(/[^a-z0-9]+/).filter(w => w.length > 3);
+    const nom = pal(A.nombre.replace(/^\S+\s+/, ''));
+    const delCurso = filas.filter(f => cod ? f.codigo === cod : (() => { const p = pal(f.curso); return p.length && p.every(w => nom.includes(w)) && nom.every(w => p.includes(w)); })());
+    return delCurso.filter(f => (!A.grupo || f.grupo === A.grupo) && (A.subgrupo === '' || f.subgrupo === A.subgrupo));
+  }
+  async function cargarHorarioPublicado(periodo) {
+    // Si el portal publica la guía como archivo (docs/horario-AAAA-S.json), se usa sola.
+    try { const r = await fetch('docs/horario-' + periodo + '.json', { cache: 'no-cache' }); if (r.ok) return await r.json(); } catch (e) { /* no está */ }
+    return null;
   }
 
   /* ---------------------------------------------- cruce con la asignación */
@@ -912,6 +940,14 @@
     h.push('</section>');
 
     if (op.botones) h.push('<div class="mbz-botones">' + op.botones + '</div>');
+    if (op.pedirHorario) h.push('<div class="mbz-horario"><b>Para el punto 08 (grabaciones): pegue el horario del grupo.</b><br>' +
+      'Abra la <a href="https://webapp.urp.edu.pe/guia-matricula/horario" target="_blank" rel="noopener">guía de matrícula</a>, elija la carrera, la currícula y el semestre del curso, pulse «Buscar», ' +
+      'seleccione la tabla con el mouse, cópiela (Ctrl + C) y péguela aquí (Ctrl + V). Puede pegar la tabla entera: el portal toma solo las filas de este grupo. ' +
+      'Lo pegado sirve para los demás cursos de ese semestre mientras no cierre la página.' +
+      '<textarea id="mbzHorarioTxt" rows="4" placeholder="Pegue aquí las filas de la guía de matrícula…"></textarea>' +
+      (op.codigoHorario === undefined ? '' : '<label class="mbz-sub">Código del curso en la guía: <input type="text" id="mbzHorarioCod" value="' + esc(op.codigoHorario || '') + '" placeholder="p. ej. IN-1001" style="width:120px"></label> ') +
+      '<button type="button" id="mbzHorarioUsar">Usar este horario</button>' + (op.horarioAviso ? '<div class="mbz-alto" style="margin-top:8px">' + op.horarioAviso + '</div>' : '') + '</div>');
+    if (op.horarioUsado) h.push('<div class="mbz-sub">Horario usado para el punto 08 (guía de matrícula): ' + esc(op.horarioUsado) + '.</div>');
 
     // Fichas
     h.push('<h4 class="mbz-h">Ficha por punto</h4>');
@@ -996,6 +1032,9 @@
 .mbz-progreso progress{width:100%;height:12px;margin-top:6px}
 .mbz-alto{margin:8px 0;padding:12px 14px;border-radius:8px;background:#fdecea;border:1px solid #f1b9b2;border-left:5px solid #c0392b;font-size:15px}
 .mbz-preg{margin:8px 0;padding:12px 14px;border-radius:8px;background:#fff7e8;border:1px solid #f0d49a;font-size:15px}
+.mbz-horario{margin:10px 0;padding:12px 14px;border-radius:8px;background:#eef6fb;border:1px solid #c3ddf3;font-size:14.5px}
+.mbz-horario textarea{width:100%;margin:8px 0;font:inherit;font-size:13.5px;border:1px solid #c9d3cd;border-radius:8px;padding:8px}
+.mbz-horario button{padding:8px 14px;border-radius:8px;border:1px solid var(--brand,#0f8f5e);background:var(--brand,#0f8f5e);color:#fff;font-size:14.5px}
 .mbz-json{white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;background:#f6f8f7;border:1px solid #dfe4e1;border-radius:8px;padding:8px;max-height:320px;overflow:auto}
 `;
   function ponerEstilos() {
@@ -1003,7 +1042,7 @@
     const s = document.createElement('style'); s.id = 'mbz-css'; s.textContent = CSS; document.head.appendChild(s);
   }
 
-  const API = { VERSION_REGLAS, REGLAS, PUNTOS, esCopiaMbz, buscarCopia, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos, fecha, fechaHora };
+  const API = { VERSION_REGLAS, REGLAS, PUNTOS, leerHorario, horarioDelAula, cargarHorarioPublicado, esCopiaMbz, buscarCopia, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos, fecha, fechaHora };
   raiz.MBZ = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
