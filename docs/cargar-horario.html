@@ -8,80 +8,80 @@
 <style>
 :root{--brand:#0f8f5e;--brand-oscuro:#0b6e48;--brand-suave:#e6f4ee;--tinta:#15201b;--tinta-media:#5a6660;--linea:#dfe4e1;--fondo:#f6f8f7;--papel:#fff}
 *{box-sizing:border-box}
-body{margin:0;background:var(--fondo);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:17px;line-height:1.6}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:18px;line-height:1.6}
 main{max-width:860px;margin:0 auto;padding:24px 16px 48px}
-h1{font-size:25px;margin:0 0 4px;color:var(--brand-oscuro)}
+h1{font-size:26px;margin:0 0 6px;color:var(--brand-oscuro)}
 .sub{color:var(--tinta-media);margin:0 0 18px}
-.caja{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:18px 20px;margin-bottom:16px}
-ol{margin:0;padding-left:24px}li{margin:10px 0}
-.marcador{display:inline-block;margin:6px 0;padding:10px 18px;border-radius:10px;background:var(--brand);color:#fff;font-weight:700;text-decoration:none;cursor:grab;font-size:17px}
-.nota{background:var(--brand-suave);border-left:4px solid var(--brand);border-radius:8px;padding:10px 14px;font-size:15.5px}
-.ojo{background:#fff7e8;border-left:4px solid #b8860b;border-radius:8px;padding:10px 14px;font-size:15.5px;margin-top:12px}
-code{background:#eef2f0;padding:1px 6px;border-radius:4px}
+.paso{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:16px 20px;margin-bottom:14px}
+.paso b.n{display:inline-block;width:32px;height:32px;line-height:32px;text-align:center;border-radius:50%;background:var(--brand);color:#fff;margin-right:8px}
+textarea{width:100%;min-height:150px;font:inherit;font-size:15px;border:2px solid #c9d3cd;border-radius:10px;padding:10px;margin-top:8px}
+button{font:inherit;font-size:18px;padding:10px 22px;border-radius:10px;border:0;background:var(--brand);color:#fff;cursor:pointer;margin-top:10px}
+button.sec{background:#fff;color:var(--brand-oscuro);border:2px solid var(--brand)}
+button:disabled{opacity:.45;cursor:not-allowed}
+.ok{background:var(--brand-suave);border-left:5px solid var(--brand);border-radius:8px;padding:10px 14px;margin-top:10px}
+.mal{background:#fdecea;border-left:5px solid #c0392b;border-radius:8px;padding:10px 14px;margin-top:10px}
+ul#lista{margin:8px 0 0;padding-left:22px}
+a{color:#1d4f80}
 </style>
 </head>
 <body>
 <main>
-  <h1>Cargar el horario de la guía de matrícula</h1>
-  <p class="sub">Solo para el administrador del portal. Se hace <b>una vez por ciclo</b> (y otra vez si la guía cambia). Con esto, el punto 08 del Aula virtual (grabaciones) se calcula solo y los coordinadores no tienen que ingresar nada.</p>
+  <h1>Cargar el horario de clases</h1>
+  <p class="sub">Solo para el administrador. Se hace una vez por ciclo. Sirve para que el portal sepa qué clases son virtuales y cuántas grabaciones debe haber.</p>
 
-  <div class="caja">
-    <ol>
-      <li>Si no ve la barra de marcadores de Chrome, muéstrela con <b>Ctrl + Mayús + B</b>.</li>
-      <li><b>Arrastre</b> este botón verde hasta la barra de marcadores (no le haga clic aquí):<br>
-        <a class="marcador" id="marcador" href="#">📅 Leer horario URP</a></li>
-      <li>Abra la <a href="https://webapp.urp.edu.pe/guia-matricula/horario" target="_blank" rel="noopener">guía de matrícula</a>.</li>
-      <li>Con la guía abierta, haga clic en el marcador <b>«📅 Leer horario URP»</b>. Arriba a la derecha verá cómo avanza: recorre Civil, Electrónica, Industrial, Informática y Mecatrónica, con todas sus currículas y semestres. <b>Tarda unos 5 a 10 minutos: no cierre ni cambie de pestaña.</b></li>
-      <li>Al terminar se descarga el archivo <code>horario-2026-2.json</code> en su carpeta Descargas.</li>
-      <li>Súbalo al portal: en GitHub abra la carpeta <b>docs</b> del repositorio, pulse <b>Add file → Upload files</b>, arrastre el archivo y pulse <b>Commit changes</b>. (O envíeselo a Claude para que lo suba.)</li>
-    </ol>
-    <p class="ojo">Desde ese momento, al analizar la copia de un aula el portal toma solo el horario de ese curso, grupo y subgrupo, reconoce las clases «URP - Virtual» y cuenta cuántas grabaciones debería haber.</p>
+  <div class="paso"><b class="n">1</b> Abra la <a href="https://webapp.urp.edu.pe/guia-matricula/horario" target="_blank" rel="noopener">guía de matrícula</a> en otra pestaña.
+    Elija una <b>carrera</b>, una <b>currícula</b> y un <b>semestre</b>, y pulse <b>Buscar</b>.
+    <br><small>Basta con los semestres V al X: los cursos del I al IV no se supervisan en el portal.</small></div>
+
+  <div class="paso"><b class="n">2</b> Haga clic dentro de la tabla de la guía y pulse <b>Ctrl + A</b> (selecciona todo) y luego <b>Ctrl + C</b> (copia).</div>
+
+  <div class="paso"><b class="n">3</b> Vuelva aquí, haga clic en el recuadro y pulse <b>Ctrl + V</b> (pega). Luego pulse <b>Agregar</b>.
+    <textarea id="txt" placeholder="Pegue aquí lo que copió de la guía de matrícula…"></textarea>
+    <button type="button" id="agregar">Agregar</button>
+    <div id="msg"></div>
+    <p style="margin:10px 0 0">Repita los pasos 1 a 3 con cada carrera, currícula y semestre. Lo agregado:</p>
+    <ul id="lista"><li>Todavía nada.</li></ul>
   </div>
-  <p class="nota">El marcador solo lee lo que la guía muestra en pantalla (curso, grupo, tipo, aula, día, horario y docente). No inicia sesión, no envía datos a ningún sitio y no cambia nada en la guía.</p>
+
+  <div class="paso"><b class="n">4</b> Cuando termine, pulse <b>Descargar el archivo</b> y envíeselo a Claude (o súbalo a la carpeta <b>docs</b> del portal en GitHub).
+    <br><button type="button" id="bajar" disabled>Descargar el archivo</button>
+    <button type="button" class="sec" id="borrar">Empezar de nuevo</button></div>
 </main>
+<script src="../mbz-aula.js?v=2026-10-24.07"></script>
 <script>
-// Código que corre sobre la página de la guía (se guarda como marcador).
-function leerHorarioURP() {
-  (async () => {
-    const espera = ms => new Promise(r => setTimeout(r, ms));
-    const cambiar = el => el.dispatchEvent(new Event('change', { bubbles: true }));
-    const car = document.getElementById('txtCarrera'), cur = document.getElementById('txtCurricula'), cic = document.getElementById('txtCiclo');
-    if (!car || !cur || !cic) { alert('Abra primero la guía de matrícula (webapp.urp.edu.pe/guia-matricula/horario) y vuelva a pulsar el marcador.'); return; }
-    const quiero = /ingenier[ií]a\s+(civil|electr[oó]nica|industrial|inform[aá]tica|mecatr[oó]nica)/i;
-    const aviso = document.createElement('div');
-    aviso.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#0f8f5e;color:#fff;padding:14px 18px;border-radius:10px;font:16px/1.4 sans-serif;max-width:380px;box-shadow:0 4px 16px rgba(0,0,0,.25)';
-    document.body.appendChild(aviso);
-    const filas = [], vistos = new Set();
-    const buscar = () => { const b = [...document.querySelectorAll('button,input[type=submit],input[type=button]')].find(x => /buscar/i.test(x.textContent || x.value || '')); if (b) b.click(); };
-    const carreras = [...car.options].filter(o => quiero.test(o.text));
-    for (const o of carreras) {
-      car.value = o.value; cambiar(car); await espera(3000);
-      for (const c of [...cur.options].filter(x => x.value)) {
-        cur.value = c.value; cambiar(cur); await espera(3000);
-        for (const s of [...cic.options].filter(x => x.value)) {
-          const tb = document.querySelector('table tbody'); if (tb) tb.innerHTML = '';
-          cic.value = s.value; cambiar(cic); buscar();
-          let t = 0; while (t < 24) { await espera(500); t++; if (document.querySelectorAll('table tbody tr').length && t > 3) break; }
-          document.querySelectorAll('table tbody tr').forEach(tr => {
-            const x = [...tr.cells].map(td => td.innerText.replace(/\s+/g, ' ').trim());
-            if (x.length < 10) return;
-            const k = x.slice(1, 9).join('|');
-            if (vistos.has(k)) return; vistos.add(k);
-            filas.push({ carrera: o.text.trim(), curricula: c.text.trim(), semestre: x[0], curso: x[1], grupo: x[2], subgrupo: x[3], tipo: x[4], aula: x[5], dia: x[6], horas: x[7], horario: x[8], docente: x[9] });
-          });
-          aviso.textContent = 'Leyendo ' + o.text.trim() + ' · currícula ' + c.text.trim() + ' · semestre ' + s.text.trim() + ' — ' + filas.length + ' filas. No cierre esta pestaña.';
-        }
-      }
-    }
-    const m = (document.body.innerText.match(/(20\d\d)\s*-\s*(II|I)\b/) || []);
-    const periodo = m[1] ? m[1] + '-' + (m[2] === 'II' ? '2' : '1') : (prompt('¿Qué periodo es? (por ejemplo 2026-2)') || 'periodo');
-    const blob = new Blob([JSON.stringify({ periodo, leido: new Date().toISOString(), fuente: location.href, filas }, null, 1)], { type: 'application/json' });
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'horario-' + periodo + '.json'; document.body.appendChild(a); a.click();
-    aviso.textContent = '✔ Listo: ' + filas.length + ' filas de ' + carreras.length + ' carreras. Se descargó horario-' + periodo + '.json. Súbalo a la carpeta docs del portal.';
-  })();
-}
-document.getElementById('marcador').href = 'javascript:' + encodeURIComponent('(' + leerHorarioURP.toString() + ')();void 0;');
-document.getElementById('marcador').addEventListener('click', e => { e.preventDefault(); alert('Arrástrelo a la barra de marcadores y úselo con la guía de matrícula abierta.'); });
+(function () {
+  const $ = id => document.getElementById(id);
+  let filas = [];
+  try { filas = JSON.parse(localStorage.getItem('horarioGuia') || '[]'); } catch (e) { filas = []; }
+  const guardar = () => { try { localStorage.setItem('horarioGuia', JSON.stringify(filas)); } catch (e) {} };
+  function pintar() {
+    const por = {};
+    filas.forEach(f => { const k = 'Semestre ' + f.semestre; por[k] = (por[k] || 0) + 1; });
+    const cursos = new Set(filas.map(f => f.codigo)).size;
+    $('lista').innerHTML = filas.length
+      ? '<li><b>' + filas.length + ' filas</b> de <b>' + cursos + ' cursos</b>.</li>' + Object.keys(por).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1])).map(k => '<li>' + k + ': ' + por[k] + ' filas</li>').join('')
+      : '<li>Todavía nada.</li>';
+    $('bajar').disabled = !filas.length;
+  }
+  $('agregar').addEventListener('click', () => {
+    const nuevas = MBZ.leerHorario($('txt').value);
+    if (!nuevas.length) { $('msg').innerHTML = '<div class="mal">No encontré filas del horario en lo pegado. Copie la tabla de la guía después de pulsar <b>Buscar</b> y vuelva a pegarla.</div>'; return; }
+    const clave = f => [f.codigo, f.grupo, f.subgrupo, f.tipo, f.dia, f.horario].join('|');
+    const ya = new Set(filas.map(clave));
+    const add = nuevas.filter(f => !ya.has(clave(f)));
+    filas = filas.concat(add); guardar(); pintar();
+    $('txt').value = '';
+    $('msg').innerHTML = '<div class="ok">✔ Se agregaron <b>' + add.length + ' filas</b>' + (nuevas.length > add.length ? ' (' + (nuevas.length - add.length) + ' ya estaban)' : '') + '. Siga con el siguiente semestre o carrera.</div>';
+  });
+  $('bajar').addEventListener('click', () => {
+    const per = prompt('¿Qué ciclo es? Escríbalo así: 2026-2', '2026-2');
+    if (!per) return;
+    const blob = new Blob([JSON.stringify({ periodo: per, leido: new Date().toISOString(), filas }, null, 1)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'horario-' + per + '.json'; document.body.appendChild(a); a.click(); a.remove();
+  });
+  $('borrar').addEventListener('click', () => { if (confirm('¿Borrar lo agregado y empezar de nuevo?')) { filas = []; guardar(); pintar(); $('msg').innerHTML = ''; } });
+  pintar();
+})();
 </script>
 </body>
 </html>
