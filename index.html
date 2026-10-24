@@ -281,6 +281,10 @@ tr.sin-leer{background:#fffdf6}
   color:#6b4c00}
 .declarado.sin-fuente a{color:#6b4c00}
 .chat-asistente{margin:0 0 14px}
+.guia-mbz{margin:0 0 10px;border:1px solid #c3ddf3;border-left:4px solid #2a6fb0;border-radius:10px;background:#f3f8fd;padding:10px 14px;font-size:15px;line-height:1.6}
+.guia-mbz summary{cursor:pointer;font-weight:700;font-size:15.5px;color:#1d4f80}
+.guia-mbz ol{margin:8px 0 4px 22px;padding:0}.guia-mbz li{margin:4px 0}
+.guia-mbz-nota{margin:6px 0 0;font-size:14px;color:var(--tinta-media)}
 .insumos{margin:4px 0 10px;border:1px solid var(--linea);border-radius:10px;background:#fbfcfb;padding:10px 14px}
 .insumos b.t{display:block;font-size:14.5px;margin-bottom:4px}
 .insumos ul{list-style:none;margin:0;padding:0}
@@ -1924,7 +1928,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
-<script src="mbz-aula.js?v=2026-10-24.03"></script>
+<script src="mbz-aula.js?v=2026-10-24.04"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2199,7 +2203,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-24.03';
+  const VERSION_INTERNA = '2026-10-24.04';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9356,6 +9360,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         '<div class="chat-sub">El asistente compara con los estándares del portal y le señala lo que ' +
         'encuentra. La evaluación y la decisión son suyas.</div>' +
         '<div class="insumos" id="insumos"></div>' +
+        (estado.modulo === 'aulaVirtual' ? GUIA_COPIA_AULA : '') +
         '<div class="carpeta-estado oculto" id="carpetaEstado"></div>' +
         '<div class="carpeta-estado oculto" id="carpetaEstadoF"></div>' +
         '<div class="chat-caja">' +
@@ -10120,15 +10125,13 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       ]
     },
     aulaVirtual: {
-      placeholder: 'Adjunte la copia de seguridad del aula (.mbz), sin usuarios, y pulse Analizar. También puede adjuntar capturas o el PDF, o anotar lo que encontró…',
+      placeholder: 'Adjunte aquí la copia del aula (.mbz) con 📎 Adjuntar y pulse Analizar.',
       como: 'lee la copia de seguridad del aula (.mbz) en su propio equipo, con reglas fijas, y le muestra un reporte por punto y por semana ' +
         '(el archivo no se envía a ningún servidor). Si en cambio adjunta capturas o el PDF, el asistente revisa lo que muestran contra los puntos del formato',
       ejemplo: 'no está publicado el sílabo y falta el foro de consultas',
       lista: [
         { t: 'Copia de seguridad del aula (.mbz), sin usuarios', archivo: true,
-          falta: 'Suba la copia de seguridad del aula (.mbz), sin usuarios, con 📎 Adjuntar y pulse Analizar. ' +
-            'En Moodle: dentro del aula, «Copia de seguridad», desmarque «Incluir usuarios matriculados» y descargue el archivo. ' +
-            'Se lee en su equipo: no se sube a ningún servidor. Si no la tiene, adjunte capturas o el PDF, o anote lo que vio.' }
+          falta: 'Descárguela del aula virtual del docente siguiendo los pasos de abajo y adjúntela con 📎 Adjuntar.' }
       ]
     },
     entrevistas: {
@@ -10278,6 +10281,22 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
      «Borradores del asistente». Se activa cuando se revise el guardado. */
   const MBZ_GUARDA_BORRADOR = false;
 
+  // Paso a paso para que el coordinador descargue la copia del aula (Moodle 4.0 de la URP).
+  const GUIA_COPIA_AULA =
+    '<details class="guia-mbz" open><summary>📥 Cómo descargar la copia del aula del docente (unos 2 minutos)</summary>' +
+    '<ol>' +
+      '<li>Entre al <b>aula virtual</b> del curso que está revisando, con su usuario de coordinador.</li>' +
+      '<li>En el menú del curso (arriba) pulse <b>«Más»</b> y luego <b>«Reutilización de curso»</b>.</li>' +
+      '<li>En la lista de arriba a la izquierda elija <b>«Copia de seguridad»</b>.</li>' +
+      '<li><b>Quite el check</b> de <b>«Incluir usuarios matriculados»</b>. Así la copia no lleva datos de los estudiantes.</li>' +
+      '<li>Pulse <b>«Saltar al último paso»</b>. Espere 1 o 2 minutos y pulse <b>«Continuar»</b>.</li>' +
+      '<li>En «Zona de copia de seguridad del curso», pulse <b>«Descargar»</b> en el archivo más reciente. ' +
+        'Se guarda en su carpeta <b>Descargas</b> y su nombre termina en <b>«-nu.mbz»</b> (nu = sin usuarios).</li>' +
+      '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija ese archivo y pulse <b>Analizar ➤</b>.</li>' +
+    '</ol>' +
+    '<p class="guia-mbz-nota">El archivo se lee en su computadora: <b>no se sube a ningún servidor</b> ni se guarda en el portal. ' +
+      'Si no ve la opción «Copia de seguridad», pida a su Escuela el permiso en esa aula.</p></details>';
+
   async function analizarMbz(F, archivo) {
     const MBZ = window.MBZ, btn = $('btnProponer');
     MBZ.ponerEstilos();
@@ -10379,7 +10398,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         '<button type="button" id="mbzMarcar">Marcar las sugerencias en los puntos ' + MBZ_y(res.resumen.autos) + '</button>' +
         '<button type="button" class="sec" id="mbzImprimir">Imprimir o guardar el reporte en PDF</button>' +
         '<button type="button" class="sec" id="mbzVerBorrador">Ver lo que se guardaría en «Borradores del asistente»</button>',
-      pedirHorario: !delAula.length, horarioAviso: avisoHorario ? esc(avisoHorario) : '',
+      pedirHorario: !delAula.length && estado.admin, horarioAviso: avisoHorario ? esc(avisoHorario) : '',
       codigoHorario: HORARIO_GUIA ? (estado.mbzCodigoGuia || a.codigo || '') : undefined,
       horarioUsado: delAula.length ? delAula.map(f => f.tipo + ' ' + f.dia + ' ' + f.horario + ' (' + f.aula + ')').join('; ') : ''
     }) + '<div id="mbzBorrador" class="oculto"></div>';

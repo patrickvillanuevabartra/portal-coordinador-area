@@ -565,7 +565,7 @@
     const horario = Array.isArray(ctx.horario) ? ctx.horario : null;
     if (!horario) {
       r.sugerido = ''; r.certeza = 'pendiente'; r.automatico = false; r.para_docente = '';
-      r.nota.push('Falta el horario del grupo (guía de matrícula) para saber cuántas clases son virtuales. Revise este punto a mano; si el curso es presencial, corresponde «No aplica».');
+      r.nota.push('El portal todavía no tiene el horario de este grupo (lo carga la administración desde la guía de matrícula). Por ahora revise este punto a mano: si el curso es presencial, corresponde «No aplica».');
       return r;
     }
     r.automatico = true;
@@ -631,9 +631,22 @@
     const delCurso = filas.filter(f => cod ? f.codigo === cod : (() => { const p = pal(f.curso); return p.length && p.every(w => nom.includes(w)) && nom.every(w => p.includes(w)); })());
     return delCurso.filter(f => (!A.grupo || f.grupo === A.grupo) && (A.subgrupo === '' || f.subgrupo === A.subgrupo));
   }
+  // Filas leídas de la guía con el cargador del administrador: «IN-1001 - Curso».
+  function normalizarHorario(d) {
+    const filas = Array.isArray(d) ? d : (d && d.filas) || [];
+    return filas.map(f => {
+      if (f.codigo && f.curso && !/ - /.test(f.curso)) return f;
+      const m = String(f.curso || '').match(/^\s*([A-Z]{2,5}-?\s?\d{2,5})\s*-\s*(.+)$/);
+      return Object.assign({}, f, { codigo: (m ? m[1] : f.codigo || '').replace(/[\s-]/g, '').toUpperCase(), curso: m ? m[2].trim() : f.curso,
+        grupo: String(+f.grupo || f.grupo), subgrupo: String(f.subgrupo) });
+    });
+  }
   async function cargarHorarioPublicado(periodo) {
     // Si el portal publica la guía como archivo (docs/horario-AAAA-S.json), se usa sola.
-    try { const r = await fetch('docs/horario-' + periodo + '.json', { cache: 'no-cache' }); if (r.ok) return await r.json(); } catch (e) { /* no está */ }
+    try {
+      const r = await fetch('docs/horario-' + periodo + '.json', { cache: 'no-cache' });
+      if (r.ok) return normalizarHorario(await r.json());
+    } catch (e) { /* todavía no se ha cargado */ }
     return null;
   }
 
@@ -1006,7 +1019,7 @@
     h.push('</section>');
 
     if (op.botones) h.push('<div class="mbz-botones">' + op.botones + '</div>');
-    if (op.pedirHorario) h.push('<div class="mbz-horario"><b>Para el punto 08 (grabaciones): pegue el horario del grupo.</b><br>' +
+    if (op.pedirHorario) h.push('<div class="mbz-horario"><b>Solo administrador · Punto 08: pegue el horario de la guía de matrícula.</b><br>' +
       'Abra la <a href="https://webapp.urp.edu.pe/guia-matricula/horario" target="_blank" rel="noopener">guía de matrícula</a>, elija la carrera, la currícula y el semestre del curso, pulse «Buscar», ' +
       'seleccione la tabla con el mouse, cópiela (Ctrl + C) y péguela aquí (Ctrl + V). Puede pegar la tabla entera: el portal toma solo las filas de este grupo. ' +
       'Lo pegado sirve para los demás cursos de ese semestre mientras no cierre la página.' +
