@@ -1924,6 +1924,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
+<script src="mbz-aula.js?v=2026-10-24.01"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2198,7 +2199,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-20.01';
+  const VERSION_INTERNA = '2026-10-24.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9362,7 +9363,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '<textarea id="trIndicacion" rows="2" placeholder="' + esc(ins.placeholder + (/adjunte/i.test(ins.placeholder) ? ' También puede arrastrar y soltar los archivos aquí.' : '')) + '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
-              'accept=".pdf,.docx,.txt,.vtt,.srt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,text/plain,application/pdf,image/png,image/jpeg,image/webp">' +
+              'accept="' + (estado.modulo === 'aulaVirtual' ? '.mbz,' : '') + '.pdf,.docx,.txt,.vtt,.srt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,text/plain,application/pdf,image/png,image/jpeg,image/webp">' +
             '<input type="file" id="trCarpeta" class="oculto" webkitdirectory directory multiple>' +
             '<input type="file" id="trCarpetaF" class="oculto" webkitdirectory directory multiple>' +
             '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
@@ -10119,12 +10120,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       ]
     },
     aulaVirtual: {
-      placeholder: 'Adjunte capturas o el PDF del aula virtual, o anote lo que encontró…',
-      como: 'revisa lo que muestran los archivos del aula virtual contra los puntos del formato',
+      placeholder: 'Adjunte la copia de seguridad del aula (.mbz), sin usuarios, y pulse Analizar. También puede adjuntar capturas o el PDF, o anotar lo que encontró…',
+      como: 'lee la copia de seguridad del aula (.mbz) en su propio equipo, con reglas fijas, y le muestra un reporte por punto y por semana ' +
+        '(el archivo no se envía a ningún servidor). Si en cambio adjunta capturas o el PDF, el asistente revisa lo que muestran contra los puntos del formato',
       ejemplo: 'no está publicado el sílabo y falta el foro de consultas',
       lista: [
-        { t: 'Contenido del aula virtual', archivo: true,
-          falta: 'Mientras no esté la conexión con el aula virtual (Moodle), adjunte capturas o el PDF, o anote lo que vio.' }
+        { t: 'Copia de seguridad del aula (.mbz), sin usuarios', archivo: true,
+          falta: 'Suba la copia de seguridad del aula (.mbz), sin usuarios, con 📎 Adjuntar y pulse Analizar. ' +
+            'En Moodle: dentro del aula, «Copia de seguridad», desmarque «Incluir usuarios matriculados» y descargue el archivo. ' +
+            'Se lee en su equipo: no se sube a ningún servidor. Si no la tiene, adjunte capturas o el PDF, o anote lo que vio.' }
       ]
     },
     entrevistas: {
@@ -10266,7 +10270,196 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     pintarInsumos();
   }
 
+  /* ---------------- copia de seguridad del aula (.mbz) — Traspaso v3 ------
+     La copia se lee en el navegador con las reglas fijas de mbz-aula.js: no
+     se envía a ningún servidor ni a la IA. Los puntos no se marcan solos: el
+     coordinador pulsa «Marcar las sugerencias» y luego decide.
+     Por ahora NO se escribe en QuintaDB: se muestra lo que se guardaría en
+     «Borradores del asistente». Se activa cuando se revise el guardado. */
+  const MBZ_GUARDA_BORRADOR = false;
+
+  async function analizarMbz(F, archivo) {
+    const MBZ = window.MBZ, btn = $('btnProponer');
+    MBZ.ponerEstilos();
+    let caja = $('mbzReporte');
+    if (!caja) {
+      caja = document.createElement('div');
+      caja.id = 'mbzReporte';
+      const chat = document.querySelector('#fichaForm .chat-asistente');
+      if (chat) chat.after(caja); else $('fichaForm').prepend(caja);
+    }
+    caja.innerHTML = '<div class="mbz-progreso" id="mbzProg"><span>Abriendo la copia del aula…</span>' +
+      '<progress max="100" value="0"></progress><div class="mbz-sub">El archivo se lee en su equipo: no se sube a ningún servidor.</div></div>';
+    caja.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    btn.disabled = true; btn.textContent = 'Leyendo la copia…';
+    let H;
+    try {
+      H = await MBZ.leer(archivo, (f, t) => {
+        const p = $('mbzProg'); if (!p) return;
+        if (t) p.querySelector('span').textContent = t;
+        p.querySelector('progress').value = Math.round(f * 100);
+      });
+    } catch (e) {
+      console.warn('Portal: no se pudo leer la copia .mbz →', e);
+      caja.innerHTML = '<div class="mbz-alto"><b>No se pudo leer la copia del aula.</b> ' + esc(e.message) +
+        '<br>Verifique que sea la copia de seguridad descargada de Moodle (archivo .mbz) y vuelva a intentarlo.</div>';
+      return;
+    } finally { btn.disabled = false; btn.textContent = 'Analizar ➤'; }
+
+    if (H.conUsuarios) {
+      // Nunca se analiza una copia con datos de estudiantes.
+      ADJUNTOS = ADJUNTOS.filter(f => f !== archivo); pintarAdjuntosDesde();
+      caja.innerHTML = '<div class="mbz-alto"><b>Esta copia trae datos de estudiantes, así que el portal no la analiza.</b><br>' +
+        'Descárguela de nuevo <b>sin usuarios</b>: en el aula, «Copia de seguridad» → en el primer paso desmarque ' +
+        '«Incluir usuarios matriculados» → «Saltar al último paso» → descargue el archivo .mbz. Luego adjúntelo otra vez.<br>' +
+        '<small>Se quitó el archivo de los adjuntos. No se leyó ni se guardó nada de él.</small></div>';
+      return;
+    }
+    const a = estado.actual || {};
+    const cruce = MBZ.cruzar(H, a);
+    const seguir = () => mostrarAnalisisMbz(F, H, archivo, caja);
+    if (cruce.claro) return seguir();
+    caja.innerHTML = '<div class="mbz-preg"><b>Antes de seguir: ¿es esta el aula correcta?</b><br>' +
+      'La copia es del aula <b>' + esc(H.aula.nombre) + '</b> (' + esc(H.aula.corto) + ', ' + esc(H.aula.tipo) + ').<br>' +
+      'En el portal está abierto: <b>' + esc([a.codigo, nombreCurso(a.asignatura || ''), a.grupo ? 'grupo ' + a.grupo : '', a.tipo].filter(Boolean).join(' · ')) + '</b>.<br>' +
+      'Por qué se pregunta: ' + esc(cruce.motivos.join('; ')) + '.' +
+      '<div class="mbz-botones"><button type="button" id="mbzSi">Sí, es esta aula: continuar</button>' +
+      '<button type="button" class="sec" id="mbzNo">No, elegiré otra copia</button></div></div>';
+    $('mbzSi').addEventListener('click', seguir);
+    $('mbzNo').addEventListener('click', () => {
+      caja.innerHTML = ''; ADJUNTOS = ADJUNTOS.filter(f => f !== archivo); pintarAdjuntosDesde();
+    });
+  }
+
+  function mostrarAnalisisMbz(F, H, archivo, caja) {
+    const MBZ = window.MBZ, a = estado.actual || {};
+    const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    // El estándar literal es el de config.js (la lista vigente tiene encima la nota de las dos opciones).
+    const base = M_ACTUAL()._critBaseAV || lista;
+    const res = MBZ.evaluar(H, { codigo: a.codigo, criterios: MBZ.PUNTOS.map(([n, et]) => base[indicePuntoAV(base, n, et)] || {}) });
+    estado.mbz = res;
+    estado.ultimosArchivos = [archivo.name];
+
+    // Bajo cada punto, el hallazgo y la sugerencia (el mismo recuadro de siempre).
+    const pintarHallazgos = () => {
+      estado.hallazgos = {};
+      MBZ.PUNTOS.forEach(([n, et]) => {
+        const r = res.puntos[n];
+        estado.hallazgos[indicePuntoAV(lista, n, et)] = { sugerencia: r.sugerido, certeza: r.certeza, nota: r.nota_interna,
+          texto: r.para_docente || r.evidencia.join(' ') };
+      });
+      mostrarHallazgos();
+    };
+    pintarHallazgos();
+
+    // El borrador va al campo Observaciones (es el que viaja al docente).
+    const obs = $('f_observaciones');
+    const ponerBorrador = () => {
+      if (!obs) return;
+      const t = MBZ.textoBorrador(res);
+      if (!obs.value.trim() || obs.value === estado.mbzObs || /^BORRADOR DEL ASISTENTE/.test(obs.value)) obs.value = t;
+      else obs.value = obs.value.trim() + '\n\n' + t;
+      estado.mbzObs = obs.value;
+      obs.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    ponerBorrador();
+
+    const otros = ADJUNTOS.filter(f => f !== archivo);
+    caja.innerHTML = MBZ.reporteHTML(res, {
+      aviso: otros.length ? 'Se analizó solo la copia del aula. Los otros archivos adjuntos (' + esc(otros.map(f => f.name).join(', ')) +
+        ') no se revisaron; si quiere que el asistente los lea, quite la copia de los adjuntos y pulse Analizar otra vez.' : '',
+      botones:
+        '<button type="button" id="mbzMarcar">Marcar las sugerencias en los puntos 01, 02, 05 y 07</button>' +
+        '<button type="button" class="sec" id="mbzImprimir">Imprimir o guardar el reporte en PDF</button>' +
+        '<button type="button" class="sec" id="mbzVerBorrador">Ver lo que se guardaría en «Borradores del asistente»</button>'
+    }) + '<div id="mbzBorrador" class="oculto"></div>';
+
+    // Marcar: solo con el clic del coordinador, y solo los puntos automáticos.
+    $('mbzMarcar').addEventListener('click', () => {
+      const marcados = [];
+      MBZ.PUNTOS.forEach(([n, et]) => {
+        const r = res.puntos[n]; if (!r.automatico || !r.sugerido) return;
+        const i = indicePuntoAV(lista, n, et);
+        const sel = document.querySelector('#listaItems select[data-estado="' + i + '"]');
+        if (!sel) return;
+        const v = valorSegunOpciones(r.sugerido, (lista[i] || {}).opciones);
+        if (![...sel.options].some(o => o.value === v)) return;
+        sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); marcados.push(n);
+      });
+      marcarCampos(); recalcularEscala(F); recalcularCompleto(F);
+      $('mbzMarcar').textContent = marcados.length
+        ? '✔ Marcados: ' + marcados.join(', ') + '. Revíselos: la decisión es suya.'
+        : 'No se pudo marcar ningún punto';
+    });
+
+    // Mensaje para el docente editable: se refleja bajo el punto y en Observaciones.
+    caja.querySelectorAll('.mbz-msj').forEach(t => t.addEventListener('input', () => {
+      res.puntos[t.dataset.punto].para_docente = t.value;
+      pintarHallazgos(); ponerBorrador();
+    }));
+
+    $('mbzImprimir').addEventListener('click', () => {
+      const w = window.open('', '_blank');
+      if (!w) { aviso('El navegador bloqueó la ventana. Permita las ventanas emergentes de este portal.'); return; }
+      const rep = caja.querySelector('.mbz-rep').cloneNode(true);
+      rep.querySelectorAll('.mbz-botones').forEach(x => x.remove());
+      rep.querySelectorAll('details').forEach(d => d.setAttribute('open', ''));
+      rep.querySelectorAll('textarea').forEach(t => { const d = document.createElement('div'); d.style.whiteSpace = 'pre-wrap'; d.textContent = t.value; t.replaceWith(d); });
+      w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Aula virtual — ' + esc(H.aula.corto) + '</title>' +
+        '<style>body{font-family:"IBM Plex Sans",system-ui,sans-serif;margin:18px}' + document.getElementById('mbz-css').textContent + '</style></head><body>' +
+        rep.outerHTML + '</body></html>');
+      w.document.close(); setTimeout(() => w.print(), 300);
+    });
+
+    $('mbzVerBorrador').addEventListener('click', () => {
+      const d = $('mbzBorrador');
+      d.classList.toggle('oculto');
+      if (d.classList.contains('oculto')) return;
+      const fila = filaBorradorMbz(res, archivo);
+      d.innerHTML = '<div class="mbz-preg"><b>Esto es lo que se guardaría en la tabla «Borradores del asistente».</b> ' +
+        (MBZ_GUARDA_BORRADOR ? '' : 'Todavía <b>no se guarda</b>: el guardado se activará después de revisar cómo escribe hoy el portal en QuintaDB. ') +
+        'El archivo .mbz nunca se guarda.' +
+        '<div class="mbz-json">' + esc(JSON.stringify(fila, null, 2)) + '</div>' +
+        '<div class="mbz-botones"><button type="button" id="mbzGuardar"' + (MBZ_GUARDA_BORRADOR ? '' : ' disabled title="Se activará cuando se revise el guardado en QuintaDB"') +
+        '>Guardar borrador</button></div></div>';
+      if (MBZ_GUARDA_BORRADOR) $('mbzGuardar').addEventListener('click', () => guardarBorrador(MBZ.textoBorrador(res)));
+    });
+  }
+
+  // Índice del punto en el formulario: por su nombre; si no, por su número.
+  function indicePuntoAV(lista, n, et) {
+    let i = lista.findIndex(it => sinAcentos(it.etiqueta || '') === sinAcentos(et));
+    if (i < 0 && n === '04') i = lista.findIndex(esItemRubrica);
+    return i >= 0 ? i : Number(n) - 1;
+  }
+
+  // La fila de «Borradores del asistente», con los nombres de campo del Traspaso v3.
+  function filaBorradorMbz(res, archivo) {
+    const a = estado.actual || {}, A = res.hechos.aula;
+    return {
+      'Fecha': new Date().toISOString(),
+      'Usuario': estado.correo || estado.usuario || '',
+      'Modulo': 'aulaVirtual',
+      'ID asignacion': a.idAsignacion || '',
+      'ID registro asignacion': a.recordId || '',
+      'Curso': [a.codigo, nombreCurso(a.asignatura || ''), a.grupo ? 'G' + a.grupo : '', a.docente].filter(Boolean).join(' · '),
+      'Nombre corto aula': A.corto,
+      'ID Moodle': A.idMoodle || '',
+      'Archivos analizados': archivo.name,
+      'Borrador': window.MBZ.textoBorrador(res),
+      'Hallazgos por item': JSON.stringify(window.MBZ.hallazgosJSON(res)),
+      'Version de reglas': res.versionReglas,
+      'Estado': 'Borrador'
+    };
+  }
+
   async function proponer(F, origenForzado) {
+    // Aula virtual: si entre los adjuntos está la copia de seguridad (.mbz), se
+    // analiza en el navegador con reglas fijas, sin la IA (Traspaso v3).
+    if (estado.modulo === 'aulaVirtual' && window.MBZ && ADJUNTOS.length) {
+      const copia = await window.MBZ.buscarCopia(ADJUNTOS);
+      if (copia) return analizarMbz(F, copia);
+    }
     // Un solo envío: si hay archivos adjuntos se leen, y lo escrito va como
     // indicación junto a ellos.
     const origen = origenForzado || (ADJUNTOS.length ? 'archivo' : 'texto');
