@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-24.2';
+  const VERSION_REGLAS = 'mbz-2026-10-24.3';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -346,11 +346,12 @@
     const fx = parsearXml(ex.xml['files.xml']);
     hijos(fx, 'file').forEach(f => {
       const nom = val(hijo(f, 'filename'));
-      if (nom === '.' || val(hijo(f, 'filearea')) !== 'content') return;
+      const area = val(hijo(f, 'filearea'));
+      if (nom === '.' || (area !== 'content' && area !== 'introattachment')) return;
       const c = val(hijo(f, 'contextid'));
       (porContexto[c] = porContexto[c] || []).push({ nombre: nom, hash: val(hijo(f, 'contenthash')),
         tamano: num(hijo(f, 'filesize')), tipo: val(hijo(f, 'mimetype')), modificado: num(hijo(f, 'timemodified')),
-        componente: val(hijo(f, 'component')) });
+        componente: val(hijo(f, 'component')), area });
     });
 
     hijos(ruta(inf, 'contents', 'activities'), 'activity').forEach(a => {
@@ -361,11 +362,19 @@
         seccion: m ? num(hijo(m, 'sectionnumber')) : (numSeccion[val(hijo(a, 'sectionid'))] || 0),
         agregado: m ? num(hijo(m, 'added')) : 0, visible: m ? val(hijo(m, 'visible')) !== '0' : true, archivos: [] };
       const ctx = x ? x.getAttribute('contextid') : '';
-      if (mod === 'resource' || mod === 'folder') act.archivos = (porContexto[ctx] || []).filter(f => f.componente === 'mod_' + mod);
+      if (mod === 'resource' || mod === 'folder') act.archivos = (porContexto[ctx] || []).filter(f => f.componente === 'mod_' + mod && f.area === 'content');
+      if (mod === 'assign') act.adjuntos = (porContexto[ctx] || []).filter(f => f.componente === 'mod_assign');
       if (mod === 'assign' && nodo) {
         act.abre = num(hijo(nodo, 'allowsubmissionsfromdate')); act.vence = num(hijo(nodo, 'duedate'));
         const gr = parsearXml(ex.xml[dir + '/grading.xml']);
         act.rubricaMoodle = !!gr && Array.prototype.some.call(gr.getElementsByTagName('definition'), () => true);
+        if (gr) {
+          const area = Array.prototype.find.call(gr.getElementsByTagName('area'), x => val(hijo(x, 'areaname')) === 'submissions');
+          const def = area && hijos(hijo(area, 'definitions'), 'definition')[0];
+          act.metodo = area ? val(hijo(area, 'activemethod')) : '';
+          if (def) act.rubricaDef = { metodo: val(hijo(def, 'method')), nombre: val(hijo(def, 'name')), creada: num(hijo(def, 'timecreated')) };
+        }
+        act.texto = htmlATexto(val(hijo(nodo, 'intro'))).slice(0, 600);
       }
       if (mod === 'quiz' && nodo) { act.abre = num(hijo(nodo, 'timeopen')); act.vence = num(hijo(nodo, 'timeclose')); }
       if (mod === 'forum' && nodo) act.tipoForo = val(hijo(nodo, 'type'));
@@ -479,6 +488,63 @@
     });
     if (mejor && limpio(mejor).indexOf(T) >= 0 && T.trim().split(' ').length >= 2) return { estado: 'incompleto', tema: mejor };
     return { estado: pm >= 0.5 ? 'parecido' : 'distinto', tema: mejor || temas[0], parecido: pm };
+  }
+
+  /* ---------------------------------------------- 04 · rúbricas */
+  // Por cada tarea del aula: ¿tiene rúbrica o instrumento?, ¿se publicó al
+  // menos 2 días antes de que se abra la entrega? (Guía Operativa Docente 4.4).
+  // La rúbrica aplicada y la retroalimentación a cada estudiante no vienen en
+  // una copia sin usuarios: se revisan a mano (Auditoría 2025, NC 8.5.1.5).
+  const RX_RUB = /r[uú]brica|instrumento de evaluaci|lista de cotejo|escala de valoraci|gu[ií]a de evaluaci/i;
+  function regla04(H, recursos, cuadro, silabo, diaCopia) {
+    const r = { punto: '04', mejorar: [], nota: [], evidencia: [], automatico: true };
+    const tareas = H.acts.filter(a => a.mod === 'assign' && a.visible && !/^taller\s*n?[°º.]?\s*\d*\s*$/i.test(a.titulo));
+    const cuest = H.acts.filter(a => a.mod === 'quiz' && a.visible);
+    const rubRec = recursos.filter(a => a.visible && (a.clase === 'rubrica' || RX_RUB.test(a.titulo + ' ' + a.archivos.map(f => f.nombre).join(' '))));
+    const palabras = t => norm(t).split(/[^a-z0-9]+/).filter(w => w.length > 3 && !/^(entrega|trabajo|tarea|rubrica|semana|para|evaluacion)$/.test(w));
+    tareas.forEach(a => {
+      const abre = a.abre || a.agregado, fuentes = [];
+      if (a.rubricaDef && /rubric|guide/.test(a.metodo || a.rubricaDef.metodo))
+        fuentes.push({ que: 'rúbrica configurada en la tarea', dia: diaLima(a.rubricaDef.creada || a.agregado) });
+      (a.adjuntos || []).filter(f => RX_RUB.test(f.nombre)).forEach(f => fuentes.push({ que: 'archivo «' + f.nombre + '» adjunto a la tarea', dia: diaLima(a.agregado) }));
+      const pt = palabras(a.titulo);
+      rubRec.filter(x => x.seccion === a.seccion || (pt.length && palabras(x.titulo + ' ' + x.archivos.map(f => f.nombre).join(' ')).some(w => pt.includes(w))))
+        .forEach(x => fuentes.push({ que: 'archivo «' + x.titulo + '» (' + (x.seccion ? 'semana ' + x.seccion : 'sección general') + ')', dia: diaLima(x.agregado) }));
+      const mencion = !fuentes.length && RX_RUB.test(a.texto || '');
+      const mejor = fuentes.sort((p, q) => p.dia - q.dia)[0];
+      a.rub = { fuentes, mencion, abre, antic: mejor ? diaLima(abre) - mejor.dia : null };
+      a.rub.ok = !!mejor && a.rub.antic >= 2;
+      r.evidencia.push('«' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + '): abre el ' + fecha(abre) + ', cierra ' + (a.vence ? fecha(a.vence) : 'sin fecha') + '. ' +
+        (mejor ? 'Rúbrica: ' + mejor.que + ', publicada ' + (a.rub.antic > 0 ? a.rub.antic + (a.rub.antic === 1 ? ' día' : ' días') + ' antes de abrir' : a.rub.antic === 0 ? 'el mismo día que abre' : 'después de abrir') + (a.rub.ok ? ' ✔' : ' (debe ser al menos 2 días antes)') + '.'
+          : mencion ? 'La descripción menciona una rúbrica, pero no está adjunta ni configurada.' : 'Sin rúbrica ni instrumento de evaluación.'));
+      if (!a.vence) r.nota.push('«' + a.titulo + '» no tiene fecha de cierre.');
+    });
+    if (cuest.length) r.nota.push('Cuestionarios (' + y(cuest.map(a => '«' + a.titulo + '»')) + '): el instrumento es el propio cuestionario; revise a mano si corresponde una rúbrica.');
+    // Evaluaciones del sílabo ya tomadas que no aparecen en el aula.
+    const evalSil = ((silabo && silabo.semanas) || []).filter(x => /pr[aá]ctica calificada|examen|sustentaci|taller\s*n?[°º]?\s*\d|trabajo final|evaluaci[oó]n/i.test(x.contenido) && cuadro.some(f => f.n === x.n && f.inicio + 6 < diaCopia));
+    const sinTarea = evalSil.filter(x => !tareas.some(a => a.seccion === x.n));
+    if (sinTarea.length) r.nota.push('El sílabo programa evaluaciones ya tomadas sin tarea en el aula: ' + sinTarea.map(x => 'semana ' + x.n + ' («' + x.titulo.toLowerCase() + '»)').join('; ') +
+      '. Si fueron presenciales, verifique su rúbrica o instrumento en el portafolio.');
+    r.nota.push('La rúbrica aplicada y la retroalimentación a cada estudiante no vienen en la copia (se descarga sin datos de estudiantes): verifíquelas en el aula o en el portafolio. ' +
+      'En la auditoría interna 2025 (NC 8.5.1.5) se observó que no había constancia de los motivos de la calificación.');
+    cuadro.forEach(f => { f.evalDet = H.acts.filter(a => (a.mod === 'assign' || a.mod === 'quiz') && a.seccion === f.n)
+      .map(a => ({ titulo: a.titulo, rub: a.rub ? (a.rub.ok ? 'ok' : (a.rub.fuentes.length ? 'tarde' : 'sin')) : '' })); });
+    if (!tareas.length) {
+      r.sugerido = ''; r.certeza = 'baja'; r.automatico = false; r.para_docente = '';
+      r.evidencia.push('No hay tareas en el aula para revisar sus rúbricas.');
+      return r;
+    }
+    const ok = tareas.filter(a => a.rub.ok), con = tareas.filter(a => a.rub.fuentes.length);
+    r.sugerido = ok.length === tareas.length ? 'Cumple' : (con.length ? 'Parcial' : 'No cumple');
+    r.certeza = tareas.some(a => a.rub.mencion) ? 'media' : 'alta';
+    const sin = tareas.filter(a => !a.rub.fuentes.length), tarde = tareas.filter(a => a.rub.fuentes.length && !a.rub.ok);
+    if (sin.length) r.mejorar.push('Publicar la rúbrica o el instrumento de evaluación de ' + y(sin.map(a => '«' + a.titulo + '»')) + ' (adjunta en la misma tarea o configurada como rúbrica en ella).');
+    if (tarde.length) r.mejorar.push('Publicar las rúbricas al menos 2 días antes de que se abra la entrega (' + y(tarde.map(a => '«' + a.titulo + '»')) + ').');
+    if (r.sugerido !== 'Cumple') r.mejorar.push('En las próximas evaluaciones: rúbrica publicada 2 días antes; después de calificar, la rúbrica aplicada y la retroalimentación a más tardar 2 semanas después.');
+    r.para_docente = r.sugerido === 'Cumple'
+      ? 'Gracias: cada tarea del aula tiene su rúbrica publicada con anticipación. Recuerde dejar también la rúbrica aplicada y la retroalimentación después de calificar.'
+      : 'Para el punto de rúbricas le pedimos:\n' + r.mejorar.map((t, i) => (i + 1) + '. ' + t).join('\n');
+    return r;
   }
 
   /* ------------------------------- 08 · enlaces y grabaciones de clase */
@@ -595,7 +661,7 @@
     ['01', 'Sílabo'], ['02', 'Mensaje de sensibilización'], ['03', 'Sesión de aprendizaje'], ['04', 'Rúbrica'],
     ['05', 'Materiales'], ['06', 'Actividades y tareas'], ['07', 'Materiales adicionales'], ['08', 'Links y grabaciones de sesiones']
   ];
-  const AUTOMATICOS = ['01', '02', '05', '07'];
+  const AUTOMATICOS = ['01', '02', '04', '05', '07'];
 
   function evaluar(H, ctx) {
     ctx = ctx || {};
@@ -844,11 +910,7 @@
       R['03'] = { punto: '03', sugerido: '', certeza: 'pendiente', mejorar: [], nota: ['Regla automática en preparación: revise este punto a mano.'], para_docente: '',
         evidencia: [sesiones.length ? plural(sesiones.length, 'documento llamado sesión de aprendizaje o plan de sesión', 'documentos llamados sesión de aprendizaje o plan de sesión') + '.' : 'No hay documentos llamados «sesión de aprendizaje» o «plan de sesión».',
           A.subgrupo === '0' ? 'Esta copia es solo del aula de teoría: para este punto hace falta también la del taller (nombre corto terminado en -1).' : ''].filter(Boolean) };
-      const evs = H.acts.filter(a => a.mod === 'assign' || a.mod === 'quiz');
-      const rubs = recursos.filter(a => a.clase === 'rubrica');
-      R['04'] = { punto: '04', sugerido: '', certeza: 'pendiente', mejorar: [], nota: ['Regla automática en preparación: revise este punto a mano.'], para_docente: '',
-        evidencia: evs.map(a => '«' + a.titulo + '»: publicada el ' + fecha(a.agregado) + ', abre ' + fecha(a.abre) + ', cierra ' + (a.vence ? fecha(a.vence) : 'sin fecha') +
-          '; ' + (a.rubricaMoodle ? 'con rúbrica en el aula' : 'sin rúbrica en el aula') + '.').concat([rubs.length ? plural(rubs.length, 'archivo llamado rúbrica', 'archivos llamados rúbrica') + '.' : 'No hay archivos llamados «rúbrica».']) };
+      R['04'] = regla04(H, recursos, cuadro, silabo, diaCopia);
       const cnt = m => H.acts.filter(a => a.mod === m && a.visible).length;
       R['06'] = { punto: '06', sugerido: '', certeza: 'pendiente', mejorar: [], nota: ['Compare con lo que anuncia el sílabo: la coherencia la decide usted.'], para_docente: '',
         evidencia: ['Tareas: ' + cnt('assign') + ' · cuestionarios: ' + cnt('quiz') + ' · foros: ' + cnt('forum') + (H.acts.filter(a => a.mod === 'forum').length ? ' (' + y(H.acts.filter(a => a.mod === 'forum').map(a => '«' + a.titulo + '»')) + ')' : '') + '.'] };
@@ -873,8 +935,12 @@
     const R = res.puntos, auto = PUNTOS.map(p => R[p[0]]).filter(r => r.automatico);
     const conforme = r => ['Cumple', 'Subió', 'Existen'].includes(r.sugerido);
     const acciones = [];
-    ['05', '08', '01', '02', '07'].filter(n => R[n].automatico).forEach(n => R[n].mejorar.forEach(t => acciones.push({ punto: n, nombre: R[n].nombre, t, conforme: conforme(R[n]) })));
-    acciones.sort((a, b) => a.conforme - b.conforme);
+    ['05', '04', '08', '01', '02', '07'].filter(n => R[n].automatico).forEach(n => R[n].mejorar.forEach(t => acciones.push({ punto: n, nombre: R[n].nombre, t, conforme: conforme(R[n]) })));
+    // Primero lo más grave (No cumple, luego Parcial) y una acción por punto antes de repetir punto.
+    const grav = n => /^no /i.test(R[n].sugerido) ? 0 : R[n].sugerido === 'Parcial' ? 1 : 2;
+    const vistos = {};
+    acciones.forEach(a => { a.orden = (vistos[a.punto] = (vistos[a.punto] || 0) + 1); });
+    acciones.sort((a, b) => (grav(a.punto) === 2) - (grav(b.punto) === 2) || (a.orden > 1) - (b.orden > 1) || grav(a.punto) - grav(b.punto) || a.orden - b.orden);
     return { revisados: auto.length, conformes: auto.filter(conforme).length, acciones: acciones.slice(0, 3),
       autos: auto.map(r => r.punto), manuales: PUNTOS.map(p => p[0]).filter(n => !R[n].automatico) };
   }
@@ -986,7 +1052,7 @@
         ((f.grabaciones || []).length ? '<br>🎥 ' + f.grabaciones.map(esc).join('<br>🎥 ') : (f.virtuales ? '<br><span class="mbz-ojo">sin grabación</span>' : ''));
       h.push('<tr class="' + (f.enCurso ? 'mbz-hoy' : '') + '"><td class="mbz-n">' + f.n + (f.enCurso ? '<br><small>en curso</small>' : '') + '</td><td>' + fechaDeDia(f.inicio) + '</td><td>' + esc(f.tema || '—') + '</td><td>' + mats + '</td><td>' +
         (f.publicado != null ? fechaDeDia(f.publicado) : '—') + '</td><td>' + (f.anticipacion != null ? esc(diasTxt(f.anticipacion)) : '—') + '</td><td>' + tit + '</td><td><span class="mbz-chip mbz-' + e[0] + '">' + e[1] + '</span>' +
-        (f.problemas.length ? '<div class="mbz-prob">' + f.problemas.map(esc).join('<br>') + '</div>' : '') + '</td><td>' + (f.evaluaciones.map(esc).join('<br>') || '—') + '</td><td>' + (virt || '—') + '</td></tr>');
+        (f.problemas.length ? '<div class="mbz-prob">' + f.problemas.map(esc).join('<br>') + '</div>' : '') + '</td><td>' + ((f.evalDet && f.evalDet.length ? f.evalDet.map(e => esc(e.titulo) + (e.rub === 'ok' ? ' <span class="mbz-chip mbz-ok">✔ con rúbrica</span>' : e.rub === 'tarde' ? ' <span class="mbz-chip mbz-parcial">◐ rúbrica tardía</span>' : e.rub === 'sin' ? ' <span class="mbz-chip mbz-falla">✖ sin rúbrica</span>' : '')) : f.evaluaciones.map(esc)).join('<br>') || '—') + '</td><td>' + (virt || '—') + '</td></tr>');
     });
     h.push('</tbody></table></div>');
 
