@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-24.3';
+  const VERSION_REGLAS = 'mbz-2026-10-24.4';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -280,7 +280,8 @@
     for (const l0 of lineas) {
       const l = l0.trim(), n = norm(l);
       if (!l || l === '\f' || ES_PIE.test(n)) continue;
-      if (/^semana\b.*contenido/.test(n)) { dentro = true; actual = null; continue; }
+      if (/^semana\b.*contenido/.test(n) || /^seman(a)?$/.test(n) || /programacion de contenidos/.test(n)) { dentro = true; actual = null; continue; }
+      if (dentro && (/^contenido$/.test(n) || /^a$/.test(n))) continue;
       const u = l.match(/^UNIDAD\s+([IVX]+|\d+)\s*:?\s*(.*)$/i);
       if (u) { unidad = (u[1] + (u[2] ? ': ' + u[2] : '')).trim(); actual = null; continue; }
       if (/^logro\b/.test(n)) { actual = null; continue; }
@@ -294,8 +295,8 @@
     }
     s.semanas.forEach(x => {
       x.contenido = x.contenido.replace(/\s+/g, ' ').trim();
-      x.titulo = x.contenido.split(/\.\s/)[0].replace(/\.$/, '');
       x.temas = temasDeSemana(x.contenido);
+      x.titulo = x.temas.join('. ');
       x.sinMaterial = REGLAS.semanasSinMaterial.test(x.contenido);
     });
     s.semanas.sort((a, b) => a.n - b.n);
@@ -434,6 +435,17 @@
   const nombreDominio = d => { for (const [rx, n] of DOMINIOS) if (rx.test(d || '')) return n; return (d || '').replace(/^www\./, '') || 'enlace'; };
   const esReunion = d => /zoom\.us$|meet\.google\.com$|teams\.(microsoft|live)\.com$|webex\.com$/.test(d || '');
   const esChat = d => /whatsapp\.com$|wa\.me$|t\.me$|telegram|discord/.test(d || '');
+  const RX_RETRO = /retroalimentaci|resultados?\s+(de\s+)?(la\s+)?evaluaci|calificaciones\s+del|notas\s+del/i;
+  function claseDeUrl(a) {
+    if (esReunion(a.dominio)) return 'reunion';
+    if (esChat(a.dominio)) return 'chat';
+    if (esGrabacion(a)) return 'grabacion';
+    if (RX_RETRO.test(a.titulo)) return 'retro';
+    if (RX_RUB.test(a.titulo)) return 'rubrica';
+    if (/presentaci[oó]n|diapositiva|\bppt\b|^\s*(clase|sesi[oó]n|tema|semana)\b/i.test(a.titulo) || /genially|canva\.com|prezi|slideshare|gamma\.app/.test(a.dominio || '')) return 'clase';
+    return 'lectura';
+  }
+  const quitarPrefijo = t => String(t || '').replace(/^\s*(presentaci[oó]n( del?)?|clase|sesi[oó]n( de aprendizaje)?|tema)\s*(n[°º.o]*\s*\d+)?\s*[:\-–]?\s*/i, '').trim();
   function claseDeRecurso(a) {
     const t = norm(a.titulo + ' ' + a.archivos.map(f => f.nombre).join(' '));
     const ini = norm((a.archivos[0] || {}).inicioTexto || '').slice(0, 400);
@@ -464,13 +476,17 @@
   }
   // Los temas de una semana del sílabo: los títulos en MAYÚSCULAS («DISEÑO DEL PRODUCTO.»).
   function temasDeSemana(contenido) {
-    const t = [];
-    String(contenido || '').split(/\.\s+|\.$/).forEach(seg => {
-      const letras = seg.replace(/[^A-Za-zÁÉÍÓÚÑÜáéíóúñü]/g, '');
-      const may = seg.replace(/[^A-ZÁÉÍÓÚÑÜ]/g, '').length;
-      if (letras.length >= 4 && may / letras.length >= 0.75) t.push(seg.trim());
-    });
-    return t.length ? t : [String(contenido || '').split(/\.\s/)[0]];
+    // El título es el tramo inicial en MAYÚSCULAS («TAMAÑO DE PLANTA Definición…»);
+    // también se toman otros títulos en mayúsculas que vengan después de un punto.
+    const c = String(contenido || '').trim(), t = [];
+    const tramo = txt => { const pal = txt.split(/\s+/), out = [];
+      for (const w of pal) { if (/[a-záéíóúñü]/.test(w) || /^[●•▪]$/.test(w) || /^LOGRO/.test(w)) break; out.push(w); }
+      const r = out.join(' ').replace(/[.:;,–-]+$/, '').trim();
+      return r.replace(/[^A-ZÁÉÍÓÚÑÜ]/g, '').length >= 4 ? r : ''; };
+    const ini = tramo(c);
+    if (ini) ini.split(/\.\s+/).forEach(x => x.trim() && t.push(x.trim().replace(/\.$/, '')));
+    c.split(/\.\s+/).slice(1).forEach(seg => { const r = tramo(seg); if (r && !t.some(x => x.indexOf(r) >= 0 || r.indexOf(x) >= 0)) t.push(r); });
+    return t.length ? t : [c.split(/\.\s/)[0].slice(0, 120)];
   }
   // ¿El título de la presentación es el del sílabo? Se exige el texto del tema,
   // sin importar mayúsculas, tildes ni signos (Auditoría interna 2025, NC 8.5.2).
@@ -490,59 +506,100 @@
     return { estado: pm >= 0.5 ? 'parecido' : 'distinto', tema: mejor || temas[0], parecido: pm };
   }
 
+  // ¿De qué evaluación habla un nombre? Tipo y número: «Taller N° 2», «primer informe», «PC1».
+  const ORDINAL = { primer: 1, primero: 1, primera: 1, segundo: 2, segunda: 2, tercer: 3, tercero: 3, tercera: 3, cuarto: 4, cuarta: 4, quinto: 5, quinta: 5, sexto: 6, sexta: 6 };
+  const GENERICAS = /^(taller|talleres|rubrica|rubricas|resultados?|evaluacion|retroalimentacion|entrega|trabajo|primer|primero|primera|segundo|segunda|tercer|tercera|tercero|cuarto|quinto|informe|tarea|semana|para|grupo|final|calificado|calificada|practica|presentacion|construccion|hasta|link|nota|notas|del|las|los|con)$/;
+  function claveEval(t) {
+    const n = norm(t).replace(/[_]/g, ' ');
+    const tipo = /taller/.test(n) ? 'taller' : /practica calificada|\bpc ?\d/.test(n) ? 'practica' : /informe/.test(n) ? 'informe'
+      : /laboratorio|\blab\b/.test(n) ? 'lab' : /examen|parcial\b/.test(n) ? 'examen' : /trabajo|proyecto|entrega/.test(n) ? 'trabajo' : /cuestionario|prueba/.test(n) ? 'prueba' : '';
+    let num = null;
+    const m = n.match(/(?:n\s*[°ºo.]+|nro\.?|numero|#|\bpc|\bt)\s*(\d{1,2})\b/) || n.match(/\b(?:taller|practica|informe|trabajo|laboratorio|lab)\s*(\d{1,2})\b/);
+    if (m) num = +m[1]; else { const o = n.match(/\b(primer[oa]?|segund[oa]|tercer[oa]?|cuart[oa]|quint[oa]|sext[oa])\b/); if (o) num = ORDINAL[o[1]]; }
+    const pal = [...new Set(n.split(/[^a-z0-9ñ]+/).filter(w => w.length > 3 && !GENERICAS.test(w)))];
+    return { tipo, num, pal };
+  }
+  function mismaEvaluacion(a, b) {
+    const x = claveEval(a), z = claveEval(b);
+    if (x.tipo && z.tipo && x.tipo !== z.tipo) return false;
+    if (x.num != null && z.num != null) return x.num === z.num;
+    return x.pal.filter(w => z.pal.includes(w)).length >= 2;
+  }
+
   /* ---------------------------------------------- 04 · rúbricas */
-  // Por cada tarea del aula: ¿tiene rúbrica o instrumento?, ¿se publicó al
-  // menos 2 días antes de que se abra la entrega? (Guía Operativa Docente 4.4).
-  // La rúbrica aplicada y la retroalimentación a cada estudiante no vienen en
-  // una copia sin usuarios: se revisan a mano (Auditoría 2025, NC 8.5.1.5).
+  // Por cada evaluación del aula (tarea o aviso de evaluación): ¿tiene rúbrica?,
+  // ¿se publicó al menos 2 días antes de abrir?, ¿está la retroalimentación a
+  // más tardar 2 semanas después del cierre? (Guía Operativa Docente 4.4;
+  // Auditoría 2025, NC 8.5.1.5). La rúbrica aplicada a cada estudiante no viene
+  // en una copia sin usuarios: se revisa a mano.
   const RX_RUB = /r[uú]brica|instrumento de evaluaci|lista de cotejo|escala de valoraci|gu[ií]a de evaluaci/i;
   function regla04(H, recursos, cuadro, silabo, diaCopia) {
     const r = { punto: '04', mejorar: [], nota: [], evidencia: [], automatico: true };
-    const tareas = H.acts.filter(a => a.mod === 'assign' && a.visible && !/^taller\s*n?[°º.]?\s*\d*\s*$/i.test(a.titulo));
+    const nombreDe = x => x.titulo + ' ' + (x.archivos || []).map(f => f.nombre).join(' ');
+    const tareas = H.acts.filter(a => a.mod === 'assign' && a.visible);
+    // Avisos de evaluación sin tarea (p. ej. «Taller N° 3 …» como etiqueta): se revisan igual, desde que se anuncian.
+    const avisos = [];
+    H.acts.filter(a => a.mod === 'label' && a.visible && /taller|informe|pr[aá]ctica calificada|trabajo|entrega/i.test(a.titulo) && claveEval(a.titulo).tipo)
+      .forEach(a => { if (!tareas.some(t => mismaEvaluacion(t.titulo, a.titulo)) && !avisos.some(v => mismaEvaluacion(v.titulo, a.titulo))) avisos.push(a); });
+    const evals = tareas.concat(avisos);
     const cuest = H.acts.filter(a => a.mod === 'quiz' && a.visible);
-    const rubRec = recursos.filter(a => a.visible && (a.clase === 'rubrica' || RX_RUB.test(a.titulo + ' ' + a.archivos.map(f => f.nombre).join(' '))));
-    const palabras = t => norm(t).split(/[^a-z0-9]+/).filter(w => w.length > 3 && !/^(entrega|trabajo|tarea|rubrica|semana|para|evaluacion)$/.test(w));
-    tareas.forEach(a => {
-      const abre = a.abre || a.agregado, fuentes = [];
+    const rubRec = H.acts.filter(a => a.visible && (a.mod === 'resource' || a.mod === 'url' || a.mod === 'folder') && RX_RUB.test(nombreDe(a)));
+    const retros = H.acts.filter(a => a.visible && (a.mod === 'url' || a.mod === 'resource') && RX_RETRO.test(a.titulo));
+    const usadas = new Set();
+    evals.forEach(a => {
+      const esAviso = a.mod === 'label';
+      const abre = esAviso ? a.agregado : (a.abre || a.agregado), fuentes = [];
       if (a.rubricaDef && /rubric|guide/.test(a.metodo || a.rubricaDef.metodo))
         fuentes.push({ que: 'rúbrica configurada en la tarea', dia: diaLima(a.rubricaDef.creada || a.agregado) });
       (a.adjuntos || []).filter(f => RX_RUB.test(f.nombre)).forEach(f => fuentes.push({ que: 'archivo «' + f.nombre + '» adjunto a la tarea', dia: diaLima(a.agregado) }));
-      const pt = palabras(a.titulo);
-      rubRec.filter(x => x.seccion === a.seccion || (pt.length && palabras(x.titulo + ' ' + x.archivos.map(f => f.nombre).join(' ')).some(w => pt.includes(w))))
-        .forEach(x => fuentes.push({ que: 'archivo «' + x.titulo + '» (' + (x.seccion ? 'semana ' + x.seccion : 'sección general') + ')', dia: diaLima(x.agregado) }));
-      const mencion = !fuentes.length && RX_RUB.test(a.texto || '');
+      const enSeccion = evals.filter(x => x.seccion === a.seccion).length === 1;
+      rubRec.filter(x => mismaEvaluacion(a.titulo, nombreDe(x)) || (enSeccion && x.seccion === a.seccion && claveEval(nombreDe(x)).num == null))
+        .forEach(x => { usadas.add(x); fuentes.push({ que: '«' + x.titulo + '» (' + (x.seccion ? 'semana ' + x.seccion : 'sección general') + ')', dia: diaLima(x.agregado) }); });
       const mejor = fuentes.sort((p, q) => p.dia - q.dia)[0];
-      a.rub = { fuentes, mencion, abre, antic: mejor ? diaLima(abre) - mejor.dia : null };
+      const retro = retros.filter(x => mismaEvaluacion(a.titulo, x.titulo)).sort((p, q) => p.agregado - q.agregado)[0];
+      const cierre = esAviso ? null : (a.vence || null);
+      a.rub = { fuentes, abre, antic: mejor ? diaLima(abre) - mejor.dia : null, mencion: !fuentes.length && RX_RUB.test(a.texto || '') };
       a.rub.ok = !!mejor && a.rub.antic >= 2;
-      r.evidencia.push('«' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + '): abre el ' + fecha(abre) + ', cierra ' + (a.vence ? fecha(a.vence) : 'sin fecha') + '. ' +
-        (mejor ? 'Rúbrica: ' + mejor.que + ', publicada ' + (a.rub.antic > 0 ? a.rub.antic + (a.rub.antic === 1 ? ' día' : ' días') + ' antes de abrir' : a.rub.antic === 0 ? 'el mismo día que abre' : 'después de abrir') + (a.rub.ok ? ' ✔' : ' (debe ser al menos 2 días antes)') + '.'
-          : mencion ? 'La descripción menciona una rúbrica, pero no está adjunta ni configurada.' : 'Sin rúbrica ni instrumento de evaluación.'));
-      if (!a.vence) r.nota.push('«' + a.titulo + '» no tiene fecha de cierre.');
+      if (retro) a.rub.retro = { dia: diaLima(retro.agregado), despues: cierre ? diaLima(retro.agregado) - diaLima(cierre) : null };
+      const venceHace = cierre ? diaCopia - diaLima(cierre) : null;
+      a.rub.retroOk = retro ? (a.rub.retro.despues == null || a.rub.retro.despues <= 14) : (venceHace == null || venceHace <= 14);
+      const cuandoRub = d => d > 0 ? d + (d === 1 ? ' día' : ' días') + ' antes de ' + (esAviso ? 'anunciarse' : 'abrir') : d === 0 ? 'el mismo día que ' + (esAviso ? 'se anunció' : 'abre') : Math.abs(d) + (d === -1 ? ' día' : ' días') + ' después de ' + (esAviso ? 'anunciarse' : 'abrir');
+      r.evidencia.push('«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '…') + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + (esAviso ? ', anunciada el ' + fecha(abre) : ', abre el ' + fecha(abre) + ', cierra ' + (cierre ? fecha(cierre) : 'sin fecha')) + '). ' +
+        (mejor ? 'Rúbrica ' + mejor.que + ', publicada ' + cuandoRub(a.rub.antic) + (a.rub.ok ? ' ✔' : ' (debe ser al menos 2 días antes)') + '.'
+          : a.rub.mencion ? 'La descripción menciona una rúbrica, pero no está publicada.' : 'Sin rúbrica publicada.') +
+        (retro ? ' Retroalimentación: «' + retro.titulo + '», publicada el ' + fecha(retro.agregado) + (a.rub.retro.despues != null ? ', ' + a.rub.retro.despues + ' días después del cierre' + (a.rub.retroOk ? ' ✔' : ' (más de 2 semanas)') : '') + '.'
+          : venceHace != null && venceHace > 14 ? ' Sin retroalimentación publicada (cerró hace ' + venceHace + ' días).' : ''));
+      if (!esAviso && !a.vence) r.nota.push('«' + a.titulo + '» no tiene fecha de cierre.');
     });
+    const sueltas = rubRec.filter(x => !usadas.has(x));
+    if (sueltas.length) r.evidencia.push('Rúbricas publicadas que no se pudieron unir a una evaluación del aula: ' + y(sueltas.map(x => '«' + x.titulo + '» (' + fecha(x.agregado) + ')')) + '.');
     if (cuest.length) r.nota.push('Cuestionarios (' + y(cuest.map(a => '«' + a.titulo + '»')) + '): el instrumento es el propio cuestionario; revise a mano si corresponde una rúbrica.');
-    // Evaluaciones del sílabo ya tomadas que no aparecen en el aula.
-    const evalSil = ((silabo && silabo.semanas) || []).filter(x => /pr[aá]ctica calificada|examen|sustentaci|taller\s*n?[°º]?\s*\d|trabajo final|evaluaci[oó]n/i.test(x.contenido) && cuadro.some(f => f.n === x.n && f.inicio + 6 < diaCopia));
-    const sinTarea = evalSil.filter(x => !tareas.some(a => a.seccion === x.n));
+    const evalSil = ((silabo && silabo.semanas) || []).filter(x => /pr[aá]ctica calificada|examen|sustentaci|taller (calificado )?n|trabajo final|evaluaci[oó]n del logro/i.test(x.contenido) && cuadro.some(f => f.n === x.n && f.inicio + 6 < diaCopia));
+    const sinTarea = evalSil.filter(x => !evals.some(a => a.seccion === x.n));
     if (sinTarea.length) r.nota.push('El sílabo programa evaluaciones ya tomadas sin tarea en el aula: ' + sinTarea.map(x => 'semana ' + x.n + ' («' + x.titulo.toLowerCase() + '»)').join('; ') +
       '. Si fueron presenciales, verifique su rúbrica o instrumento en el portafolio.');
-    r.nota.push('La rúbrica aplicada y la retroalimentación a cada estudiante no vienen en la copia (se descarga sin datos de estudiantes): verifíquelas en el aula o en el portafolio. ' +
+    r.nota.push('La rúbrica aplicada a cada estudiante no viene en la copia (se descarga sin datos de estudiantes): verifíquela en el aula o en el portafolio. ' +
       'En la auditoría interna 2025 (NC 8.5.1.5) se observó que no había constancia de los motivos de la calificación.');
-    cuadro.forEach(f => { f.evalDet = H.acts.filter(a => (a.mod === 'assign' || a.mod === 'quiz') && a.seccion === f.n)
-      .map(a => ({ titulo: a.titulo, rub: a.rub ? (a.rub.ok ? 'ok' : (a.rub.fuentes.length ? 'tarde' : 'sin')) : '' })); });
-    if (!tareas.length) {
+    if (sinTarea.length || avisos.length) r.nota.push('Las fechas se cuentan desde que se abre la entrega (o desde que se anuncia, si la evaluación no tiene tarea). Esta regla está por confirmar.');
+    cuadro.forEach(f => { f.evalDet = evals.filter(a => a.seccion === f.n)
+      .map(a => ({ titulo: a.titulo.replace(/\s*\(\.\.\.\s*$/, '…'), rub: a.rub ? (a.rub.ok ? 'ok' : (a.rub.fuentes.length ? 'tarde' : 'sin')) : '' }))
+      .concat(cuest.filter(a => a.seccion === f.n).map(a => ({ titulo: a.titulo, rub: '' }))); });
+    if (!evals.length) {
       r.sugerido = ''; r.certeza = 'baja'; r.automatico = false; r.para_docente = '';
-      r.evidencia.push('No hay tareas en el aula para revisar sus rúbricas.');
+      r.evidencia.push('No hay tareas ni evaluaciones anunciadas en el aula para revisar sus rúbricas.');
       return r;
     }
-    const ok = tareas.filter(a => a.rub.ok), con = tareas.filter(a => a.rub.fuentes.length);
-    r.sugerido = ok.length === tareas.length ? 'Cumple' : (con.length ? 'Parcial' : 'No cumple');
-    r.certeza = tareas.some(a => a.rub.mencion) ? 'media' : 'alta';
-    const sin = tareas.filter(a => !a.rub.fuentes.length), tarde = tareas.filter(a => a.rub.fuentes.length && !a.rub.ok);
-    if (sin.length) r.mejorar.push('Publicar la rúbrica o el instrumento de evaluación de ' + y(sin.map(a => '«' + a.titulo + '»')) + ' (adjunta en la misma tarea o configurada como rúbrica en ella).');
-    if (tarde.length) r.mejorar.push('Publicar las rúbricas al menos 2 días antes de que se abra la entrega (' + y(tarde.map(a => '«' + a.titulo + '»')) + ').');
-    if (r.sugerido !== 'Cumple') r.mejorar.push('En las próximas evaluaciones: rúbrica publicada 2 días antes; después de calificar, la rúbrica aplicada y la retroalimentación a más tardar 2 semanas después.');
+    const ok = evals.filter(a => a.rub.ok && a.rub.retroOk), con = evals.filter(a => a.rub.fuentes.length);
+    r.sugerido = ok.length === evals.length ? 'Cumple' : (con.length ? 'Parcial' : 'No cumple');
+    r.certeza = evals.some(a => a.rub.mencion) || avisos.length ? 'media' : 'alta';
+    const sin = evals.filter(a => !a.rub.fuentes.length), tarde = evals.filter(a => a.rub.fuentes.length && !a.rub.ok);
+    const sinRetro = evals.filter(a => !a.rub.retroOk);
+    const nom = a => '«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '').replace(/[:.]?\s*$/, '') + '»';
+    if (sin.length) r.mejorar.push('Publicar la rúbrica de ' + y(sin.map(nom)) + ', en la misma tarea o como archivo con su nombre (p. ej. «Rúbrica Taller N° 5»).');
+    if (tarde.length) r.mejorar.push('Publicar la rúbrica al menos 2 días antes de que se abra la entrega; esta vez llegó tarde en ' + y(tarde.map(nom)) + '.');
+    if (sinRetro.length) r.mejorar.push('Publicar la retroalimentación a más tardar 2 semanas después del cierre (' + y(sinRetro.map(nom)) + ').');
     r.para_docente = r.sugerido === 'Cumple'
-      ? 'Gracias: cada tarea del aula tiene su rúbrica publicada con anticipación. Recuerde dejar también la rúbrica aplicada y la retroalimentación después de calificar.'
+      ? 'Gracias: cada evaluación tiene su rúbrica publicada con anticipación y su retroalimentación a tiempo.'
       : 'Para el punto de rúbricas le pedimos:\n' + r.mejorar.map((t, i) => (i + 1) + '. ' + t).join('\n');
     return r;
   }
@@ -555,12 +612,12 @@
   const esGrabacion = a => a.visible && (/grabaci|grabad|recording|clase grabada|video de (la )?clase/i.test(a.titulo || '') ||
     (a.archivos || []).some(f => /^video\//.test(f.tipo || '')));
   function regla08(H, ctx, cuadro, inicioSemana, diaCopia) {
-    const reun = H.acts.filter(a => a.mod === 'url' && a.visible && esReunion(a.dominio));
+    const reun = H.acts.filter(a => a.visible && a.clase === 'reunion');
     const grab = H.acts.filter(esGrabacion);
     cuadro.forEach(f => { f.grabaciones = grab.filter(a => a.seccion === f.n).map(a => a.titulo); });
     const r = { punto: '08', mejorar: [], nota: [], evidencia: [] };
     const lista = (l, f) => l.length ? y(l.map(f)) : '';
-    r.evidencia.push(reun.length ? plural(reun.length, 'enlace de reunión', 'enlaces de reunión') + ': ' + lista(reun, a => nombreDominio(a.dominio) + ' «' + a.titulo + '» (' + fecha(a.agregado) + ')') + '.' : 'No hay enlaces de reunión.');
+    r.evidencia.push(reun.length ? plural(reun.length, 'enlace de reunión', 'enlaces de reunión') + ': ' + lista(reun, a => (a.mod === 'url' ? nombreDominio(a.dominio) : 'aviso') + ' «' + a.titulo + '» (' + fecha(a.agregado) + ')') + '.' : 'No hay enlaces de reunión.');
     r.evidencia.push(grab.length ? plural(grab.length, 'grabación', 'grabaciones') + ': ' + lista(grab, a => '«' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + ')') + '.' : 'No se encontraron grabaciones (enlaces o videos con «grabación» en el nombre).');
     const horario = Array.isArray(ctx.horario) ? ctx.horario : null;
     if (!horario) {
@@ -682,6 +739,9 @@
     const inicioSemana = n => ini + 7 * (n - 1);
     const recursos = H.acts.filter(a => a.mod === 'resource' || a.mod === 'folder' || a.mod === 'page' || a.mod === 'book');
     recursos.forEach(a => a.clase = claseDeRecurso(a));
+    H.acts.filter(a => a.mod === 'url').forEach(a => a.clase = claseDeUrl(a));
+    H.acts.filter(a => a.mod === 'label').forEach(a => { if (/enlace.{0,40}clase|ingreso a (las )?clases|zoom|google meet|teams/i.test(a.titulo + ' ' + (a.texto || ''))) a.clase = 'reunion'; });
+    const presentaciones = H.acts.filter(a => a.mod === 'url' && a.clase === 'clase');
     const visibles = recursos.filter(a => a.visible);
     const enSemana = a => a.seccion === 0 ? 'la sección general' : 'la semana ' + a.seccion;
     const R = {};
@@ -760,9 +820,11 @@
     /* 07 · Materiales adicionales ------------------------------------- */
     (function () {
       const r = R['07'] = { punto: '07', evidencia: [], mejorar: [], nota: [] };
-      const enlaces = H.acts.filter(a => a.mod === 'url' && a.visible && !esReunion(a.dominio) && !esChat(a.dominio));
+      const enlaces = H.acts.filter(a => a.mod === 'url' && a.visible && a.clase === 'lectura');
       const lecturas = visibles.filter(a => a.clase === 'lectura' || a.mod === 'folder' || a.mod === 'book');
-      const excluidos = H.acts.filter(a => a.mod === 'url' && (esReunion(a.dominio) || esChat(a.dominio)));
+      const excluidos = H.acts.filter(a => a.mod === 'url' && (a.clase === 'reunion' || a.clase === 'chat'));
+      const otros = H.acts.filter(a => a.mod === 'url' && ['grabacion', 'retro', 'clase', 'rubrica'].includes(a.clase));
+      if (otros.length) r.nota.push('Tampoco se cuentan ' + plural(otros.length, 'enlace', 'enlaces') + ' que son material de clase, grabaciones, rúbricas o resultados de evaluaciones (van en los puntos 05, 08 y 04).');
       enlaces.forEach(a => r.evidencia.push(nombreDominio(a.dominio) + ': «' + a.titulo + '» (' + enSemana(a) + ', ' + fecha(a.agregado) + ').'));
       lecturas.forEach(a => r.evidencia.push('Lectura o carpeta: «' + a.titulo + '» (' + enSemana(a) + ').'));
       if (excluidos.length) r.nota.push('No se cuentan aquí: ' + y(excluidos.map(a => nombreDominio(a.dominio) + ' («' + a.titulo + '»)')) + '.');
@@ -786,7 +848,8 @@
       const totalSem = semSil.length ? Math.max(...semSil.map(s => s.n)) : Math.max(0, H.secciones.length - 1);
       // Palabras de cada tema, con más peso las que distinguen una semana de otra.
       const STOP = new Set('para como entre sobre desde segun mediante concepto conceptos objetivos objetivo casos problemas aplicacion ventajas desventajas estrategia metodo metodos procedimiento aspectos tecnicos caso aplicativos tipo tipos respecto luego integralmente sesiones trabajos derivados conocimientos'.split(' '));
-      const palabras = s => [...new Set(norm(s).split(/[^a-z0-9]+/).filter(w => w.length > 4 && !STOP.has(w)))];
+      const conNum = s => norm(s).replace(/\((\d{1,2})\)/g, ' n$1 ');
+      const palabras = s => [...new Set(conNum(s).split(/[^a-z0-9]+/).filter(w => (w.length > 4 || /^n\d+$/.test(w)) && !STOP.has(w)))];
       const kw = {}; semSil.forEach(s => kw[s.n] = palabras(s.titulo));
       const conTema = s => s && !s.sinMaterial && !/pr[aá]ctica calificada|sustentaci[oó]n/i.test(s.titulo || '');
       const df = {}; Object.values(kw).forEach(l => l.forEach(w => df[w] = (df[w] || 0) + 1));
@@ -794,15 +857,17 @@
       // Las palabras que se repiten en muchos temas («distribución», «planta») no distinguen semanas.
       Object.keys(kw).forEach(n => kw[n] = kw[n].filter(w => df[w] <= Math.max(1, Math.floor(nS / 4))));
       const peso = w => Math.log(1 + nS / (df[w] || 1));
-      const parecido = (n, texto) => { const l = kw[n] || []; if (!l.length) return 0; const t = ' ' + norm(texto) + ' ';
-        let a = 0, b = 0; l.forEach(w => { b += peso(w); if (t.indexOf(w) >= 0) a += peso(w); }); return a / b; };
+      const parecido = (n, texto) => { const l = kw[n] || []; if (!l.length) return 0; const t = ' ' + conNum(texto) + ' ';
+        // «Estudio de mercado (2)» no es «(1)»: el número del tema tiene que estar.
+        if (l.some(w => /^n\d+$/.test(w) && !new RegExp('\\b' + w + '\\b').test(t))) return 0;
+        let a = 0, b = 0; l.forEach(w => { b += peso(w); if (new RegExp('\\b' + w + '\\b').test(t)) a += peso(w); }); return a / b; };
 
       const hashSemana = {};
       for (let n = 1; n <= totalSem; n++) {
         const s = semSil.find(x => x.n === n) || {};
-        const mats = recursos.filter(a => a.seccion === n && ['clase', 'lectura', 'sesion'].includes(a.clase));
+        const mats = recursos.filter(a => a.seccion === n && ['clase', 'lectura', 'sesion'].includes(a.clase)).concat(presentaciones.filter(a => a.seccion === n));
         const evals = H.acts.filter(a => a.seccion === n && (a.mod === 'assign' || a.mod === 'quiz' || (a.archivos.length && (a.clase === 'evaluacion' || a.clase === 'rubrica'))));
-        const reun = H.acts.filter(a => a.seccion === n && a.mod === 'url' && esReunion(a.dominio));
+        const reun = H.acts.filter(a => a.seccion === n && a.clase === 'reunion');
         const limite = n === 1 && REGLAS.semana1DesdeInicio ? ini : inicioSemana(n) - REGLAS.diasMaterial;
         const fila = { n, inicio: inicioSemana(n), tema: s.titulo || '', unidad: s.unidad || '', sinMaterial: !!s.sinMaterial,
           limite, materiales: [], evaluaciones: evals.map(a => a.titulo), reuniones: reun.map(a => nombreDominio(a.dominio) + ' «' + a.titulo + '»'),
@@ -822,8 +887,11 @@
           });
           // Se compara con el título del tema: nombre del archivo y el título de su primera diapositiva.
           const texto = m.texto = a.titulo + ' ' + a.archivos.map(f => f.nombre + ' ' + (f.tituloDeclarado || '')).join(' ');
-          const ft = a.archivos.find(f => f.tituloDeclarado != null);
+          // En enlaces (Genially, Canva…) y en planes de sesión, el título es el nombre que puso el docente.
+          const porNombre = a.mod === 'url' || a.clase === 'sesion';
+          const ft = porNombre ? { tituloDeclarado: quitarPrefijo(a.titulo) } : a.archivos.find(f => f.tituloDeclarado != null);
           m.tituloPpt = ft ? ft.tituloDeclarado : '';
+          m.enlace = a.mod === 'url' ? nombreDominio(a.dominio) : '';
           if (s.temas && conTema(s) && !m.repetidoDe) m.cmp = ft ? compararTitulo(m.tituloPpt, s.temas) : { estado: 'sin-texto' };
           if (semSil.length && !m.repetidoDe && conTema(s) && (kw[n] || []).length) {
             const propio = parecido(n, texto);
@@ -844,7 +912,8 @@
           fila.aTiempo = primero <= limite;
           if (!fila.aTiempo) fila.problemas.push(n === 1 && REGLAS.semana1DesdeInicio ? 'publicado después del inicio del curso' : 'publicado con menos de ' + REGLAS.diasMaterial + ' días de anticipación');
           vis.filter(m => m.repetidoDe).forEach(m => fila.problemas.push('«' + m.titulo + '» es el mismo archivo de la semana ' + m.repetidoDe));
-          vis.forEach(m => { if (m.sesion != null && m.sesion !== n && !m.repetidoDe) fila.problemas.push('el archivo «' + m.titulo + '» dice «Sesión ' + m.sesion + '»'); });
+          const sesOk = vis.some(m => m.sesion === n);
+          vis.forEach(m => { if (m.sesion != null && m.sesion !== n && !m.repetidoDe && !sesOk) { m.sesionMal = true; fila.problemas.push('el archivo «' + m.titulo + '» dice «Sesión ' + m.sesion + '»'); } });
           // Un archivo repetido sí sirve a esta semana si su contenido es el de su tema.
           const sirve = m => !m.repetidoDe || !conTema(s) || parecido(n, m.texto) >= 0.6;
           if (!vis.some(sirve)) fila.problemas.push('no tiene material propio');
@@ -860,8 +929,8 @@
         cuadro.push(fila);
       }
       // Si el tema de una semana sí está, pero en otra semana, se dice dónde.
-      cuadro.forEach(f => { if (!f.temaSinMaterial || !(kw[f.n] || []).length) return;
-        const otra = cuadro.find(g => g.n !== f.n && g.materiales.some(m => m.visible && !m.repetidoDe && parecido(f.n, m.texto) >= 0.6));
+      cuadro.forEach(f => { if (!(f.temaSinMaterial || (f.estado === 'falta' && f.corresponde)) || !(kw[f.n] || []).length) return;
+        const otra = cuadro.find(g => g.n !== f.n && g.materiales.some(m => m.visible && !m.repetidoDe && parecido(f.n, m.texto) >= 0.75));
         if (otra) f.temaEn = otra.n; });
       const evaluables = cuadro.filter(f => f.corresponde && !f.sinMaterial);
       const ok = evaluables.filter(f => f.estado === 'ok');
@@ -869,7 +938,7 @@
       const tarde = evaluables.filter(f => f.publicado != null && !f.aTiempo);
       const faltan = evaluables.filter(f => f.estado === 'falta');
       const rep = []; cuadro.forEach(f => f.materiales.forEach(m => { if (m.repetidoDe) rep.push([m.repetidoDe, f.n]); }));
-      const sesionMal = []; cuadro.forEach(f => f.materiales.forEach(m => { if (m.sesion != null && m.sesion !== f.n && !m.repetidoDe) sesionMal.push([f.n, m.sesion]); }));
+      const sesionMal = []; cuadro.forEach(f => f.materiales.forEach(m => { if (m.sesionMal) sesionMal.push([f.n, m.sesion]); }));
       const sinTema = cuadro.filter(f => f.temaSinMaterial && f.corresponde && !f.sinMaterial);
 
       if (!evaluables.length) { r.sugerido = ''; r.certeza = 'baja'; r.evidencia.push('A la fecha de la copia todavía no corresponde publicar material de ninguna semana.'); r.para_docente = ''; return; }
@@ -886,6 +955,7 @@
         : 'El tema de la semana ' + f.n + ' («' + f.tema.toLowerCase() + '») no tiene material en el aula.'); });
       cuadro.forEach(f => f.materiales.forEach(m => { if (m.pareceSemana) r.evidencia.push('En la semana ' + f.n + ', «' + m.titulo + '» trae el tema de la semana ' + m.pareceSemana + '.'); }));
       if (faltan.length) r.evidencia.push('Sin material: semana' + (faltan.length > 1 ? 's ' : ' ') + y(faltan.map(f => String(f.n))) + '.');
+      faltan.filter(f => f.temaEn).forEach(f => r.evidencia.push('El material del tema de la semana ' + f.n + ' («' + f.tema.toLowerCase() + '») está publicado en la semana ' + f.temaEn + '.'));
       // Títulos: lo que observó el auditor en 2025 (NC 8.5.2).
       const conT = evaluables.filter(f => f.conTitulo), titMal = conT.filter(f => !f.tituloOk);
       const sinLeer = evaluables.filter(f => !f.conTitulo && f.materiales.some(m => m.cmp && (m.cmp.estado === 'sin-titulo' || m.cmp.estado === 'sin-texto')));
@@ -1055,7 +1125,7 @@
       const mats = f.materiales.length ? f.materiales.map(m => esc(m.titulo) + (m.visible ? '' : ' <i>(oculto)</i>') +
         (m.archivos.length && norm(m.archivos.join(' ')).indexOf(norm(m.titulo)) < 0 ? '<br><small>' + esc(m.archivos.join(', ')) + '</small>' : '') +
         (m.repetidoDe ? ' <span class="mbz-ojo">= semana ' + m.repetidoDe + '</span>' : '') +
-        (m.sesion != null && m.sesion !== f.n && !m.repetidoDe ? ' <span class="mbz-ojo">dice Sesión ' + m.sesion + '</span>' : '')).join('<br>') : '—';
+        (m.sesionMal ? ' <span class="mbz-ojo">dice Sesión ' + m.sesion + '</span>' : '') + (m.enlace ? ' <small>(' + esc(m.enlace) + ')</small>' : '')).join('<br>') : '—';
       const TIT = { igual: ['ok', '✔ Igual al sílabo'], parecido: ['falla', '✖ No es el del sílabo'], incompleto: ['falla', '✖ No es el del sílabo'], distinto: ['falla', '✖ No es el del sílabo'],
         'sin-titulo': ['neutro', 'No se leyó'], 'sin-texto': ['neutro', 'No se leyó'] };
       const mt = f.materiales.filter(m => m.cmp);

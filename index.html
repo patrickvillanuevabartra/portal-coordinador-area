@@ -284,6 +284,7 @@ tr.sin-leer{background:#fffdf6}
 .guia-mbz{margin:0 0 10px;border:1px solid #c3ddf3;border-left:4px solid #2a6fb0;border-radius:10px;background:#f3f8fd;padding:10px 14px;font-size:15px;line-height:1.6}
 .guia-mbz summary{cursor:pointer;font-weight:700;font-size:15.5px;color:#1d4f80}
 .guia-mbz ol{margin:8px 0 4px 22px;padding:0}.guia-mbz li{margin:4px 0}
+.guia-mbz-alto{display:block;margin-top:4px;color:#8f2418;font-weight:600}
 .guia-mbz-nota{margin:6px 0 0;font-size:14px;color:var(--tinta-media)}
 .insumos{margin:4px 0 10px;border:1px solid var(--linea);border-radius:10px;background:#fbfcfb;padding:10px 14px}
 .insumos b.t{display:block;font-size:14.5px;margin-bottom:4px}
@@ -1928,7 +1929,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
-<script src="mbz-aula.js?v=2026-10-24.04"></script>
+<script src="mbz-aula.js?v=2026-10-24.05"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2203,7 +2204,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-24.04';
+  const VERSION_INTERNA = '2026-10-24.05';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10290,8 +10291,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '<li>En la lista de arriba a la izquierda elija <b>«Copia de seguridad»</b>.</li>' +
       '<li><b>Quite el check</b> de <b>«Incluir usuarios matriculados»</b>. Así la copia no lleva datos de los estudiantes.</li>' +
       '<li>Pulse <b>«Saltar al último paso»</b>. Espere 1 o 2 minutos y pulse <b>«Continuar»</b>.</li>' +
-      '<li>En «Zona de copia de seguridad del curso», pulse <b>«Descargar»</b> en el archivo más reciente. ' +
-        'Se guarda en su carpeta <b>Descargas</b> y su nombre termina en <b>«-nu.mbz»</b> (nu = sin usuarios).</li>' +
+      '<li>En la lista «Zona de copia de seguridad privada de usuario», pulse <b>«Descargar»</b> en el archivo de arriba (el más reciente). ' +
+        'Se guarda en su carpeta <b>Descargas</b> y su nombre termina en <b>«-nu.mbz»</b> (nu = sin usuarios). ' +
+        '<span class="guia-mbz-alto">⚠️ Nunca pulse «Restaurar»: sirve para cargar la copia dentro de un aula y podría duplicar o borrar el contenido del aula del docente.</span></li>' +
       '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija ese archivo y pulse <b>Analizar ➤</b>.</li>' +
     '</ol>' +
     '<p class="guia-mbz-nota">El archivo se lee en su computadora: <b>no se sube a ningún servidor</b> ni se guarda en el portal. ' +
