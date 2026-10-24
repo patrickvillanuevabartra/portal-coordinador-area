@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-24.4';
+  const VERSION_REGLAS = 'mbz-2026-10-24.5';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -276,27 +276,36 @@
     if (sm) s.semestre = sm[1] + '-' + (/^(2|ii)$/i.test(sm[2]) ? '2' : '1');
     // Cronograma: después de «Semana … Contenido», cada línea que empieza con
     // un número es una semana; las líneas siguientes completan su contenido.
-    let dentro = false, actual = null, unidad = '';
+    let dentro = false, actual = null, unidad = '', sueltas = [];
     for (const l0 of lineas) {
       const l = l0.trim(), n = norm(l);
       if (!l || l === '\f' || ES_PIE.test(n)) continue;
-      if (/^semana\b.*contenido/.test(n) || /^seman(a)?$/.test(n) || /programacion de contenidos/.test(n)) { dentro = true; actual = null; continue; }
+      if (/^semana\b.*contenido/.test(n) || /^seman(a)?$/.test(n) || /programacion de contenidos/.test(n)) { dentro = true; actual = null; sueltas = []; continue; }
       if (dentro && (/^contenido$/.test(n) || /^a$/.test(n))) continue;
       const u = l.match(/^UNIDAD\s+([IVX]+|\d+)\s*:?\s*(.*)$/i);
-      if (u) { unidad = (u[1] + (u[2] ? ': ' + u[2] : '')).trim(); actual = null; continue; }
-      if (/^logro\b/.test(n)) { actual = null; continue; }
+      if (u) { unidad = (u[1] + (u[2] ? ': ' + u[2] : '')).trim(); actual = null; sueltas = []; continue; }
+      if (/^logro\b/.test(n)) { actual = null; sueltas = []; continue; }
       if (dentro && /^(vii|viii|ix|x)\.?\s+[a-z]/.test(n) && s.semanas.length) break;
       if (!dentro) continue;
       const w = l.match(/^(\d{1,2})\s+(.*[A-Za-zÁÉÍÓÚÑáéíóúñ]{3}.*)$/);
+      const solo = l.match(/^(\d{1,2})$/);
+      const sigue = (s.semanas.length ? Math.max(...s.semanas.map(x => x.n)) : 0) + 1;
       if (w && +w[1] >= 1 && +w[1] <= 20 && !s.semanas.some(x => x.n === +w[1])) {
-        actual = { n: +w[1], contenido: w[2].trim(), unidad };
+        actual = { n: +w[1], contenido: (sueltas.join(' ') + ' ' + w[2]).trim(), unidad }; sueltas = [];
+        s.semanas.push(actual);
+      } else if (solo && +solo[1] === sigue && !actual) {
+        // Número centrado en la celda: el texto que vino antes es de esta semana.
+        actual = { n: +solo[1], contenido: sueltas.join(' '), unidad }; sueltas = [];
         s.semanas.push(actual);
       } else if (actual && !/^\d{1,3}$/.test(l)) actual.contenido += ' ' + l;
+      else if (!actual && !/^\d{1,3}$/.test(l)) sueltas.push(l);
     }
     s.semanas.forEach(x => {
       x.contenido = x.contenido.replace(/\s+/g, ' ').trim();
       x.temas = temasDeSemana(x.contenido);
       x.titulo = x.temas.join('. ');
+      // Para mostrar: si la semana no empieza con su título en mayúsculas, el inicio del texto.
+      x.tituloVer = norm(x.contenido).indexOf(norm(x.temas[0])) === 0 ? x.titulo : x.contenido.slice(0, 110).replace(/\s+\S*$/, '') + '…';
       x.sinMaterial = REGLAS.semanasSinMaterial.test(x.contenido);
     });
     s.semanas.sort((a, b) => a.n - b.n);
@@ -586,12 +595,16 @@
       .concat(cuest.filter(a => a.seccion === f.n).map(a => ({ titulo: a.titulo, rub: '' }))); });
     if (!evals.length) {
       r.sugerido = ''; r.certeza = 'baja'; r.automatico = false; r.para_docente = '';
+      r.porque = 'Lo revisa usted: no hay tareas ni evaluaciones anunciadas en el aula.';
       r.evidencia.push('No hay tareas ni evaluaciones anunciadas en el aula para revisar sus rúbricas.');
       return r;
     }
     const ok = evals.filter(a => a.rub.ok && a.rub.retroOk), con = evals.filter(a => a.rub.fuentes.length);
     r.sugerido = ok.length === evals.length ? 'Cumple' : (con.length ? 'Parcial' : 'No cumple');
     r.certeza = evals.some(a => a.rub.mencion) || avisos.length ? 'media' : 'alta';
+    r.porque = con.length + ' de ' + plural(evals.length, 'evaluación tiene', 'evaluaciones tienen') + ' rúbrica; ' + evals.filter(a => a.rub.ok).length + ' se ' +
+      (evals.filter(a => a.rub.ok).length === 1 ? 'publicó' : 'publicaron') + ' con 2 días de anticipación' +
+      (evals.filter(a => !a.rub.retroOk).length ? '; falta retroalimentación en ' + evals.filter(a => !a.rub.retroOk).length : '') + '.';
     const sin = evals.filter(a => !a.rub.fuentes.length), tarde = evals.filter(a => a.rub.fuentes.length && !a.rub.ok);
     const sinRetro = evals.filter(a => !a.rub.retroOk);
     const nom = a => '«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '').replace(/[:.]?\s*$/, '') + '»';
@@ -622,6 +635,7 @@
     const horario = Array.isArray(ctx.horario) ? ctx.horario : null;
     if (!horario) {
       r.sugerido = ''; r.certeza = 'pendiente'; r.automatico = false; r.para_docente = '';
+      r.porque = 'Lo revisa usted por ahora: falta el horario del grupo, que carga el administrador. Se encontraron ' + plural(grab.length, 'grabación', 'grabaciones') + '.';
       r.nota.push('El portal todavía no tiene el horario de este grupo (lo carga la administración desde la guía de matrícula). Por ahora revise este punto a mano: si el curso es presencial, corresponde «No aplica».');
       return r;
     }
@@ -629,7 +643,7 @@
     const virt = horario.filter(esVirtual);
     const txtH = h => [h.tipo, h.dia, h.horario || [h.inicio, h.fin].filter(Boolean).join('–'), esVirtual(h) ? '(virtual)' : '(presencial, ' + (h.aula || '').replace(/\s*-\s*$/, '') + ')'].filter(Boolean).join(' ');
     if (!virt.length) {
-      r.sugerido = 'No aplica'; r.certeza = 'alta'; r.para_docente = '';
+      r.sugerido = 'No aplica'; r.certeza = 'alta'; r.para_docente = ''; r.porque = 'Según la guía de matrícula, todas las clases de este grupo son presenciales.';
       r.evidencia.unshift('Según la guía de matrícula, todas las clases de este grupo son presenciales (' + y(horario.map(txtH)) + ').');
       return r;
     }
@@ -649,6 +663,7 @@
     r.evidencia.unshift('Según la guía de matrícula, este grupo tiene ' + plural(virt.length, 'clase virtual', 'clases virtuales') + ' por semana (' + y(virt.map(txtH)) +
       '). Hasta la fecha de la copia se dictaron ' + plural(dictadas, 'clase virtual', 'clases virtuales') + '; se encontraron ' + plural(grab.length, 'grabación', 'grabaciones') + '.');
     const faltan = cuadro.filter(f => f.virtuales > f.grabaciones.length).map(f => f.n);
+    r.porque = plural(grab.length, 'grabación', 'grabaciones') + ' para ' + plural(dictadas, 'clase virtual dictada', 'clases virtuales dictadas') + (faltan.length ? '; faltan las de las semanas ' + y(faltan.map(String)) : '') + '.';
     if (!grab.length) {
       r.sugerido = 'No existen'; r.certeza = 'alta';
       r.mejorar.push('Publicar la grabación de cada clase virtual en la semana que corresponde (van ' + dictadas + ' clases virtuales sin grabación).');
@@ -869,7 +884,7 @@
         const evals = H.acts.filter(a => a.seccion === n && (a.mod === 'assign' || a.mod === 'quiz' || (a.archivos.length && (a.clase === 'evaluacion' || a.clase === 'rubrica'))));
         const reun = H.acts.filter(a => a.seccion === n && a.clase === 'reunion');
         const limite = n === 1 && REGLAS.semana1DesdeInicio ? ini : inicioSemana(n) - REGLAS.diasMaterial;
-        const fila = { n, inicio: inicioSemana(n), tema: s.titulo || '', unidad: s.unidad || '', sinMaterial: !!s.sinMaterial,
+        const fila = { n, inicio: inicioSemana(n), tema: s.tituloVer || s.titulo || '', unidad: s.unidad || '', sinMaterial: !!s.sinMaterial,
           limite, materiales: [], evaluaciones: evals.map(a => a.titulo), reuniones: reun.map(a => nombreDominio(a.dominio) + ' «' + a.titulo + '»'),
           problemas: [], estado: '' };
         fila.corresponde = limite <= diaCopia;
@@ -892,7 +907,8 @@
           const ft = porNombre ? { tituloDeclarado: quitarPrefijo(a.titulo) } : a.archivos.find(f => f.tituloDeclarado != null);
           m.tituloPpt = ft ? ft.tituloDeclarado : '';
           m.enlace = a.mod === 'url' ? nombreDominio(a.dominio) : '';
-          if (s.temas && conTema(s) && !m.repetidoDe) m.cmp = ft ? compararTitulo(m.tituloPpt, s.temas) : { estado: 'sin-texto' };
+          // Solo si la semana del sílabo tiene un título claro (en MAYÚSCULAS al inicio).
+          if (s.temas && conTema(s) && !m.repetidoDe && s.tituloVer === s.titulo) m.cmp = ft ? compararTitulo(m.tituloPpt, s.temas) : { estado: 'sin-texto' };
           if (semSil.length && !m.repetidoDe && conTema(s) && (kw[n] || []).length) {
             const propio = parecido(n, texto);
             let mejor = n, pm = propio;
@@ -905,7 +921,7 @@
         const vis = fila.materiales.filter(m => m.visible);
         if (fila.sinMaterial) fila.estado = 'evaluacion';
         else if (!fila.corresponde && !vis.length) fila.estado = 'futuro';
-        else if (!vis.length) { fila.estado = 'falta'; fila.problemas.push(fila.materiales.length ? 'el material está oculto' : 'sin material'); }
+        else if (!vis.length) { fila.estado = 'falta'; if (fila.materiales.length) fila.problemas.push('el material está oculto'); }
         else {
           const primero = Math.min(...vis.map(m => diaLima(m.agregado)));
           fila.publicado = primero; fila.anticipacion = inicioSemana(n) - primero;
@@ -943,6 +959,10 @@
 
       if (!evaluables.length) { r.sugerido = ''; r.certeza = 'baja'; r.evidencia.push('A la fecha de la copia todavía no corresponde publicar material de ninguna semana.'); r.para_docente = ''; return; }
       r.sugerido = ok.length === evaluables.length ? 'Cumple' : (conMat.length ? 'Parcial' : 'No cumple');
+      { const otrasS = evaluables.filter(f => f.estado !== 'ok' && f.estado !== 'falta' && (f.temaSinMaterial || f.sinPropio || (f.conTitulo && !f.tituloOk) || f.problemas.some(p => /mismo archivo|Sesión/.test(p)))).length;
+        r.porque = 'Cumplen ' + ok.length + ' de ' + plural(evaluables.length, 'semana', 'semanas') + ': ' +
+          [faltan.length && plural(faltan.length, 'semana sin material', 'semanas sin material'), tarde.length && plural(tarde.length, 'publicada tarde', 'publicadas tarde'),
+           otrasS && plural(otrasS, 'con material repetido, de otra semana o con título distinto al sílabo', 'con material repetido, de otra semana o con título distinto al sílabo')].filter(Boolean).join(', ') + '.'; }
       r.certeza = sinTema.length || sesionMal.length ? 'media' : 'alta';
       r.evidencia.push('Se revisan ' + plural(evaluables.length, 'semana', 'semanas') + ' (las que a la fecha de la copia ya debían tener material' +
         (cuadro.some(f => f.sinMaterial) ? '; no se exigen las de examen' : '') + '). Cumplen en todo: ' + (ok.length ? 'semana' + (ok.length > 1 ? 's ' : ' ') + y(ok.map(f => String(f.n))) : 'ninguna') + '.');
@@ -990,16 +1010,29 @@
     /* 03, 04, 06, 08 · solo inventario (reglas en la siguiente etapa) -- */
     (function () {
       const sesiones = visibles.filter(a => a.clase === 'sesion');
-      R['03'] = { punto: '03', sugerido: '', certeza: 'pendiente', mejorar: [], nota: ['Regla automática en preparación: revise este punto a mano.'], para_docente: '',
-        evidencia: [sesiones.length ? plural(sesiones.length, 'documento llamado sesión de aprendizaje o plan de sesión', 'documentos llamados sesión de aprendizaje o plan de sesión') + '.' : 'No hay documentos llamados «sesión de aprendizaje» o «plan de sesión».',
-          A.subgrupo === '0' ? 'Esta copia es solo del aula de teoría: para este punto hace falta también la del taller (nombre corto terminado en -1).' : ''].filter(Boolean) };
+      R['03'] = { punto: '03', sugerido: '', certeza: 'pendiente', mejorar: [], para_docente: '',
+        porque: 'Lo revisa usted: ' + (sesiones.length ? plural(sesiones.length, 'plan de sesión publicado', 'planes de sesión publicados') + '; vea si siguen el Modelo Pedagógico URP.' : 'no hay planes de sesión publicados; confírmelo en el aula.'),
+        evidencia: [sesiones.length ? 'Planes de sesión publicados: ' + y(sesiones.map(a => '«' + a.titulo + '» (semana ' + a.seccion + ')')) + '.' : 'No hay documentos llamados «sesión de aprendizaje» o «plan de sesión».'],
+        nota: ['Qué revisar: (1) que cada plan de sesión siga el Modelo Pedagógico URP (Figura 14) y las directrices de la Escuela; (2) que la primera diapositiva de cada clase indique la unidad y los contenidos de la semana. ' +
+          'El portal no puede juzgar el contenido de un plan de sesión: por eso este punto lo decide usted.'] };
+      if (A.subgrupo === '0') R['03'].nota.push('Si el grupo tiene aula de taller, sus planes de sesión están en esa otra aula.');
       R['04'] = regla04(H, recursos, cuadro, silabo, diaCopia);
-      const cnt = m => H.acts.filter(a => a.mod === m && a.visible).length;
-      R['06'] = { punto: '06', sugerido: '', certeza: 'pendiente', mejorar: [], nota: ['Compare con lo que anuncia el sílabo: la coherencia la decide usted.'], para_docente: '',
-        evidencia: ['Tareas: ' + cnt('assign') + ' · cuestionarios: ' + cnt('quiz') + ' · foros: ' + cnt('forum') + (H.acts.filter(a => a.mod === 'forum').length ? ' (' + y(H.acts.filter(a => a.mod === 'forum').map(a => '«' + a.titulo + '»')) + ')' : '') + '.'] };
+      const vis = m => H.acts.filter(a => a.mod === m && a.visible);
+      const evSil = ((silabo && silabo.semanas) || []).filter(x => /pr[aá]ctica calificada|examen|sustentaci|taller|trabajo|informe|evaluaci[oó]n del logro/i.test(x.contenido));
+      const lista06 = vis('assign').concat(vis('quiz')).concat(vis('forum')).map(a => ({ assign: 'Tarea', quiz: 'Cuestionario', forum: 'Foro' }[a.mod]) + ' «' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + ')');
+      R['06'] = { punto: '06', sugerido: '', certeza: 'pendiente', mejorar: [], para_docente: '',
+        porque: 'Lo revisa usted: compare ' + plural(vis('assign').length, 'tarea', 'tareas') + ', ' + plural(vis('quiz').length, 'cuestionario', 'cuestionarios') + ' y ' + plural(vis('forum').length, 'foro', 'foros') +
+          ' con ' + (evSil.length ? plural(evSil.length, 'evaluación', 'evaluaciones') + ' del sílabo' : 'lo que pide el sílabo') + '.',
+        evidencia: ['En el aula: ' + (lista06.length ? lista06.join('; ') : 'no hay tareas, cuestionarios ni foros') + '.'].concat(evSil.length ? ['El sílabo programa: ' + evSil.map(x => 'semana ' + x.n + ' («' + (x.tituloVer || x.titulo).replace(/…$/, '') + '»)').join('; ') + '.'] : []),
+        nota: ['Qué revisar: que cada evaluación del sílabo tenga su actividad en el aula (o que se haya tomado en clase) y que los foros y tareas correspondan a los contenidos del curso. ' +
+          'El portal no puede juzgar si son coherentes: por eso este punto lo decide usted.'] };
       R['08'] = regla08(H, ctx, cuadro, inicioSemana, diaCopia);
     })();
 
+    // Por qué de cada resultado, en una línea, para el resumen.
+    const pq = (n, t) => { if (!R[n].porque) R[n].porque = t; };
+    ['01', '02'].forEach(n => pq(n, R[n].evidencia[R[n].sugerido === 'Subió' ? 0 : 0] || ''));
+    pq('07', R['07'].sugerido === 'Existen' ? R['07'].para_docente.replace(/^Gracias por compartir /, 'Hay ').replace(/\.$/, '') + '.' : 'No hay lecturas, videos ni enlaces de apoyo fuera del material de clase.');
     // Texto completo, estándar literal y orden.
     const crit = ctx.criterios || [];
     PUNTOS.forEach(([n, et], i) => {
@@ -1058,10 +1091,10 @@
   const ESTADOS = {
     'Cumple': ['ok', '✔'], 'Subió': ['ok', '✔'], 'Existen': ['ok', '✔'],
     'Parcial': ['parcial', '◐'], 'No cumple': ['falla', '✖'], 'No subió': ['falla', '✖'], 'No existen': ['falla', '✖'],
-    'No aplica': ['neutro', '–'], '': ['manual', '✎']
+    'No aplica': ['neutro', '–'], '': ['manual', '👁']
   };
-  const chip = s => { const e = ESTADOS[s] || ESTADOS['']; return '<span class="mbz-chip mbz-' + e[0] + '">' + e[1] + ' ' + esc(s || 'Revisar a mano') + '</span>'; };
-  const CERTEZA = { alta: 'Alta: es un dato del aula (existe o no, fechas).', media: 'Media: conviene que usted lo confirme.', baja: 'Baja: revíselo usted.', pendiente: 'Sin regla automática todavía.' };
+  const chip = s => { const e = ESTADOS[s] || ESTADOS['']; return '<span class="mbz-chip mbz-' + e[0] + '">' + e[1] + ' ' + esc(s || 'Lo revisa usted') + '</span>'; };
+  const CERTEZA = { alta: 'Alta: es un dato del aula (existe o no, fechas).', media: 'Media: conviene que usted lo confirme.', baja: 'Baja: revíselo usted.', pendiente: 'Lo decide usted: el portal reúne los datos, pero este juicio es suyo.' };
   const ESTADO_SEMANA = {
     ok: ['ok', '✔ A tiempo'], tarde: ['parcial', '◐ Publicado tarde'], revisar: ['parcial', '◐ Revisar'], falta: ['falla', '✖ Sin material'],
     futuro: ['neutro', 'Aún no corresponde'], evaluacion: ['neutro', 'Semana de examen']
@@ -1076,42 +1109,48 @@
       '<div class="mbz-cab-d"><b>' + esc(A.nombre) + '</b> · ' + esc(A.corto) + ' · ' + esc(A.tipo) +
       '<br>Copia descargada el <b>' + fechaHora(A.copia) + '</b> (semana ' + H.semanaActual + ' del ciclo; la semana 1 empezó el ' + fechaDeDia(H.inicioDia) + '). ' +
       'El reporte describe el aula <b>ese día</b>.</div></div>');
-    if (op.aviso) h.push('<div class="mbz-aviso">' + op.aviso + '</div>');
-    if (A.subgrupo === '0') h.push('<div class="mbz-aviso">Esta copia es <b>solo del aula de teoría</b>. Para completar los puntos 03 y 08 hace falta también la copia del aula de taller del mismo grupo (su nombre corto termina en <b>-1</b>).</div>');
+    // Administrador: el horario del ciclo, arriba y bien visible (sirve para todos los coordinadores).
+    if (op.pedirHorario) h.push('<div class="mbz-horario"><div class="mbz-horario-t">📅 Administrador: cargue el horario de clases del ciclo</div>' +
+      'Se hace <b>una sola vez</b> y sirve para todos los coordinadores: con él, el punto 08 (grabaciones de clases virtuales) se revisa solo. ' +
+      '<a class="mbz-boton" href="docs/cargar-horario.html" target="_blank" rel="noopener">Abrir la herramienta para cargar el horario</a>' +
+      '<details><summary>O pegue aquí las filas de la guía de matrícula (solo para este análisis)</summary>' +
+      '<textarea id="mbzHorarioTxt" rows="4" placeholder="Pegue aquí las filas copiadas de la guía de matrícula…"></textarea>' +
+      (op.codigoHorario === undefined ? '' : '<label class="mbz-sub">Código del curso en la guía: <input type="text" id="mbzHorarioCod" value="' + esc(op.codigoHorario || '') + '" placeholder="p. ej. IN-1001" style="width:120px"></label> ') +
+      '<button type="button" id="mbzHorarioUsar">Usar este horario</button></details>' + (op.horarioAviso ? '<div class="mbz-alto" style="margin-top:8px">' + op.horarioAviso + '</div>' : '') + '</div>');
+    if (op.aviso) h.push('<div class="mbz-info">' + op.aviso + '</div>');
+    if (A.subgrupo === '0') h.push('<div class="mbz-info">ℹ️ Esta es el aula de <b>teoría</b> del grupo ' + esc(A.grupo) + '. Si el grupo también tiene aula de <b>taller</b> ' +
+      '(su código termina en <b>-1</b>), puede descargar y analizar esa copia aparte: ahí están las sesiones y grabaciones del taller.</div>');
 
-    // Resumen
-    h.push('<section class="mbz-resumen"><h4>Resumen</h4><p class="mbz-grande">De los <b>' + S.revisados + '</b> puntos que el portal ya revisa solo (' + y(S.autos) + '), <b>' +
-      S.conformes + '</b> ' + (S.conformes === 1 ? 'aparece conforme' : 'aparecen conformes') + '. ' +
-      (S.manuales.length ? 'Los puntos ' + y(S.manuales) + ' se revisan a mano por ahora.' : '') + '</p>');
-    h.push('<table class="mbz-tabla mbz-mini"><tbody>' + PUNTOS.map(([n, et]) => '<tr><td class="mbz-n">' + n + '</td><td>' + esc(et) + '</td><td>' + chip(R[n].sugerido) + '</td></tr>').join('') + '</tbody></table>');
-    if (S.acciones.length) h.push('<p class="mbz-sub"><b>Lo más importante para el docente</b></p><ol class="mbz-acc">' +
+    // Resumen: resultado y porqué de cada punto.
+    h.push('<section class="mbz-resumen"><h4>Resumen</h4><p class="mbz-grande">El portal revisó solo <b>' + S.revisados + ' de los 8 puntos</b>; <b>' + S.conformes + '</b> ' +
+      (S.conformes === 1 ? 'aparece conforme' : 'aparecen conformes') + '.' + (S.manuales.length ? ' Los puntos ' + y(S.manuales) + ' los revisa usted, porque dependen de juzgar el contenido o falta un dato.' : '') + '</p>');
+    h.push('<p class="mbz-leyenda"><b>Cómo leerlo:</b> <span class="mbz-chip mbz-ok">✔ Cumple / Subió / Existen</span> está bien · <span class="mbz-chip mbz-parcial">◐ Parcial</span> cumple solo en parte · ' +
+      '<span class="mbz-chip mbz-falla">✖ No cumple</span> falta · <span class="mbz-chip mbz-manual">👁 Lo revisa usted</span> el portal no puede decidirlo solo. ' +
+      'La columna «Por qué» lo explica en una línea; el detalle y el mensaje para el docente están más abajo, en <b>«Ficha por punto»</b>.</p>');
+    h.push('<table class="mbz-tabla mbz-resu"><thead><tr><th style="width:44px">N°</th><th style="width:22%">Punto</th><th style="width:150px">Resultado</th><th>Por qué</th></tr></thead><tbody>' +
+      PUNTOS.map(([n, et]) => '<tr><td class="mbz-n">' + n + '</td><td>' + esc(et) + '</td><td>' + chip(R[n].sugerido) + '</td><td>' + esc(R[n].porque || '') +
+        ' <a class="mbz-ver" href="#mbz-p' + n + '">ver detalle ↓</a></td></tr>').join('') + '</tbody></table>');
+    if (S.acciones.length) h.push('<p class="mbz-sub"><b>Lo más importante que debe corregir el docente</b></p><ol class="mbz-acc">' +
       S.acciones.map(a => '<li><b>' + a.punto + ' ' + esc(a.nombre) + ':</b> ' + esc(a.t) + '</li>').join('') + '</ol>');
     h.push('</section>');
 
     if (op.botones) h.push('<div class="mbz-botones">' + op.botones + '</div>');
-    if (op.pedirHorario) h.push('<div class="mbz-horario"><b>Solo administrador · Punto 08: pegue el horario de la guía de matrícula.</b><br>' +
-      'Abra la <a href="https://webapp.urp.edu.pe/guia-matricula/horario" target="_blank" rel="noopener">guía de matrícula</a>, elija la carrera, la currícula y el semestre del curso, pulse «Buscar», ' +
-      'seleccione la tabla con el mouse, cópiela (Ctrl + C) y péguela aquí (Ctrl + V). Puede pegar la tabla entera: el portal toma solo las filas de este grupo. ' +
-      'Lo pegado sirve para los demás cursos de ese semestre mientras no cierre la página.' +
-      '<textarea id="mbzHorarioTxt" rows="4" placeholder="Pegue aquí las filas de la guía de matrícula…"></textarea>' +
-      (op.codigoHorario === undefined ? '' : '<label class="mbz-sub">Código del curso en la guía: <input type="text" id="mbzHorarioCod" value="' + esc(op.codigoHorario || '') + '" placeholder="p. ej. IN-1001" style="width:120px"></label> ') +
-      '<button type="button" id="mbzHorarioUsar">Usar este horario</button>' + (op.horarioAviso ? '<div class="mbz-alto" style="margin-top:8px">' + op.horarioAviso + '</div>' : '') + '</div>');
     if (op.horarioUsado) h.push('<div class="mbz-sub">Horario usado para el punto 08 (guía de matrícula): ' + esc(op.horarioUsado) + '.</div>');
 
     // Fichas
     h.push('<h4 class="mbz-h">Ficha por punto</h4>');
     PUNTOS.forEach(([n, et]) => {
       const r = R[n];
-      h.push('<details class="mbz-ficha"' + (r.automatico ? ' open' : '') + '><summary><span class="mbz-n">' + n + '</span> ' + esc(et) + ' ' + chip(r.sugerido) + '</summary>');
+      h.push('<details class="mbz-ficha" id="mbz-p' + n + '"' + ' open' + '><summary><span class="mbz-n">' + n + '</span> ' + esc(et) + ' ' + chip(r.sugerido) + '</summary>');
       if (r.estandar) h.push('<p class="mbz-std"><b>Estándar:</b> ' + esc(r.estandar) + '</p>');
       h.push('<dl>');
-      h.push('<dt>Resultado sugerido</dt><dd>' + chip(r.sugerido) + '</dd>');
+      h.push('<dt>Resultado sugerido</dt><dd>' + chip(r.sugerido) + (r.porque ? ' ' + esc(r.porque) : '') + '</dd>');
       h.push('<dt>Qué se encontró</dt><dd><ul>' + r.evidencia.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
       if (r.mejorar.length) h.push('<dt>Qué mejorar</dt><dd><ul>' + r.mejorar.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
       h.push('<dt>Certeza</dt><dd>' + esc(CERTEZA[r.certeza] || r.certeza) + '</dd>');
       if (r.automatico && r.para_docente !== undefined) h.push('<dt>Mensaje para el docente <small>(puede corregirlo)</small></dt><dd><textarea class="mbz-msj" data-punto="' + n + '" rows="' +
         Math.min(8, 2 + (r.para_docente.match(/\n/g) || []).length) + '">' + esc(r.para_docente) + '</textarea></dd>');
-      if (r.nota_interna) h.push('<dt>Nota para usted <small>(no se envía al docente)</small></dt><dd class="mbz-interna">' + esc(r.nota_interna) + '</dd>');
+      if (r.nota_interna) h.push('<dt>' + (r.automatico ? 'Nota para usted' : 'Qué revisar usted') + ' <small>(no se envía al docente)</small></dt><dd class="mbz-interna">' + esc(r.nota_interna) + '</dd>');
       h.push('</dl></details>');
     });
 
@@ -1119,7 +1158,8 @@
     h.push('<h4 class="mbz-h">Cuadro por semanas</h4><p class="mbz-sub">Regla: el material de cada semana se publica al menos ' + REGLAS.diasMaterial +
       ' días antes de que empiece' + (REGLAS.semana1DesdeInicio ? ' (la semana 1, a más tardar el primer día de clases)' : '') +
       '. «Publicado» es la fecha en que el docente agregó el archivo al aula. Las semanas de examen no exigen material.</p>');
-    h.push('<div class="mbz-scroll"><table class="mbz-tabla mbz-sem"><thead><tr><th>Sem.</th><th>Empieza</th><th>Tema del sílabo</th><th>Material</th><th>Publicado</th><th>Anticipación</th><th>Título de la presentación</th><th>Estado</th><th>Evaluación</th><th>Clase virtual y grabación</th></tr></thead><tbody>');
+    h.push('<div class="mbz-scroll"><table class="mbz-tabla mbz-sem"><colgroup><col style="width:7%"><col style="width:17%"><col style="width:19%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:12%"></colgroup>' +
+      '<thead><tr><th>Semana</th><th>Tema del sílabo</th><th>Material publicado</th><th>¿Título igual al sílabo?</th><th>Estado</th><th>Evaluaciones</th><th>Clase virtual</th></tr></thead><tbody>');
     res.cuadro.forEach(f => {
       const e = ESTADO_SEMANA[f.estado] || ['neutro', ''];
       const mats = f.materiales.length ? f.materiales.map(m => esc(m.titulo) + (m.visible ? '' : ' <i>(oculto)</i>') +
@@ -1133,8 +1173,8 @@
         (m.tituloPpt ? '<br><small>«' + esc(m.tituloPpt) + '»</small>' : ''); }).join('<br>') : '—';
       const virt = (f.reuniones.map(esc).join('<br>') || '') + (f.virtuales ? (f.reuniones.length ? '<br>' : '') + f.virtuales + ' clase' + (f.virtuales > 1 ? 's' : '') + ' virtual' + (f.virtuales > 1 ? 'es' : '') : '') +
         ((f.grabaciones || []).length ? '<br>🎥 ' + f.grabaciones.map(esc).join('<br>🎥 ') : (f.virtuales ? '<br><span class="mbz-ojo">sin grabación</span>' : ''));
-      h.push('<tr class="' + (f.enCurso ? 'mbz-hoy' : '') + '"><td class="mbz-n">' + f.n + (f.enCurso ? '<br><small>en curso</small>' : '') + '</td><td>' + fechaDeDia(f.inicio) + '</td><td>' + esc(f.tema || '—') + '</td><td>' + mats + '</td><td>' +
-        (f.publicado != null ? fechaDeDia(f.publicado) : '—') + '</td><td>' + (f.anticipacion != null ? esc(diasTxt(f.anticipacion)) : '—') + '</td><td>' + tit + '</td><td><span class="mbz-chip mbz-' + e[0] + '">' + e[1] + '</span>' +
+      const pub = f.publicado != null ? '<div class="mbz-fecha">Publicado el ' + fechaDeDia(f.publicado) + ' · ' + esc(diasTxt(f.anticipacion)) + ' de su inicio</div>' : '';
+      h.push('<tr class="' + (f.enCurso ? 'mbz-hoy' : '') + '"><td class="mbz-n">' + f.n + '<br><small>' + fechaDeDia(f.inicio) + (f.enCurso ? '<br>en curso' : '') + '</small></td><td>' + esc(f.tema || '—') + '</td><td>' + mats + pub + '</td><td>' + tit + '</td><td><span class="mbz-chip mbz-' + e[0] + '">' + e[1] + '</span>' +
         (f.problemas.length ? '<div class="mbz-prob">' + f.problemas.map(esc).join('<br>') + '</div>' : '') + '</td><td>' + ((f.evalDet && f.evalDet.length ? f.evalDet.map(e => esc(e.titulo) + (e.rub === 'ok' ? ' <span class="mbz-chip mbz-ok">✔ con rúbrica</span>' : e.rub === 'tarde' ? ' <span class="mbz-chip mbz-parcial">◐ rúbrica tardía</span>' : e.rub === 'sin' ? ' <span class="mbz-chip mbz-falla">✖ sin rúbrica</span>' : '')) : f.evaluaciones.map(esc)).join('<br>') || '—') + '</td><td>' + (virt || '—') + '</td></tr>');
     });
     h.push('</tbody></table></div>');
@@ -1163,7 +1203,14 @@
 .mbz-falla{background:#fdecea;color:#8f2418;border-color:#f1b9b2}.mbz-neutro{background:#f0f2f1;color:#5a6660;border-color:#dfe4e1}
 .mbz-manual{background:#eef3fb;color:#2d4f80;border-color:#c3d4ee}
 .mbz-tabla{border-collapse:collapse;width:100%;font-size:14px}.mbz-tabla th,.mbz-tabla td{border:1px solid var(--linea,#dfe4e1);padding:6px 8px;vertical-align:top;text-align:left}
-.mbz-tabla th{background:#f3f6f4;font-size:13.5px}.mbz-mini{max-width:560px}.mbz-n{font-weight:700;white-space:nowrap}
+.mbz-tabla th{background:#f3f6f4;font-size:13.5px;text-transform:none;letter-spacing:0;font-weight:700;color:#2b3a33}
+.mbz-sem{table-layout:fixed;width:100%}.mbz-sem td{word-wrap:break-word;overflow-wrap:anywhere}.mbz-sem .mbz-chip{white-space:normal;display:inline-block;max-width:100%}
+.mbz-resu td{font-size:14.5px}.mbz-ver{font-size:13px;white-space:nowrap;color:#2a6fb0}
+.mbz-leyenda{font-size:14px;line-height:1.9;margin:4px 0 8px}
+.mbz-fecha{font-size:12.5px;color:var(--tinta-media,#5a6660);margin-top:3px}
+.mbz-info{background:#eef5fc;border:1px solid #c3ddf3;border-radius:8px;padding:8px 12px;margin:8px 0;font-size:14.5px}
+.mbz-horario-t{font-size:18px;font-weight:700;color:#1d4f80;margin-bottom:4px}
+.mbz-boton{display:inline-block;margin:8px 0 4px;padding:10px 16px;border-radius:8px;background:#2a6fb0;color:#fff!important;text-decoration:none;font-weight:600;font-size:15.5px}.mbz-mini{max-width:560px}.mbz-n{font-weight:700;white-space:nowrap}
 .mbz-ficha{border:1px solid var(--linea,#dfe4e1);border-radius:10px;margin:8px 0;padding:6px 12px;background:#fbfcfb}
 .mbz-ficha summary{cursor:pointer;font-size:15.5px;font-weight:600;padding:4px 0}
 .mbz-ficha dl{margin:6px 0 4px}.mbz-ficha dt{font-weight:700;font-size:14px;margin-top:8px;color:#2b3a33}.mbz-ficha dd{margin:2px 0 0}
@@ -1181,7 +1228,7 @@
 .mbz-progreso progress{width:100%;height:12px;margin-top:6px}
 .mbz-alto{margin:8px 0;padding:12px 14px;border-radius:8px;background:#fdecea;border:1px solid #f1b9b2;border-left:5px solid #c0392b;font-size:15px}
 .mbz-preg{margin:8px 0;padding:12px 14px;border-radius:8px;background:#fff7e8;border:1px solid #f0d49a;font-size:15px}
-.mbz-horario{margin:10px 0;padding:12px 14px;border-radius:8px;background:#eef6fb;border:1px solid #c3ddf3;font-size:14.5px}
+.mbz-horario{margin:10px 0;padding:14px 16px;border-radius:10px;background:#eef6fb;border:2px solid #2a6fb0;font-size:15px}
 .mbz-horario textarea{width:100%;margin:8px 0;font:inherit;font-size:13.5px;border:1px solid #c9d3cd;border-radius:8px;padding:8px}
 .mbz-horario button{padding:8px 14px;border-radius:8px;border:1px solid var(--brand,#0f8f5e);background:var(--brand,#0f8f5e);color:#fff;font-size:14.5px}
 .mbz-json{white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;background:#f6f8f7;border:1px solid #dfe4e1;border-radius:8px;padding:8px;max-height:320px;overflow:auto}

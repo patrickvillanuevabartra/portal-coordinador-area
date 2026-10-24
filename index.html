@@ -284,7 +284,7 @@ tr.sin-leer{background:#fffdf6}
 .guia-mbz{margin:0 0 10px;border:1px solid #c3ddf3;border-left:4px solid #2a6fb0;border-radius:10px;background:#f3f8fd;padding:10px 14px;font-size:15px;line-height:1.6}
 .guia-mbz summary{cursor:pointer;font-weight:700;font-size:15.5px;color:#1d4f80}
 .guia-mbz ol{margin:8px 0 4px 22px;padding:0}.guia-mbz li{margin:4px 0}
-.guia-mbz-alto{display:block;margin-top:4px;color:#8f2418;font-weight:600}
+.guia-mbz-alto{display:block;margin-top:6px;padding:6px 10px;border-radius:6px;background:#fff7e8;border:1px solid #f0d49a;color:#6a4d00}
 .guia-mbz-nota{margin:6px 0 0;font-size:14px;color:var(--tinta-media)}
 .insumos{margin:4px 0 10px;border:1px solid var(--linea);border-radius:10px;background:#fbfcfb;padding:10px 14px}
 .insumos b.t{display:block;font-size:14.5px;margin-bottom:4px}
@@ -1929,7 +1929,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
-<script src="mbz-aula.js?v=2026-10-24.05"></script>
+<script src="mbz-aula.js?v=2026-10-24.06"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2204,7 +2204,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-24.06';
+  const VERSION_INTERNA = '2026-10-24.07';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9361,6 +9361,11 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         '<div class="chat-sub">El asistente compara con los estándares del portal y le señala lo que ' +
         'encuentra. La evaluación y la decisión son suyas.</div>' +
         '<div class="insumos" id="insumos"></div>' +
+        (estado.modulo === 'aulaVirtual' && estado.admin
+          ? '<div class="mbz-horario oculto" id="avisoHorarioAdmin"><div class="mbz-horario-t">📅 Administrador: cargue el horario de clases del ciclo</div>' +
+            'Falta el horario de la guía de matrícula. Se carga <b>una sola vez</b> y sirve para todos los coordinadores: con él, el punto 08 (grabaciones de las clases virtuales) se revisa solo. ' +
+            '<br><a class="mbz-boton" href="docs/cargar-horario.html" target="_blank" rel="noopener">Abrir la herramienta para cargar el horario</a></div>'
+          : '') +
         (estado.modulo === 'aulaVirtual' ? GUIA_COPIA_AULA : '') +
         '<div class="carpeta-estado oculto" id="carpetaEstado"></div>' +
         '<div class="carpeta-estado oculto" id="carpetaEstadoF"></div>' +
@@ -9411,6 +9416,13 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         '</details>';
       $('fichaForm').prepend(caja);
       pintarInsumos();
+      // El aviso del horario solo aparece si todavía no se ha cargado el del ciclo.
+      if ($('avisoHorarioAdmin') && window.MBZ) {
+        const m = String(cicloVigente()).match(/(\d{4})\s*-?\s*(II|I|2|1)\b/i);
+        const per = m ? m[1] + '-' + (/^(ii|2)$/i.test(m[2]) ? '2' : '1') : '';
+        window.MBZ.ponerEstilos();
+        window.MBZ.cargarHorarioPublicado(per).then(h => { if (!(h && h.length) && $('avisoHorarioAdmin')) $('avisoHorarioAdmin').classList.remove('oculto'); });
+      }
       if (ins.carpeta) {
         $('btnCarpeta').addEventListener('click', () => $('trCarpeta').click());
         $('trCarpeta').addEventListener('change', () => {
@@ -10293,7 +10305,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '<li>Pulse <b>«Saltar al último paso»</b>. Espere 1 o 2 minutos y pulse <b>«Continuar»</b>.</li>' +
       '<li>En la lista «Zona de copia de seguridad privada de usuario», pulse <b>«Descargar»</b> en el archivo de arriba (el más reciente). ' +
         'Se guarda en su carpeta <b>Descargas</b> y su nombre termina en <b>«-nu.mbz»</b> (nu = sin usuarios). ' +
-        '<span class="guia-mbz-alto">⚠️ No pulse «Restaurar». Sirve para cargar la copia dentro de un aula: si se sigue hasta el final, puede duplicar o borrar el contenido del aula del docente.</span></li>' +
+        '<span class="guia-mbz-alto">Importante: use «Descargar», no «Restaurar». «Restaurar» sirve para otra cosa (cargar la copia dentro de un aula) y podría cambiar el aula del docente.</span></li>' +
       '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija ese archivo y pulse <b>Analizar ➤</b>.</li>' +
     '</ol>' +
     '<p class="guia-mbz-nota">El archivo se lee en su computadora: <b>no se sube a ningún servidor</b> ni se guarda en el portal. ' +
