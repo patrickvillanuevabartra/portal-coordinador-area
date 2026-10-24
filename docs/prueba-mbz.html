@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prueba de la copia del aula (.mbz)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+:root{--brand:#0f8f5e;--brand-oscuro:#0b6e48;--brand-suave:#e6f4ee;--tinta:#15201b;--tinta-media:#5a6660;--linea:#dfe4e1;--fondo:#f6f8f7;--papel:#fff}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:16px;line-height:1.55}
+main{max-width:1100px;margin:0 auto;padding:20px 16px 40px}
+h1{font-size:24px;margin:0 0 4px;color:var(--brand-oscuro)}
+.sub{color:var(--tinta-media);margin:0 0 16px}
+.caja{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:16px}
+.nota{background:var(--brand-suave);border-left:4px solid var(--brand);border-radius:8px;padding:10px 14px;margin:0 0 14px;font-size:15px}
+.fila{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+input[type=file]{font-size:15px}
+button{font:inherit;font-size:16px;padding:9px 18px;border-radius:8px;border:1px solid var(--brand);background:var(--brand);color:#fff;cursor:pointer}
+button:disabled{opacity:.5;cursor:not-allowed}
+label{font-weight:600}
+input[type=text]{font:inherit;padding:6px 10px;border:1px solid #c9d3cd;border-radius:8px;width:150px}
+</style>
+</head>
+<body>
+<main>
+  <h1>Prueba de la copia del aula virtual (.mbz)</h1>
+  <p class="sub">Página de prueba del Portal del Coordinador de Área. Muestra el mismo reporte que verá el coordinador en el formulario del Aula virtual.</p>
+  <div class="nota"><b>Su archivo no sale de este equipo.</b> La copia se abre en el navegador; no se sube a ningún servidor ni se guarda en el portal.
+    Use una copia descargada <b>sin usuarios</b> (sin datos de estudiantes).</div>
+  <div class="caja">
+    <label for="archivo">1. Elija la copia de seguridad del aula (.mbz)</label>
+    <div class="fila"><input type="file" id="archivo"></div>
+    <div class="fila"><label for="codigo">Código del curso en el portal (opcional):</label><input type="text" id="codigo" placeholder="p. ej. IN1001"></div>
+    <div class="fila"><button type="button" id="analizar" disabled>2. Analizar ➤</button></div>
+  </div>
+  <div id="salida"></div>
+</main>
+<script src="../config.js"></script>
+<script src="../mbz-aula.js?v=2026-10-24.01"></script>
+<script>
+(function () {
+  const $ = id => document.getElementById(id);
+  MBZ.ponerEstilos();
+  $('archivo').addEventListener('change', () => { $('analizar').disabled = !$('archivo').files.length; });
+  $('analizar').addEventListener('click', async () => {
+    const f = $('archivo').files[0], out = $('salida'), btn = $('analizar');
+    if (!f) return;
+    btn.disabled = true;
+    out.innerHTML = '<div class="mbz-progreso" id="prog"><span>Abriendo…</span><progress max="100" value="0"></progress></div>';
+    try {
+      if (!(await MBZ.esCopiaMbz(f))) throw new Error('El archivo no parece una copia de seguridad de Moodle (.mbz).');
+      const H = await MBZ.leer(f, (p, t) => { const e = $('prog'); if (!e) return; if (t) e.querySelector('span').textContent = t; e.querySelector('progress').value = Math.round(p * 100); });
+      if (H.conUsuarios) { out.innerHTML = '<div class="mbz-alto"><b>Esta copia trae datos de estudiantes.</b> No se analiza. Descárguela de nuevo sin usuarios.</div>'; return; }
+      const crit = ((window.PCA_CONFIG || {}).MODULOS || {}).aulaVirtual;
+      const res = MBZ.evaluar(H, { codigo: $('codigo').value.trim(), criterios: (crit && crit.criterios) || [] });
+      window.ultimoResultado = res;
+      out.innerHTML = MBZ.reporteHTML(res, { aviso: 'Página de prueba: aquí no se marcan los puntos ni se guarda nada. En el portal, el reporte aparece debajo del panel «Apoyo para la revisión».' });
+    } catch (e) {
+      console.error(e);
+      out.innerHTML = '<div class="mbz-alto"><b>No se pudo leer la copia.</b> ' + String(e.message).replace(/</g, '&lt;') + '</div>';
+    } finally { btn.disabled = false; }
+  });
+})();
+</script>
+</body>
+</html>
