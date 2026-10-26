@@ -180,8 +180,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
         <li><b>Exámenes y prácticas calificadas: 4 archivos</b> → 1 en blanco (las preguntas) + 3 resueltos por estudiantes: el de <b>mayor</b> nota, el de <b>menor</b> nota y el de nota <b>promedio</b>.</li>
         <li><b>Trabajos aplicativos</b> (talleres, laboratorios o sus informes, proyectos, trabajos e investigaciones): <b>5 archivos</b> →
          <ol style="margin:4px 0;padding-left:22px"><li>la estructura del trabajo en blanco (una sola, vale para las dos notas);</li>
-         <li>el trabajo que entregó el estudiante con la <b>mayor</b> nota;</li><li>la rúbrica del docente con esa nota;</li>
-         <li>el trabajo que entregó el estudiante con la <b>menor</b> nota;</li><li>la rúbrica del docente con esa nota.</li></ol></li>
+         <li>el trabajo que entregó el estudiante con la <b>mayor</b> nota;</li><li>la rúbrica del docente con la <b>nota mayor</b> de ese trabajo;</li>
+         <li>el trabajo que entregó el estudiante con la <b>menor</b> nota;</li><li>la rúbrica del docente con la <b>nota menor</b> de ese trabajo.</li></ol></li>
        </ul></div></details>
       <details class="faq"><summary>¿Qué es la rúbrica y cómo se nombra?</summary><div>
        <p style="margin:0">Es el documento con la <b>evaluación del docente</b> de ese trabajo, donde figura la nota. Lleva <b>el mismo nombre del trabajo</b> y <b>«.Rubrica»</b> al final. <i>Ejemplo:</i> el trabajo <code>IN0701.TA1.2026-II.Luis Morales.Mayor.17.PDF</code> y su rúbrica <code>IN0701.TA1.2026-II.Luis Morales.Mayor.17.Rubrica.PDF</code>. Después de rotular un trabajo, el asistente le ofrece el botón «Ahora rotular la rúbrica de este trabajo», que ya pone ese nombre.</p></div></details>
@@ -268,7 +268,7 @@ function marcaHecho(){ const k=claveEval(); if(HECHOS.clave!==k) HECHOS={clave:k
   else String(R.metrica||'').split('-').forEach(m=>HECHOS.set.add((R.clase==='rubrica'?'r':'')+m.toLowerCase())); }
 function listaHechos(){
   const items=R.grupoEv==='trabajo'
-    ? [['enunciado','La estructura en blanco'],['mayor','El trabajo de la mayor nota'],['rmayor','La rúbrica de la mayor nota'],['menor','El trabajo de la menor nota'],['rmenor','La rúbrica de la menor nota']]
+    ? [['enunciado','La estructura en blanco'],['mayor','El trabajo con la mayor nota'],['rmayor','La rúbrica del docente con la nota mayor'],['menor','El trabajo con la menor nota'],['rmenor','La rúbrica del docente con la nota menor']]
     : [['enunciado','El examen o práctica en blanco'],['mayor','El de la mayor nota'],['menor','El de la menor nota'],['promedio','El de la nota promedio']];
   const n=items.filter(x=>HECHOS.set.has(x[0])).length;
   return `<div class="hechos"><p class="preg" style="font-size:1.1rem">Archivos de esta evaluación: ${n} de ${items.length} listos</p>
@@ -306,9 +306,9 @@ const PASOS=[
     <ol style="margin:6px 0;padding-left:24px">
      <li>La <b>estructura del trabajo en blanco</b> (lo que el docente pidió). Una sola: vale para las dos notas.</li>
      <li>El <b>trabajo que entregó el estudiante</b> con la <b>mayor</b> nota.</li>
-     <li>La <b>rúbrica</b> del docente con la nota de ese trabajo.</li>
+     <li>La <b>rúbrica del docente</b> con la <b>nota mayor</b> de ese trabajo.</li>
      <li>El <b>trabajo que entregó el estudiante</b> con la <b>menor</b> nota.</li>
-     <li>La <b>rúbrica</b> del docente con la nota de ese trabajo.</li>
+     <li>La <b>rúbrica del docente</b> con la <b>nota menor</b> de ese trabajo.</li>
     </ol></div>
    <div class="ops">${op('clase','enunciado','La estructura en blanco','El documento con la estructura del taller, laboratorio o trabajo, sin llenar. Es 1 por evaluación.')}
    ${op('clase','evidencia','El trabajo del estudiante','Lo que entregó el estudiante o el grupo, ya llenando la estructura.')}
