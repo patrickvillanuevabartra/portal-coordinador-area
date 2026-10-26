@@ -682,6 +682,8 @@ td>.ev-fecha{display:block;font-size:12px;color:var(--tinta-media);margin-top:2p
 .ev-detalle .rot-ok{display:block;color:#1b7f4b;font-size:12px}
 .ev-detalle .rot-mal{display:block;color:#b42318;font-size:12px}
 .ev-detalle .rot-sug{display:block;color:#14532d;font-size:12px;margin-top:2px}
+.ev-detalle .cuenta-aplic{display:block;margin-top:8px;font-size:13px;line-height:1.45;text-transform:none;letter-spacing:0;color:var(--tinta-media);background:#eef6f1;border:1px solid #cfe3d7;border-radius:8px;padding:6px 9px}
+.ev-detalle .cuenta-aplic b{display:block;color:#1b5e3f;font-size:13.5px}
 .ev-detalle .sub-celda{margin:2px 0 6px}.ev-detalle .sub-celda>b,.ev-detalle .sub-et{display:block;font-size:12.5px;color:var(--tinta-media)}.ev-detalle .falta-txt{color:#b42318;font-weight:600}
 .ev-detalle .falta-celda{color:#b42318;font-weight:600;background:#fff5f5}
 .rot-lista li{padding:5px 0;border-top:1px dashed #e3e9e5}
@@ -2205,7 +2207,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.02';
+  const VERSION_INTERNA = '2026-10-26.03';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -12189,11 +12191,11 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     };
     // En los trabajos aplicativos, la casilla de cada nota tiene dos archivos:
     // el trabajo del estudiante y la rúbrica con la nota del docente.
-    const celdaAplic = (trab, rub, conRub) => {
+    const celdaAplic = (trab, rub, conRub, nT, nR) => {
       const uno = (et, lista) => '<div class="sub-celda"><b>' + et + ':</b> ' + (lista && lista.length ? celda(lista).replace(/^<td>|<\/td>$/g, '')
         : '<span class="falta-txt">Falta</span>') + '</div>';
       const falta = !(trab && trab.length) || (conRub && !(rub && rub.length));
-      return '<td' + (falta ? ' class="falta-celda"' : '') + '>' + uno('Trabajo del estudiante', trab) + (conRub ? uno('Rúbrica con la nota', rub) : '') + '</td>';
+      return '<td' + (falta ? ' class="falta-celda"' : '') + '>' + uno(nT + ' Trabajo del estudiante', trab) + (conRub ? uno(nR + ' Rúbrica con la nota', rub) : '') + '</td>';
     };
     const filas = ev.evaluaciones.map(e => e.grupos.map(g => { const pl = plazoPorta(e, g);
       // Mejora 2026-10: la fila lleva el nombre que usa el sílabo (el mismo del
@@ -12205,12 +12207,20 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '<tr><th>' + esc(distinto ? nomSil : nomCarpeta) +
       (distinto ? '<small class="ev-sil">así figura en el sílabo; en el portafolio es «' + esc(nomCarpeta) + '»</small>' : '') +
       '<small>carpeta ' + esc(e.carpeta) + (e.otro ? ' · código no reconocido' : '') + ' · punto ' + e.punto + ' ' +
-      esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></th>' +
+      esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small>' +
+      // Trabajo aplicativo: cuántos de sus 5 archivos hay (①…⑤ en las casillas).
+      (esAplicativo(partesPorta(e)) ? (() => { const PP = partesPorta(e), A = g.archivos || {};
+        const hay = PP.filter(x => (A[x] || []).length).length;
+        return '<span class="cuenta-aplic"><b>Trabajo aplicativo: ' + hay + ' de ' + PP.length + ' archivos</b>' +
+          (PP.length === 5 ? '① estructura en blanco · ② trabajo y ③ rúbrica de la mayor nota · ④ trabajo y ⑤ rúbrica de la menor nota'
+                           : '① estructura en blanco · ② el único trabajo · ③ su rúbrica') + '</span>'; })() : '') +
+      '</th>' +
       '<td><span class="ev-chip ' + pl.clase + '">' + esc(pl.estado) + '</span><small class="ev-fecha">' + esc(pl.fecha) + '</small></td>' +
       ['enunciado', 'mayor', 'menor', 'promedio'].map(x => {
         const PP = partesPorta(e), A = g.archivos || {};
-        if (esAplicativo(PP) && x !== 'enunciado' && x !== 'promedio' && PP.includes(x)) return celdaAplic(A[x], A['r' + x], PP.includes('r' + x));
-        if (esAplicativo(PP) && x === 'enunciado') return celda(A[x]).replace(/^<td( class="falta-celda")?>/, m => m + '<b class="sub-et">Estructura en blanco:</b> ');
+        if (esAplicativo(PP) && x !== 'enunciado' && x !== 'promedio' && PP.includes(x))
+          return celdaAplic(A[x], A['r' + x], PP.includes('r' + x), x === 'mayor' ? '②' : '④', x === 'mayor' ? '③' : '⑤');
+        if (esAplicativo(PP) && x === 'enunciado') return celda(A[x]).replace(/^<td( class="falta-celda")?>/, m => m + '<b class="sub-et">① Estructura en blanco:</b> ');
         return PP.includes(x) ? celda(A[x])
           : '<td class="no-pide">No se pide<small>' + esc(e.porQue || 'es un trabajo aplicativo: se piden la mayor y la menor nota, cada una con su rúbrica') + '</small></td>';
       }).join('') + '</tr>'); }).join('')).join('');
@@ -12238,7 +12248,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '<a href="' + verPdf('docs/guia-operativa-docente.pdf', 5, '4.5 portafolio') + '" target="_blank" rel="noopener">📕 Guía Operativa Docente, 4.5 (resaltado)</a></div>' +
       '<p class="sub"><b>Cómo leer esta tabla:</b> detalla la tabla de arriba. Cada fila es una evaluación del curso —una ' +
       'carpeta que creó Calidad y Acreditación dentro de «EVALUACIONES»— y dice a qué punto del portafolio corresponde. ' +
-      'Las cuatro columnas son las evidencias que exige la directiva. En cada casilla aparece el archivo que se encontró, ' +
+      'Las columnas son las evidencias que exige la directiva: en exámenes y prácticas, 4 archivos (enunciado, mayor, menor y nota promedio); ' +
+      'en los trabajos aplicativos, 5 archivos numerados del ① al ⑤ (la estructura en blanco y, en las columnas de la mayor y de la menor nota, el trabajo del estudiante y su rúbrica). En cada casilla aparece el archivo que se encontró, ' +
       'con su nombre y si está bien rotulado (si no, qué corregir y el nombre correcto); si no hay archivo, dice «Falta». ' +
       'Para este curso, el rotulado sería, por ejemplo, <code>' + esc(ej) + '</code> y <code>' +
       esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code>.</p>' +
