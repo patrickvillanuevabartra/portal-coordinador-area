@@ -1929,7 +1929,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
-<script src="mbz-aula.js?v=2026-10-24.06"></script>
+<script src="mbz-aula.js?v=2026-10-26.01"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2204,7 +2204,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '20/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-24.07';
+  const VERSION_INTERNA = '2026-10-26.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -8967,6 +8967,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
     estado.actual = a;
     estado.modulo = clave;
+    estado.partes = partes || '';   // tipos y subgrupos de la carga («Teo:0, Tal:1»)
     estado.f1Delegados = null;   // se sabrá al consultar el F1 de este curso
     if ($('guiaDelegados')) $('guiaDelegados').remove();
     CONTEXTO_INSUMOS = null;
@@ -10166,12 +10167,13 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     if (!caja) return;
     const ins = INSUMOS[estado.modulo] || INSUMOS.silabo;
     const c = CONTEXTO_INSUMOS;
-    const filas = ins.lista.map(x => {
+    const listaAV = estado.modulo === 'aulaVirtual' ? listaInsumosAula() : null;
+    const filas = (listaAV || ins.lista).map(x => {
       let clase, ic, txt;
       if (x.archivo) {
-        const n = ADJUNTOS.length;
+        const l = x.adjuntos || ADJUNTOS, n = l.length;
         clase = n ? 'hay' : 'falta'; ic = n ? '✔' : '📎';
-        txt = n ? 'Adjuntado: ' + ADJUNTOS.map(f => f.name).join(', ') : x.falta;
+        txt = n ? 'Adjuntado: ' + l.map(f => f.name).join(', ') + (x.porConfirmar ? ' (se confirmará al analizar)' : '') : x.falta;
       } else if (x.hay && (c || !/competencias|sumilla/i.test(x.t)) && x.hay(c || {})) {
         clase = 'hay'; ic = '✔'; txt = 'Ya está en el portal · ' + (typeof x.de === 'function' ? x.de(c) : x.de);
       } else if (x.hay && !c && estado.modulo === 'silabo') {
@@ -10184,7 +10186,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     });
     const nadaQueSubir = ins.lista.every(x => !x.archivo && x.hay && !x.opcional);
     caja.innerHTML = '<b class="t">' + (nadaQueSubir ? '✔ No necesita subir nada' : 'Lo que el asistente necesita') +
-      '</b><ul>' + filas.join('') + '</ul>';
+      '</b><ul>' + filas.join('') + '</ul>' + (listaAV ? notaCopiasAula(listaAV) : '');
     if (estado.modulo === 'silabo' && !c && !pintarInsumos.pidiendo) {
       pintarInsumos.pidiendo = true;
       const a = estado.actual || {};
@@ -10298,7 +10300,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   const GUIA_COPIA_AULA =
     '<details class="guia-mbz" open><summary>📥 Cómo descargar la copia del aula del docente (unos 2 minutos)</summary>' +
     '<ol>' +
-      '<li>Entre al <b>aula virtual</b> del curso que está revisando, con su usuario de coordinador.</li>' +
+      '<li>Entre al <b>aula virtual</b> del curso que está revisando, con su usuario de coordinador. ' +
+        'Si arriba se piden <b>dos copias</b> (teoría y taller, laboratorio o práctica), haga estos pasos <b>en cada aula</b>: en Moodle son aulas distintas.</li>' +
       '<li>En el menú del curso (arriba) pulse <b>«Más»</b> y luego <b>«Reutilización de curso»</b>.</li>' +
       '<li>En la lista de arriba a la izquierda elija <b>«Copia de seguridad»</b>.</li>' +
       '<li><b>Quite el check</b> de <b>«Incluir usuarios matriculados»</b>. Así la copia no lleva datos de los estudiantes.</li>' +
@@ -10306,10 +10309,242 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '<li>En la lista «Zona de copia de seguridad privada de usuario», pulse <b>«Descargar»</b> en el archivo de arriba (el más reciente). ' +
         'Se guarda en su carpeta <b>Descargas</b> y su nombre termina en <b>«-nu.mbz»</b> (nu = sin usuarios). ' +
         '<span class="guia-mbz-alto">Importante: use «Descargar», no «Restaurar». «Restaurar» sirve para otra cosa (cargar la copia dentro de un aula) y podría cambiar el aula del docente.</span></li>' +
-      '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija ese archivo y pulse <b>Analizar ➤</b>.</li>' +
+      '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija el archivo (o los dos archivos, si se piden dos copias) y pulse <b>Analizar ➤</b> una sola vez.</li>' +
     '</ol>' +
     '<p class="guia-mbz-nota">El archivo se lee en su computadora: <b>no se sube a ningún servidor</b> ni se guarda en el portal. ' +
       'Si no ve la opción «Copia de seguridad», pida a su Escuela el permiso en esa aula.</p></details>';
+
+  /* ---------- teoría y taller: una copia por aula (26/10/2026) ----------
+     En Moodle la teoría y el taller (o laboratorio, o práctica) del mismo
+     grupo son aulas distintas: «…-G01-0» y «…-G01-1». La carga lectiva dice
+     qué dicta el docente en el grupo; con eso se piden una o dos copias.
+     Si tiene dos aulas y una está vacía, se avisa para revisar si todo está
+     en la otra; si tiene una sola, es obligatorio que tenga información. */
+  function aulasDeLaCargaActual() {
+    const a = estado.actual || {};
+    if (!window.MBZ || a.esCarrera) return [];
+    let partes = String(estado.partes || '').split(',').map(x => x.trim()).filter(Boolean)
+      .map(x => { const [t, sg] = x.split(':'); return { tipo: t, subgrupo: /^(undefined|null)$/.test(sg || '') ? '' : sg }; });
+    if (!partes.length) partes = (estado.asignaciones || []).filter(x => x.codigo === a.codigo && x.grupo === a.grupo &&
+      x.docente === a.docente && x.ciclo === a.ciclo).map(x => ({ tipo: x.tipo, subgrupo: x.subGrupo }));
+    if (!partes.length && a.tipo) partes = [{ tipo: a.tipo, subgrupo: a.subGrupo }];
+    return window.MBZ.aulasDeLaCarga(partes, a.grupo);
+  }
+  function listaInsumosAula() {
+    const aulas = aulasDeLaCargaActual();
+    if (!aulas.length) return null;
+    const MBZ = window.MBZ, todas = aulas.map(x => x.etiqueta);
+    const copias = ADJUNTOS.filter(f => /\.mbz$/i.test(f.name) || MBZ.aulaDelNombre(f.name));
+    const libres = copias.filter(f => !MBZ.aulaDelNombre(f.name));
+    return aulas.map(au => {
+      let suyas = copias.filter(f => { const d = MBZ.aulaDelNombre(f.name); return d && (au.subgrupo === '' || d.subgrupo === au.subgrupo); });
+      let porConfirmar = false;
+      if (!suyas.length && libres.length) { suyas = [libres.shift()]; porConfirmar = true; }
+      const falta = aulas.length > 1
+        ? 'Este docente dicta ' + MBZ_y(todas) + ' en este grupo, y en Moodle cada una es un aula distinta. Descargue también esta copia y adjúntela con 📎 Adjuntar.'
+        : au.esTeoria
+          ? 'Este docente solo dicta ' + au.etiqueta + ' en este grupo: basta con esta copia. Descárguela siguiendo los pasos de abajo y adjúntela con 📎 Adjuntar.'
+          : 'Este docente solo dicta ' + au.etiqueta + ' en este grupo: es su única aula y debe tener la información del curso. Descargue la copia y adjúntela con 📎 Adjuntar.';
+      return { t: 'Copia de seguridad del aula de ' + au.etiqueta + (au.terminacion ? ' (el código del aula termina en «' + au.terminacion + '»), sin usuarios' : ', sin usuarios'),
+        archivo: true, adjuntos: suyas, porConfirmar, falta };
+    });
+  }
+  function notaCopiasAula(lista) {
+    const n = lista.length;
+    return '<p class="guia-mbz-nota">' + (n > 1
+      ? 'Según la carga lectiva, a este docente le corresponden <b>' + n + ' aulas</b> en este grupo. Adjunte las ' + n + ' copias y pulse <b>Analizar</b> una sola vez: ' +
+        'el portal las revisa juntas. Si una de las aulas está vacía porque el docente puso todo en la otra, el portal se lo avisa para que lo confirme.'
+      : 'Según la carga lectiva, a este docente le corresponde <b>1 aula</b> en este grupo, así que solo se pide una copia.') + '</p>';
+  }
+  // Aviso para el análisis de una sola copia cuando el aula está vacía.
+  function avisoAulaVacia(H) {
+    if (!window.MBZ.contenidoAula(H).vacia) return '';
+    const aulas = aulasDeLaCargaActual();
+    return '<b>Esta aula no tiene información cargada</b> (solo el foro de avisos que Moodle crea solo). ' + (aulas.length === 1
+      ? 'Según la carga lectiva es la única aula de este docente en el grupo (' + esc(aulas[0].etiqueta) + '), así que es obligatorio que tenga la información del curso.'
+      : 'Si el docente tiene otra aula en este grupo (teoría o taller), adjunte también esa copia y pulse Analizar otra vez: puede que haya puesto todo allí.');
+  }
+
+  async function leerCopiaMbz(archivo, alAvanzar) {
+    try { return { H: await window.MBZ.leer(archivo, alAvanzar) }; }
+    catch (e) { console.warn('Portal: no se pudo leer la copia .mbz →', e); return { error: e.message || String(e) }; }
+  }
+
+  async function analizarCarga(F, copias, aulas) {
+    const MBZ = window.MBZ, btn = $('btnProponer'), a = estado.actual || {};
+    MBZ.ponerEstilos();
+    let caja = $('mbzReporte');
+    if (!caja) {
+      caja = document.createElement('div');
+      caja.id = 'mbzReporte';
+      const chat = document.querySelector('#fichaForm .chat-asistente');
+      if (chat) chat.after(caja); else $('fichaForm').prepend(caja);
+    }
+    caja.innerHTML = '<div class="mbz-progreso" id="mbzProg"><span>Abriendo las copias de las aulas…</span>' +
+      '<progress max="100" value="0"></progress><div class="mbz-sub">Los archivos se leen en su equipo: no se suben a ningún servidor.</div></div>';
+    caja.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    btn.disabled = true; btn.textContent = 'Leyendo las copias…';
+    const leidas = [], errores = [], conUsuarios = [];
+    try {
+      for (let i = 0; i < copias.length; i++) {
+        const r = await leerCopiaMbz(copias[i], (f, t) => {
+          const p = $('mbzProg'); if (!p) return;
+          p.querySelector('span').textContent = 'Copia ' + (i + 1) + ' de ' + copias.length + ': ' + (t || 'leyendo…');
+          p.querySelector('progress').value = Math.round((i + f) / copias.length * 100);
+        });
+        if (r.error) errores.push({ nombre: copias[i].name, motivo: r.error });
+        else if (r.H.conUsuarios) conUsuarios.push(copias[i]);
+        else leidas.push({ H: r.H, archivo: copias[i] });
+      }
+    } finally { btn.disabled = false; btn.textContent = 'Analizar ➤'; }
+
+    if (conUsuarios.length) {
+      // Nunca se analiza una copia con datos de estudiantes: se quita de los adjuntos.
+      ADJUNTOS = ADJUNTOS.filter(f => !conUsuarios.includes(f)); pintarAdjuntosDesde();
+    }
+    const extras = errores.map(e => ({ nombre: e.nombre, motivo: 'no se pudo leer (' + e.motivo + '). Verifique que sea la copia de seguridad descargada de Moodle.' }))
+      .concat(conUsuarios.map(f => ({ nombre: f.name, motivo: 'trae datos de estudiantes, así que no se analizó y se quitó de los adjuntos. Descárguela de nuevo sin usuarios («Incluir usuarios matriculados» desmarcado).' })));
+
+    // A qué aula de la carga corresponde cada copia (por su nombre corto en Moodle).
+    const items = [];
+    leidas.forEach(({ H, archivo }) => {
+      const cruce = MBZ.cruzar(H, { asignatura: a.asignatura, grupo: a.grupo });
+      if (!cruce.claro) { extras.push({ nombre: archivo.name, motivo: 'es del aula «' + H.aula.nombre + '» (' + H.aula.corto + '), y ' + cruce.motivos.join('; ') + '.' }); return; }
+      let au = aulas.find(x => x.subgrupo === H.aula.subgrupo) || aulas.find(x => x.subgrupo === '');
+      if (!aulas.length) au = { subgrupo: H.aula.subgrupo, tipos: [], esTeoria: H.aula.subgrupo === '0', etiqueta: H.aula.tipo, terminacion: '-G' + String(H.aula.grupo).padStart(2, '0') + '-' + H.aula.subgrupo };
+      if (!au) { extras.push({ nombre: archivo.name, motivo: 'es del aula de ' + H.aula.tipo + ' (subgrupo ' + H.aula.subgrupo + ', ' + H.aula.corto + '), que según la carga lectiva no la dicta este docente en este grupo. Esa aula se revisa en la carga del docente que la dicta.' }); return; }
+      const ya = items.find(it => it.aula.subgrupo === au.subgrupo);
+      if (ya) {
+        const nueva = H.aula.copia >= ya.H.aula.copia;
+        extras.push({ nombre: (nueva ? ya.archivo : archivo).name, motivo: 'es otra copia de la misma aula; se usó la más reciente.' });
+        if (!nueva) return;
+        items.splice(items.indexOf(ya), 1);
+      }
+      items.push({ H, archivo, aula: au });
+    });
+    if (!items.length) {
+      caja.innerHTML = '<div class="mbz-alto"><b>Ninguna de las copias adjuntas corresponde a esta carga.</b><ul>' +
+        extras.map(x => '<li>«' + esc(x.nombre) + '»: ' + esc(x.motivo) + '</li>').join('') + '</ul>' +
+        (aulas.length ? MBZ.cuadroCopiasHTML(aulas, []) : '') + '</div>';
+      return;
+    }
+    items.sort((x, z) => (+x.aula.subgrupo || 0) - (+z.aula.subgrupo || 0));
+    mostrarAnalisisCarga(F, items, aulas, extras, caja);
+  }
+
+  async function mostrarAnalisisCarga(F, items, aulas, extras, caja) {
+    const MBZ = window.MBZ, a = estado.actual || {};
+    const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    const base = M_ACTUAL()._critBaseAV || lista;
+    if (!HORARIO_GUIA) { const pub = await MBZ.cargarHorarioPublicado(items[0].H.aula.periodo); if (Array.isArray(pub) && pub.length) HORARIO_GUIA = pub; }
+    const horarios = [];
+    items.forEach((it, i) => {
+      const delAula = HORARIO_GUIA ? MBZ.horarioDelAula(HORARIO_GUIA, it.H, estado.mbzCodigoGuia || a.codigo) : [];
+      horarios[i] = delAula.length ? delAula.map(f => f.tipo + ' ' + f.dia + ' ' + f.horario + ' (' + f.aula + ')').join('; ') : '';
+      it.res = MBZ.evaluar(it.H, { codigo: a.codigo, horario: delAula.length ? delAula : undefined,
+        criterios: MBZ.PUNTOS.map(([n, et]) => base[indicePuntoAV(base, n, et)] || {}) });
+    });
+    const rc = MBZ.combinar(items, aulas, extras);
+    estado.mbz = rc;
+    estado.ultimosArchivos = items.map(it => it.archivo.name);
+
+    const pintarHallazgos = () => {
+      estado.hallazgos = {};
+      MBZ.PUNTOS.forEach(([n, et]) => {
+        const r = rc.puntos[n];
+        estado.hallazgos[indicePuntoAV(lista, n, et)] = { sugerencia: r.sugerido, certeza: r.certeza, nota: r.nota_interna,
+          texto: r.para_docente || r.evidencia.join(' ') };
+      });
+      mostrarHallazgos();
+    };
+    pintarHallazgos();
+    const obs = $('f_observaciones');
+    const ponerBorrador = () => {
+      if (!obs) return;
+      const t = MBZ.textoBorradorCarga(rc);
+      if (!obs.value.trim() || obs.value === estado.mbzObs || /^BORRADOR DEL ASISTENTE/.test(obs.value)) obs.value = t;
+      else obs.value = obs.value.trim() + '\n\n' + t;
+      estado.mbzObs = obs.value;
+      obs.dispatchEvent(new Event('input', { bubbles: true }));
+    };
+    ponerBorrador();
+
+    caja.innerHTML = MBZ.reporteCargaHTML(rc, {
+      docente: a.docente || '', horarios,
+      botones:
+        '<button type="button" id="mbzMarcar">Marcar las sugerencias en los puntos ' + MBZ_y(rc.resumen.autos) + '</button>' +
+        '<button type="button" class="sec" id="mbzImprimir">Imprimir o guardar el reporte en PDF</button>' +
+        '<button type="button" class="sec" id="mbzVerBorrador">Ver lo que se guardaría en «Borradores del asistente»</button>'
+    }) + (estado.admin && !HORARIO_GUIA
+      ? '<div class="mbz-horario"><div class="mbz-horario-t">📅 Administrador: cargue el horario de clases del ciclo</div>Con él, el punto 08 se revisa solo. ' +
+        '<a class="mbz-boton" href="docs/cargar-horario.html" target="_blank" rel="noopener">Abrir la herramienta para cargar el horario</a></div>' : '') +
+      '<div id="mbzBorrador" class="oculto"></div>';
+
+    $('mbzMarcar').addEventListener('click', () => {
+      const marcados = [];
+      MBZ.PUNTOS.forEach(([n, et]) => {
+        const r = rc.puntos[n]; if (!r.automatico || !r.sugerido) return;
+        const i = indicePuntoAV(lista, n, et);
+        const sel = document.querySelector('#listaItems select[data-estado="' + i + '"]');
+        if (!sel) return;
+        const v = valorSegunOpciones(r.sugerido, (lista[i] || {}).opciones);
+        if (![...sel.options].some(o => o.value === v)) return;
+        sel.value = v; sel.dispatchEvent(new Event('change', { bubbles: true })); marcados.push(n);
+      });
+      marcarCampos(); recalcularEscala(F); recalcularCompleto(F);
+      $('mbzMarcar').textContent = marcados.length
+        ? '✔ Marcados: ' + marcados.join(', ') + '. Revíselos: la decisión es suya.'
+        : 'No se pudo marcar ningún punto';
+    });
+    caja.querySelectorAll('textarea.mbz-msj').forEach(t => t.addEventListener('input', () => {
+      rc.puntos[t.dataset.punto].para_docente = t.value;
+      pintarHallazgos(); ponerBorrador();
+    }));
+    $('mbzImprimir').addEventListener('click', () => {
+      const w = window.open('', '_blank');
+      if (!w) { aviso('El navegador bloqueó la ventana. Permita las ventanas emergentes de este portal.'); return; }
+      const rep = caja.querySelector('.mbz-rep').cloneNode(true);
+      rep.querySelectorAll('.mbz-botones').forEach(x => x.remove());
+      rep.querySelectorAll('details').forEach(d => d.setAttribute('open', ''));
+      rep.querySelectorAll('textarea').forEach(t => { const d = document.createElement('div'); d.style.whiteSpace = 'pre-wrap'; d.textContent = t.value; t.replaceWith(d); });
+      w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Aulas virtuales — ' + esc(items.map(it => it.H.aula.corto).join(' y ')) + '</title>' +
+        '<style>body{font-family:"IBM Plex Sans",system-ui,sans-serif;margin:18px}' + document.getElementById('mbz-css').textContent + '</style></head><body>' +
+        rep.outerHTML + '</body></html>');
+      w.document.close(); setTimeout(() => w.print(), 300);
+    });
+    $('mbzVerBorrador').addEventListener('click', () => {
+      const d = $('mbzBorrador');
+      d.classList.toggle('oculto');
+      if (d.classList.contains('oculto')) return;
+      const fila = filaBorradorCarga(rc);
+      d.innerHTML = '<div class="mbz-preg"><b>Esto es lo que se guardaría en la tabla «Borradores del asistente».</b> ' +
+        (MBZ_GUARDA_BORRADOR ? '' : 'Todavía <b>no se guarda</b>: el guardado se activará después de revisar cómo escribe hoy el portal en QuintaDB. ') +
+        'Los archivos .mbz nunca se guardan.' +
+        '<div class="mbz-json">' + esc(JSON.stringify(fila, null, 2)) + '</div>' +
+        '<div class="mbz-botones"><button type="button" id="mbzGuardar"' + (MBZ_GUARDA_BORRADOR ? '' : ' disabled title="Se activará cuando se revise el guardado en QuintaDB"') +
+        '>Guardar borrador</button></div></div>';
+      if (MBZ_GUARDA_BORRADOR) $('mbzGuardar').addEventListener('click', () => guardarBorrador(MBZ.textoBorradorCarga(rc)));
+    });
+  }
+
+  function filaBorradorCarga(rc) {
+    const a = estado.actual || {};
+    return {
+      'Fecha': new Date().toISOString(),
+      'Usuario': estado.correo || estado.usuario || '',
+      'Modulo': 'aulaVirtual',
+      'ID asignacion': a.idAsignacion || '',
+      'ID registro asignacion': a.recordId || '',
+      'Curso': [a.codigo, nombreCurso(a.asignatura || ''), a.grupo ? 'G' + a.grupo : '', a.docente].filter(Boolean).join(' · '),
+      'Nombre corto aula': rc.items.map(it => it.H.aula.corto + (it.contenido.vacia ? ' (vacía)' : '')).join(' + '),
+      'ID Moodle': rc.items.map(it => it.H.aula.idMoodle || '').join(' + '),
+      'Archivos analizados': rc.items.map(it => it.archivo.name).join(', '),
+      'Borrador': window.MBZ.textoBorradorCarga(rc),
+      'Hallazgos por item': JSON.stringify(window.MBZ.hallazgosJSON(rc)),
+      'Version de reglas': rc.versionReglas,
+      'Estado': 'Borrador'
+    };
+  }
 
   async function analizarMbz(F, archivo) {
     const MBZ = window.MBZ, btn = $('btnProponer');
@@ -10406,6 +10641,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
     const otros = ADJUNTOS.filter(f => f !== archivo);
     caja.innerHTML = MBZ.reporteHTML(res, {
+      avisoVacia: avisoAulaVacia(H), sinAvisoTaller: aulasDeLaCargaActual().length > 0,
       aviso: otros.length ? 'Se analizó solo la copia del aula. Los otros archivos adjuntos (' + esc(otros.map(f => f.name).join(', ')) +
         ') no se revisaron; si quiere que el asistente los lea, quite la copia de los adjuntos y pulse Analizar otra vez.' : '',
       botones:
@@ -10512,8 +10748,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     // Aula virtual: si entre los adjuntos está la copia de seguridad (.mbz), se
     // analiza en el navegador con reglas fijas, sin la IA (Traspaso v3).
     if (estado.modulo === 'aulaVirtual' && window.MBZ && ADJUNTOS.length) {
-      const copia = await window.MBZ.buscarCopia(ADJUNTOS);
-      if (copia) return analizarMbz(F, copia);
+      const copias = await window.MBZ.buscarCopias(ADJUNTOS);
+      if (copias.length) {
+        const aulas = aulasDeLaCargaActual();
+        // Una sola aula en la carga y una sola copia: el análisis de siempre.
+        if (copias.length === 1 && aulas.length <= 1) return analizarMbz(F, copias[0]);
+        // Teoría y taller (dos aulas en Moodle), o varias copias adjuntas.
+        return analizarCarga(F, copias, aulas);
+      }
     }
     // Un solo envío: si hay archivos adjuntos se leen, y lo escrito va como
     // indicación junto a ellos.

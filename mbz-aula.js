@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-24.5';
+  const VERSION_REGLAS = 'mbz-2026-10-26.1';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -76,6 +76,12 @@
   async function buscarCopia(archivos) {
     for (const f of archivos || []) if (await esCopiaMbz(f)) return f;
     return null;
+  }
+  // Todas las copias adjuntas (teoría y taller son aulas distintas en Moodle).
+  async function buscarCopias(archivos) {
+    const l = [];
+    for (const f of archivos || []) if (await esCopiaMbz(f)) l.push(f);
+    return l;
   }
 
   /* -------------------------------------------------- lectura por partes */
@@ -1103,8 +1109,8 @@
   function reporteHTML(res, op) {
     op = op || {};
     const H = res.hechos, A = H.aula, R = res.puntos, S = res.resumen;
-    const h = [];
-    h.push('<div class="mbz-rep">');
+    const h = [], pid = 'mbz-' + (op.prefijo || '') + 'p';
+    h.push('<div class="mbz-rep' + (op.prefijo ? ' mbz-rep-aula' : '') + '">');
     h.push('<div class="mbz-cab"><div class="mbz-cab-t">Reporte de la copia del aula virtual</div>' +
       '<div class="mbz-cab-d"><b>' + esc(A.nombre) + '</b> · ' + esc(A.corto) + ' · ' + esc(A.tipo) +
       '<br>Copia descargada el <b>' + fechaHora(A.copia) + '</b> (semana ' + H.semanaActual + ' del ciclo; la semana 1 empezó el ' + fechaDeDia(H.inicioDia) + '). ' +
@@ -1118,7 +1124,8 @@
       (op.codigoHorario === undefined ? '' : '<label class="mbz-sub">Código del curso en la guía: <input type="text" id="mbzHorarioCod" value="' + esc(op.codigoHorario || '') + '" placeholder="p. ej. IN-1001" style="width:120px"></label> ') +
       '<button type="button" id="mbzHorarioUsar">Usar este horario</button></details>' + (op.horarioAviso ? '<div class="mbz-alto" style="margin-top:8px">' + op.horarioAviso + '</div>' : '') + '</div>');
     if (op.aviso) h.push('<div class="mbz-info">' + op.aviso + '</div>');
-    if (A.subgrupo === '0') h.push('<div class="mbz-info">ℹ️ Esta es el aula de <b>teoría</b> del grupo ' + esc(A.grupo) + '. Si el grupo también tiene aula de <b>taller</b> ' +
+    if (op.avisoVacia) h.push('<div class="mbz-alto">' + op.avisoVacia + '</div>');
+    if (A.subgrupo === '0' && !op.sinAvisoTaller) h.push('<div class="mbz-info">ℹ️ Esta es el aula de <b>teoría</b> del grupo ' + esc(A.grupo) + '. Si el grupo también tiene aula de <b>taller</b> ' +
       '(su código termina en <b>-1</b>), puede descargar y analizar esa copia aparte: ahí están las sesiones y grabaciones del taller.</div>');
 
     // Resumen: resultado y porqué de cada punto.
@@ -1129,7 +1136,7 @@
       'La columna «Por qué» lo explica en una línea; el detalle y el mensaje para el docente están más abajo, en <b>«Ficha por punto»</b>.</p>');
     h.push('<table class="mbz-tabla mbz-resu"><thead><tr><th style="width:44px">N°</th><th style="width:22%">Punto</th><th style="width:150px">Resultado</th><th>Por qué</th></tr></thead><tbody>' +
       PUNTOS.map(([n, et]) => '<tr><td class="mbz-n">' + n + '</td><td>' + esc(et) + '</td><td>' + chip(R[n].sugerido) + '</td><td>' + esc(R[n].porque || '') +
-        ' <a class="mbz-ver" href="#mbz-p' + n + '">ver detalle ↓</a></td></tr>').join('') + '</tbody></table>');
+        ' <a class="mbz-ver" href="#' + pid + n + '">ver detalle ↓</a></td></tr>').join('') + '</tbody></table>');
     if (S.acciones.length) h.push('<p class="mbz-sub"><b>Lo más importante que debe corregir el docente</b></p><ol class="mbz-acc">' +
       S.acciones.map(a => '<li><b>' + a.punto + ' ' + esc(a.nombre) + ':</b> ' + esc(a.t) + '</li>').join('') + '</ol>');
     h.push('</section>');
@@ -1141,14 +1148,15 @@
     h.push('<h4 class="mbz-h">Ficha por punto</h4>');
     PUNTOS.forEach(([n, et]) => {
       const r = R[n];
-      h.push('<details class="mbz-ficha" id="mbz-p' + n + '"' + ' open' + '><summary><span class="mbz-n">' + n + '</span> ' + esc(et) + ' ' + chip(r.sugerido) + '</summary>');
+      h.push('<details class="mbz-ficha" id="' + pid + n + '"' + ' open' + '><summary><span class="mbz-n">' + n + '</span> ' + esc(et) + ' ' + chip(r.sugerido) + '</summary>');
       if (r.estandar) h.push('<p class="mbz-std"><b>Estándar:</b> ' + esc(r.estandar) + '</p>');
       h.push('<dl>');
       h.push('<dt>Resultado sugerido</dt><dd>' + chip(r.sugerido) + (r.porque ? ' ' + esc(r.porque) : '') + '</dd>');
       h.push('<dt>Qué se encontró</dt><dd><ul>' + r.evidencia.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
       if (r.mejorar.length) h.push('<dt>Qué mejorar</dt><dd><ul>' + r.mejorar.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
       h.push('<dt>Certeza</dt><dd>' + esc(CERTEZA[r.certeza] || r.certeza) + '</dd>');
-      if (r.automatico && r.para_docente !== undefined) h.push('<dt>Mensaje para el docente <small>(puede corregirlo)</small></dt><dd><textarea class="mbz-msj" data-punto="' + n + '" rows="' +
+      if (r.automatico && r.para_docente && op.soloLectura) h.push('<dt>Mensaje para el docente</dt><dd class="mbz-msj-ro">' + esc(r.para_docente) + '</dd>');
+      else if (r.automatico && r.para_docente !== undefined) h.push('<dt>Mensaje para el docente <small>(puede corregirlo)</small></dt><dd><textarea class="mbz-msj" data-punto="' + n + '" rows="' +
         Math.min(8, 2 + (r.para_docente.match(/\n/g) || []).length) + '">' + esc(r.para_docente) + '</textarea></dd>');
       if (r.nota_interna) h.push('<dt>' + (r.automatico ? 'Nota para usted' : 'Qué revisar usted') + ' <small>(no se envía al docente)</small></dt><dd class="mbz-interna">' + esc(r.nota_interna) + '</dd>');
       h.push('</dl></details>');
@@ -1184,6 +1192,242 @@
       'Se leyeron ' + H.acts.length + ' elementos del aula y el texto de ' + plural(H.pdfLeidos.length, 'PDF', 'PDF') + (H.pdfLeidos.length ? ': ' + esc(H.pdfLeidos.join(' · ')) : '') + '. ' +
       'El archivo no se envió a ningún servidor. De los enlaces solo se muestra el dominio y los correos se ocultan. Reglas: ' + esc(VERSION_REGLAS) + '.' +
       (H.avisos.length ? '<br>' + H.avisos.map(esc).join('<br>') : '') + '</div>');
+    h.push('</div>');
+    return h.join('');
+  }
+
+  /* =================================================================
+     Varias aulas por carga (26/10/2026, observación del prof. Juan Gómez)
+     -----------------------------------------------------------------
+     En Moodle cada subgrupo tiene su propia aula: la de teoría termina en
+     «-G01-0» y la del taller, laboratorio o práctica en «-G01-1», «-G01-2»…
+     La carga lectiva dice qué tipos y subgrupos dicta el docente en el
+     grupo, y con eso el portal sabe cuántas copias pedir:
+       · solo teoría ............................ 1 copia (la de teoría)
+       · teoría y taller (mismo docente) ........ 2 copias
+       · solo taller, laboratorio o práctica .... 1 copia, y es obligatorio
+         que tenga información: es la única aula que tiene.
+     Si el docente tiene dos aulas y una está vacía (p. ej. pone todo en
+     teoría), no se cuenta como falta: se avisa para que el coordinador
+     confirme que el material está en la otra aula.
+     ================================================================= */
+  const NOMBRE_TIPO = { teo: 'teoría', tal: 'taller', lab: 'laboratorio', pra: 'práctica' };
+  const claveTipo = t => { const n = norm(t); return /^teo/.test(n) ? 'teo' : /^tal/.test(n) ? 'tal' : /^lab/.test(n) ? 'lab' : /^pr/.test(n) ? 'pra' : ''; };
+  const subgrupoLimpio = v => { const t = String(v == null ? '' : v).trim(); return /^\d+$/.test(t) ? String(+t) : ''; };
+
+  // partes: [{ tipo: 'Teo', subgrupo: '0' }, { tipo: 'Tal', subgrupo: '1' }] → una aula por subgrupo.
+  function aulasDeLaCarga(partes, grupo) {
+    const aulas = [];
+    (partes || []).forEach(p => {
+      const k = claveTipo(p.tipo); if (!k) return;
+      let sg = subgrupoLimpio(p.subgrupo);
+      if (k === 'teo' && sg === '') sg = '0';
+      let a = aulas.find(x => x.subgrupo === sg);
+      if (!a) { a = { subgrupo: sg, tipos: [] }; aulas.push(a); }
+      if (!a.tipos.includes(k)) a.tipos.push(k);
+    });
+    const g = String(grupo || '').replace(/\D/g, ''), g2 = g ? String(+g).padStart(2, '0') : '';
+    aulas.forEach(a => {
+      a.tipos.sort((x, z) => ['teo', 'tal', 'lab', 'pra'].indexOf(x) - ['teo', 'tal', 'lab', 'pra'].indexOf(z));
+      a.esTeoria = a.tipos.includes('teo');
+      a.etiqueta = y(a.tipos.map(t => NOMBRE_TIPO[t]));
+      a.terminacion = a.subgrupo === '' || !g2 ? '' : '-G' + g2 + '-' + a.subgrupo;
+    });
+    aulas.sort((a, b) => (a.subgrupo === '' ? 99 : +a.subgrupo) - (b.subgrupo === '' ? 99 : +b.subgrupo));
+    return aulas;
+  }
+  // Por el nombre del archivo descargado («…-g01-1-20261026-0830-nu.mbz»): grupo y subgrupo.
+  function aulaDelNombre(nombre) {
+    const m = String(nombre || '').match(/-g0*(\d+)-(\d+)-\d{8}/i);
+    return m ? { grupo: String(+m[1]), subgrupo: String(+m[2]) } : null;
+  }
+  // Lo que el docente cargó: todo menos el foro de avisos que Moodle crea solo.
+  function contenidoAula(H) {
+    const propios = (H.acts || []).filter(a => !(a.mod === 'forum' && a.tipoForo === 'news'));
+    const visibles = propios.filter(a => a.visible);
+    return { elementos: propios.length, visibles: visibles.length, vacia: !visibles.length };
+  }
+  const nombreAula = au => 'aula de ' + au.etiqueta + (au.terminacion ? ' (termina en «' + au.terminacion + '»)' : '');
+
+  // Une los resultados de las aulas de una misma carga.
+  //   items:  [{ H, res, aula, archivo }] — copias que sí son de esta carga
+  //   aulas:  las que pide la carga lectiva (puede venir vacía si no se sabe)
+  //   extras: [{ nombre, motivo }] — copias que no se tomaron en cuenta
+  const RANGO = s => ['Cumple', 'Subió', 'Existen'].includes(s) ? 3 : s === 'Parcial' ? 2 : /^No (cumple|subió|existen)$/.test(s) ? 1 : 0;
+  const BASTA_UNA = ['01', '02', '07'];   // basta con que esté en una de sus aulas
+  function combinar(items, aulas, extras) {
+    aulas = (aulas || []).map(a => Object.assign({}, a));
+    if (!aulas.length) items.forEach(it => { if (!aulas.some(a => a === it.aula)) aulas.push(it.aula); });
+    aulas.forEach(a => { a.copia = items.find(it => it.aula.subgrupo === a.subgrupo || (it.aula === a)) || null; });
+    items.forEach(it => { it.contenido = contenidoAula(it.H); });
+    const faltan = aulas.filter(a => !a.copia);
+    const usadas = items.slice();
+    const llenas = usadas.filter(it => !it.contenido.vacia), vacias = usadas.filter(it => it.contenido.vacia);
+    const consideradas = llenas.length ? llenas : usadas;
+    const unica = aulas.length === 1;
+    const notas = [];        // para el coordinador
+    const lineasDocente = []; // contexto que va en el borrador
+
+    vacias.forEach(it => {
+      const otras = llenas.map(o => 'el ' + nombreAula(o.aula).replace(/ \(.*\)$/, ''));
+      if (llenas.length) {
+        notas.push({ nivel: 'aviso', t: 'El ' + nombreAula(it.aula) + ' no tiene información cargada (solo el foro de avisos que Moodle crea solo). ' +
+          'Revise si todo lo de ' + it.aula.etiqueta + ' está en ' + y(otras) + ': muchos docentes publican todo en una sola aula. ' +
+          'Si es así, no es una falta. Si ese material no está en ninguna de sus aulas, sí corresponde observarlo.' });
+        lineasDocente.push('El aula de ' + it.aula.etiqueta + ' no tiene información cargada; se revisó lo publicado en ' + y(otras) + '.');
+      } else if (unica) {
+        notas.push({ nivel: 'alto', t: 'El ' + nombreAula(it.aula) + ' no tiene información cargada. Es la única aula de este docente en el grupo ' +
+          '(según la carga lectiva dicta solo ' + it.aula.etiqueta + '), así que es obligatorio que tenga la información del curso.' });
+        lineasDocente.push('Su aula de ' + it.aula.etiqueta + ' no tiene información cargada. Es la única aula que tiene en este grupo, por eso es necesario que publique en ella la información del curso.');
+      }
+    });
+    if (!llenas.length && usadas.length > 1) {
+      notas.push({ nivel: 'alto', t: 'Ninguna de las aulas de este docente tiene información cargada (' + y(usadas.map(it => it.aula.etiqueta)) + ').' });
+      lineasDocente.push('Ninguna de sus aulas tiene información cargada todavía.');
+    }
+    faltan.forEach(a => notas.push({ nivel: 'falta', t: 'Falta la copia del ' + nombreAula(a) + '. Según la carga lectiva, este docente también dicta ' +
+      a.etiqueta + ' en este grupo. Descárguela de esa aula y adjúntela junto con la otra; mientras tanto, el resultado de abajo no la incluye.' }));
+    (extras || []).forEach(x => notas.push({ nivel: 'info', t: 'No se tomó en cuenta «' + x.nombre + '»: ' + x.motivo }));
+
+    // Punto por punto.
+    const varias = consideradas.length > 1;
+    const etq = it => it.aula.etiqueta.charAt(0).toUpperCase() + it.aula.etiqueta.slice(1);
+    const R = {};
+    PUNTOS.forEach(([n, et]) => {
+      const rs = consideradas.map(it => ({ it, r: it.res.puntos[n] }));
+      const base = rs[0].r;
+      const conDato = rs.filter(x => x.r.sugerido);
+      let elegido = rs[0];
+      if (conDato.length) {
+        const orden = conDato.slice().sort((a, b) => RANGO(a.r.sugerido) - RANGO(b.r.sugerido));
+        elegido = BASTA_UNA.includes(n) ? orden[orden.length - 1] : orden[0];
+      }
+      const r = Object.assign({}, elegido.r);
+      r.porAula = usadas.map(it => ({ etiqueta: it.aula.etiqueta, sugerido: it.res.puntos[n].sugerido, vacia: it.contenido.vacia }));
+      if (varias) {
+        r.evidencia = [].concat(...rs.map(x => x.r.evidencia.map(e => etq(x.it) + ': ' + e)));
+        r.mejorar = [].concat(...rs.map(x => x.r.mejorar.map(e => (BASTA_UNA.includes(n) && RANGO(elegido.r.sugerido) === 3) ? null : etq(x.it) + ': ' + e))).filter(Boolean);
+        if (r.automatico) {
+          const conformes = rs.every(x => RANGO(x.r.sugerido) === 3);
+          if (BASTA_UNA.includes(n) || conformes) r.para_docente = elegido.r.para_docente;
+          else r.para_docente = rs.filter(x => RANGO(x.r.sugerido) < 3 && x.r.para_docente)
+            .map(x => 'En el aula de ' + x.it.aula.etiqueta + ':\n' + x.r.para_docente).join('\n\n');
+        }
+        r.porque = (BASTA_UNA.includes(n)
+          ? (RANGO(elegido.r.sugerido) === 3 ? 'Está en el aula de ' + elegido.it.aula.etiqueta + '. ' : '')
+          : (conDato.length ? 'Se toma el resultado más bajo de sus aulas. ' : '')) + (elegido.r.porque || '');
+      }
+      const reglas = [];
+      if (varias && r.automatico) reglas.push(BASTA_UNA.includes(n)
+        ? 'Este punto basta con que esté en una de las aulas del docente.'
+        : 'Este punto se revisa en cada aula que tiene información y se sugiere el resultado más bajo.');
+      if (vacias.length && llenas.length && r.automatico) reglas.push('No se contó el aula vacía de ' + y(vacias.map(it => it.aula.etiqueta)) + ': confirme que su material está en la otra aula.');
+      if (faltan.length) reglas.push('Falta la copia del aula de ' + y(faltan.map(a => a.etiqueta)) + '.');
+      r.nota_interna = [r.nota_interna].concat(reglas).filter(Boolean).join(' ');
+      if (r.automatico && (vacias.length && llenas.length || faltan.length) && r.certeza === 'alta') r.certeza = 'media';
+      r.nombre = et; r.estandar = base.estandar;
+      R[n] = r;
+    });
+
+    const principal = (consideradas.find(it => it.aula.esTeoria) || consideradas[0]);
+    const rc = { carga: true, aulas, items: usadas, faltan, vacias, llenas, notas, lineasDocente, puntos: R,
+      hechos: principal.H, cuadro: principal.res.cuadro, versionReglas: VERSION_REGLAS };
+    rc.resumen = resumen(rc);
+    return rc;
+  }
+
+  function textoBorradorCarga(rc) {
+    const L = [];
+    const desc = rc.items.map(it => 'aula de ' + it.aula.etiqueta + ' «' + it.H.aula.corto + '» (copia del ' + fechaHora(it.H.aula.copia) + ')' +
+      (it.contenido.vacia ? ' — sin información cargada' : ''));
+    L.push('Pre-verificación automática de ' + (rc.items.length > 1 ? 'las aulas virtuales' : 'el aula virtual') + ' de este curso y grupo: ' + y(desc) +
+      '. Semana ' + rc.hechos.semanaActual + ' del ciclo.');
+    rc.lineasDocente.forEach(t => L.push(t));
+    PUNTOS.forEach(([n, et]) => {
+      const r = rc.puntos[n];
+      if (!r.automatico) return;
+      L.push('');
+      L.push(n + ' ' + et + ' — sugerido: ' + (r.sugerido || 'revisar a mano'));
+      if (r.para_docente) L.push(r.para_docente);
+    });
+    L.push('');
+    const man = PUNTOS.map(p => p[0]).filter(n => !rc.puntos[n].automatico);
+    if (man.length) L.push('Puntos ' + y(man) + ': revisión a mano (reglas automáticas en preparación).');
+    return 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' + L.join('\n');
+  }
+
+  // Cuadro «qué copias corresponden»: sirve antes de adjuntar y en el reporte.
+  function cuadroCopiasHTML(aulas, items) {
+    items = items || [];
+    if (!aulas.length) return '';
+    const filas = aulas.map(a => {
+      const it = items.find(x => x.aula.subgrupo === a.subgrupo || x.aula === a);
+      const obligatoria = aulas.length === 1 ? 'Sí: es su única aula'
+        : a.esTeoria ? 'Sí' : aulas.some(x => x.esTeoria) ? 'Puede estar vacía si todo está en teoría' : 'Puede estar vacía si todo está en su otra aula';
+      let estado;
+      if (!it) estado = '<span class="mbz-chip mbz-falla">✖ Falta la copia</span>';
+      else if (it.contenido && it.contenido.vacia) estado = '<span class="mbz-chip ' + (aulas.length === 1 ? 'mbz-falla' : 'mbz-parcial') + '">' + (aulas.length === 1 ? '✖' : '◐') + ' Copia recibida, aula vacía</span>';
+      else estado = '<span class="mbz-chip mbz-ok">✔ Copia recibida</span>' + (it.contenido ? '<div class="mbz-fecha">' + plural(it.contenido.visibles, 'elemento visible', 'elementos visibles') + '</div>' : '');
+      return '<tr><td><b>' + esc(a.etiqueta.charAt(0).toUpperCase() + a.etiqueta.slice(1)) + '</b>' + (a.subgrupo !== '' ? '<div class="mbz-fecha">subgrupo ' + esc(a.subgrupo) + '</div>' : '') + '</td>' +
+        '<td>' + (a.terminacion ? '<code>…' + esc(a.terminacion) + '</code>' : '—') + '</td><td>' + esc(obligatoria) + '</td><td>' + estado + '</td></tr>';
+    }).join('');
+    return '<table class="mbz-tabla mbz-copias"><thead><tr><th>Aula</th><th>El código del aula termina en</th><th>¿Debe tener información?</th><th>Estado</th></tr></thead><tbody>' + filas + '</tbody></table>';
+  }
+
+  function reporteCargaHTML(rc, op) {
+    op = op || {};
+    const R = rc.puntos, S = rc.resumen, h = [];
+    const A = rc.hechos.aula;
+    h.push('<div class="mbz-rep">');
+    h.push('<div class="mbz-cab"><div class="mbz-cab-t">Reporte de las aulas virtuales de esta carga</div>' +
+      '<div class="mbz-cab-d"><b>' + esc(A.nombre.replace(/^\S+\s+/, '')) + '</b> · grupo ' + esc(A.grupo) +
+      (op.docente ? ' · ' + esc(op.docente) : '') + '<br>En Moodle, la teoría y el taller (o laboratorio, o práctica) son <b>aulas distintas</b>. ' +
+      'Según la carga lectiva, a este docente le ' + (rc.aulas.length === 1 ? 'corresponde <b>1 aula</b>' : 'corresponden <b>' + rc.aulas.length + ' aulas</b>') + ' en este grupo.</div></div>');
+    h.push('<h4 class="mbz-h">Copias que corresponden a esta carga</h4>' + cuadroCopiasHTML(rc.aulas, rc.items));
+    const CL = { alto: 'mbz-alto', falta: 'mbz-alto', aviso: 'mbz-aviso', info: 'mbz-info' };
+    rc.notas.forEach(n => h.push('<div class="' + CL[n.nivel] + '">' + (n.nivel === 'aviso' ? '⚠️ ' : n.nivel === 'info' ? 'ℹ️ ' : '') + esc(n.t) + '</div>'));
+
+    h.push('<section class="mbz-resumen"><h4>Resumen de la carga</h4><p class="mbz-grande">El portal revisó solo <b>' + S.revisados + ' de los 8 puntos</b>; <b>' + S.conformes + '</b> ' +
+      (S.conformes === 1 ? 'aparece conforme' : 'aparecen conformes') + '.' + (S.manuales.length ? ' Los puntos ' + y(S.manuales) + ' los revisa usted.' : '') + '</p>');
+    h.push('<p class="mbz-leyenda"><b>Cómo se juntan las aulas:</b> el <b>sílabo</b>, el <b>mensaje de sensibilización</b> y los <b>materiales adicionales</b> basta con que estén en una de las aulas del docente. ' +
+      'Los <b>materiales por semana</b>, las <b>rúbricas</b> y las <b>grabaciones</b> se revisan en cada aula que tiene información y se sugiere el resultado más bajo. ' +
+      'Un aula vacía no se cuenta si el docente puso todo en la otra; si es su única aula, sí cuenta.</p>');
+    const cols = rc.items;
+    h.push('<div class="mbz-scroll"><table class="mbz-tabla mbz-resu"><thead><tr><th style="width:44px">N°</th><th style="width:20%">Punto</th>' +
+      cols.map(it => '<th style="width:120px">Aula de ' + esc(it.aula.etiqueta) + '</th>').join('') +
+      '<th style="width:150px">Sugerido para la carga</th><th>Por qué</th></tr></thead><tbody>' +
+      PUNTOS.map(([n, et]) => '<tr><td class="mbz-n">' + n + '</td><td>' + esc(et) + '</td>' +
+        cols.map(it => '<td>' + (it.contenido.vacia ? '<span class="mbz-chip mbz-neutro">Vacía</span>' : chip(it.res.puntos[n].sugerido)) + '</td>').join('') +
+        '<td>' + chip(R[n].sugerido) + '</td><td>' + esc(R[n].porque || '') + ' <a class="mbz-ver" href="#mbz-p' + n + '">ver detalle ↓</a></td></tr>').join('') +
+      '</tbody></table></div>');
+    if (S.acciones.length) h.push('<p class="mbz-sub"><b>Lo más importante que debe corregir el docente</b></p><ol class="mbz-acc">' +
+      S.acciones.map(a => '<li><b>' + a.punto + ' ' + esc(a.nombre) + ':</b> ' + esc(a.t) + '</li>').join('') + '</ol>');
+    h.push('</section>');
+    if (op.botones) h.push('<div class="mbz-botones">' + op.botones + '</div>');
+
+    h.push('<h4 class="mbz-h">Ficha por punto (las aulas juntas)</h4>');
+    PUNTOS.forEach(([n, et]) => {
+      const r = R[n];
+      h.push('<details class="mbz-ficha" id="mbz-p' + n + '" open><summary><span class="mbz-n">' + n + '</span> ' + esc(et) + ' ' + chip(r.sugerido) + '</summary>');
+      if (r.estandar) h.push('<p class="mbz-std"><b>Estándar:</b> ' + esc(r.estandar) + '</p>');
+      h.push('<dl><dt>Resultado sugerido</dt><dd>' + chip(r.sugerido) + (r.porque ? ' ' + esc(r.porque) : '') + '</dd>');
+      h.push('<dt>Qué se encontró</dt><dd><ul>' + r.evidencia.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
+      if (r.mejorar.length) h.push('<dt>Qué mejorar</dt><dd><ul>' + r.mejorar.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
+      h.push('<dt>Certeza</dt><dd>' + esc(CERTEZA[r.certeza] || r.certeza) + '</dd>');
+      if (r.automatico && r.para_docente !== undefined) h.push('<dt>Mensaje para el docente <small>(puede corregirlo)</small></dt><dd><textarea class="mbz-msj" data-punto="' + n + '" rows="' +
+        Math.min(10, 2 + (String(r.para_docente).match(/\n/g) || []).length) + '">' + esc(r.para_docente) + '</textarea></dd>');
+      if (r.nota_interna) h.push('<dt>' + (r.automatico ? 'Nota para usted' : 'Qué revisar usted') + ' <small>(no se envía al docente)</small></dt><dd class="mbz-interna">' + esc(r.nota_interna) + '</dd>');
+      h.push('</dl></details>');
+    });
+
+    h.push('<h4 class="mbz-h">Reporte completo de cada aula</h4><p class="mbz-sub">Aquí está el detalle de cada copia por separado, con su cuadro por semanas.</p>');
+    rc.items.forEach((it, i) => {
+      h.push('<details class="mbz-ficha mbz-aula-det"' + (it.contenido.vacia ? '' : '') + '><summary>Aula de ' + esc(it.aula.etiqueta) + ' · ' + esc(it.H.aula.corto) +
+        (it.contenido.vacia ? ' <span class="mbz-chip mbz-neutro">Vacía</span>' : '') + '</summary>' +
+        reporteHTML(it.res, { prefijo: 'a' + i + '-', soloLectura: true, sinAvisoTaller: true, horarioUsado: op.horarios && op.horarios[i] }) + '</details>');
+    });
+    h.push('<div class="mbz-pie"><b>Pre-verificación automática. La decisión final es del coordinador.</b> ' +
+      'Copias leídas: ' + esc(rc.items.map(it => it.H.archivo.nombre).join(' · ')) + '. Ningún archivo se envió a un servidor. Reglas: ' + esc(VERSION_REGLAS) + '.</div>');
     h.push('</div>');
     return h.join('');
   }
@@ -1231,6 +1475,9 @@
 .mbz-horario{margin:10px 0;padding:14px 16px;border-radius:10px;background:#eef6fb;border:2px solid #2a6fb0;font-size:15px}
 .mbz-horario textarea{width:100%;margin:8px 0;font:inherit;font-size:13.5px;border:1px solid #c9d3cd;border-radius:8px;padding:8px}
 .mbz-horario button{padding:8px 14px;border-radius:8px;border:1px solid var(--brand,#0f8f5e);background:var(--brand,#0f8f5e);color:#fff;font-size:14.5px}
+.mbz-copias td{font-size:14.5px}.mbz-copias code{font-size:14px;background:#f3f6f4;padding:1px 5px;border-radius:4px}
+.mbz-aula-det>summary{font-size:16px}.mbz-aula-det .mbz-rep{border:0;padding:4px 0;margin:4px 0}
+.mbz-msj-ro{white-space:pre-wrap;background:#f6f8f7;border-radius:6px;padding:6px 8px}
 .mbz-json{white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;background:#f6f8f7;border:1px solid #dfe4e1;border-radius:8px;padding:8px;max-height:320px;overflow:auto}
 `;
   function ponerEstilos() {
@@ -1238,7 +1485,8 @@
     const s = document.createElement('style'); s.id = 'mbz-css'; s.textContent = CSS; document.head.appendChild(s);
   }
 
-  const API = { VERSION_REGLAS, REGLAS, PUNTOS, leerHorario, horarioDelAula, cargarHorarioPublicado, esCopiaMbz, buscarCopia, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos, fecha, fechaHora };
+  const API = { VERSION_REGLAS, REGLAS, PUNTOS, leerHorario, horarioDelAula, cargarHorarioPublicado, esCopiaMbz, buscarCopia, buscarCopias, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos,
+    aulasDeLaCarga, aulaDelNombre, contenidoAula, combinar, textoBorradorCarga, cuadroCopiasHTML, reporteCargaHTML, fecha, fechaHora };
   raiz.MBZ = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
