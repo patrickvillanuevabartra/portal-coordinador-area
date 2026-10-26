@@ -702,6 +702,7 @@ td>.ev-fecha{display:block;font-size:12px;color:var(--tinta-media);margin-top:2p
 .ec-arch.bien{color:#1b5e3f}.ec-arch.mal{color:#8a1c12}
 .ec-corr{color:var(--tinta);font-size:13.5px;margin:2px 0 0 18px}.ec-corr code{overflow-wrap:anywhere}
 .ec-corr details summary{cursor:pointer;color:var(--tinta-media);font-size:13px}
+.ec-sinmet{border-color:#f0c987;background:#fffaf0}.ec-sinmet span{color:var(--tinta-media);font-size:13.5px}
 .ec-sobran{margin:6px 16px 12px;padding:8px 12px;border:1px dashed var(--linea);border-radius:8px;font-size:14px;display:grid;gap:6px}
 @media (max-width:640px){.ec-tit{display:none}.ec-fila{grid-template-columns:30px 1fr}.ec-pres{grid-column:2}.ec-plazo{text-align:left}}
 .ev-detalle .cuenta-aplic{display:block;margin-top:8px;font-size:13px;line-height:1.45;text-transform:none;letter-spacing:0;color:var(--tinta-media);background:#eef6f1;border:1px solid #cfe3d7;border-radius:8px;padding:6px 9px}
@@ -2229,7 +2230,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.04';
+  const VERSION_INTERNA = '2026-10-26.05';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -12231,13 +12232,17 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '<div class="ec-pres">' + (l.length ? l.map(archivo).join('') : '<span class="ec-falta">Falta</span>') + '</div></div>';
       }).join('');
       // Archivos que están en la carpeta pero no se piden (p. ej. una «nota promedio» en un trabajo aplicativo).
-      const sobran = Object.keys(A).filter(x => !PP.includes(x)).reduce((t, x) => t.concat(A[x]), []);
+      const sinMet = A.sinmetrica || [];
+      const sobran = Object.keys(A).filter(x => !PP.includes(x) && x !== 'sinmetrica').reduce((t, x) => t.concat(A[x]), []);
       return '<section class="ec">' +
         '<header class="ec-cab"><div><h5>' + esc(titulo) + '</h5><small>' + (apl ? 'Trabajo aplicativo' : 'Examen o práctica') +
           ' · carpeta «' + esc(e.carpeta) + '» · punto ' + e.punto + ' ' + esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></div>' +
           '<div class="ec-plazo"><span class="ev-chip ' + pl.clase + '">' + esc(pl.estado) + '</span><small>' + esc(pl.fecha) + '</small></div></header>' +
         resumen +
         '<div class="ec-tit"><div></div><div>Lo que debe presentar</div><div>Lo que presentó</div></div>' + filas +
+        (sinMet.length ? '<div class="ec-sobran ec-sinmet"><b>Trabajos de estudiantes que no dicen si son de la mayor o de la menor nota (' + sinMet.length + '):</b>' +
+          '<span>El docente debe indicarlo en el nombre (Mayor o Menor y la nota). ' + (apl ? 'Solo se piden dos: el de la mayor y el de la menor nota.' : 'Se piden el de la mayor, la menor y la nota promedio.') + '</span>' +
+          sinMet.map(archivo).join('') + '</div>' : '') +
         (sobran.length ? '<div class="ec-sobran"><b>Otros archivos en la carpeta (no se piden):</b>' + sobran.map(archivo).join('') + '</div>' : '') +
         '</section>';
     }).join('')).join('');

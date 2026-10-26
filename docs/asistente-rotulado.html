@@ -191,6 +191,8 @@ input:focus,select:focus,button:focus-visible{outline:3px solid var(--accent);ou
        <p style="margin:0">No hay nota promedio. <i>Ejemplo:</i> un curso con 2 alumnos → suba el examen en blanco, el de mayor nota y el de menor nota (3 archivos).</p></div></details>
       <details class="faq"><summary>¿Y si hay un solo trabajo (por ejemplo, un solo grupo en el laboratorio)?</summary><div>
        <p style="margin:0">Ese único trabajo es a la vez el de mayor y el de menor nota. Súbalo <b>una sola vez</b> (y su rúbrica, también una vez): en total, la estructura en blanco, el trabajo y la rúbrica. En la pregunta «¿Qué nota representa este trabajo?» abra «¿Hay un solo trabajo?» y elija esa opción: el nombre llevará <b>Mayor-Menor</b>, por ejemplo <code>…Grupo único.Mayor-Menor.15.PDF</code>.</p></div></details>
+      <details class="faq"><summary>¿Y si el trabajo es de varios estudiantes?</summary><div>
+       <p style="margin:0">En la pregunta «¿Cómo se llama el estudiante?» pulse <b>«➕ Añadir otro estudiante del mismo trabajo»</b> y escriba cada nombre en su recuadro. El nombre del archivo queda, por ejemplo: <code>IN1004.TR1.2026-II.Jean Paul Figueroa y Anthony Piminch.Menor.14.PDF</code>. Su rúbrica lleva los mismos nombres y «.Rubrica» al final.</p></div></details>
       <details class="faq"><summary>¿Y si varias notas se repiten?</summary><div>
        <p style="margin:0"><i>Ejemplo:</i> 4 alumnos sacaron 14, 14, 14 y 18. El promedio es 15 y la nota más cercana es 14, igual que la menor. Suba el de 18 como <b>Mayor</b> y <b>dos trabajos distintos de 14</b>: uno como <b>Menor</b> y otro como <b>Promedio</b> (cualquiera de los de 14 sirve). Siguen siendo 3 archivos resueltos.</p></div></details>
       <details class="faq"><summary>¿Cuenta un trabajo no presentado (0 sin entrega)?</summary><div>
@@ -244,10 +246,12 @@ const TIPOS=[
 const hoy=new Date(); const anioHoy=hoy.getFullYear(); const cicloHoy=hoy.getMonth()>=7?'II':'I';
 const D={clase:'evidencia',codigo:'IN0701',tipo:'TA',otro:'',varios:'si',numero:'1',anio:String(anioHoy),ciclo:cicloHoy,nombre:'Luis Morales',metrica:'Mayor',nota:'17'};
 // arranca vacío: el ejemplo solo se muestra en la vista previa como guía
-const R={grupoEv:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''};
+const R={otros:[],grupoEv:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',anio:String(anioHoy),ciclo:cicloHoy,nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''};
 // Nombre tal como va en el rótulo: el estudiante y, si se indicó, su grupo y el entregable.
 // Ej.: «Jacomo Valentino Michel Curotto (líder del grupo 3) TIIN».
-const nombreRotulo=()=>{ if(!R.nombre) return ''; let t=R.nombre;
+// Varios estudiantes en un mismo trabajo: «Jean Paul Figueroa y Anthony Piminch».
+const juntaNombres=l=>l.length>1?l.slice(0,-1).join(', ')+' y '+l[l.length-1]:(l[0]||'');
+const nombreRotulo=()=>{ if(!R.nombre) return ''; let t=juntaNombres([R.nombre].concat((R.otros||[]).filter(Boolean)));
   if(R.grupo) t+=' ('+(R.lider?'líder del grupo ':'grupo ')+R.grupo+')';
   if(R.entregable) t+=' '+R.entregable; return t; };
 let i=0;
@@ -364,6 +368,9 @@ const PASOS=[
    ${R.clase==='rubrica'?'<p class="ayuda"><b>Es la rúbrica de un trabajo:</b> escriba los mismos datos del trabajo (estudiante, nota). El nombre terminará en <b>.Rubrica.PDF</b>.</p>':''}
    <p class="ayuda">Nombre y apellido, como en la lista. Por ejemplo: <b>Luis Morales</b>.</p>
    <input id="inNombre" autocomplete="off" value="${esc(R.nombre)}" placeholder="Luis Morales">
+   ${(R.otros||[]).map((v,k)=>`<div class="fila"><input class="inOtroEst" autocomplete="off" aria-label="Otro estudiante" value="${esc(v)}" placeholder="Otro estudiante del mismo trabajo"><button type="button" class="b sec" data-quita="${k}">✕ Quitar</button></div>`).join('')}
+   <div><button type="button" class="b sec" id="masEst">➕ Añadir otro estudiante del mismo trabajo</button></div>
+   <p class="ayuda" style="font-size:.95rem">¿El trabajo es de varios estudiantes? Pulse <b>«➕ Añadir otro estudiante»</b> y escriba cada nombre en su recuadro. El asistente los une así: <b>Jean Paul Figueroa y Anthony Piminch</b>.</p>
    <details class="extra" ${R.grupo||R.lider||R.entregable?'open':''}><summary>➕ Datos adicionales (opcional): grupo, líder y tipo de entregable</summary>
     <p class="ayuda">Útil en trabajos en grupo. Se agrega al nombre, sin cambiar el resto del rótulo. Ejemplo: <b>Jacomo Michel Curotto (líder del grupo 3) TIIN</b>. <b>Escriba usted el número de grupo</b>: el recuadro empieza vacío.</p>
     <div class="fila"><label for="inGrupo" class="ayuda">N.º de grupo</label>
@@ -374,6 +381,7 @@ const PASOS=[
     <p class="ayuda">Aquí no repita «(líder del grupo 1)»: el asistente ya lo agrega con los datos de arriba. Hasta 100 letras.</p>
    </details>`,
   lee:()=>{R.nombre=limpiaNombre($('#inNombre').value);
+    R.otros=[...document.querySelectorAll('.inOtroEst')].map(e=>limpiaNombre(e.value));
     const g=$('#inGrupo'); if(g) R.grupo=g.value.replace(/[^0-9]/g,'').slice(0,2);
     const l=$('#inLider'); if(l) R.lider=l.checked;
     const e=$('#inEntregable'); if(e) R.entregable=limpiaNombre(e.value.replace(/\(\s*(l[ií]der del\s+)?grupo\s*\d*\s*\)/gi,' ')).slice(0,100);},
@@ -414,6 +422,11 @@ function avanza(){const p=visibles()[i]; if(p.lee)p.lee(); const m=p.ok(); if(m)
 
 document.addEventListener('click',e=>{
   const b=e.target.closest('button'); if(!b) return;
+  if(b.id==='masEst'||b.dataset.quita!==undefined){
+    const p=visibles()[i]; if(p&&p.lee) p.lee();
+    if(b.id==='masEst') R.otros.push(''); else R.otros.splice(Number(b.dataset.quita),1);
+    pinta(); const l=document.querySelectorAll('.inOtroEst'); if(b.id==='masEst'&&l.length) l[l.length-1].focus(); return;
+  }
   if(b.dataset.k){
     const p=visibles()[i]; if(p&&p.lee) p.lee();
     R[b.dataset.k]=b.dataset.v;
@@ -428,12 +441,12 @@ document.addEventListener('click',e=>{
   if(b.id==='atras'){const p=visibles()[i]; if(p&&p.lee)p.lee(); i=Math.max(0,i-1); return pinta();}
   if(b.id==='copiar') return copia(true);
     if(b.dataset.k==='tipo'&&esGrupal()&&/Promedio/.test(R.metrica)) R.metrica='';
-  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.desc='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
+  if(b.id==='otraEv'){ARCH=null;pintaArchivo();R.otros=[];R.grupo='';R.lider=false;R.nombre='';R.metrica='';R.nota='';R.desc='';R.clase='evidencia';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
   // La rúbrica del trabajo recién rotulado: mismos datos, solo cambia el final del nombre.
   if(b.id==='sigRub'){ARCH=null;pintaArchivo();R.clase='rubrica';i=visibles().length;pinta();return window.scrollTo({top:0,behavior:'smooth'});}
   // Después de la rúbrica de la mayor nota: el trabajo de la menor nota.
-  if(b.id==='sigMenor'){ARCH=null;pintaArchivo();R.grupo='';R.lider=false;R.nombre='';R.nota='';R.clase='evidencia';R.metrica='Menor';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
-  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{cursoNombre:'',grupoEv:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''});i=0;return pinta();}
+  if(b.id==='sigMenor'){ARCH=null;pintaArchivo();R.otros=[];R.grupo='';R.lider=false;R.nombre='';R.nota='';R.clase='evidencia';R.metrica='Menor';i=visibles().findIndex(p=>p.id==='nombre');return pinta();}
+  if(b.id==='nuevo'){ARCH=null;pintaArchivo();Object.assign(R,{otros:[],cursoNombre:'',grupoEv:'',clase:'',codigo:'',tipo:'',otro:'',varios:'',numero:'',nombre:'',grupo:'',lider:false,entregable:'',desc:'',metrica:'',nota:''});i=0;return pinta();}
   if(b.id==='editar'){i=0;return pinta();}
 });
 document.addEventListener('input',e=>{
