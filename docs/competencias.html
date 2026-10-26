@@ -114,6 +114,12 @@ async function cargar() {
 function pintarLista() {
   const q = norm($('#q').value), car = $('#fCarrera').value, plan = $('#fPlan').value;
   const box = $('#lista');
+  // Carrera elegida que todavía no tiene su matriz registrada en el portal.
+  if (car && !D.porCurso.some(x => x.carrera === car)) {
+    box.innerHTML = '<p class="aviso">La Escuela de ' + esc(car) + ' todavía no tiene registradas en el portal sus competencias ni su matriz de competencias por curso. ' +
+      'Cuando la Escuela las envíe y se carguen, aparecerán aquí. Mientras tanto, consulte con su coordinador de área.</p>';
+    return;
+  }
   if (q.length < 2 && !car) { box.innerHTML = ''; return; }
   const palabras = q.split(' ').filter(Boolean);
   const l = D.porCurso.filter(x => (!car || x.carrera === car) && (!plan || clavePlan(x.plan) === clavePlan(plan)) &&
@@ -124,7 +130,7 @@ function pintarLista() {
     return;
   }
   box.innerHTML = l.slice(0, 30).map(x => '<button type="button" class="op" data-k="' + esc(x.carrera + '|' + x.plan + '|' + x.codigo) + '">' +
-    '<b>' + esc(x.asignatura) + '</b><span class="chip">' + esc(x.codigo) + '</span><small>' + esc(x.carrera) + ' · plan ' + esc(x.plan) + '</small></button>').join('') +
+    '<b>' + esc(x.asignatura) + '</b>' + (x.codigo ? '<span class="chip">' + esc(x.codigo) + '</span>' : '<span class="ayuda" style="margin:0">sin código</span>') + '<small>' + esc(x.carrera) + ' · plan ' + esc(x.plan) + '</small></button>').join('') +
     (l.length > 30 ? '<p class="ayuda">Hay ' + l.length + ' cursos: escriba más letras del nombre para acortar la lista.</p>' : '');
 }
 
@@ -172,7 +178,10 @@ document.addEventListener('input', e => { if (e.target.id === 'q') pintarLista()
 document.addEventListener('change', e => { if (['fCarrera', 'fPlan'].includes(e.target.id)) pintarLista(); });
 
 cargar().then(() => {
-  const carreras = [...new Set(D.porCurso.map(x => x.carrera))].sort();
+  // Las cinco carreras de la Facultad aparecen siempre, aunque alguna aún no
+  // tenga su matriz cargada (al elegirla, se explica).
+  const carreras = [...new Set(['Ingeniería Civil', 'Ingeniería Electrónica', 'Ingeniería Industrial', 'Ingeniería Informática',
+    'Ingeniería Mecatrónica'].concat(D.porCurso.map(x => x.carrera)))].sort();
   $('#fCarrera').innerHTML += carreras.map(c => '<option>' + esc(c) + '</option>').join('');
   // Enlace directo: ?codigo=IC0702 (y opcionalmente &carrera=…&plan=…).
   const p = new URLSearchParams(location.search), cod = (p.get('codigo') || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
