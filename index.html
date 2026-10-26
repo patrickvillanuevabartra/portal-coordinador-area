@@ -2230,7 +2230,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.05';
+  const VERSION_INTERNA = '2026-10-26.06';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2737,6 +2737,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         (cr ? '<span style="color:#1b7f4b;font-weight:600">✔ Registrado</span>' : '<span style="color:#b42318;font-weight:600">Falta registrar</span>') +
         '<p class="nota-crono para-que"><b>¿Para qué sirve?</b> Solo para saber <b>en qué semana se entrega cada evaluación</b> y así revisar a ' +
         'tiempo el portafolio. <b>Aquí no se revisa la calidad del sílabo</b>: eso es el <b>Paso 2</b>, más abajo («Revisión de los 12 puntos»).</p>' +
+        '<p class="nota-crono"><b>El sílabo se sube una sola vez.</b> Si ya lo adjuntó en el Paso 2 (📎), el portal lo lee solo y aquí ' +
+        'aparecen las semanas: usted solo pulsa «Guardar cronograma». Y si lo elige aquí, ya queda adjuntado para el Paso 2.</p>' +
         '<p class="nota-crono"><b>¿Qué hay que hacer?</b> Elija el PDF (o Word) del sílabo del curso. El portal lee en qué semana y unidad ' +
         'se entrega cada evaluación (talleres, prácticas, parcial, final) y lo muestra para que usted lo confirme. Se registra <b>una vez por ' +
         'curso y ciclo</b>: sirve para todos los grupos. Con esto, la revisión del portafolio exige cada evaluación ' + GRACIA_DIAS +
@@ -2760,23 +2762,27 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           .then(() => pintarCajaCronograma())
           .catch(e => { $('avisoCrono').textContent = 'No se pudo borrar: ' + e.message; $('btnBorrarCrono').disabled = false; });
       });
-      $('archCrono').addEventListener('change', async ev => {
-        const arch = ev.target.files[0];
-        if (!arch) return;
+      // Lee el cronograma de un archivo de sílabo. origen: 'paso1' (botón de aquí)
+      // o 'paso2' (el sílabo que ya se adjuntó con 📎 en el Paso 2: no se pide dos veces).
+      const leer = async (arch, origen) => {
         $('avisoCrono').textContent = 'Leyendo ' + arch.name + '…';
         // El mismo sílabo sirve para el Paso 2: se deja adjuntado, para no buscarlo dos veces.
-        if ($('trAdjuntos') && !ADJUNTOS.some(x => x.name === arch.name && x.size === arch.size)) {
+        if (origen === 'paso1' && $('trAdjuntos') && !ADJUNTOS.some(x => x.name === arch.name && x.size === arch.size)) {
           ADJUNTOS.push(arch); pintarAdjuntosDesde();
         }
         try {
           const texto = await textoDelArchivo(arch);
           const r = leerCronogramaSilabo(texto);
           if (!r.evaluaciones.length) {
+            if (origen === 'paso2') { $('avisoCrono').textContent = ''; return false; }
             $('avisoCrono').textContent = 'No se encontró el cronograma: el sílabo debe indicar en qué semana se entrega cada ' +
               'evaluación (por ejemplo «Semana 4 … Taller Calificado Nro. 1»). Revise el sílabo con el docente.';
-            return;
+            return false;
           }
-          $('avisoCrono').textContent = 'Revise lo que se leyó y pulse «Guardar cronograma».';
+          $('avisoCrono').innerHTML = origen === 'paso2'
+            ? '<b style="color:#1b7f4b">✔ Ya se leyó el sílabo que usted adjuntó en el Paso 2 («' + esc(arch.name) + '»): no tiene que subirlo otra vez.</b> ' +
+              'Revise las semanas y pulse «Guardar cronograma».'
+            : 'Revise lo que se leyó y pulse «Guardar cronograma».';
           $('previaCrono').innerHTML = tabla(r.evaluaciones) +
             ((r.avisos || []).length ? '<p class="aviso-crono">⚠ ' + r.avisos.map(esc).join('<br>⚠ ') +
               '<br><span style="font-weight:400">Coméntelo al docente para que corrija el sílabo.</span></p>' : '') +
@@ -2788,9 +2794,29 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               .then(x => { if (x.error) throw new Error(x.error); pintarCajaCronograma(); })
               .catch(e => { $('avisoCrono').textContent = 'No se pudo guardar: ' + e.message; $('btnGuardarCrono').disabled = false; });
           });
-        } catch (e) { $('avisoCrono').textContent = e.message; }
-      });
+          if (origen === 'paso2') $('cajaCronograma').scrollIntoView({ behavior: 'smooth', block: 'start' });
+          return true;
+        } catch (e) { $('avisoCrono').textContent = origen === 'paso2' ? '' : e.message; return false; }
+      };
+      $('archCrono').addEventListener('change', ev => { const arch = ev.target.files[0]; if (arch) leer(arch, 'paso1'); });
+      CRONO_LEER = cr ? null : leer;
+      if (!cr) cronoDesdeAdjuntos();
     });
+  }
+  // Si el cronograma falta y el coordinador adjuntó el sílabo en el Paso 2, el
+  // Paso 1 lo lee de ese mismo archivo (antes había que subirlo dos veces).
+  let CRONO_LEER = null;
+  const CRONO_PROBADOS = new Set();
+  async function cronoDesdeAdjuntos() {
+    if (!CRONO_LEER || !$('archCrono') || $('btnGuardarCrono')) return;
+    const cands = ADJUNTOS.filter(f => /\.(pdf|docx)$/i.test(f.name))
+      .sort((x, y) => (/s[ií]labo/i.test(y.name) ? 1 : 0) - (/s[ií]labo/i.test(x.name) ? 1 : 0));
+    for (const f of cands) {
+      const k = f.name + '|' + f.size;
+      if (CRONO_PROBADOS.has(k)) continue;
+      CRONO_PROBADOS.add(k);
+      if (await CRONO_LEER(f, 'paso2')) return;
+    }
   }
 
   /* -------------------------------------------- documentos de referencia ---- */
@@ -10293,6 +10319,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     ADJUNTOS = ADJUNTOS.concat([...$('trArchivo').files]);
     $('trArchivo').value = '';
     setTimeout(pintarInsumos, 0);
+    setTimeout(cronoDesdeAdjuntos, 0);
     const c = $('trAdjuntos');
     c.innerHTML = ADJUNTOS.map((f, i) =>
       '<span class="chat-chip">📄 ' + esc(f.name) +
@@ -10313,6 +10340,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       ADJUNTOS.splice(Number(b.dataset.q), 1); pintarAdjuntosDesde();
     }));
     pintarInsumos();
+    cronoDesdeAdjuntos();
   }
 
   /* ---------------- copia de seguridad del aula (.mbz) — Traspaso v3 ------
