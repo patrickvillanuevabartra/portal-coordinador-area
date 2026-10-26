@@ -682,6 +682,28 @@ td>.ev-fecha{display:block;font-size:12px;color:var(--tinta-media);margin-top:2p
 .ev-detalle .rot-ok{display:block;color:#1b7f4b;font-size:12px}
 .ev-detalle .rot-mal{display:block;color:#b42318;font-size:12px}
 .ev-detalle .rot-sug{display:block;color:#14532d;font-size:12px;margin-top:2px}
+.ev-cards{display:grid;gap:16px;margin-top:10px}
+.ec{border:2px solid var(--linea);border-radius:12px;background:#fff;overflow:hidden}
+.ec-cab{display:flex;flex-wrap:wrap;gap:8px 16px;justify-content:space-between;align-items:flex-start;padding:12px 16px;background:#f4f7f5;border-bottom:1px solid var(--linea)}
+.ec-cab h5{margin:0;font-size:18px}.ec-cab small{display:block;color:var(--tinta-media);font-size:13px;margin-top:2px}
+.ec-plazo{text-align:right;max-width:340px}.ec-plazo small{display:block;font-size:12.5px;color:var(--tinta-media);margin-top:4px}
+.ec-res{margin:12px 16px 4px;padding:10px 14px;border-radius:8px;font-size:15.5px;line-height:1.5}
+.ec-res.ok{background:#eaf7ef;border:1px solid #a9d8b8;color:#1b5e3f}
+.ec-res.falta{background:#fff1f0;border:1px solid #f3b8b2;color:#8a1c12}
+.ec-res.aviso{background:#fff8e6;border:1px solid #f0c987;color:#7a5200}
+.ec-tit,.ec-fila{display:grid;grid-template-columns:34px minmax(0,2fr) minmax(0,3fr);gap:10px;padding:8px 16px;align-items:start}
+.ec-tit{font-size:12.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--tinta-media);padding-bottom:0}
+.ec-fila{border-top:1px solid #eef1ef}
+.ec-num{width:28px;height:28px;border-radius:50%;background:#1b5e3f;color:#fff;font-weight:700;display:grid;place-items:center;font-size:14px}
+.ec-fila.sin .ec-num{background:#b42318}
+.ec-debe{font-weight:600;font-size:15px}
+.ec-pres{font-size:14.5px;overflow-wrap:anywhere;display:grid;gap:6px}
+.ec-falta{color:#b42318;font-weight:700}
+.ec-arch.bien{color:#1b5e3f}.ec-arch.mal{color:#8a1c12}
+.ec-corr{color:var(--tinta);font-size:13.5px;margin:2px 0 0 18px}.ec-corr code{overflow-wrap:anywhere}
+.ec-corr details summary{cursor:pointer;color:var(--tinta-media);font-size:13px}
+.ec-sobran{margin:6px 16px 12px;padding:8px 12px;border:1px dashed var(--linea);border-radius:8px;font-size:14px;display:grid;gap:6px}
+@media (max-width:640px){.ec-tit{display:none}.ec-fila{grid-template-columns:30px 1fr}.ec-pres{grid-column:2}.ec-plazo{text-align:left}}
 .ev-detalle .cuenta-aplic{display:block;margin-top:8px;font-size:13px;line-height:1.45;text-transform:none;letter-spacing:0;color:var(--tinta-media);background:#eef6f1;border:1px solid #cfe3d7;border-radius:8px;padding:6px 9px}
 .ev-detalle .cuenta-aplic b{display:block;color:#1b5e3f;font-size:13.5px}
 .ev-detalle .sub-celda{margin:2px 0 6px}.ev-detalle .sub-celda>b,.ev-detalle .sub-et{display:block;font-size:12.5px;color:var(--tinta-media)}.ev-detalle .falta-txt{color:#b42318;font-weight:600}
@@ -2207,7 +2229,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.03';
+  const VERSION_INTERNA = '2026-10-26.04';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -12172,6 +12194,55 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
   // Detalle: cada evaluación (y cada informe 1, 2, 3…), con el archivo que
   // está en cada casilla y si está bien rotulado.
+  // Una evaluación = un recuadro sencillo: qué falta, qué debe presentar y qué presentó.
+  function tarjetasEvalPorta(ev) {
+    const y = l => l.join(', ').replace(/, ([^,]*)$/, ' y $1');
+    const QUE = {
+      apl: { enunciado: 'La estructura del trabajo en blanco', mayor: 'El trabajo del estudiante con la mayor nota',
+             rmayor: 'La rúbrica de la mayor nota (evaluación del docente con la nota)', menor: 'El trabajo del estudiante con la menor nota',
+             rmenor: 'La rúbrica de la menor nota (evaluación del docente con la nota)' },
+      exa: { enunciado: 'El examen o práctica en blanco', mayor: 'El resuelto con la mayor nota',
+             menor: 'El resuelto con la menor nota', promedio: 'El resuelto con la nota promedio' } };
+    const CORTO = { enunciado: 'la estructura en blanco', mayor: 'el trabajo de la mayor nota', rmayor: 'la rúbrica de la mayor nota',
+                    menor: 'el trabajo de la menor nota', rmenor: 'la rúbrica de la menor nota', promedio: 'el de la nota promedio' };
+    const CORTO_EX = { enunciado: 'el examen en blanco', mayor: 'el de la mayor nota', menor: 'el de la menor nota', promedio: 'el de la nota promedio' };
+    const archivo = x => '<div class="ec-arch ' + (x.ok ? 'bien' : 'mal') + '">' +
+      (x.ok ? '✔ ' : '✘ ') + '<a href="' + esc(x.url || '#') + '" target="_blank" rel="noopener">' + esc(x.nombre) + '</a>' +
+      (x.ok ? '' : '<div class="ec-corr">Corregir el nombre' + (x.sugerido ? ' a: <code>' + esc(x.sugerido) + '</code>' : '') +
+        (x.motivos && x.motivos.length ? '<details><summary>¿Qué está mal?</summary>' + esc(x.motivos.join('; ')) + '.</details>' : '') + '</div>') + '</div>';
+    return ev.evaluaciones.map(e => (e.grupos.length ? e.grupos : [{}]).map(g => {
+      const PP = partesPorta(e), apl = esAplicativo(PP), A = g.archivos || {}, pl = plazoPorta(e, g);
+      const nomCarpeta = (e.otro ? String(e.carpeta).toUpperCase() : e.nombre) + (g.n ? ' ' + g.n : '');
+      const nomSil = nombreSegunSilabo(e, g);
+      const titulo = nomSil && sinAcentos(nomSil).replace(/\s+/g, '') !== sinAcentos(nomCarpeta).replace(/\s+/g, '') ? nomSil : nomCarpeta;
+      const Q = apl ? QUE.apl : QUE.exa, C = apl ? CORTO : CORTO_EX;
+      const faltan = PP.filter(x => !(A[x] || []).length);
+      const malos = PP.reduce((t, x) => t + (A[x] || []).filter(f => !f.ok).length, 0);
+      const hay = PP.length - faltan.length;
+      const resumen = !faltan.length && !malos ? '<div class="ec-res ok">✔ Completo: presentó los ' + PP.length + ' archivos y están bien nombrados.</div>'
+        : '<div class="ec-res ' + (faltan.length ? 'falta' : 'aviso') + '">' +
+          '<b>Presentó ' + hay + ' de ' + PP.length + ' archivos.</b>' +
+          (faltan.length ? '<br>Le falta: ' + y(faltan.map(x => C[x] || x)) + '.' : '') +
+          (malos ? '<br>' + (malos === 1 ? '1 archivo tiene' : malos + ' archivos tienen') + ' el nombre mal escrito: hay que corregirlo.' : '') + '</div>';
+      const filas = PP.map((x, k) => {
+        const l = A[x] || [];
+        return '<div class="ec-fila' + (l.length ? '' : ' sin') + '"><div class="ec-num">' + (k + 1) + '</div>' +
+          '<div class="ec-debe">' + esc(Q[x] || x) + '</div>' +
+          '<div class="ec-pres">' + (l.length ? l.map(archivo).join('') : '<span class="ec-falta">Falta</span>') + '</div></div>';
+      }).join('');
+      // Archivos que están en la carpeta pero no se piden (p. ej. una «nota promedio» en un trabajo aplicativo).
+      const sobran = Object.keys(A).filter(x => !PP.includes(x)).reduce((t, x) => t.concat(A[x]), []);
+      return '<section class="ec">' +
+        '<header class="ec-cab"><div><h5>' + esc(titulo) + '</h5><small>' + (apl ? 'Trabajo aplicativo' : 'Examen o práctica') +
+          ' · carpeta «' + esc(e.carpeta) + '» · punto ' + e.punto + ' ' + esc(NOMBRE_PUNTO_P[e.punto] || '') + '</small></div>' +
+          '<div class="ec-plazo"><span class="ev-chip ' + pl.clase + '">' + esc(pl.estado) + '</span><small>' + esc(pl.fecha) + '</small></div></header>' +
+        resumen +
+        '<div class="ec-tit"><div></div><div>Lo que debe presentar</div><div>Lo que presentó</div></div>' + filas +
+        (sobran.length ? '<div class="ec-sobran"><b>Otros archivos en la carpeta (no se piden):</b>' + sobran.map(archivo).join('') + '</div>' : '') +
+        '</section>';
+    }).join('')).join('');
+  }
+
   function pintarEvaluacionesPorta(ev) {
     if (ev === undefined) return '<div class="porta-sec"><h4>Evaluaciones del sílabo</h4><p class="sub"><b class="ojo">' +
       'Falta actualizar el servidor (Apps Script)</b> para que se revisen las evaluaciones del curso y el rotulado. ' +
@@ -12246,17 +12317,12 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '(las evidencias), separando las partes con puntos. No se suben videos. ' +
       '<a href="' + GUIA_ROTULADO + '" target="_blank" rel="noopener">📘 Ver la Guía rápida de rotulado</a> · ' +
       '<a href="' + verPdf('docs/guia-operativa-docente.pdf', 5, '4.5 portafolio') + '" target="_blank" rel="noopener">📕 Guía Operativa Docente, 4.5 (resaltado)</a></div>' +
-      '<p class="sub"><b>Cómo leer esta tabla:</b> detalla la tabla de arriba. Cada fila es una evaluación del curso —una ' +
-      'carpeta que creó Calidad y Acreditación dentro de «EVALUACIONES»— y dice a qué punto del portafolio corresponde. ' +
-      'Las columnas son las evidencias que exige la directiva: en exámenes y prácticas, 4 archivos (enunciado, mayor, menor y nota promedio); ' +
-      'en los trabajos aplicativos, 5 archivos numerados del ① al ⑤ (la estructura en blanco y, en las columnas de la mayor y de la menor nota, el trabajo del estudiante y su rúbrica). En cada casilla aparece el archivo que se encontró, ' +
-      'con su nombre y si está bien rotulado (si no, qué corregir y el nombre correcto); si no hay archivo, dice «Falta». ' +
-      'Para este curso, el rotulado sería, por ejemplo, <code>' + esc(ej) + '</code> y <code>' +
-      esc(ej.replace(/\.PDF$/, '')) + '.Nombre Apellido.Mayor.17.PDF</code>.</p>' +
+      '<p class="sub"><b>Cómo leer:</b> cada recuadro es una evaluación del curso. Arriba dice <b>qué falta</b>. ' +
+      'Abajo, a la izquierda, <b>lo que el docente debe presentar</b>; a la derecha, <b>lo que presentó</b>: ' +
+      '✔ está bien · ✘ está, pero hay que corregir el nombre del archivo · <b>Falta</b>: no lo subió.</p>' +
       (raros.length ? '<p class="sub"><b class="ojo">Las carpetas ' + esc(raros.join(' y ')) + ' tienen un código que el portal ' +
         'todavía no reconoce</b>; se cuentan en «Trabajos y tareas». Confirme con Calidad y Acreditación qué evaluación es cada una.</p>' : '') +
-      '<div class="ev-scroll"><table class="ev-tabla ev-detalle"><thead><tr><th>Evaluación</th><th>Plazo</th><th>Enunciado</th>' +
-      '<th>Mayor nota</th><th>Menor nota</th><th>Nota promedio</th></tr></thead><tbody>' + filas + '</tbody></table></div>' +
+      '<div class="ev-cards">' + tarjetasEvalPorta(ev) + '</div>' +
       '<p class="sub" style="margin-top:8px">' + (r.revisados
         ? r.bien + ' de ' + r.revisados + ' archivos están bien rotulados.' : 'Todavía no hay archivos en las carpetas de evaluaciones.') +
       (r.videos.length ? ' <b class="ojo">Hay ' + r.videos.length + (r.videos.length === 1 ? ' video' : ' videos') +
