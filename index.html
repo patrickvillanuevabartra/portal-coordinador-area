@@ -869,6 +869,7 @@ tbody tr:hover{background:#fafcfb}
   border:1px solid var(--linea);border-radius:5px;padding:1px 7px;color:var(--tinta-media);background:var(--papel)}
 
 /* -------------------------------------------------------------------- ficha */
+.caja-comp-doc{margin-top:12px}
 .caja-crono{margin-top:12px;padding:12px 14px;border:1px solid #bfe2ce;border-left:6px solid #1b7f4b;border-radius:10px;background:#f6fbf8}
 .nota-crono{font-size:13.5px;color:var(--tinta-media);margin:6px 0 0}
 .aviso-crono{font-size:13.5px;color:#8a4b00;background:#fdf4e3;border-left:4px solid #d99a1b;padding:8px 10px;border-radius:6px;margin:8px 0 0}
@@ -1799,7 +1800,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       <header class="tarjeta-cab">
         <div><span class="paso">3</span><h2>Competencias de las carreras</h2>
           <p>Las competencias genéricas y específicas de cada carrera, y cuáles desarrolla cada
-             curso. El sílabo se compara contra ellas en los ítems 03 y 04.</p></div>
+             curso. El sílabo se compara contra ellas en los ítems 03 y 04.</p>
+          <p>👩‍🏫 <b>Para los docentes:</b> pueden consultar las competencias de su curso, sin ingresar al portal, en el
+             <a href="docs/competencias.html" target="_blank" rel="noopener">visor de competencias por curso</a>.
+             En la revisión del sílabo de cada curso aparece el enlace directo para enviárselo.</p></div>
       </header>
       <div class="tarjeta-cuerpo">
         <div class="buscador" style="margin-bottom:12px;flex-wrap:wrap;gap:10px">
@@ -1937,6 +1941,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         <div class="meta" id="fichaMeta"></div>
         <div class="llave mono" id="fichaLlave"></div>
         <div id="cajaCronograma"></div>
+        <div id="cajaCompDocente"></div>
       </div>
       <div class="ficha-cuerpo">
         <div id="fichaForm"></div>
@@ -2230,7 +2235,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.06';
+  const VERSION_INTERNA = '2026-10-26.07';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2712,6 +2717,47 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     if (!fin) return { sinFecha: true, sinCrono: !cr };
     const desde = sumarDias(fin, plazoDias(evalNombre) + 1);
     return { vencida: hoyLima() >= desde, desde, semana, fuente };
+  }
+
+  // Visor abierto de competencias (docs/competencias.html): el coordinador puede
+  // enviar al docente el enlace de su curso, para que vea qué competencias
+  // específicas y genéricas debe declarar su sílabo, sin ingresar al portal.
+  const VISOR_COMPETENCIAS = new URL('docs/competencias.html', location.href).href.split('?')[0];
+  function planVisor(p) {
+    const t = String(p || '').toUpperCase();
+    if (/2024|P24/.test(t)) return '2024-I';
+    if (/2015|\b52\b/.test(t)) return '2015-II';
+    return '';
+  }
+  function enlaceCompetencias(a) {
+    const q = new URLSearchParams({ codigo: a.codigo || '' });
+    if (a.programa) q.set('carrera', a.programa);
+    const pl = planVisor(a.planEstudio); if (pl) q.set('plan', pl);
+    return VISOR_COMPETENCIAS + '?' + q.toString();
+  }
+  function pintarEnlaceCompetencias() {
+    const caja = $('cajaCompDocente'), a = estado.actual || {};
+    if (!caja || !a.codigo) return;
+    const url = enlaceCompetencias(a), curso = nombreCurso(a.asignatura || '');
+    const msj = 'Estimado(a) docente: en este enlace puede ver las competencias específicas y genéricas que el curso ' +
+      curso + ' (' + a.codigo + ') debe declarar en su sílabo, según la matriz de competencias de la Escuela: ' + url;
+    caja.innerHTML = '<div class="caja-crono caja-comp-doc">' +
+      '<b>👩‍🏫 Competencias de este curso, para enviar al docente</b>' +
+      '<p class="nota-crono">El docente puede ver, <b>sin ingresar al portal</b>, qué competencias específicas y genéricas debe declarar ' +
+      'su sílabo (son las que se revisan en los puntos 03 y 04). Si lo necesita, envíele este enlace.</p>' +
+      '<p class="nota-crono" style="word-break:break-all"><a href="' + esc(url) + '" target="_blank" rel="noopener">' + esc(url) + '</a></p>' +
+      '<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px">' +
+      '<button type="button" class="btn gris" id="compDocCopiar">🔗 Copiar el enlace</button>' +
+      '<a class="btn gris" href="' + esc(url) + '" target="_blank" rel="noopener">Abrir</a>' +
+      '<a class="btn gris" href="https://wa.me/?text=' + encodeURIComponent(msj) + '" target="_blank" rel="noopener">WhatsApp</a>' +
+      '<a class="btn gris" href="mailto:' + esc(a.correoDocente || '') + '?subject=' + encodeURIComponent('Competencias del curso ' + curso) +
+        '&body=' + encodeURIComponent(msj) + '">Correo</a>' +
+      '<span class="nota-crono" id="compDocAviso"></span></div></div>';
+    $('compDocCopiar').addEventListener('click', () => {
+      const ok = () => { $('compDocAviso').textContent = '✔ Enlace copiado. Péguelo en su mensaje al docente (Ctrl + V).'; };
+      try { navigator.clipboard.writeText(url).then(ok, () => { $('compDocAviso').textContent = 'Seleccione el enlace de arriba y cópielo con Ctrl + C.'; }); }
+      catch (e) { $('compDocAviso').textContent = 'Seleccione el enlace de arriba y cópielo con Ctrl + C.'; }
+    });
   }
 
   function pintarCajaCronograma() {
@@ -9103,6 +9149,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       dato('Ciclo', a.ciclo);
     $('fichaLlave').textContent = a.idAsignacion || 'sin ID';
     if ($('cajaCronograma')) $('cajaCronograma').innerHTML = '';
+    if ($('cajaCompDocente')) $('cajaCompDocente').innerHTML = '';
     aviso('', '');
 
     // Si el area no es suya, la ficha queda en consulta.
@@ -9377,7 +9424,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
     // La sumilla oficial de la carrera, a la vista: el ítem 02 pide compararla
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
-    if (F === FORMULARIOS.silabo) { mostrarReferenciasSilabo(); pintarCajaCronograma(); }
+    if (F === FORMULARIOS.silabo) { mostrarReferenciasSilabo(); pintarCajaCronograma(); pintarEnlaceCompetencias(); }
     if (F === FORMULARIOS.silabo) mostrarSilaboUnicoEnOtrosGrupos(estado.actual);
     if (estado.modulo === 'aulaVirtual') pintarRubricasPorEntregable();
 
