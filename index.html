@@ -2260,7 +2260,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.01';
+  const VERSION_INTERNA = '2026-10-27.02';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5648,11 +5648,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   const SUBGRUPOS = ['0','1','2','3','4','5'];
 
   const CAMPOS_EDIT = {
+    // 27/10/2026: el servidor solo acepta en Cursos-Sumillas «Código», «Plan texto» y
+    // «Semestre texto». Antes se enviaban «Codigo texto», «Plan de estudio» y «Semestre»,
+    // que se descartaban en silencio: el código «se borraba» al guardar (reporte del Ing. Vergara).
     curso: [
-      { col:'Codigo texto', etq:'Código', de:'codigo' },
+      { col:'Código', etq:'Código', de:'codigo' },
       { col:'Curso', etq:'Nombre del curso', de:'curso' },
-      { col:'Plan de estudio', etq:'Plan de estudio', de:'plan', ops:PLANES },
-      { col:'Semestre', etq:'Semestre', de:'semestre', ops:SEMESTRES },
+      { col:'Plan texto', etq:'Plan de estudio', de:'plan', ops:PLANES },
+      { col:'Semestre texto', etq:'Semestre', de:'semestre', ops:SEMESTRES },
       { col:'Área texto', etq:'Área', de:'area', ops:'areas' },
       { col:'Curso comun', etq:'¿Es un curso común?', de:'comun', ops:['No','Sí'],
         ayuda:'Marca Sí cuando lo llevan alumnos de dos carreras.' },
