@@ -463,6 +463,12 @@ tr.sin-leer{background:#fffdf6}
 .barrota i{display:block;height:100%;background:var(--brand)}
 .barrota.baja i{background:#d68910}
 .barrota.critica i{background:var(--falla)}
+.fila-car{display:grid;grid-template-columns:minmax(200px,1.1fr) minmax(220px,1.3fr) auto;gap:14px;align-items:center;padding:14px 4px;border-bottom:1px solid var(--linea)}
+.fila-car:last-of-type{border-bottom:0}.fc-nom b{font-size:17px;display:block}.fc-nom small,.fc-av small{display:block;font-size:14px;color:var(--tinta-media);margin-top:2px}
+.fc-pct{font-size:22px;font-weight:700;color:#0b6e48;display:block}.fc-pct.baja{color:#9a6700}.fc-pct.critica{color:#b42318}
+.fc-bot{display:flex;flex-wrap:wrap;gap:6px}.btn-car{font-size:14.5px;padding:8px 11px;border-radius:8px;border:1px solid var(--linea);background:#fff;cursor:pointer}
+.btn-car:hover{border-color:#0f8f5e;background:#f2faf6}.nota-car{background:#eef5fc;border:1px solid #c3ddf3;border-radius:8px;padding:10px 12px;font-size:15px;margin:0 0 6px}
+@media (max-width:820px){.fila-car{grid-template-columns:1fr}}
 .fila-mod{display:grid;grid-template-columns:130px 1fr 76px;gap:12px;align-items:center;
   padding:7px 0;font-size:13px}
 .fila-mod .val{text-align:right;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--tinta-media)}
@@ -2260,7 +2266,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.02';
+  const VERSION_INTERNA = '2026-10-27.03';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -6110,6 +6116,126 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   const AV_ABIERTAS = new Set();
   function clasePorc(p) { return p >= 70 ? '' : (p >= 40 ? ' baja' : ' critica'); }
 
+  /* ---------- Avance por carrera: reporte para el coordinador general ---------- */
+  // Los totales salen del servidor (por área); el detalle por formato se cuenta con
+  // el avance de cada carga que ya tiene el portal (mismas reglas que el servidor).
+  function datosPorCarrera(d) {
+    const corto = t => String(t || '').replace(/\s*\([^)]*\)\s*$/, '');
+    const por = {};
+    (d.areas || []).forEach(a => {
+      const k = a.programa || 'Sin carrera';
+      const c = por[k] = por[k] || { programa: k, areas: [], cargas: 0, registrados: 0, posibles: 0, atencion: [], formatos: null };
+      c.areas.push(a); c.cargas += a.cargas || 0; c.registrados += a.registrados || 0; c.posibles += a.posibles || 0;
+    });
+    const progDeArea = {}; (d.areas || []).forEach(a => { progDeArea[a.area] = a.programa; });
+    (d.atencion || []).forEach(a => { const k = progDeArea[a.area]; if (por[k]) por[k].atencion.push(a); });
+    if (estado.avanceListo) {
+      const cic = d.ciclo || '';
+      (estado.asignaciones || []).forEach(a => {
+        if ((a.soloConsulta && !a.idInforme) || (cic && a.ciclo && String(a.ciclo).replace(/\W/g, '') !== String(cic).replace(/\W/g, ''))) return;
+        const c = por[a.programa]; if (!c) return;
+        if (!c.formatos) { c.formatos = {}; c.nForm = 0; ORDEN_MODULOS.forEach(k => { c.formatos[k] = 0; }); }
+        c.nForm++;
+        const h = new Set(estado.avance[a.idAsignacion] || []);
+        ORDEN_MODULOS.forEach(k => { if (h.has(k)) c.formatos[k]++; });
+      });
+    }
+    return Object.values(por).map(c => {
+      c.pct = c.posibles ? Math.round(c.registrados / c.posibles * 1000) / 10 : 0;
+      c.areas.sort((x, y) => (x.porcentaje - y.porcentaje) || corto(x.area).localeCompare(corto(y.area), 'es'));
+      return c;
+    }).sort((x, y) => x.programa.localeCompare(y.programa, 'es'));
+  }
+  function generalDe(programa) {
+    const l = (estado.coordGenerales || []).filter(c => c.programa === programa);
+    return l.find(c => c.ciclo === $('filtroCiclo').value) || l[0] || null;
+  }
+  function textoReporteCarrera(c) {
+    const corto = t => String(t || '').replace(/\s*\([^)]*\)\s*$/, '');
+    const hoy = new Date().toLocaleDateString('es-PE', { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'America/Lima' });
+    const ciclo = (estado.indicadoresCarrera && estado.indicadoresCarrera.ciclo) || $('filtroCiclo').value || '';
+    const g = generalDe(c.programa), ent = (estado.entrevistasCarrera || []).find(e => e.carrera === c.programa);
+    const L = [];
+    L.push('AVANCE DE LA SUPERVISIÓN DOCENTE — ' + c.programa.toUpperCase());
+    L.push('Ciclo ' + ciclo + ' · al ' + hoy);
+    L.push('');
+    if (g) L.push('Estimado(a) ' + g.nombre + ', le compartimos cómo va la supervisión de su carrera.', '');
+    L.push('AVANCE GENERAL: ' + c.pct + '% (' + c.registrados + ' de ' + c.posibles + ' registros; ' + c.cargas + ' cargas lectivas).');
+    L.push('Qué mide: cuántas supervisiones ya están registradas. Cada carga tiene 6 formatos; avance = registros hechos ÷ (cargas × 6) × 100.');
+    if (c.formatos) {
+      L.push('', 'POR FORMATO (cargas con el formato registrado):');
+      ORDEN_MODULOS.forEach(k => { const n = c.formatos[k] || 0, p = c.nForm ? Math.round(n / c.nForm * 100) : 0;
+        L.push('• ' + CFG.MODULOS[k].nombre + ': ' + n + ' de ' + c.nForm + ' (' + p + '%)'); });
+    }
+    L.push('', 'POR ÁREA (de menor a mayor avance):');
+    c.areas.forEach(a => L.push('• ' + corto(a.area) + ' — ' + (a.coordinador || 'sin coordinador') + ': ' + a.porcentaje + '% (' + a.registrados + ' de ' + a.posibles + ')'));
+    if (ent) L.push('', 'Entrevista con los delegados de la carrera: ' + (ent.registrada ? 'realizada' : 'pendiente') + '.');
+    L.push('', 'REQUIEREN ATENCIÓN: ' + (c.atencion.length ? c.atencion.length : 'nada pendiente') + (c.atencion.length ? '' : '.'));
+    c.atencion.slice(0, 10).forEach(a => L.push('• ' + a.tipo + ': ' + nombreCurso(a.curso) + ' (' + a.docente + ')' + (a.detalle ? ' — ' + a.detalle : '')));
+    if (c.atencion.length > 10) L.push('• … y ' + (c.atencion.length - 10) + ' más (véalas en el portal).');
+    L.push('', 'Detalle en el Portal del Coordinador de Área → Indicadores.');
+    return L.join('\n');
+  }
+  function prepararReportesCarrera(porCar) {
+    const pintarGen = () => porCar.forEach((c, i) => { const x = $('fcGen' + i); if (!x) return;
+      const g = generalDe(c.programa);
+      x.textContent = g ? 'Coordinador general: ' + g.nombre : 'Coordinador general: no registrado (regístrelo en Coordinadores)'; });
+    if (estado.coordGenerales) pintarGen();
+    else api('/coordinadores').then(r => {
+      estado.coordGenerales = (r.coordinadores || []).filter(c => /general/i.test(c.rol || '') && !/inactiv/i.test(c.estado || ''));
+      pintarGen();
+    }).catch(() => { estado.coordGenerales = []; pintarGen(); });
+    document.querySelectorAll('.btn-car').forEach(b => b.addEventListener('click', () => {
+      const c = porCar[+b.dataset.car], g = generalDe(c.programa), txt = textoReporteCarrera(c), acc = b.dataset.acc;
+      const asunto = 'Avance de la supervisión docente — ' + c.programa;
+      const aviso = t => { const a = $('avisoCar'); if (a) a.textContent = t; };
+      if (acc === 'copiar') {
+        try { navigator.clipboard.writeText(txt).then(() => aviso('✔ Reporte de ' + c.programa + ' copiado. Péguelo donde quiera enviarlo (Ctrl + V).'),
+          () => aviso('No se pudo copiar: use «Ver e imprimir» y copie desde ahí.')); } catch (e) { aviso('No se pudo copiar.'); }
+      } else if (acc === 'correo') {
+        if (!g || !g.correo) aviso('No hay correo del coordinador general de ' + c.programa + ': escriba usted el destinatario.');
+        location.href = 'mailto:' + encodeURIComponent((g && g.correo) || '') + '?subject=' + encodeURIComponent(asunto) + '&body=' + encodeURIComponent(txt);
+      } else if (acc === 'wa') {
+        let cel = String((g && g.celular) || '').replace(/\D/g, '');
+        if (cel.length === 9) cel = '51' + cel;
+        window.open('https://wa.me/' + cel + '?text=' + encodeURIComponent(txt), '_blank', 'noopener');
+        if (!cel) aviso('No hay celular del coordinador general de ' + c.programa + ': elija el contacto en WhatsApp.');
+      } else {
+        const w = window.open('', '_blank');
+        if (!w) { aviso('El navegador bloqueó la ventana. Permita las ventanas emergentes de este portal.'); return; }
+        const bar = p => '<div style="height:14px;background:#e3e8e5;border-radius:7px;overflow:hidden"><div style="height:100%;width:' + p + '%;background:' +
+          (p >= 70 ? '#0f8f5e' : p >= 40 ? '#d99a1b' : '#c0392b') + '"></div></div>';
+        const corto = t => String(t || '').replace(/\s*\([^)]*\)\s*$/, '');
+        const ciclo = (estado.indicadoresCarrera && estado.indicadoresCarrera.ciclo) || '';
+        const ent = (estado.entrevistasCarrera || []).find(e => e.carrera === c.programa);
+        w.document.write('<!doctype html><html lang="es"><head><meta charset="utf-8"><title>' + esc(asunto) + '</title><style>' +
+          'body{font-family:"IBM Plex Sans",system-ui,sans-serif;margin:28px;font-size:17px;color:#15201b;line-height:1.5}h1{font-size:24px;color:#0b6e48;margin:0 0 4px}' +
+          'h2{font-size:19px;color:#0b6e48;margin:22px 0 8px;border-bottom:2px solid #0f8f5e;padding-bottom:4px}.big{font-size:40px;font-weight:700;color:#0b6e48}' +
+          'table{border-collapse:collapse;width:100%;font-size:16px}td,th{border:1px solid #dfe4e1;padding:7px 9px;text-align:left;vertical-align:top}th{background:#f3f6f4}' +
+          '.nota{background:#eef5fc;border:1px solid #c3ddf3;border-radius:8px;padding:10px 12px;font-size:15.5px}@media print{button{display:none}}</style></head><body>' +
+          '<button onclick="print()" style="float:right;font-size:16px;padding:8px 14px">🖨️ Imprimir o guardar en PDF</button>' +
+          '<h1>Avance de la supervisión docente</h1><div>' + esc(c.programa) + ' · ciclo ' + esc(ciclo) + ' · al ' + new Date().toLocaleDateString('es-PE', { timeZone: 'America/Lima' }) +
+          (g ? ' · Coordinador general: <b>' + esc(g.nombre) + '</b>' : '') + '</div>' +
+          '<h2>Avance general</h2><div class="big">' + c.pct + '%</div>' + bar(c.pct) +
+          '<p>' + c.registrados + ' de ' + c.posibles + ' registros · ' + c.cargas + ' cargas lectivas' + (ent ? ' · Entrevista con delegados: <b>' + (ent.registrada ? 'realizada' : 'pendiente') + '</b>' : '') + '</p>' +
+          '<p class="nota"><b>Qué mide:</b> cuántas de las supervisiones que corresponden ya están registradas en el portal. Cada carga lectiva tiene 6 formatos. ' +
+          '<b>Avance = registros hechos ÷ (cargas × 6) × 100.</b> Verde: 70% o más · Ámbar: 40% a 69% · Rojo: menos de 40%.</p>' +
+          (c.formatos ? '<h2>Por formato</h2><table><tr><th>Formato</th><th style="width:150px">Registrados</th><th style="width:35%">Avance</th></tr>' +
+            ORDEN_MODULOS.map(k => { const n = c.formatos[k] || 0, p = c.nForm ? Math.round(n / c.nForm * 100) : 0;
+              return '<tr><td>' + esc(CFG.MODULOS[k].nombre) + '</td><td>' + n + ' de ' + c.nForm + '</td><td>' + bar(p) + '<small>' + p + '%</small></td></tr>'; }).join('') + '</table>' : '') +
+          '<h2>Por área (de menor a mayor avance)</h2><table><tr><th>Área</th><th>Coordinador</th><th style="width:80px">Cargas</th><th style="width:30%">Avance</th></tr>' +
+          c.areas.map(a => '<tr><td><b>' + esc(corto(a.area)) + '</b></td><td>' + esc(a.coordinador || '⚠ Sin coordinador') + '</td><td>' + a.cargas + '</td><td>' + bar(a.porcentaje) +
+            '<small>' + a.porcentaje + '% · ' + a.registrados + ' de ' + a.posibles + '</small></td></tr>').join('') + '</table>' +
+          '<h2>Requieren atención (' + c.atencion.length + ')</h2>' + (c.atencion.length
+            ? '<table><tr><th>Situación</th><th>Curso</th><th>Docente</th><th>Área</th></tr>' + c.atencion.map(a => '<tr><td><b>' + esc(a.tipo) + '</b><br><small>' + esc(a.detalle || '') + '</small></td><td>' +
+              esc(nombreCurso(a.curso)) + '</td><td>' + esc(a.docente) + '</td><td>' + esc(corto(a.area)) + '</td></tr>').join('') + '</table>'
+            : '<p>Nada pendiente de atención.</p>') +
+          '</body></html>');
+        w.document.close();
+      }
+    }));
+  }
+
   function pintarIndicadores(d) {
     const posibles = d.totalCargas * d.totalModulos;
     const pct = posibles ? Math.round(d.registrados / posibles * 1000) / 10 : 0;
@@ -6142,6 +6268,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       h += '<div class="subtitulo">Entrevista con los delegados de la carrera</div><div id="indEntrevistas"><div class="vacio">Cargando…</div></div>';
       setTimeout(() => {
         api('/entrevistas-carrera?ciclo=' + encodeURIComponent($('filtroCiclo').value)).then(r => {
+          estado.entrevistasCarrera = r.entrevistas || [];
+          document.querySelectorAll('[data-ent-car]').forEach(x => { const e = estado.entrevistasCarrera.find(z => z.carrera === x.dataset.entCar);
+            x.textContent = e ? (e.registrada ? '✔ Entrevista con delegados realizada' : '⏳ Entrevista con delegados pendiente') : ''; });
           const caja = $('indEntrevistas'); if (!caja) return;
           caja.innerHTML = (r.entrevistas || []).map(e => '<div class="fila-mod"><span>' + esc(e.carrera) + '</span>' +
             '<span class="barrota"><i style="width:' + (e.registrada ? 100 : 0) + '%"></i></span>' +
@@ -6151,6 +6280,36 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       }, 50);
     }
     h += '</div></section>';
+
+    // Avance por carrera (27/10/2026): un reporte por carrera para enviarlo a su
+    // coordinador general (correo, WhatsApp o impreso).
+    if ((estado.admin || estado.general) && (d.areas || []).length) {
+      estado.indicadoresCarrera = d;
+      const porCar = datosPorCarrera(d);
+      h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
+        '<h2>Avance por carrera</h2><p>El reporte de cada carrera, listo para enviarlo a su <b>coordinador general</b>: ' +
+        'por correo, por WhatsApp o impreso.</p></div></header><div class="tarjeta-cuerpo">' +
+        '<p class="nota-car">ℹ️ <b>Qué mide el avance:</b> cuántas de las supervisiones que corresponden ya están registradas. ' +
+        'Cada carga lectiva tiene 6 formatos (lista de verificación del sílabo, F1 a F3, aula virtual, portafolio, fórmula y delegados). ' +
+        '<b>Avance = registros hechos ÷ (cargas × 6) × 100.</b></p>';
+      porCar.forEach((c, i) => {
+        h += '<div class="fila-car">' +
+          '<div class="fc-nom"><b>' + esc(c.programa) + '</b>' +
+            '<small id="fcGen' + i + '">Coordinador general: …</small>' +
+            '<small data-ent-car="' + esc(c.programa) + '"></small></div>' +
+          '<div class="fc-av"><span class="fc-pct' + clasePorc(c.pct) + '">' + c.pct + '%</span>' +
+            '<span class="barrota' + clasePorc(c.pct) + '"><i style="width:' + c.pct + '%"></i></span>' +
+            '<small>' + c.registrados + ' de ' + c.posibles + ' registros · ' + c.cargas + ' cargas</small></div>' +
+          '<div class="fc-bot">' +
+            '<button type="button" class="btn-car" data-car="' + i + '" data-acc="ver">📄 Ver e imprimir</button>' +
+            '<button type="button" class="btn-car" data-car="' + i + '" data-acc="correo">✉️ Correo</button>' +
+            '<button type="button" class="btn-car" data-car="' + i + '" data-acc="wa">💬 WhatsApp</button>' +
+            '<button type="button" class="btn-car" data-car="' + i + '" data-acc="copiar">📋 Copiar</button>' +
+          '</div></div>';
+      });
+      h += '<p class="ayuda" id="avisoCar"></p></div></section>';
+      setTimeout(() => prepararReportesCarrera(porCar), 30);
+    }
 
     // Por área: lo que mira el coordinador general y la auditoría. Se agrupa
     // por carrera, en desplegables, como «Coordinadores y áreas por carrera».
