@@ -406,6 +406,8 @@ tr.sin-leer{background:#fffdf6}
 .alerta-candado{display:block;margin-top:8px;background:#fdecea;border:1px solid #e6a49a;
   border-left:3px solid #c0392b;border-radius:6px;padding:9px 12px;color:#8f2418;
   font-size:12px;line-height:1.5}
+.leccion-ciclo{margin-top:16px;border:2px solid #f0c987;background:#fff8e6;border-radius:10px;padding:12px 16px;font-size:15px;line-height:1.5}
+.leccion-ciclo p{margin:6px 0}.leccion-ciclo ol{margin:6px 0 10px;padding-left:22px}
 .caja-supervisa{display:flex;gap:16px;align-items:center;justify-content:space-between;
   flex-wrap:wrap;background:var(--fondo);border:1px solid var(--linea);border-radius:10px;
   padding:14px 16px;margin-top:14px}
@@ -1415,6 +1417,28 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           de Ciencias y Estudios Generales. Con la casilla marcada solo entran los que la
           Escuela asignó a un área.</p>
         <div id="logPdf" class="consola oculto"></div>
+        <div class="leccion-ciclo">
+          <b>⚠️ Lección aprendida (ciclo 2026-II): revise los códigos del catálogo ANTES de importar</b>
+          <p>En 2026-II, cinco cursos de Ingeniería Civil del <b>plan 2024-I</b> quedaron con el curso del <b>plan 2015-II</b>.
+            Por ejemplo, «Materiales de Construcción» del Ing. José Vergara: el Departamento (DAI) registró el código
+            <b>IC0505</b> (plan 2024-I), pero en el catálogo ese curso del plan 2024-I <b>no tenía código</b>, y la carga se
+            enganchó con «Materiales de Construcción» del plan 2015-II (IC0501).</p>
+          <p><b>Por qué pasa:</b> el horario de la guía de matrícula publica el mismo curso dos veces, una por plan
+            (IC-0501 y IC-0505 «Materiales de Construcción»), y en cada plan el mismo código es <b>otro curso</b>
+            (en el 2015-II, IC0505 es «Mecánica de Fluidos»).</p>
+          <p><b>Qué hacer antes de importar la carga del 2027-I:</b></p>
+          <ol>
+            <li>Pulse <b>«Revisar cursos sin código»</b> (abajo) y complete el código de cada curso, plan por plan,
+              en <i>Validar datos → Catálogo de cursos</i>. El código sale del plan de estudios de la Escuela o de su
+              matriz de competencias, nunca del nombre del curso.</li>
+            <li>Al cruzar con el catálogo (paso 2), no importe nada que aparezca como «curso en otro plan» o
+              «código con otro nombre»: primero corrija el catálogo.</li>
+            <li>Ante la duda, manda la carga del Departamento (DAI): su código y su plan.</li>
+          </ol>
+          <div class="buscador"><button class="btn gris" type="button" id="btnSinCodigo">Revisar cursos sin código</button>
+            <span class="conteo" id="avisoSinCodigo"></span></div>
+          <div id="listaSinCodigo"></div>
+        </div>
       </div>
     </section>
   </section>
@@ -2235,7 +2259,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.07';
+  const VERSION_INTERNA = '2026-10-26.08';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4197,6 +4221,26 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         $('btnCruzarPdf').disabled = false;
       })
       .catch(e => { logPdf('ERROR: ' + e.message); $('btnCruzarPdf').disabled = false; });
+  });
+
+  // Lección 2026-II: un curso sin código en el catálogo hace que la carga se
+  // enganche con el curso del mismo nombre de otro plan. Se listan los cursos
+  // sin código de los semestres que supervisa el SGOE (IV a X y electivos).
+  $('btnSinCodigo').addEventListener('click', () => {
+    $('btnSinCodigo').disabled = true; $('avisoSinCodigo').textContent = 'Revisando el catálogo…';
+    api('/consultar?tabla=cursos').then(d => {
+      const PEB = /^(I|II|III|0?1|0?2|0?3)$/i;
+      const l = (d.filas || []).filter(c => !String(c.codigo || '').trim() && !PEB.test(String(c.semestre || '').trim()))
+        .sort((a, b) => (a.programa || '').localeCompare(b.programa || '') || String(a.plan).localeCompare(String(b.plan)) ||
+                        String(a.curso).localeCompare(String(b.curso)));
+      $('avisoSinCodigo').textContent = l.length ? l.length + ' cursos sin código.' : '✔ Todos los cursos del catálogo tienen código.';
+      $('listaSinCodigo').innerHTML = l.length ? '<table class="tabla-crono"><tr><th>Carrera</th><th>Plan</th><th>Semestre</th><th>Curso</th></tr>' +
+        l.map(c => '<tr><td>' + esc(c.programa || '') + '</td><td>' + esc(c.plan || '') + '</td><td>' + esc(c.semestre || '—') +
+          '</td><td>' + esc(c.curso || '') + '</td></tr>').join('') + '</table>' +
+        '<p class="ayuda">Complete el código de cada uno en Validar datos → Catálogo de cursos. Los cursos de los semestres I a III ' +
+        '(Estudios Básicos) no se listan porque no los supervisa el SGOE.</p>' : '';
+      $('btnSinCodigo').disabled = false;
+    }).catch(e => { $('avisoSinCodigo').textContent = 'No se pudo revisar: ' + e.message; $('btnSinCodigo').disabled = false; });
   });
 
   $('btnImportarPdf').addEventListener('click', async () => {
