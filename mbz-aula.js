@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-26.1';
+  const VERSION_REGLAS = 'mbz-2026-10-27.1';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -67,10 +67,12 @@
   async function esCopiaMbz(f) {
     if (!f) return false;
     if (/\.mbz(\b|$|[^a-z])/i.test(f.name || '')) return true;
-    if (/\.(pdf|docx?|xlsx?|csv|txt|vtt|srt|md|png|jpe?g|webp)$/i.test(f.name || '')) return false;
+    if (/\.(pdf|docx?|xlsx?|pptx?|csv|txt|vtt|srt|md|png|jpe?g|webp)$/i.test(f.name || '')) return false;
     try {
       const b = new Uint8Array(await f.slice(0, 4).arrayBuffer());
-      return b[0] === 0x1f && b[1] === 0x8b;
+      if (b[0] === 0x1f && b[1] === 0x8b) return true;
+      // Segunda opción: el .zip de «Descargar contenido del curso» (27/10/2026).
+      return /\.zip$/i.test(f.name || '') && b[0] === 0x50 && b[1] === 0x4b;
     } catch (e) { return false; }
   }
   async function buscarCopia(archivos) {
@@ -319,9 +321,20 @@
   }
 
   /* ------------------------------------------------------ los hechos */
-  async function leer(file, progreso) {
+  async function leer(file, progreso, opciones) {
     const avance = (f, t) => progreso && progreso(f, t);
     avance(0, 'Abriendo la copia del aula…');
+    // ¿Es el .zip de «Descargar contenido del curso»? (no trae moodle_backup.xml)
+    const cab0 = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+    if (cab0[0] === 0x50 && cab0[1] === 0x4b) {
+      const fflate = await asegurarFflate();
+      const todo = new Uint8Array(await file.arrayBuffer()), nombres = [];
+      fflate.unzipSync(todo, { filter: f => { nombres.push(f.name); return false; } });
+      if (!nombres.includes('moodle_backup.xml')) {
+        if (nombres.some(n => /^[^\/]+\/index\.html$/i.test(n))) return leerZipContenido(file, todo, nombres, avance, opciones || {});
+        throw new Error('El .zip no parece descargado del aula virtual: no trae la copia de seguridad (.mbz) ni el contenido del curso («Descargar contenido del curso»).');
+      }
+    }
     const ex = await extraer(file, f => avance(f * 0.7, 'Leyendo la copia del aula… ' + Math.round(f * 100) + '%'));
     const raizB = parsearXml(ex.xml['moodle_backup.xml']);
     if (!raizB) throw new Error('La copia no trae moodle_backup.xml: no parece una copia de seguridad de un aula de Moodle.');
@@ -329,7 +342,7 @@
     const g = k => val(hijo(inf, k));
     const ajustes = {};
     hijos(ruta(inf, 'settings'), 'setting').forEach(s => { if (val(hijo(s, 'level')) === 'root') ajustes[val(hijo(s, 'name'))] = val(hijo(s, 'value')); });
-    const corto = g('original_course_shortname'), mc = corto.match(/(\d{4})(\d)-(\d+)-G(\d+)-(\d+)/i);
+    const corto = g('original_course_shortname'), mc = corto.match(/(\d{4})(\d)-([0-9A-Z]+)-G(\d+)-(\d+)/i);
     const H = {
       versionReglas: VERSION_REGLAS,
       archivo: { nombre: file.name, tamano: file.size },
@@ -404,6 +417,157 @@
       H.acts.push(act);
     });
 
+    await leerTextos(H, ex, avance);
+    avance(1, 'Listo');
+    return H;
+  }
+
+  /* =========================================================================
+     Segunda opción (27/10/2026): el .zip de «Descargar contenido del curso»
+     -------------------------------------------------------------------------
+     Algunos coordinadores no tienen el permiso «Reutilización de curso» y no
+     pueden sacar la copia de seguridad (.mbz). Moodle sí les deja «Más →
+     Descargar contenido del curso»: un .zip con una página por actividad y
+     sus archivos, ordenado por semanas.
+     Trae: el nombre del aula, las semanas, cada recurso con su nombre, sus
+     archivos (PDF, Word, PowerPoint) y los enlaces.
+     NO trae: las fechas de publicación, si algo está oculto, las rúbricas
+     configuradas en las tareas ni las fechas de las tareas, ni los archivos
+     de más de 50 MB. Las reglas lo tienen en cuenta (H.fuente === 'zip').
+     ========================================================================= */
+  const MESES = { enero: 1, febrero: 2, marzo: 3, abril: 4, mayo: 5, junio: 6, julio: 7, agosto: 8, septiembre: 9, setiembre: 9, octubre: 10, noviembre: 11, diciembre: 12 };
+  const TIPO_ZIP = { archivo: 'resource', carpeta: 'folder', tarea: 'assign', foro: 'forum', url: 'url', etiqueta: 'label', 'area de texto y medios': 'label',
+    pagina: 'page', libro: 'book', cuestionario: 'quiz', leccion: 'lesson', glosario: 'glossary', wiki: 'wiki', encuesta: 'feedback', consulta: 'choice',
+    taller: 'workshop', h5p: 'h5pactivity', 'paquete scorm': 'scorm', chat: 'chat', 'base de datos': 'data' };
+  const MIME = { pdf: 'application/pdf', docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', ppt: 'application/vnd.ms-powerpoint',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime',
+    mkv: 'video/x-matroska', avi: 'video/x-msvideo', m4v: 'video/mp4', mp3: 'audio/mpeg', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', zip: 'application/zip' };
+  const entidades = s => String(s || '').replace(/&#(\d+);/g, (m, n) => String.fromCharCode(+n)).replace(/&#x([0-9a-f]+);/gi, (m, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&nbsp;/g, ' ').replace(/&quot;/g, '"').replace(/&#39;|&apos;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+  const textoPlano = h => entidades(String(h || '').replace(/<[^>]+>/g, ' ')).replace(/\s+/g, ' ').trim();
+  // Huella del archivo (para ver si el mismo archivo se repite en dos semanas).
+  function huella(d) { let h = 0x811c9dc5; const n = Math.min(d.length, 262144); for (let i = 0; i < n; i++) { h ^= d[i]; h = Math.imul(h, 16777619); } return d.length + '-' + (h >>> 0).toString(16); }
+  // «… por NOMBRE el martes, 27 de octubre de 2026, 12:32» → fecha de la descarga (el nombre no se guarda).
+  function fechaDescarga(html) {
+    const m = textoPlano(html).match(/\bel\s+[a-záéíóú]+,\s+(\d{1,2})\s+de\s+([a-záéíóú]+)\s+de\s+(\d{4}),\s+(\d{1,2}):(\d{2})/i);
+    if (!m || !MESES[norm(m[2])]) return 0;
+    return Math.floor(Date.UTC(+m[3], MESES[norm(m[2])] - 1, +m[1], +m[4], +m[5]) / 1000) - LIMA;
+  }
+  async function leerZipContenido(file, todo, nombres, avance, op) {
+    const fflate = raiz.fflate, dec = b => new TextDecoder('utf-8').decode(b);
+    const raizZ = nombres.find(n => /^[^\/]+\/index\.html$/i.test(n)).split('/')[0] + '/';
+    const MAX = REGLAS.maxPdfMB * 1048576, tamanos = {}, porNFC = {};
+    avance(0.1, 'Abriendo el contenido del curso…');
+    const r = fflate.unzipSync(todo, { filter: f => {
+      tamanos[f.name] = f.originalSize; porNFC[f.name.normalize('NFC')] = f.name;
+      if (!f.name.startsWith(raizZ)) return false;
+      if (/\/index\.html$/i.test(f.name)) return f.name.split('/').length <= 3;
+      return /\.(pdf|docx|pptx)$/i.test(f.name) && /\/content\//.test(f.name) && f.originalSize <= MAX;
+    } });
+    avance(0.5, 'Leyendo las semanas del aula…');
+    const ix = dec(r[raizZ + 'index.html']);
+    const corto = textoPlano((ix.match(/<p>\s*(CU-[^<]+)<\/p>/i) || [])[1] || '');
+    const nombre = textoPlano((ix.match(/<h1>[\s\S]*?<\/h1>/i) || [''])[0]);
+    const mc = (corto || nombre).match(/(\d{4})(\d)-([0-9A-Z]+)-G(\d+)-(\d+)/i);
+    const copia = fechaDescarga((ix.match(/<footer[\s\S]*?<\/footer>/i) || [''])[0]) || Math.floor((file.lastModified || Date.now()) / 1000);
+    // El inicio de clases no viene en el .zip: se toma del calendario académico del portal.
+    const fi = String(op.inicio || '').match(/^(\d{4})-(\d{2})-(\d{2})/);
+    const inicio = fi ? Date.UTC(+fi[1], +fi[2] - 1, +fi[3], 17) / 1000 : 0;
+    const H = {
+      versionReglas: VERSION_REGLAS, fuente: 'zip',
+      archivo: { nombre: file.name, tamano: file.size },
+      aula: { nombre, corto: corto.replace(/^CU-/i, '') || corto, idMoodle: (ix.match(/course\/view\.php\?id=(\d+)/) || [])[1] || '', inicio, fin: 0, copia,
+        moodle: '«Descargar contenido del curso»', formato: '',
+        periodo: mc ? mc[1] + '-' + mc[2] : '', codigoMoodle: mc ? mc[3] : '', grupo: mc ? String(+mc[4]) : '',
+        subgrupo: mc ? mc[5] : '', tipo: mc ? (mc[5] === '0' ? 'teoría' : 'taller o práctica') : '' },
+      conUsuarios: false, secciones: [], acts: [], pdfLeidos: [], avisos: [], noVinieron: []
+    };
+    H.inicioDia = inicio ? diaLima(inicio) : null;
+    H.semanaActual = inicio ? Math.floor((diaLima(copia) - H.inicioDia) / 7) + 1 : null;
+    const ex = { pdf: {}, office: {} };
+    const fin = ix.search(/<\/main>/i), cuerpo = ix.slice(Math.max(0, ix.search(/<h3/i)), fin > 0 ? fin : undefined);
+    cuerpo.split(/<hr\s*\/?>/i).forEach(tr => {
+      if (!/<h3/i.test(tr)) return;
+      const num = H.secciones.length;
+      H.secciones.push({ id: String(num), num, nombre: textoPlano((tr.match(/<h3[^>]*>([\s\S]*?)<\/h3>/i) || [])[1]),
+        resumen: htmlATexto((tr.match(/<\/h3>\s*<div>([\s\S]*?)<\/div>\s*(?:<ul|$)/i) || [])[1] || ''), visible: true });
+      const rxLi = /<li>\s*<a href="\.\/([^"]+?)\/index\.html">([\s\S]*?)<\/a>/gi;
+      let m;
+      while ((m = rxLi.exec(tr))) {
+        const dir = entidades(m[1]), txt = textoPlano(m[2]), mt = txt.match(/^([\s\S]*)\(([^()]+)\)\s*$/);
+        const tipoTxt = mt ? mt[2].trim() : dir.split('_')[0];
+        const mod = TIPO_ZIP[norm(tipoTxt)] || norm(tipoTxt).replace(/[^a-z0-9]/g, '');
+        let dirZ = raizZ + dir;
+        if (!r[dirZ + '/index.html']) { try { dirZ = raizZ + decodeURIComponent(dir); } catch (e) { /* se queda */ } }
+        const html = r[dirZ + '/index.html'] ? dec(r[dirZ + '/index.html']) : '';
+        const desc = (html.match(/<h3>\s*Descripci[oó]n\s*<\/h3>\s*<div>([\s\S]*?)<\/div>\s*<hr/i) || [])[1] || '';
+        const act = { id: (dir.match(/\.(\d+)$/) || [])[1] || dir, mod, titulo: (mt ? mt[1] : txt).trim(), seccion: num, agregado: 0, visible: true, archivos: [] };
+        // Los archivos que la página dice que tiene; si no vinieron en el .zip, es porque pesan más de 50 MB.
+        const hrefs = [];
+        ((html.match(/<h3>\s*Archivos y subcarpetas\s*<\/h3>([\s\S]*?)<hr/i) || [])[1] || '').replace(/href="([^"]+)"/g, (x, h) => hrefs.push(h));
+        const archivos = hrefs.filter(h => !/^(https?:|\.\.|#|mailto:)/i.test(h)).map(h => {
+          let rel = entidades(h); try { rel = decodeURIComponent(rel); } catch (e) { /* se queda */ }
+          const ruta = porNFC[(dirZ + '/' + rel).normalize('NFC')] || (dirZ + '/' + rel);
+          const nom = rel.split('/').pop(), ext = ((nom.match(/\.([a-z0-9]+)$/i) || [])[1] || '').toLowerCase();
+          const f = { nombre: nom, hash: 'z:' + (tamanos[ruta] || 0) + ':' + nom, tamano: tamanos[ruta] || 0, tipo: MIME[ext] || '', modificado: 0,
+            componente: 'mod_' + mod, area: 'content', enZip: tamanos[ruta] != null };
+          const d = r[ruta];
+          if (d) { f.hash = huella(d);
+            if (d[0] === 0x25 && d[1] === 0x50 && d[2] === 0x44 && d[3] === 0x46) ex.pdf[f.hash] = d;
+            else if (d[0] === 0x50 && d[1] === 0x4b) ex.office[f.hash] = d; }
+          if (!f.enZip) H.noVinieron.push('«' + nom + '» (' + act.titulo + ')');
+          return f;
+        });
+        if (mod === 'assign') act.adjuntos = archivos; else act.archivos = archivos;
+        const texto = htmlATexto(desc);
+        if (mod === 'assign' || mod === 'label') act.texto = texto.slice(0, 600);
+        if (mod === 'page' || mod === 'book') act.texto = texto.slice(0, 300);
+        if (mod === 'label') {
+          // En el .zip todas las etiquetas se llaman «Etiqueta»: el título sale de su texto o de sus imágenes.
+          const imgs = []; desc.replace(/src="intro\/([^"]+)"/gi, (x, s) => { try { imgs.push(decodeURIComponent(s)); } catch (e) { imgs.push(s); } });
+          const t = texto.split('\n')[0].slice(0, 100) || imgs.map(s => s.replace(/\.[a-z0-9]+$/i, '')).filter(s => !/^(image|imagen|img)[\s_-]*\d*$/i.test(s)).join(', ');
+          if (t && /^etiqueta$/i.test(act.titulo)) act.titulo = t;
+        }
+        if (mod === 'forum') act.tipoForo = /^avisos$/i.test(act.titulo) ? 'news' : 'general';
+        if (mod === 'url') {
+          // NUNCA se guarda la URL completa: puede traer la clave de una reunión.
+          const ext = (html.match(/https?:\/\/[^"'\s<>&]+/gi) || []).map(u => (u.match(/^[a-z]+:\/\/([^\/?#:]+)/i) || [])[1] || '')
+            .filter(d => d && !/(^|\.)urp\.edu\.pe$/i.test(d) && !/w3\.org$/i.test(d));
+          act.dominio = (ext[0] || '').toLowerCase();
+        }
+        H.acts.push(act);
+      }
+    });
+    if (H.noVinieron.length) H.avisos.push('No vinieron en el .zip (Moodle no incluye archivos de más de 50 MB): ' + y(H.noVinieron.slice(0, 8)) + (H.noVinieron.length > 8 ? '…' : '') + '.');
+    await leerTextos(H, ex, (f, t) => avance(0.5 + 0.5 * Math.max(0, (f - 0.7) / 0.3), t));
+    avance(1, 'Listo');
+    return H;
+  }
+
+  // Lo que se puede y no se puede revisar con el .zip (va en el reporte y en la guía).
+  function notaZipHTML(H, corta) {
+    const sinCal = H && H.fuente === 'zip' && H.inicioDia == null;
+    return '<div class="mbz-zip"><div class="mbz-zip-t">📦 Segunda opción: archivo de «Descargar contenido del curso» (.zip)</div>' +
+      (corta ? '' : '<p>Se revisó este archivo porque no se usó la copia de seguridad (.mbz). Sirve, pero <b>trae menos datos</b>: por eso algunos puntos los revisa usted.</p>') +
+      '<div class="mbz-zip-cols"><div class="mbz-zip-si"><b>✔ Lo que SÍ se puede revisar</b><ul>' +
+        '<li><b>01 Sílabo:</b> que esté publicado y que sea del semestre.</li>' +
+        '<li><b>02 Mensaje de sensibilización:</b> que esté publicado.</li>' +
+        '<li><b>05 Materiales:</b> que cada semana tenga su material y que corresponda al tema del sílabo.</li>' +
+        '<li><b>07 Materiales adicionales:</b> lecturas, videos y enlaces de apoyo.</li>' +
+        '<li><b>03 y 06:</b> la lista de planes de sesión, tareas y foros, para que usted los revise.</li></ul></div>' +
+      '<div class="mbz-zip-no"><b>✘ Lo que NO se puede revisar con este archivo</b><ul>' +
+        '<li><b>Las fechas:</b> cuándo se publicó cada cosa (si el material salió 7 días antes, si el sílabo estaba desde el inicio).</li>' +
+        '<li><b>Lo oculto:</b> si algo está escondido para los estudiantes.</li>' +
+        '<li><b>04 Rúbricas:</b> no trae las rúbricas de las tareas ni sus fechas. Este punto lo revisa usted en el aula.</li>' +
+        '<li><b>08 Grabaciones:</b> se reconocen solo por el nombre, sin fechas.</li>' +
+        '<li><b>Archivos de más de 50 MB:</b> Moodle no los pone en el .zip.</li></ul></div></div>' +
+      (sinCal ? '<p class="mbz-zip-rec">⚠️ Falta el calendario académico del ciclo en el portal: no se sabe qué semanas ya debían tener material, así que se revisaron hasta la última semana que tiene material.</p>' : '') +
+      '<p class="mbz-zip-rec">👉 Para la revisión completa, pida a su Escuela (o a OFICIC) el permiso de <b>«Reutilización de curso»</b> en el aula y use la copia de seguridad (.mbz).</p></div>';
+  }
+
+  // Texto de los PDF, Word y PowerPoint: primeras páginas (y el sílabo completo).
+  async function leerTextos(H, ex, avance) {
     // PDF: primeras páginas de cada uno (y el sílabo completo).
     const pdfs = [];
     H.acts.forEach(a => a.archivos.forEach(f => { if (ex.pdf[f.hash] && !pdfs.some(p => p.hash === f.hash)) pdfs.push({ hash: f.hash, nombre: f.nombre, act: a }); }));
@@ -436,8 +600,6 @@
       f.sesionEnPdf = s ? +s[1] : null;
       if (/s[ií]labo/i.test(f.nombre + ' ' + a.titulo) || /s[íi]labo\s+20\d\d/i.test(f.inicioTexto)) f.silabo = leerSilabo(t.lineas);
     }));
-    avance(1, 'Listo');
-    return H;
   }
 
   /* ---------------------------------------------- clasificación simple */
@@ -623,6 +785,26 @@
     return r;
   }
 
+  // Con el .zip de «Descargar contenido del curso» no hay rúbricas configuradas ni fechas
+  // de las tareas: el punto lo decide el coordinador; aquí solo se reúne lo que hay.
+  function regla04Zip(H, cuadro) {
+    const tareas = H.acts.filter(a => a.mod === 'assign'), cuest = H.acts.filter(a => a.mod === 'quiz');
+    const nombreDe = x => x.titulo + ' ' + (x.archivos || []).concat(x.adjuntos || []).map(f => f.nombre).join(' ');
+    const rub = H.acts.filter(a => (a.mod === 'resource' || a.mod === 'url' || a.mod === 'folder') && RX_RUB.test(nombreDe(a)));
+    const conAdj = tareas.filter(a => (a.adjuntos || []).some(f => RX_RUB.test(f.nombre)));
+    const sem = a => a.seccion ? 'semana ' + a.seccion : 'sección general';
+    cuadro.forEach(f => { f.evalDet = tareas.concat(cuest).filter(a => a.seccion === f.n).map(a => ({ titulo: a.titulo, rub: '' })); });
+    return { punto: '04', sugerido: '', certeza: 'pendiente', automatico: false, mejorar: [], para_docente: '',
+      porque: 'Lo revisa usted: el archivo «Descargar contenido del curso» no trae las rúbricas configuradas en las tareas ni sus fechas.',
+      evidencia: [
+        tareas.length ? 'Tareas en el aula: ' + y(tareas.map(a => '«' + a.titulo + '» (' + sem(a) + ')')) + '.' : 'No hay tareas en el aula.',
+        rub.length || conAdj.length ? 'Archivos o enlaces que dicen «rúbrica» en el nombre: ' + y(rub.map(a => '«' + a.titulo + '» (' + sem(a) + ')')
+          .concat(conAdj.map(a => 'adjunto en la tarea «' + a.titulo + '»'))) + '.' : 'No se encontraron archivos ni enlaces con «rúbrica» en el nombre.'
+      ].concat(cuest.length ? ['Cuestionarios: ' + y(cuest.map(a => '«' + a.titulo + '»')) + '.'] : []),
+      nota: ['Qué revisar en el aula: que cada evaluación tenga su rúbrica, publicada al menos 2 días antes de que se abra la entrega, y que la retroalimentación esté a más tardar 2 semanas después del cierre. ' +
+        'Para que el portal lo revise solo, use la copia de seguridad (.mbz).'] };
+  }
+
   /* ------------------------------- 08 · enlaces y grabaciones de clase */
   // Con el horario de la guía de matrícula se sabe cuántas clases virtuales
   // tiene el grupo y, por tanto, cuántas grabaciones debería haber.
@@ -636,7 +818,9 @@
     cuadro.forEach(f => { f.grabaciones = grab.filter(a => a.seccion === f.n).map(a => a.titulo); });
     const r = { punto: '08', mejorar: [], nota: [], evidencia: [] };
     const lista = (l, f) => l.length ? y(l.map(f)) : '';
-    r.evidencia.push(reun.length ? plural(reun.length, 'enlace de reunión', 'enlaces de reunión') + ': ' + lista(reun, a => (a.mod === 'url' ? nombreDominio(a.dominio) : 'aviso') + ' «' + a.titulo + '» (' + fecha(a.agregado) + ')') + '.' : 'No hay enlaces de reunión.');
+    const Z = H.fuente === 'zip';
+    r.evidencia.push(reun.length ? plural(reun.length, 'enlace de reunión', 'enlaces de reunión') + ': ' + lista(reun, a => (a.mod === 'url' ? nombreDominio(a.dominio) : 'aviso') + ' «' + a.titulo + '»' + (Z ? '' : ' (' + fecha(a.agregado) + ')')) + '.' : 'No hay enlaces de reunión.');
+    if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» las grabaciones se reconocen solo por el nombre: no trae fechas para comprobar que se publicaron después de cada clase.');
     r.evidencia.push(grab.length ? plural(grab.length, 'grabación', 'grabaciones') + ': ' + lista(grab, a => '«' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + ')') + '.' : 'No se encontraron grabaciones (enlaces o videos con «grabación» en el nombre).');
     const horario = Array.isArray(ctx.horario) ? ctx.horario : null;
     if (!horario) {
@@ -647,6 +831,11 @@
     }
     r.automatico = true;
     const virt = horario.filter(esVirtual);
+    if (virt.length && H.inicioDia == null) {
+      r.sugerido = ''; r.certeza = 'pendiente'; r.automatico = false; r.para_docente = '';
+      r.porque = 'Lo revisa usted: falta el calendario académico del ciclo para saber cuántas clases virtuales ya se dictaron. Se encontraron ' + plural(grab.length, 'grabación', 'grabaciones') + '.';
+      return r;
+    }
     const txtH = h => [h.tipo, h.dia, h.horario || [h.inicio, h.fin].filter(Boolean).join('–'), esVirtual(h) ? '(virtual)' : '(presencial, ' + (h.aula || '').replace(/\s*-\s*$/, '') + ')'].filter(Boolean).join(' ');
     if (!virt.length) {
       r.sugerido = 'No aplica'; r.certeza = 'alta'; r.para_docente = ''; r.porque = 'Según la guía de matrícula, todas las clases de este grupo son presenciales.';
@@ -757,7 +946,9 @@
   function evaluar(H, ctx) {
     ctx = ctx || {};
     const A = H.aula, ini = H.inicioDia, diaCopia = diaLima(A.copia);
-    const inicioSemana = n => ini + 7 * (n - 1);
+    // Z: el .zip de «Descargar contenido del curso» (sin fechas, sin ocultos, sin rúbricas).
+    const Z = H.fuente === 'zip';
+    const inicioSemana = n => ini == null ? null : ini + 7 * (n - 1);
     const recursos = H.acts.filter(a => a.mod === 'resource' || a.mod === 'folder' || a.mod === 'page' || a.mod === 'book');
     recursos.forEach(a => a.clase = claseDeRecurso(a));
     H.acts.filter(a => a.mod === 'url').forEach(a => a.clase = claseDeUrl(a));
@@ -779,9 +970,10 @@
         return;
       }
       const a = vis[0], f = a.archivos.find(x => x.silabo) || a.archivos[0] || {}, s = f.silabo || null;
-      const dif = ini - diaLima(a.agregado);
-      r.evidencia.push('«' + (f.nombre || a.titulo) + '» en ' + enSemana(a) + ', publicado el ' + fecha(a.agregado) +
-        (dif >= 0 ? ' (antes del inicio de clases).' : ' (' + plural(-dif, 'día', 'días') + ' después del inicio de clases, el ' + fechaDeDia(ini) + ').'));
+      const dif = Z ? null : ini - diaLima(a.agregado);
+      r.evidencia.push('«' + (f.nombre || a.titulo) + '» en ' + enSemana(a) + (Z ? '.' : ', publicado el ' + fecha(a.agregado) +
+        (dif >= 0 ? ' (antes del inicio de clases).' : ' (' + plural(-dif, 'día', 'días') + ' después del inicio de clases, el ' + fechaDeDia(ini) + ').')));
+      if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» no se puede saber en qué fecha se publicó el sílabo ni si está oculto para los estudiantes: confírmelo en el aula.');
       if (f.modificado && diaLima(f.modificado) > diaLima(a.agregado) + 1) r.nota.push('El archivo se reemplazó después de publicarse (' + fecha(f.modificado) + ').');
       if (vis.length > 1) r.nota.push('Hay ' + vis.length + ' archivos que parecen sílabo; se tomó el primero. Verifique que no haya dos versiones.');
       r.sugerido = 'Subió'; r.certeza = s ? 'alta' : 'media';
@@ -807,6 +999,7 @@
       r.para_docente = r.sugerido === 'Subió'
         ? 'Gracias por publicar el sílabo en el aula virtual.' + (dif < 0 ? ' Para el próximo semestre le sugerimos publicarlo antes del primer día de clases, para que los estudiantes lo tengan desde la semana 1.' : '')
         : 'El sílabo publicado en el aula virtual corresponde al semestre ' + (s && s.semestre) + '. Le pedimos reemplazarlo por el sílabo del semestre ' + A.periodo + ', en la sección general del aula.';
+      if (Z && r.certeza === 'alta') r.certeza = 'media';
       r.silabo = s;
     })();
     const silabo = R['01'].silabo;
@@ -828,7 +1021,8 @@
       }
       const a = vis[0], f = a.archivos[0] || {};
       const vigente = rxCiclo.test(norm(f.nombre + ' ' + a.titulo + ' ' + (f.inicioTexto || '').slice(0, 300)));
-      r.evidencia.push('«' + (f.nombre || a.titulo) + '» en ' + enSemana(a) + ', publicado el ' + fecha(a.agregado) + '.');
+      r.evidencia.push('«' + (f.nombre || a.titulo) + '» en ' + enSemana(a) + (Z ? '.' : ', publicado el ' + fecha(a.agregado) + '.'));
+      if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» no se puede saber si el mensaje está oculto para los estudiantes.');
       if (bienvenida) r.evidencia.push('Además, el docente dejó un mensaje de bienvenida en ' + enSemana(bienvenida) + '.');
       if (vigente) { r.sugerido = 'Subió'; r.certeza = 'alta'; r.para_docente = 'Gracias por publicar el mensaje de sensibilización del semestre en el aula virtual.'; }
       else {
@@ -846,7 +1040,7 @@
       const excluidos = H.acts.filter(a => a.mod === 'url' && (a.clase === 'reunion' || a.clase === 'chat'));
       const otros = H.acts.filter(a => a.mod === 'url' && ['grabacion', 'retro', 'clase', 'rubrica'].includes(a.clase));
       if (otros.length) r.nota.push('Tampoco se cuentan ' + plural(otros.length, 'enlace', 'enlaces') + ' que son material de clase, grabaciones, rúbricas o resultados de evaluaciones (van en los puntos 05, 08 y 04).');
-      enlaces.forEach(a => r.evidencia.push(nombreDominio(a.dominio) + ': «' + a.titulo + '» (' + enSemana(a) + ', ' + fecha(a.agregado) + ').'));
+      enlaces.forEach(a => r.evidencia.push(nombreDominio(a.dominio) + ': «' + a.titulo + '» (' + enSemana(a) + (Z ? '' : ', ' + fecha(a.agregado)) + ').'));
       lecturas.forEach(a => r.evidencia.push('Lectura o carpeta: «' + a.titulo + '» (' + enSemana(a) + ').'));
       if (excluidos.length) r.nota.push('No se cuentan aquí: ' + y(excluidos.map(a => nombreDominio(a.dominio) + ' («' + a.titulo + '»)')) + '.');
       const n = enlaces.length + lecturas.length;
@@ -884,21 +1078,23 @@
         let a = 0, b = 0; l.forEach(w => { b += peso(w); if (new RegExp('\\b' + w + '\\b').test(t)) a += peso(w); }); return a / b; };
 
       const hashSemana = {};
+      // Sin calendario (solo pasa con el .zip): se revisa hasta la última semana que tiene material.
+      const ultimaConMat = Math.max(0, ...recursos.filter(a => a.visible && ['clase', 'lectura', 'sesion'].includes(a.clase)).concat(presentaciones).map(a => a.seccion));
       for (let n = 1; n <= totalSem; n++) {
         const s = semSil.find(x => x.n === n) || {};
         const mats = recursos.filter(a => a.seccion === n && ['clase', 'lectura', 'sesion'].includes(a.clase)).concat(presentaciones.filter(a => a.seccion === n));
         const evals = H.acts.filter(a => a.seccion === n && (a.mod === 'assign' || a.mod === 'quiz' || (a.archivos.length && (a.clase === 'evaluacion' || a.clase === 'rubrica'))));
         const reun = H.acts.filter(a => a.seccion === n && a.clase === 'reunion');
-        const limite = n === 1 && REGLAS.semana1DesdeInicio ? ini : inicioSemana(n) - REGLAS.diasMaterial;
+        const limite = ini == null ? null : n === 1 && REGLAS.semana1DesdeInicio ? ini : inicioSemana(n) - REGLAS.diasMaterial;
         const fila = { n, inicio: inicioSemana(n), tema: s.tituloVer || s.titulo || '', unidad: s.unidad || '', sinMaterial: !!s.sinMaterial,
           limite, materiales: [], evaluaciones: evals.map(a => a.titulo), reuniones: reun.map(a => nombreDominio(a.dominio) + ' «' + a.titulo + '»'),
           problemas: [], estado: '' };
-        fila.corresponde = limite <= diaCopia;
+        fila.corresponde = ini == null ? n <= ultimaConMat : limite <= diaCopia;
         fila.enCurso = n === H.semanaActual;
         mats.forEach(a => {
           const dias = inicioSemana(n) - diaLima(a.agregado);
-          const m = { titulo: a.titulo, archivos: a.archivos.map(f => f.nombre), agregado: a.agregado, dias, visible: a.visible,
-            aTiempo: diaLima(a.agregado) <= limite, sesion: null, repetidoDe: null, pareceSemana: null };
+          const m = { titulo: a.titulo, archivos: a.archivos.map(f => f.nombre), agregado: a.agregado, dias: Z ? null : dias, visible: a.visible,
+            aTiempo: Z ? true : diaLima(a.agregado) <= limite, sesion: null, repetidoDe: null, pareceSemana: null };
           a.archivos.forEach(f => {
             if (f.sesionEnPdf != null && m.sesion == null) m.sesion = f.sesionEnPdf;
             const prev = hashSemana[f.hash];
@@ -929,9 +1125,10 @@
         else if (!fila.corresponde && !vis.length) fila.estado = 'futuro';
         else if (!vis.length) { fila.estado = 'falta'; if (fila.materiales.length) fila.problemas.push('el material está oculto'); }
         else {
-          const primero = Math.min(...vis.map(m => diaLima(m.agregado)));
-          fila.publicado = primero; fila.anticipacion = inicioSemana(n) - primero;
-          fila.aTiempo = primero <= limite;
+          if (Z) fila.aTiempo = true;
+          else { const primero = Math.min(...vis.map(m => diaLima(m.agregado)));
+            fila.publicado = primero; fila.anticipacion = inicioSemana(n) - primero;
+            fila.aTiempo = primero <= limite; }
           if (!fila.aTiempo) fila.problemas.push(n === 1 && REGLAS.semana1DesdeInicio ? 'publicado después del inicio del curso' : 'publicado con menos de ' + REGLAS.diasMaterial + ' días de anticipación');
           vis.filter(m => m.repetidoDe).forEach(m => fila.problemas.push('«' + m.titulo + '» es el mismo archivo de la semana ' + m.repetidoDe));
           const sesOk = vis.some(m => m.sesion === n);
@@ -969,8 +1166,8 @@
         r.porque = 'Cumplen ' + ok.length + ' de ' + plural(evaluables.length, 'semana', 'semanas') + ': ' +
           [faltan.length && plural(faltan.length, 'semana sin material', 'semanas sin material'), tarde.length && plural(tarde.length, 'publicada tarde', 'publicadas tarde'),
            otrasS && plural(otrasS, 'con material repetido, de otra semana o con título distinto al sílabo', 'con material repetido, de otra semana o con título distinto al sílabo')].filter(Boolean).join(', ') + '.'; }
-      r.certeza = sinTema.length || sesionMal.length ? 'media' : 'alta';
-      r.evidencia.push('Se revisan ' + plural(evaluables.length, 'semana', 'semanas') + ' (las que a la fecha de la copia ya debían tener material' +
+      r.certeza = sinTema.length || sesionMal.length || Z ? 'media' : 'alta';
+      r.evidencia.push('Se revisan ' + plural(evaluables.length, 'semana', 'semanas') + (ini == null ? ' (hasta la última semana que tiene material: falta el calendario académico para saber cuáles ya correspondían' : ' (las que a la fecha de la copia ya debían tener material') +
         (cuadro.some(f => f.sinMaterial) ? '; no se exigen las de examen' : '') + '). Cumplen en todo: ' + (ok.length ? 'semana' + (ok.length > 1 ? 's ' : ' ') + y(ok.map(f => String(f.n))) : 'ninguna') + '.');
       if (tarde.length) r.evidencia.push('Publicadas tarde: ' + tarde.map(f => 'semana ' + f.n + ' (' + diasTxt(f.anticipacion) + ' de su inicio)').join('; ') + '. Solo cumplen la anticipación: ' +
         (evaluables.filter(f => f.aTiempo).map(f => 'semana ' + f.n).join(', ') || 'ninguna') + '.');
@@ -996,7 +1193,9 @@
       if (faltan.length) r.mejorar.push('Subir el material de ' + (faltan.length > 1 ? 'las semanas ' : 'la semana ') + y(faltan.map(f => f.n + (f.tema ? ' (' + f.tema.toLowerCase() + ')' : ''))) + '.');
       const aRevisar = [...new Set(rep.map(p => p[1]).concat(sinTema.map(f => f.n)))];
       if (aRevisar.length) r.mejorar.push((aRevisar.length > 1 ? 'Revisar las semanas ' : 'Revisar la semana ') + y(aRevisar.sort((a, b) => a - b).map(String)) + ': cada semana debe tener el material de su propio tema (hoy hay archivos repetidos o de otra semana).');
-      if (tarde.length || proximas.length) r.mejorar.push('Publicar el material de cada semana al menos ' + REGLAS.diasMaterial + ' días antes de que empiece' +
+      if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» no se puede revisar la anticipación (material publicado ' + REGLAS.diasMaterial +
+        ' días antes de cada semana) ni si algo está oculto: no trae esos datos. Aquí se revisa solo que cada semana tenga su material y que corresponda a su tema.');
+      if (!Z && (tarde.length || proximas.length)) r.mejorar.push('Publicar el material de cada semana al menos ' + REGLAS.diasMaterial + ' días antes de que empiece' +
         (proximas.length ? ' (el de la semana ' + proximas[0].n + ', a más tardar el ' + fechaDeDia(proximas[0].limite) + ')' : '') + '.');
       if (titMal.length) {
         const ej = titMal[0], mj = ej.materiales.find(x => x.cmp && x.cmp.tema);
@@ -1008,7 +1207,7 @@
       if (sesionMal.length) r.nota.push('Puede que la numeración de sesiones del docente no sea por semana (p. ej., dos sesiones por semana). Confírmelo antes de observarlo.');
       if (cuadro.some(f => f.n === 1 && f.publicado != null && !f.aTiempo)) r.nota.push('La semana 1 se mide contra el primer día de clases (' + fechaDeDia(ini) + '), no 7 días antes. Esta regla está por confirmar.');
       r.para_docente = r.sugerido === 'Cumple'
-        ? 'Gracias: el material de cada semana está publicado a tiempo y corresponde a su tema.'
+        ? (Z ? 'Gracias: cada semana tiene su material y corresponde a su tema.' : 'Gracias: el material de cada semana está publicado a tiempo y corresponde a su tema.')
         : 'Gracias por el material que ya publicó' + (conMat.length ? ' en las semanas ' + y(conMat.map(f => String(f.n))) : '') + '. Para completar este punto le pedimos:\n' +
           r.mejorar.map((t, i) => (i + 1) + '. ' + t).join('\n');
     })();
@@ -1022,7 +1221,7 @@
         nota: ['Qué revisar: (1) que cada plan de sesión siga el Modelo Pedagógico URP (Figura 14) y las directrices de la Escuela; (2) que la primera diapositiva de cada clase indique la unidad y los contenidos de la semana. ' +
           'El portal no puede juzgar el contenido de un plan de sesión: por eso este punto lo decide usted.'] };
       if (A.subgrupo === '0') R['03'].nota.push('Si el grupo tiene aula de taller, sus planes de sesión están en esa otra aula.');
-      R['04'] = regla04(H, recursos, cuadro, silabo, diaCopia);
+      R['04'] = Z ? regla04Zip(H, cuadro) : regla04(H, recursos, cuadro, silabo, diaCopia);
       const vis = m => H.acts.filter(a => a.mod === m && a.visible);
       const evSil = ((silabo && silabo.semanas) || []).filter(x => /pr[aá]ctica calificada|examen|sustentaci|taller|trabajo|informe|evaluaci[oó]n del logro/i.test(x.contenido));
       const lista06 = vis('assign').concat(vis('quiz')).concat(vis('forum')).map(a => ({ assign: 'Tarea', quiz: 'Cuestionario', forum: 'Foro' }[a.mod]) + ' «' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + ')');
@@ -1077,9 +1276,13 @@
     });
     return o;
   }
+  const semanaTxt = H => H.semanaActual != null ? ', semana ' + H.semanaActual + ' del ciclo' : '';
+  const queCopia = H => (H.fuente === 'zip' ? 'archivo «Descargar contenido del curso» del ' : 'copia del ') + fechaHora(H.aula.copia);
+  const LIMITE_ZIP = 'Se usó el archivo «Descargar contenido del curso» (segunda opción): con él no se pueden revisar las fechas de publicación, lo que está oculto ni las rúbricas de las tareas.';
   function textoBorrador(res) {
     const A = res.hechos.aula, L = [];
-    L.push('Pre-verificación automática del aula virtual «' + A.nombre + '» (copia del ' + fechaHora(A.copia) + ', semana ' + res.hechos.semanaActual + ' del ciclo).');
+    L.push('Pre-verificación automática del aula virtual «' + A.nombre + '» (' + queCopia(res.hechos) + semanaTxt(res.hechos) + ').');
+    if (res.hechos.fuente === 'zip') L.push(LIMITE_ZIP);
     PUNTOS.forEach(([n, et]) => {
       const r = res.puntos[n];
       if (!r.automatico) return;
@@ -1113,8 +1316,10 @@
     h.push('<div class="mbz-rep' + (op.prefijo ? ' mbz-rep-aula' : '') + '">');
     h.push('<div class="mbz-cab"><div class="mbz-cab-t">Reporte de la copia del aula virtual</div>' +
       '<div class="mbz-cab-d"><b>' + esc(A.nombre) + '</b> · ' + esc(A.corto) + ' · ' + esc(A.tipo) +
-      '<br>Copia descargada el <b>' + fechaHora(A.copia) + '</b> (semana ' + H.semanaActual + ' del ciclo; la semana 1 empezó el ' + fechaDeDia(H.inicioDia) + '). ' +
+      '<br>' + (H.fuente === 'zip' ? 'Contenido del curso descargado el <b>' : 'Copia descargada el <b>') + fechaHora(A.copia) + '</b>' +
+      (H.inicioDia != null ? ' (semana ' + H.semanaActual + ' del ciclo; la semana 1 empezó el ' + fechaDeDia(H.inicioDia) + ')' : '') + '. ' +
       'El reporte describe el aula <b>ese día</b>.</div></div>');
+    if (H.fuente === 'zip' && !op.sinNotaZip) h.push(notaZipHTML(H));
     // Administrador: el horario del ciclo, arriba y bien visible (sirve para todos los coordinadores).
     if (op.pedirHorario) h.push('<div class="mbz-horario"><div class="mbz-horario-t">📅 Administrador: cargue el horario de clases del ciclo</div>' +
       'Se hace <b>una sola vez</b> y sirve para todos los coordinadores: con él, el punto 08 (grabaciones de clases virtuales) se revisa solo. ' +
@@ -1163,9 +1368,11 @@
     });
 
     // Cuadro por semanas
-    h.push('<h4 class="mbz-h">Cuadro por semanas</h4><p class="mbz-sub">Regla: el material de cada semana se publica al menos ' + REGLAS.diasMaterial +
+    h.push('<h4 class="mbz-h">Cuadro por semanas</h4><p class="mbz-sub">' + (H.fuente === 'zip'
+      ? 'Con el archivo «Descargar contenido del curso» no hay fechas: se revisa que cada semana tenga material propio y de su tema, pero no la anticipación. Las semanas de examen no exigen material.'
+      : 'Regla: el material de cada semana se publica al menos ' + REGLAS.diasMaterial +
       ' días antes de que empiece' + (REGLAS.semana1DesdeInicio ? ' (la semana 1, a más tardar el primer día de clases)' : '') +
-      '. «Publicado» es la fecha en que el docente agregó el archivo al aula. Las semanas de examen no exigen material.</p>');
+      '. «Publicado» es la fecha en que el docente agregó el archivo al aula. Las semanas de examen no exigen material.') + '</p>');
     h.push('<div class="mbz-scroll"><table class="mbz-tabla mbz-sem"><colgroup><col style="width:7%"><col style="width:17%"><col style="width:19%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:12%"></colgroup>' +
       '<thead><tr><th>Semana</th><th>Tema del sílabo</th><th>Material publicado</th><th>¿Título igual al sílabo?</th><th>Estado</th><th>Evaluaciones</th><th>Clase virtual</th></tr></thead><tbody>');
     res.cuadro.forEach(f => {
@@ -1182,13 +1389,13 @@
       const virt = (f.reuniones.map(esc).join('<br>') || '') + (f.virtuales ? (f.reuniones.length ? '<br>' : '') + f.virtuales + ' clase' + (f.virtuales > 1 ? 's' : '') + ' virtual' + (f.virtuales > 1 ? 'es' : '') : '') +
         ((f.grabaciones || []).length ? '<br>🎥 ' + f.grabaciones.map(esc).join('<br>🎥 ') : (f.virtuales ? '<br><span class="mbz-ojo">sin grabación</span>' : ''));
       const pub = f.publicado != null ? '<div class="mbz-fecha">Publicado el ' + fechaDeDia(f.publicado) + ' · ' + esc(diasTxt(f.anticipacion)) + ' de su inicio</div>' : '';
-      h.push('<tr class="' + (f.enCurso ? 'mbz-hoy' : '') + '"><td class="mbz-n">' + f.n + '<br><small>' + fechaDeDia(f.inicio) + (f.enCurso ? '<br>en curso' : '') + '</small></td><td>' + esc(f.tema || '—') + '</td><td>' + mats + pub + '</td><td>' + tit + '</td><td><span class="mbz-chip mbz-' + e[0] + '">' + e[1] + '</span>' +
+      h.push('<tr class="' + (f.enCurso ? 'mbz-hoy' : '') + '"><td class="mbz-n">' + f.n + '<br><small>' + (f.inicio != null ? fechaDeDia(f.inicio) : '') + (f.enCurso ? '<br>en curso' : '') + '</small></td><td>' + esc(f.tema || '—') + '</td><td>' + mats + pub + '</td><td>' + tit + '</td><td><span class="mbz-chip mbz-' + e[0] + '">' + e[1] + '</span>' +
         (f.problemas.length ? '<div class="mbz-prob">' + f.problemas.map(esc).join('<br>') + '</div>' : '') + '</td><td>' + ((f.evalDet && f.evalDet.length ? f.evalDet.map(e => esc(e.titulo) + (e.rub === 'ok' ? ' <span class="mbz-chip mbz-ok">✔ con rúbrica</span>' : e.rub === 'tarde' ? ' <span class="mbz-chip mbz-parcial">◐ rúbrica tardía</span>' : e.rub === 'sin' ? ' <span class="mbz-chip mbz-falla">✖ sin rúbrica</span>' : '')) : f.evaluaciones.map(esc)).join('<br>') || '—') + '</td><td>' + (virt || '—') + '</td></tr>');
     });
     h.push('</tbody></table></div>');
 
     h.push('<div class="mbz-pie"><b>Pre-verificación automática. La decisión final es del coordinador.</b><br>' +
-      'Archivo analizado: ' + esc(H.archivo.nombre) + ' (' + (H.archivo.tamano / 1048576).toFixed(1) + ' MB, Moodle ' + esc(A.moodle) + '). ' +
+      'Archivo analizado: ' + esc(H.archivo.nombre) + ' (' + (H.archivo.tamano / 1048576).toFixed(1) + ' MB, ' + (H.fuente === 'zip' ? esc(A.moodle) : 'Moodle ' + esc(A.moodle)) + '). ' +
       'Se leyeron ' + H.acts.length + ' elementos del aula y el texto de ' + plural(H.pdfLeidos.length, 'PDF', 'PDF') + (H.pdfLeidos.length ? ': ' + esc(H.pdfLeidos.join(' · ')) : '') + '. ' +
       'El archivo no se envió a ningún servidor. De los enlaces solo se muestra el dominio y los correos se ocultan. Reglas: ' + esc(VERSION_REGLAS) + '.' +
       (H.avisos.length ? '<br>' + H.avisos.map(esc).join('<br>') : '') + '</div>');
@@ -1238,7 +1445,8 @@
   }
   // Por el nombre del archivo descargado («…-g01-1-20261026-0830-nu.mbz»): grupo y subgrupo.
   function aulaDelNombre(nombre) {
-    const m = String(nombre || '').match(/-g0*(\d+)-(\d+)-\d{8}/i);
+    // También el .zip de «Descargar contenido del curso»: «CU-20262-63P24301-G01-0_1793122369.zip».
+    const m = String(nombre || '').match(/-g0*(\d+)-(\d+)(?:-\d{8}|_\d+\.zip$)/i);
     return m ? { grupo: String(+m[1]), subgrupo: String(+m[2]) } : null;
   }
   // Lo que el docente cargó: todo menos el foro de avisos que Moodle crea solo.
@@ -1338,10 +1546,11 @@
 
   function textoBorradorCarga(rc) {
     const L = [];
-    const desc = rc.items.map(it => 'aula de ' + it.aula.etiqueta + ' «' + it.H.aula.corto + '» (copia del ' + fechaHora(it.H.aula.copia) + ')' +
+    const desc = rc.items.map(it => 'aula de ' + it.aula.etiqueta + ' «' + it.H.aula.corto + '» (' + queCopia(it.H) + ')' +
       (it.contenido.vacia ? ' — sin información cargada' : ''));
-    L.push('Pre-verificación automática de ' + (rc.items.length > 1 ? 'las aulas virtuales' : 'el aula virtual') + ' de este curso y grupo: ' + y(desc) +
-      '. Semana ' + rc.hechos.semanaActual + ' del ciclo.');
+    L.push('Pre-verificación automática ' + (rc.items.length > 1 ? 'de las aulas virtuales' : 'del aula virtual') + ' de este curso y grupo: ' + y(desc) +
+      (rc.hechos.semanaActual != null ? '. Semana ' + rc.hechos.semanaActual + ' del ciclo.' : '.'));
+    if (rc.items.some(it => it.H.fuente === 'zip')) L.push(LIMITE_ZIP);
     rc.lineasDocente.forEach(t => L.push(t));
     PUNTOS.forEach(([n, et]) => {
       const r = rc.puntos[n];
@@ -1383,6 +1592,8 @@
       '<div class="mbz-cab-d"><b>' + esc(A.nombre.replace(/^\S+\s+/, '')) + '</b> · grupo ' + esc(A.grupo) +
       (op.docente ? ' · ' + esc(op.docente) : '') + '<br>En Moodle, la teoría y el taller (o laboratorio, o práctica) son <b>aulas distintas</b>. ' +
       'Según la carga lectiva, a este docente le ' + (rc.aulas.length === 1 ? 'corresponde <b>1 aula</b>' : 'corresponden <b>' + rc.aulas.length + ' aulas</b>') + ' en este grupo.</div></div>');
+    const zipItem = rc.items.find(it => it.H.fuente === 'zip');
+    if (zipItem) h.push(notaZipHTML(zipItem.H));
     h.push('<h4 class="mbz-h">Copias que corresponden a esta carga</h4>' + cuadroCopiasHTML(rc.aulas, rc.items));
     const CL = { alto: 'mbz-alto', falta: 'mbz-alto', aviso: 'mbz-aviso', info: 'mbz-info' };
     rc.notas.forEach(n => h.push('<div class="' + CL[n.nivel] + '">' + (n.nivel === 'aviso' ? '⚠️ ' : n.nivel === 'info' ? 'ℹ️ ' : '') + esc(n.t) + '</div>'));
@@ -1423,8 +1634,9 @@
     h.push('<h4 class="mbz-h">Reporte completo de cada aula</h4><p class="mbz-sub">Aquí está el detalle de cada copia por separado, con su cuadro por semanas.</p>');
     rc.items.forEach((it, i) => {
       h.push('<details class="mbz-ficha mbz-aula-det"' + (it.contenido.vacia ? '' : '') + '><summary>Aula de ' + esc(it.aula.etiqueta) + ' · ' + esc(it.H.aula.corto) +
+        (it.H.fuente === 'zip' ? ' <span class="mbz-chip mbz-parcial">.zip: sin fechas ni rúbricas</span>' : '') +
         (it.contenido.vacia ? ' <span class="mbz-chip mbz-neutro">Vacía</span>' : '') + '</summary>' +
-        reporteHTML(it.res, { prefijo: 'a' + i + '-', soloLectura: true, sinAvisoTaller: true, horarioUsado: op.horarios && op.horarios[i] }) + '</details>');
+        reporteHTML(it.res, { prefijo: 'a' + i + '-', soloLectura: true, sinAvisoTaller: true, sinNotaZip: true, horarioUsado: op.horarios && op.horarios[i] }) + '</details>');
     });
     h.push('<div class="mbz-pie"><b>Pre-verificación automática. La decisión final es del coordinador.</b> ' +
       'Copias leídas: ' + esc(rc.items.map(it => it.H.archivo.nombre).join(' · ')) + '. Ningún archivo se envió a un servidor. Reglas: ' + esc(VERSION_REGLAS) + '.</div>');
@@ -1478,6 +1690,12 @@
 .mbz-copias td{font-size:14.5px}.mbz-copias code{font-size:14px;background:#f3f6f4;padding:1px 5px;border-radius:4px}
 .mbz-aula-det>summary{font-size:16px}.mbz-aula-det .mbz-rep{border:0;padding:4px 0;margin:4px 0}
 .mbz-msj-ro{white-space:pre-wrap;background:#f6f8f7;border-radius:6px;padding:6px 8px}
+.mbz-zip{margin:10px 0 12px;padding:14px 16px;border-radius:10px;background:#fffaf0;border:2px solid #d99a1b;font-size:16px;line-height:1.55}
+.mbz-zip-t{font-size:18px;font-weight:700;color:#7a4b00;margin-bottom:6px}.mbz-zip p{margin:6px 0}
+.mbz-zip-cols{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:10px;margin:8px 0}
+.mbz-zip-si,.mbz-zip-no{border-radius:8px;padding:10px 12px}.mbz-zip-si{background:#e6f4ee;border:1px solid #b5dcc8}.mbz-zip-no{background:#fdecea;border:1px solid #f1b9b2}
+.mbz-zip-si>b{color:#0b6e48;font-size:16.5px}.mbz-zip-no>b{color:#8f2418;font-size:16.5px}.mbz-zip ul{margin:6px 0 0 20px;padding:0}.mbz-zip li{margin:4px 0}
+.mbz-zip-rec{font-weight:600;color:#5a3d00}
 .mbz-json{white-space:pre-wrap;font-family:'IBM Plex Mono',monospace;font-size:12px;background:#f6f8f7;border:1px solid #dfe4e1;border-radius:8px;padding:8px;max-height:320px;overflow:auto}
 `;
   function ponerEstilos() {
@@ -1485,7 +1703,7 @@
     const s = document.createElement('style'); s.id = 'mbz-css'; s.textContent = CSS; document.head.appendChild(s);
   }
 
-  const API = { VERSION_REGLAS, REGLAS, PUNTOS, leerHorario, horarioDelAula, cargarHorarioPublicado, esCopiaMbz, buscarCopia, buscarCopias, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos,
+  const API = { VERSION_REGLAS, REGLAS, PUNTOS, notaZipHTML, leerHorario, horarioDelAula, cargarHorarioPublicado, esCopiaMbz, buscarCopia, buscarCopias, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos,
     aulasDeLaCarga, aulaDelNombre, contenidoAula, combinar, textoBorradorCarga, cuadroCopiasHTML, reporteCargaHTML, fecha, fechaHora };
   raiz.MBZ = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

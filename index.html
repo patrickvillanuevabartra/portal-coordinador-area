@@ -286,6 +286,7 @@ tr.sin-leer{background:#fffdf6}
 .guia-mbz ol{margin:8px 0 4px 22px;padding:0}.guia-mbz li{margin:4px 0}
 .guia-mbz-alto{display:block;margin-top:6px;padding:6px 10px;border-radius:6px;background:#fff7e8;border:1px solid #f0d49a;color:#6a4d00}
 .guia-mbz-nota{margin:6px 0 0;font-size:14px;color:var(--tinta-media)}
+.guia-zip{border-color:#ecd08f;border-left-color:#d99a1b;background:#fffaf0}.guia-zip summary{color:#7a4b00}
 .insumos{margin:4px 0 10px;border:1px solid var(--linea);border-radius:10px;background:#fbfcfb;padding:10px 14px}
 .insumos b.t{display:block;font-size:14.5px;margin-bottom:4px}
 .insumos ul{list-style:none;margin:0;padding:0}
@@ -1984,7 +1985,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js"></script>
-<script src="mbz-aula.js?v=2026-10-26.01"></script>
+<script src="mbz-aula.js?v=2026-10-27.01"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2259,7 +2260,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-26.08';
+  const VERSION_INTERNA = '2026-10-27.01';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9511,7 +9512,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             'Falta el horario de la guía de matrícula. Se carga <b>una sola vez</b> y sirve para todos los coordinadores: con él, el punto 08 (grabaciones de las clases virtuales) se revisa solo. ' +
             '<br><a class="mbz-boton" href="docs/cargar-horario.html" target="_blank" rel="noopener">Abrir la herramienta para cargar el horario</a></div>'
           : '') +
-        (estado.modulo === 'aulaVirtual' ? GUIA_COPIA_AULA : '') +
+        (estado.modulo === 'aulaVirtual' ? GUIA_COPIA_AULA.replace('<div class="guia-zip-nota"></div>', window.MBZ ? window.MBZ.notaZipHTML(null, true) : '') : '') +
         '<div class="carpeta-estado oculto" id="carpetaEstado"></div>' +
         '<div class="carpeta-estado oculto" id="carpetaEstadoF"></div>' +
         '<div class="chat-caja">' +
@@ -9519,7 +9520,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '<textarea id="trIndicacion" rows="2" placeholder="' + esc(ins.placeholder + (/adjunte/i.test(ins.placeholder) ? ' También puede arrastrar y soltar los archivos aquí.' : '')) + '"></textarea>' +
           '<div class="chat-barra">' +
             '<input type="file" id="trArchivo" multiple class="oculto" ' +
-              'accept="' + (estado.modulo === 'aulaVirtual' ? '.mbz,' : '') + '.pdf,.docx,.txt,.vtt,.srt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,text/plain,application/pdf,image/png,image/jpeg,image/webp">' +
+              'accept="' + (estado.modulo === 'aulaVirtual' ? '.mbz,.zip,' : '') + '.pdf,.docx,.txt,.vtt,.srt,.md,.csv,.xlsx,.xls,.png,.jpg,.jpeg,.webp,text/plain,application/pdf,image/png,image/jpeg,image/webp">' +
             '<input type="file" id="trCarpeta" class="oculto" webkitdirectory directory multiple>' +
             '<input type="file" id="trCarpetaF" class="oculto" webkitdirectory directory multiple>' +
             '<button type="button" class="chat-clip" id="btnArchivo" title="Adjuntar archivos">📎 Adjuntar</button>' +
@@ -10283,12 +10284,12 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       ]
     },
     aulaVirtual: {
-      placeholder: 'Adjunte aquí la copia del aula (.mbz) con 📎 Adjuntar y pulse Analizar.',
-      como: 'lee la copia de seguridad del aula (.mbz) en su propio equipo, con reglas fijas, y le muestra un reporte por punto y por semana ' +
+      placeholder: 'Adjunte aquí la copia del aula (.mbz) —o, como segunda opción, el .zip de «Descargar contenido del curso»— con 📎 Adjuntar y pulse Analizar.',
+      como: 'lee la copia de seguridad del aula (.mbz) —o, como segunda opción, el .zip de «Descargar contenido del curso»— en su propio equipo, con reglas fijas, y le muestra un reporte por punto y por semana ' +
         '(el archivo no se envía a ningún servidor). Si en cambio adjunta capturas o el PDF, el asistente revisa lo que muestran contra los puntos del formato',
       ejemplo: 'no está publicado el sílabo y falta el foro de consultas',
       lista: [
-        { t: 'Copia de seguridad del aula (.mbz), sin usuarios', archivo: true,
+        { t: 'Copia de seguridad del aula (.mbz), sin usuarios — o, como segunda opción, el .zip de «Descargar contenido del curso»', archivo: true,
           falta: 'Descárguela del aula virtual del docente siguiendo los pasos de abajo y adjúntela con 📎 Adjuntar.' }
       ]
     },
@@ -10458,7 +10459,18 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija el archivo (o los dos archivos, si se piden dos copias) y pulse <b>Analizar ➤</b> una sola vez.</li>' +
     '</ol>' +
     '<p class="guia-mbz-nota">El archivo se lee en su computadora: <b>no se sube a ningún servidor</b> ni se guarda en el portal. ' +
-      'Si no ve la opción «Copia de seguridad», pida a su Escuela el permiso en esa aula.</p></details>';
+      'Si no ve la opción «Reutilización de curso», use la <b>segunda opción</b> de abajo.</p></details>' +
+    // Segunda opción (27/10/2026): coordinadores sin permiso de «Reutilización de curso».
+    '<details class="guia-mbz guia-zip"><summary>📦 Segunda opción: si en «Más» NO le sale «Reutilización de curso»</summary>' +
+    '<ol>' +
+      '<li>Entre al <b>aula virtual</b> del curso con su usuario de coordinador.</li>' +
+      '<li>En el menú del curso (arriba) pulse <b>«Más»</b> y luego <b>«Descargar contenido del curso»</b>.</li>' +
+      '<li>Pulse <b>«Descargar»</b>. Se guarda en su carpeta <b>Descargas</b> un archivo <b>.zip</b> cuyo nombre empieza con el código del aula ' +
+        '(por ejemplo <b>«CU-20262-…-G01-0_….zip»</b>). <b>No lo descomprima.</b></li>' +
+      '<li>Vuelva aquí, pulse <b>📎 Adjuntar</b>, elija ese .zip y pulse <b>Analizar ➤</b>.</li>' +
+    '</ol>' +
+    '<div class="guia-zip-nota"></div>' +
+    '<p class="guia-mbz-nota">Este archivo también se lee en su computadora: no se sube a ningún servidor.</p></details>';
 
   /* ---------- teoría y taller: una copia por aula (26/10/2026) ----------
      En Moodle la teoría y el taller (o laboratorio, o práctica) del mismo
@@ -10480,7 +10492,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     const aulas = aulasDeLaCargaActual();
     if (!aulas.length) return null;
     const MBZ = window.MBZ, todas = aulas.map(x => x.etiqueta);
-    const copias = ADJUNTOS.filter(f => /\.mbz$/i.test(f.name) || MBZ.aulaDelNombre(f.name));
+    const copias = ADJUNTOS.filter(f => /\.(mbz|zip)$/i.test(f.name) || MBZ.aulaDelNombre(f.name));
     const libres = copias.filter(f => !MBZ.aulaDelNombre(f.name));
     return aulas.map(au => {
       let suyas = copias.filter(f => { const d = MBZ.aulaDelNombre(f.name); return d && (au.subgrupo === '' || d.subgrupo === au.subgrupo); });
@@ -10511,8 +10523,13 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       : 'Si el docente tiene otra aula en este grupo (teoría o taller), adjunte también esa copia y pulse Analizar otra vez: puede que haya puesto todo allí.');
   }
 
+  // El .zip de «Descargar contenido del curso» no trae el inicio de clases: se toma del calendario académico.
+  async function opcionesCopia() {
+    const cal = await cargarCalendario().catch(() => null);
+    return { inicio: (cal && cal.inicio) || '' };
+  }
   async function leerCopiaMbz(archivo, alAvanzar) {
-    try { return { H: await window.MBZ.leer(archivo, alAvanzar) }; }
+    try { return { H: await window.MBZ.leer(archivo, alAvanzar, await opcionesCopia()) }; }
     catch (e) { console.warn('Portal: no se pudo leer la copia .mbz →', e); return { error: e.message || String(e) }; }
   }
 
@@ -10548,7 +10565,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       // Nunca se analiza una copia con datos de estudiantes: se quita de los adjuntos.
       ADJUNTOS = ADJUNTOS.filter(f => !conUsuarios.includes(f)); pintarAdjuntosDesde();
     }
-    const extras = errores.map(e => ({ nombre: e.nombre, motivo: 'no se pudo leer (' + e.motivo + '). Verifique que sea la copia de seguridad descargada de Moodle.' }))
+    const extras = errores.map(e => ({ nombre: e.nombre, motivo: 'no se pudo leer (' + e.motivo + '). Verifique que sea la copia de seguridad descargada de Moodle (.mbz) o el .zip de «Descargar contenido del curso».' }))
       .concat(conUsuarios.map(f => ({ nombre: f.name, motivo: 'trae datos de estudiantes, así que no se analizó y se quitó de los adjuntos. Descárguela de nuevo sin usuarios («Incluir usuarios matriculados» desmarcado).' })));
 
     // A qué aula de la carga corresponde cada copia (por su nombre corto en Moodle).
@@ -10708,15 +10725,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     btn.disabled = true; btn.textContent = 'Leyendo la copia…';
     let H;
     try {
+      const opc = await opcionesCopia();
       H = await MBZ.leer(archivo, (f, t) => {
         const p = $('mbzProg'); if (!p) return;
         if (t) p.querySelector('span').textContent = t;
         p.querySelector('progress').value = Math.round(f * 100);
-      });
+      }, opc);
     } catch (e) {
       console.warn('Portal: no se pudo leer la copia .mbz →', e);
       caja.innerHTML = '<div class="mbz-alto"><b>No se pudo leer la copia del aula.</b> ' + esc(e.message) +
-        '<br>Verifique que sea la copia de seguridad descargada de Moodle (archivo .mbz) y vuelva a intentarlo.</div>';
+        '<br>Verifique que sea la copia de seguridad descargada de Moodle (archivo .mbz) o el .zip de «Descargar contenido del curso», y vuelva a intentarlo.</div>';
       return;
     } finally { btn.disabled = false; btn.textContent = 'Analizar ➤'; }
 
