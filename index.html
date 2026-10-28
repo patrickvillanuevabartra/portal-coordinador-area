@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.12';
+  const VERSION_INTERNA = '2026-10-27.13';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -6335,16 +6335,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       estado.indicadoresCarrera = d;
       const porCar = datosPorCarrera(d);
       h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
-        '<h2>Avance por carrera · ranking</h2><p>De mayor a menor avance. El reporte de cada carrera, listo para enviarlo a su <b>coordinador general</b>: ' +
+        '<h2>Avance por carrera</h2><p>De mayor a menor avance. El reporte de cada carrera, listo para enviarlo a su <b>coordinador general</b>: ' +
         'por correo, por WhatsApp o impreso.</p></div>' +
-        '<button type="button" class="btn fantasma" style="margin-left:auto;white-space:nowrap" id="btnXlsCarrera">📥 Descargar ranking en Excel</button></header><div class="tarjeta-cuerpo">' +
+        '<button type="button" class="btn fantasma" style="margin-left:auto;white-space:nowrap" id="btnXlsCarrera">📥 Descargar en Excel</button></header><div class="tarjeta-cuerpo">' +
         '<p class="nota-car">ℹ️ <b>Qué mide el avance:</b> cuántas de las supervisiones que corresponden ya están registradas. ' +
         'Cada carga lectiva tiene 6 formatos (lista de verificación del sílabo, F1 a F3, aula virtual, portafolio, fórmula y delegados); ' +
         'al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el de teoría o taller. ' +
         '<b>Avance = registros hechos ÷ (cargas × 6) × 100.</b></p>';
       porCar.forEach((c, i) => {
         h += '<div class="fila-car">' +
-          '<div class="fc-nom"><span class="fc-puesto">' + (i + 1) + '°</span><b>' + esc(c.programa) + '</b>' +
+          '<div class="fc-nom"><b>' + esc(c.programa) + '</b>' +
             '<small id="fcGen' + i + '">Coordinador general: …</small>' +
             '<small data-ent-car="' + esc(c.programa) + '"></small></div>' +
           '<div class="fc-av"><span class="fc-pct' + clasePorc(c.pct) + '">' + c.pct + '%</span>' +
@@ -6363,20 +6363,20 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         if ($('btnXlsCarrera')) $('btnXlsCarrera').addEventListener('click', () => {
           // 27/10/2026: «12 / 47» lo convertía Excel en fecha («Dic-47»). Ahora va en palabras:
           // «12 de 47 (26 %)», que Excel deja como texto, y con notas que explican cada columna.
-          const cols = ['Puesto', 'Carrera', 'Coordinador general', 'Avance general (%)', 'Supervisiones registradas', 'Supervisiones que corresponden', 'Cargas lectivas']
+          const cols = ['Carrera', 'Coordinador general', 'Avance general (%)', 'Supervisiones registradas', 'Supervisiones que corresponden', 'Cargas lectivas']
             .concat(ORDEN_MODULOS.map(k => CFG.MODULOS[k].corto + ': cargas registradas de las que corresponden'));
           const filas = porCar.map((c, i) => { const g = generalDe(c.programa);
-            return [i + 1, c.programa, g ? g.nombre : '', c.pct, c.registrados, c.posibles, c.cargas]
+            return [c.programa, g ? g.nombre : '', c.pct, c.registrados, c.posibles, c.cargas]
               .concat(ORDEN_MODULOS.map(k => { if (!c.formatos) return '';
                 const n = c.formatos[k] || 0, t = c.nForm - ((c.noAplica || {})[k] || 0);
                 return n + ' de ' + t + ' (' + (t ? Math.round(n / t * 100) : 0) + ' %)'; })); });
-          descargarXls('Ranking_avance_por_carrera_' + String(d.ciclo || '').replace(/\s/g, ''), 'Ranking de avance de la supervisión por carrera',
+          descargarXls('Avance_por_carrera_' + String(d.ciclo || '').replace(/\s/g, ''), 'Avance de la supervisión por carrera',
             cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos') + '. Ordenado de mayor a menor avance general.',
               'CÓMO LEER ESTE CUADRO:',
               '• Avance general (%): cuántas supervisiones ya registró la carrera, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
               '• Supervisiones que corresponden: cada carga lectiva tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
               '• Columnas por formato (por ejemplo «Sílabo: 12 de 47 (26 %)»): de las 47 cargas a las que les corresponde ese formato, 12 ya están registradas, es decir, el 26 %.'],
-            ['Lugar en el ranking (1 = más avance)', 'Escuela', 'Responsable de la carrera', 'Registradas ÷ que corresponden × 100',
+            ['Escuela', 'Responsable de la carrera', 'Registradas ÷ que corresponden × 100',
              'Formatos ya guardados en el portal', 'Formatos que la carrera debe registrar', 'Docente + curso + grupo']
               .concat(ORDEN_MODULOS.map(() => 'Ej.: «12 de 47 (26 %)» = 12 cargas registradas de 47 que deben tenerlo')));
         });
@@ -6394,9 +6394,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       // Ranking: la carrera con más avance arriba; dentro de cada una, el área con más avance arriba.
       const progs = Object.keys(porProg).sort((x, y) => (pcDe(y) - pcDe(x)) || x.localeCompare(y, 'es'));
       h += '<section class="tarjeta"><header class="tarjeta-cab"><div>' +
-        '<h2>Avance por área · ranking</h2><p>Las carreras y, dentro de cada una, sus áreas van de <b>mayor a menor avance</b>. ' +
-        'El número de la izquierda es el puesto del área en su carrera.</p>' +
-        '</div><button type="button" class="btn fantasma" style="margin-left:auto;white-space:nowrap" id="btnXlsArea">📥 Descargar ranking en Excel</button></header><div class="tarjeta-cuerpo">' +
+        '<h2>Avance por área</h2><p>Las carreras y, dentro de cada una, sus áreas van de <b>mayor a menor avance</b>.</p>' +
+        '</div><button type="button" class="btn fantasma" style="margin-left:auto;white-space:nowrap" id="btnXlsArea">📥 Descargar en Excel</button></header><div class="tarjeta-cuerpo">' +
         '<div class="ca-barra"><button type="button" class="btn-mini" id="avAbrir">Abrir todas</button>' +
         '<button type="button" class="btn-mini" id="avCerrar">Cerrar todas</button></div>';
       progs.forEach(pr => {
@@ -6407,14 +6406,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         const pc = pos ? Math.round(reg / pos * 1000) / 10 : 0;
         const sinCoord = ls.filter(a => !a.coordinador).length;
         h += '<details class="ca-car av-car" data-p="' + esc(pr) + '"' + (AV_ABIERTAS.has(pr) ? ' open' : '') + '><summary>' +
-          '<span class="fc-puesto">' + (progs.indexOf(pr) + 1) + '°</span><span class="ca-n">' + esc(pr) + '</span>' +
+          '<span class="ca-n">' + esc(pr) + '</span>' +
           '<span class="ca-chip' + (pc < 70 ? ' w' : '') + '">' + pc + '% de avance</span>' +
           '<span class="ca-chip">' + ls.length + (ls.length === 1 ? ' área' : ' áreas') + '</span>' +
           '<span class="ca-chip">' + cargas + ' cargas</span>' +
           (sinCoord ? '<span class="ca-chip w">' + sinCoord + ' sin coordinador</span>' : '') +
           '</summary>' +
-          '<table class="ca-tab"><thead><tr><th style="width:60px">Puesto</th><th style="width:26%">Área</th><th>Coordinador</th><th style="width:80px">Cargas</th><th style="width:30%">Avance</th></tr></thead><tbody>' +
-          ls.map((a, ia) => '<tr><td><b>' + (ia + 1) + '°</b></td><td><b>' + esc(corto(a.area)) + '</b></td>' +
+          '<table class="ca-tab"><thead><tr><th style="width:28%">Área</th><th>Coordinador</th><th style="width:80px">Cargas</th><th style="width:30%">Avance</th></tr></thead><tbody>' +
+          ls.map(a => '<tr><td><b>' + esc(corto(a.area)) + '</b></td>' +
             '<td>' + (a.coordinador ? esc(a.coordinador) : '<span class="ca-sin">⚠ Sin coordinador</span>') + '</td>' +
             '<td>' + a.cargas + '</td>' +
             '<td>' + barra(a.porcentaje) + '<small>' + a.porcentaje + '% · ' + a.registrados + ' de ' + a.posibles + '</small></td></tr>').join('') +
@@ -6547,26 +6546,26 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       const puestoCar = {};
       Object.values(todas.reduce((m, a) => { (m[a.programa] = m[a.programa] || []).push(a); return m; }, {}))
         .forEach(l => l.forEach((a, i) => { puestoCar[a.programa + '¦' + a.area] = i + 1; }));
-      const cols = (soloCarrera ? ['Puesto en la carrera'] : ['Puesto en la Facultad', 'Puesto en su carrera', 'Carrera'])
+      const cols = (soloCarrera ? [] : ['Carrera'])
         .concat(['Área', 'Coordinador del área', 'Cargas lectivas', 'Supervisiones registradas', 'Supervisiones que corresponden', 'Avance del área (%)'])
         .concat(ORDEN_MODULOS.map(k => CFG.MODULOS[k].corto + ': cargas registradas de las que corresponden'));
       const filas = todas.map((a, i) => {
         const x = porArea[(a.programa || '') + '¦' + (a.area || 'Sin área')];
-        return (soloCarrera ? [i + 1] : [i + 1, puestoCar[a.programa + '¦' + a.area], a.programa || ''])
+        return (soloCarrera ? [] : [a.programa || ''])
           .concat([corto(a.area), a.coordinador || 'Sin coordinador', a.cargas, a.registrados, a.posibles, a.porcentaje])
           .concat(ORDEN_MODULOS.map(m => { if (!x) return '';
             const n = x.f[m] || 0, t = x.n - (x.na[m] || 0);
             return n + ' de ' + t + ' (' + (t ? Math.round(n / t * 100) : 0) + ' %)'; }));
       });
-      descargarXls('Ranking_avance_por_area_' + (soloCarrera ? soloCarrera.replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' : '') + String(d.ciclo || '').replace(/\s/g, ''),
-        'Ranking de avance de la supervisión por área' + (soloCarrera ? ' — ' + soloCarrera : ' — toda la Facultad'),
+      descargarXls('Avance_por_area_' + (soloCarrera ? soloCarrera.replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' : '') + String(d.ciclo || '').replace(/\s/g, ''),
+        'Avance de la supervisión por área' + (soloCarrera ? ' — ' + soloCarrera : ' — toda la Facultad'),
         cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos') + '. Ordenado de mayor a menor avance del área.',
           'CÓMO LEER ESTE CUADRO:',
           '• Avance del área (%): cuántas supervisiones ya registró el coordinador del área, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
           '• Supervisiones que corresponden: cada carga lectiva del área tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
           '• Columnas por formato (por ejemplo «Sílabo: 5 de 8 (63 %)»): de las 8 cargas del área a las que les corresponde ese formato, 5 ya están registradas, es decir, el 63 %.',
           '• Semáforo del portal: verde 70 % o más; ámbar de 40 % a 69 %; rojo menos de 40 %.'],
-        (soloCarrera ? ['Lugar en la carrera (1 = más avance)'] : ['Lugar entre todas las áreas', 'Lugar dentro de su carrera', 'Escuela'])
+        (soloCarrera ? [] : ['Escuela'])
           .concat(['Área académica', 'Quien supervisa el área', 'Docente + curso + grupo', 'Formatos ya guardados en el portal',
             'Formatos que el área debe registrar', 'Registradas ÷ que corresponden × 100'])
           .concat(ORDEN_MODULOS.map(() => 'Ej.: «5 de 8 (63 %)» = 5 cargas registradas de 8 que deben tenerlo')));
