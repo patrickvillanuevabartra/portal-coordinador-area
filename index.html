@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.09';
+  const VERSION_INTERNA = '2026-10-27.10';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3847,7 +3847,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     h += '<tr>' + cols.map(x =>
       '<th style="background:#0b3b2e;color:#fff;font-weight:bold">' + c(x) + '</th>').join('') + '</tr>';
     filas.forEach(f => {
-      h += '<tr>' + f.map(x => '<td style="vertical-align:top">' + c(x) + '</td>').join('') + '</tr>';
+      // El texto va marcado como texto: así Excel no convierte «12/47» o «1-2» en fechas.
+      h += '<tr>' + f.map(x => '<td style="vertical-align:top' + (typeof x === 'string' ? ';mso-number-format:\'\\@\'' : '') + '">' + c(x) + '</td>').join('') + '</tr>';
     });
     h += '</table>';
 
@@ -6352,14 +6353,21 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       setTimeout(() => {
         prepararReportesCarrera(porCar);
         if ($('btnXlsCarrera')) $('btnXlsCarrera').addEventListener('click', () => {
-          const cols = ['Puesto', 'Carrera', 'Coordinador general', 'Avance (%)', 'Registros hechos', 'Registros que corresponden', 'Cargas']
-            .concat(ORDEN_MODULOS.map(k => CFG.MODULOS[k].corto + ' (registrados / corresponden)'));
+          // 27/10/2026: «12 / 47» lo convertía Excel en fecha («Dic-47»). Ahora va en palabras:
+          // «12 de 47 (26 %)», que Excel deja como texto, y con notas que explican cada columna.
+          const cols = ['Puesto', 'Carrera', 'Coordinador general', 'Avance general (%)', 'Supervisiones registradas', 'Supervisiones que corresponden', 'Cargas lectivas']
+            .concat(ORDEN_MODULOS.map(k => CFG.MODULOS[k].corto + ': cargas registradas de las que corresponden'));
           const filas = porCar.map((c, i) => { const g = generalDe(c.programa);
             return [i + 1, c.programa, g ? g.nombre : '', c.pct, c.registrados, c.posibles, c.cargas]
-              .concat(ORDEN_MODULOS.map(k => c.formatos ? (c.formatos[k] || 0) + ' / ' + (c.nForm - ((c.noAplica || {})[k] || 0)) : '')); });
+              .concat(ORDEN_MODULOS.map(k => { if (!c.formatos) return '';
+                const n = c.formatos[k] || 0, t = c.nForm - ((c.noAplica || {})[k] || 0);
+                return n + ' de ' + t + ' (' + (t ? Math.round(n / t * 100) : 0) + ' %)'; })); });
           descargarXls('Ranking_avance_por_carrera_' + String(d.ciclo || '').replace(/\s/g, ''), 'Ranking de avance de la supervisión por carrera',
-            cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos'), 'Ordenado de mayor a menor avance.',
-              'Avance = registros hechos ÷ registros que corresponden × 100. Cada carga tiene 6 formatos; al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula.']);
+            cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos') + '. Ordenado de mayor a menor avance general.',
+              'CÓMO LEER ESTE CUADRO:',
+              '• Avance general (%): cuántas supervisiones ya registró la carrera, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
+              '• Supervisiones que corresponden: cada carga lectiva tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
+              '• Columnas por formato (por ejemplo «Sílabo: 12 de 47 (26 %)»): de las 47 cargas a las que les corresponde ese formato, 12 ya están registradas, es decir, el 26 %.']);
         });
       }, 30);
     }
