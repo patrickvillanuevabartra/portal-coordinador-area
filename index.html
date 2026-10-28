@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.11';
+  const VERSION_INTERNA = '2026-10-27.12';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3826,7 +3826,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
   // Se genera un .xls como tabla con cabecera institucional: se abre en Excel
   // con el formato puesto y sirve para adjuntar tal cual al expediente.
-  function descargarXls(nombre, titulo, cols, filas, notas) {
+  // explica (opcional): una frase por columna que se pone debajo de los títulos,
+  // para que se entienda qué es cada dato sin buscar las notas.
+  function descargarXls(nombre, titulo, cols, filas, notas, explica) {
     const hoyTxt = new Date().toLocaleDateString('es-PE',
       { day:'2-digit', month:'long', year:'numeric' });
     const c = (t) => String(t == null ? '' : t)
@@ -3838,14 +3840,20 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     h += '<tr><td colspan="' + ancho + '" style="background:#e6f4ee;font-weight:bold">' +
          'Sistema de Gestión para Organizaciones Educativas · ISO 21001</td></tr>';
     h += '<tr><td colspan="' + ancho + '" style="font-size:12pt;font-weight:bold">' + c(titulo) + '</td></tr>';
+    // Las notas que explican cómo leer el cuadro van resaltadas (antes eran grises y no se veían).
     (notas || []).forEach(n2 => {
-      h += '<tr><td colspan="' + ancho + '" style="color:#5a6660">' + c(n2) + '</td></tr>';
+      const cab = /^C[ÓO]MO LEER/i.test(n2);
+      h += '<tr><td colspan="' + ancho + '" style="' + (cab
+        ? 'background:#fff3c4;color:#5a3d00;font-size:12pt;font-weight:bold'
+        : /^•/.test(n2) ? 'background:#fffaf0;color:#3a2a00;font-size:11pt;white-space:normal' : 'color:#3a4a42;font-size:11pt') + '">' + c(n2) + '</td></tr>';
     });
     h += '<tr><td colspan="' + ancho + '" style="color:#5a6660">Emitido el ' + c(hoyTxt) +
          ' por ' + c(estado.nombre || estado.correo) + '</td></tr>';
     h += '<tr><td colspan="' + ancho + '"></td></tr>';
     h += '<tr>' + cols.map(x =>
-      '<th style="background:#0b3b2e;color:#fff;font-weight:bold">' + c(x) + '</th>').join('') + '</tr>';
+      '<th style="background:#0b3b2e;color:#fff;font-weight:bold;white-space:normal">' + c(x) + '</th>').join('') + '</tr>';
+    if (explica && explica.length) h += '<tr>' + cols.map((x, i) =>
+      '<td style="background:#fff3c4;color:#5a3d00;font-style:italic;font-size:10pt;white-space:normal;vertical-align:top;mso-number-format:\'\\@\'">' + c(explica[i] || '') + '</td>').join('') + '</tr>';
     filas.forEach(f => {
       // El texto va marcado como texto: así Excel no convierte «12/47» o «1-2» en fechas.
       h += '<tr>' + f.map(x => '<td style="vertical-align:top' + (typeof x === 'string' ? ';mso-number-format:\'\\@\'' : '') + '">' + c(x) + '</td>').join('') + '</tr>';
@@ -6367,7 +6375,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               'CÓMO LEER ESTE CUADRO:',
               '• Avance general (%): cuántas supervisiones ya registró la carrera, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
               '• Supervisiones que corresponden: cada carga lectiva tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
-              '• Columnas por formato (por ejemplo «Sílabo: 12 de 47 (26 %)»): de las 47 cargas a las que les corresponde ese formato, 12 ya están registradas, es decir, el 26 %.']);
+              '• Columnas por formato (por ejemplo «Sílabo: 12 de 47 (26 %)»): de las 47 cargas a las que les corresponde ese formato, 12 ya están registradas, es decir, el 26 %.'],
+            ['Lugar en el ranking (1 = más avance)', 'Escuela', 'Responsable de la carrera', 'Registradas ÷ que corresponden × 100',
+             'Formatos ya guardados en el portal', 'Formatos que la carrera debe registrar', 'Docente + curso + grupo']
+              .concat(ORDEN_MODULOS.map(() => 'Ej.: «12 de 47 (26 %)» = 12 cargas registradas de 47 que deben tenerlo')));
         });
       }, 30);
     }
@@ -6554,7 +6565,11 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '• Avance del área (%): cuántas supervisiones ya registró el coordinador del área, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
           '• Supervisiones que corresponden: cada carga lectiva del área tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
           '• Columnas por formato (por ejemplo «Sílabo: 5 de 8 (63 %)»): de las 8 cargas del área a las que les corresponde ese formato, 5 ya están registradas, es decir, el 63 %.',
-          '• Semáforo del portal: verde 70 % o más; ámbar de 40 % a 69 %; rojo menos de 40 %.']);
+          '• Semáforo del portal: verde 70 % o más; ámbar de 40 % a 69 %; rojo menos de 40 %.'],
+        (soloCarrera ? ['Lugar en la carrera (1 = más avance)'] : ['Lugar entre todas las áreas', 'Lugar dentro de su carrera', 'Escuela'])
+          .concat(['Área académica', 'Quien supervisa el área', 'Docente + curso + grupo', 'Formatos ya guardados en el portal',
+            'Formatos que el área debe registrar', 'Registradas ÷ que corresponden × 100'])
+          .concat(ORDEN_MODULOS.map(() => 'Ej.: «5 de 8 (63 %)» = 5 cargas registradas de 8 que deben tenerlo')));
     };
     if ($('btnXlsArea')) $('btnXlsArea').addEventListener('click', () => xlsAreas(''));
     document.querySelectorAll('#indCuerpo .btn-xls-car').forEach(b => b.addEventListener('click', () => xlsAreas(b.dataset.p)));
