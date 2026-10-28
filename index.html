@@ -2268,7 +2268,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.06';
+  const VERSION_INTERNA = '2026-10-27.07';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3273,19 +3273,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       x.asignatura === a.asignatura && (x.docente || '') === (a.docente || '') && (x.grupo || '') === (a.grupo || ''));
   }
   /* 27/10/2026 (prof. Roxana, Electrónica): el sílabo y la fórmula de evaluación los
-     presenta el docente de TEORÍA. Si el docente solo tiene laboratorio o práctica en
-     un curso que sí tiene teoría (con otro docente), esos dos formatos «No aplican»:
-     no se cuentan como pendientes ni en el avance. Si el curso no tiene teoría (solo
-     práctica o taller), sí le corresponden. */
+     presenta el docente de TEORÍA. Si el docente no tiene teoría en ese grupo (solo
+     laboratorio, práctica o taller), esos dos formatos «No aplican»: no se cuentan
+     como pendientes ni en el avance. Vale también para los cursos que solo tienen
+     práctica (indicación de Patrick, 27/10/2026). */
   const SOLO_TEORIA = ['silabo', 'formula'];
   const esTeoria = t => /^teo/i.test(sinAcentos(t || ''));
   function noAplicanCarga(partes) {
     const ps = (partes || []).map(p => p.a || p);
-    if (!ps.length || ps.some(p => esTeoria(p.tipo))) return new Set();
-    const a = ps[0];
-    const hayTeoria = (estado.asignaciones || []).some(x => x.programa === a.programa && x.codigo === a.codigo &&
-      x.asignatura === a.asignatura && (x.ciclo || '') === (a.ciclo || '') && esTeoria(x.tipo));
-    return hayTeoria ? new Set(SOLO_TEORIA) : new Set();
+    if (!ps.length || ps.some(p => esTeoria(p.tipo)) || !ps.some(p => p.tipo)) return new Set();
+    return new Set(SOLO_TEORIA);
   }
   function hechosDeLaCarga(a) {
     const h = new Set();
@@ -3732,7 +3729,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           const noAplica = noAplicanCarga(partes);
           const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) => {
             if (noAplica.has(clave) && !hechos.has(clave)) return '<button class="chip no-aplica" disabled title="' + esc(m.nombre) +
-              ' — No aplica: lo presenta el docente de teoría del curso; este docente solo tiene laboratorio o práctica.">' +
+              ' — No aplica: lo presenta el docente de teoría; este docente solo tiene laboratorio, práctica o taller.">' +
               '<span class="chip-txt"><span class="chip-mod">' + esc(m.corto) + '</span><span class="chip-est">No aplica</span>' +
               '<span class="chip-sub">lo presenta el de teoría</span></span></button>';
             const ok = hechos.has(clave);
@@ -6331,7 +6328,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         'por correo, por WhatsApp o impreso.</p></div></header><div class="tarjeta-cuerpo">' +
         '<p class="nota-car">ℹ️ <b>Qué mide el avance:</b> cuántas de las supervisiones que corresponden ya están registradas. ' +
         'Cada carga lectiva tiene 6 formatos (lista de verificación del sílabo, F1 a F3, aula virtual, portafolio, fórmula y delegados); ' +
-        'al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el de teoría. ' +
+        'al docente que no tiene teoría (solo laboratorio, práctica o taller) no se le cuentan el sílabo ni la fórmula, porque los presenta el de teoría. ' +
         '<b>Avance = registros hechos ÷ (cargas × 6) × 100.</b></p>';
       porCar.forEach((c, i) => {
         h += '<div class="fila-car">' +
