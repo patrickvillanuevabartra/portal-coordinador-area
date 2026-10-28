@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.10';
+  const VERSION_INTERNA = '2026-10-27.11';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -6407,7 +6407,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             '<td>' + (a.coordinador ? esc(a.coordinador) : '<span class="ca-sin">⚠ Sin coordinador</span>') + '</td>' +
             '<td>' + a.cargas + '</td>' +
             '<td>' + barra(a.porcentaje) + '<small>' + a.porcentaje + '% · ' + a.registrados + ' de ' + a.posibles + '</small></td></tr>').join('') +
-          '</tbody></table></details>';
+          '</tbody></table>' +
+          '<div style="margin:8px 0 4px"><button type="button" class="btn-car btn-xls-car" data-p="' + esc(pr) + '">📥 Descargar en Excel las áreas de ' + esc(pr) + '</button></div>' +
+          '</details>';
       });
       h += '</div></section>';
     }
@@ -6516,19 +6518,46 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     if ($('avAbrir')) $('avAbrir').addEventListener('click', () => document.querySelectorAll('#indCuerpo .av-car').forEach(x => { x.open = true; }));
     if ($('avCerrar')) $('avCerrar').addEventListener('click', () => document.querySelectorAll('#indCuerpo .av-car').forEach(x => { x.open = false; }));
     $('btnExpInd').addEventListener('click', () => descargarIndicadores(d));
-    if ($('btnXlsArea')) $('btnXlsArea').addEventListener('click', () => {
+    // Excel del ranking por área: de toda la Facultad o de una sola carrera, con notas para leerlo.
+    const xlsAreas = soloCarrera => {
       const corto = t => String(t || '').replace(/\s*\([^)]*\)\s*$/, '');
-      const todas = (d.areas || []).slice().sort((x, y) => (y.porcentaje - x.porcentaje) || String(x.area).localeCompare(String(y.area), 'es'));
+      // Avance de cada formato por área, con lo que ya tiene el portal (misma regla del «No aplica»).
+      const porArea = {};
+      if (estado.avanceListo) (estado.asignaciones || []).forEach(a => {
+        if ((a.soloConsulta && !a.idInforme) || (d.ciclo && a.ciclo && String(a.ciclo).replace(/\W/g, '') !== String(d.ciclo).replace(/\W/g, ''))) return;
+        const k = (a.programa || '') + '¦' + (a.area || 'Sin área');
+        const x = porArea[k] = porArea[k] || { n: 0, f: {}, na: {} };
+        x.n++;
+        const h0 = new Set(estado.avance[a.idAsignacion] || []), na = noAplicanCarga([a]);
+        ORDEN_MODULOS.forEach(m => { if (h0.has(m)) x.f[m] = (x.f[m] || 0) + 1; else if (na.has(m)) x.na[m] = (x.na[m] || 0) + 1; });
+      });
+      const todas = (d.areas || []).filter(a => !soloCarrera || a.programa === soloCarrera)
+        .sort((x, y) => (y.porcentaje - x.porcentaje) || String(x.area).localeCompare(String(y.area), 'es'));
       const puestoCar = {};
       Object.values(todas.reduce((m, a) => { (m[a.programa] = m[a.programa] || []).push(a); return m; }, {}))
         .forEach(l => l.forEach((a, i) => { puestoCar[a.programa + '¦' + a.area] = i + 1; }));
-      const filas = todas.map((a, i) => [i + 1, puestoCar[a.programa + '¦' + a.area], a.programa || '', corto(a.area), a.coordinador || 'Sin coordinador',
-        a.cargas, a.registrados, a.posibles, a.porcentaje]);
-      descargarXls('Ranking_avance_por_area_' + String(d.ciclo || '').replace(/\s/g, ''), 'Ranking de avance de la supervisión por área',
-        ['Puesto en la Facultad', 'Puesto en su carrera', 'Carrera', 'Área', 'Coordinador del área', 'Cargas', 'Registros hechos', 'Registros que corresponden', 'Avance (%)'],
-        filas, ['Ciclo académico: ' + (d.ciclo || 'todos'), 'Ordenado de mayor a menor avance.',
-          'Avance = registros hechos ÷ registros que corresponden × 100.']);
-    });
+      const cols = (soloCarrera ? ['Puesto en la carrera'] : ['Puesto en la Facultad', 'Puesto en su carrera', 'Carrera'])
+        .concat(['Área', 'Coordinador del área', 'Cargas lectivas', 'Supervisiones registradas', 'Supervisiones que corresponden', 'Avance del área (%)'])
+        .concat(ORDEN_MODULOS.map(k => CFG.MODULOS[k].corto + ': cargas registradas de las que corresponden'));
+      const filas = todas.map((a, i) => {
+        const x = porArea[(a.programa || '') + '¦' + (a.area || 'Sin área')];
+        return (soloCarrera ? [i + 1] : [i + 1, puestoCar[a.programa + '¦' + a.area], a.programa || ''])
+          .concat([corto(a.area), a.coordinador || 'Sin coordinador', a.cargas, a.registrados, a.posibles, a.porcentaje])
+          .concat(ORDEN_MODULOS.map(m => { if (!x) return '';
+            const n = x.f[m] || 0, t = x.n - (x.na[m] || 0);
+            return n + ' de ' + t + ' (' + (t ? Math.round(n / t * 100) : 0) + ' %)'; }));
+      });
+      descargarXls('Ranking_avance_por_area_' + (soloCarrera ? soloCarrera.replace(/^Ingeniería\s+/i, '').replace(/\s+/g, '_') + '_' : '') + String(d.ciclo || '').replace(/\s/g, ''),
+        'Ranking de avance de la supervisión por área' + (soloCarrera ? ' — ' + soloCarrera : ' — toda la Facultad'),
+        cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos') + '. Ordenado de mayor a menor avance del área.',
+          'CÓMO LEER ESTE CUADRO:',
+          '• Avance del área (%): cuántas supervisiones ya registró el coordinador del área, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
+          '• Supervisiones que corresponden: cada carga lectiva del área tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
+          '• Columnas por formato (por ejemplo «Sílabo: 5 de 8 (63 %)»): de las 8 cargas del área a las que les corresponde ese formato, 5 ya están registradas, es decir, el 63 %.',
+          '• Semáforo del portal: verde 70 % o más; ámbar de 40 % a 69 %; rojo menos de 40 %.']);
+    };
+    if ($('btnXlsArea')) $('btnXlsArea').addEventListener('click', () => xlsAreas(''));
+    document.querySelectorAll('#indCuerpo .btn-xls-car').forEach(b => b.addEventListener('click', () => xlsAreas(b.dataset.p)));
     const marcadas = () => [...document.querySelectorAll('.cas-carrera:checked')].map(c => c.value);
     if ($('casTodas')) {
       $('casTodas').addEventListener('change', e =>
