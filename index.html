@@ -2266,7 +2266,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.04';
+  const VERSION_INTERNA = '2026-10-27.05';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3224,7 +3224,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     };
     const l = estado.asignaciones;
     llenar('fPrograma', l.map(a => a.programa), 'Todas las carreras');
-    llenar('fArea', l.map(a => a.area), 'Todas las áreas');
+    // 27/10/2026: el área depende de la carrera elegida (antes salían las de todas).
+    const prog = $('fPrograma').value;
+    llenar('fArea', l.filter(a => igual_(a.programa, prog)).map(a => a.area), 'Todas las áreas');
+    if ($('fArea').value && !l.some(a => igual_(a.programa, prog) && igual_(a.area, $('fArea').value))) $('fArea').value = '';
     llenar('fTipo', l.map(a => a.tipo), 'Todos los tipos');
     // Mejora 2026-10: si hay una sola carrera o una sola área, el selector no
     // aporta nada y se oculta (el administrador y el coordinador general, con
@@ -3316,6 +3319,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     });
   }
 
+  // Al cambiar la carrera, la lista de áreas se rehace solo con las de esa carrera.
+  $('fPrograma').addEventListener('input', () => { if (estado.asignaciones) prepararFiltros(); });
   ['buscar','fPrograma','fArea','fTipo','fEstado'].forEach(id =>
     $(id).addEventListener('input', () => pintarTablero()));
   $('limpiar').addEventListener('click', () => {
