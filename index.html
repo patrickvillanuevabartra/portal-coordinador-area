@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.2';
+  const VERSION_INTERNA = '2026-10-29.3';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10271,12 +10271,17 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // ¿Es el plan de estudios (o malla) y no el sílabo?
   function esPlanDeEstudios(nombre, txt) {
     const t = sinAcentos(String(txt || '').slice(0, 6000));
+    // 29/10/2026: un sílabo dice en sus datos generales «Plan de estudios: 2015-II»; eso no lo
+    // vuelve plan de estudios. Si el archivo se reconoce como sílabo, es sílabo.
+    if (pareceSilabo(txt) && !/plan|malla|curricul/i.test(nombre || '')) return false;
     return /plan|malla|curricul/i.test(nombre || '') && !/logro de la asignatura|programacion de contenidos/.test(t) ||
-           (/plan de estudios|malla curricular/.test(t) && !/logro de la asignatura/.test(t));
+           (/plan de estudios|malla curricular/.test(t) && !/logro de la asignatura|s[ií]labo/.test(t));
   }
   function pareceSilabo(txt) {
     const t = sinAcentos(String(txt || '').slice(0, 20000));
-    return /silabo/.test(t) && /(logro|sumilla|unidad|programacion)/.test(t);
+    // También «S Í L A B O» con letras separadas, o sin la palabra pero con sumilla y logro o unidades.
+    return (/s\s?i\s?l\s?a\s?b\s?o/.test(t) && /(logro|sumilla|unidad|programacion)/.test(t)) ||
+           (/sumilla/.test(t) && /(logro de (la asignatura|aprendizaje|la unidad)|unidad (i|1)\b|programacion de contenidos)/.test(t));
   }
   // Deja del plan solo las filas del curso (por código o nombre) y la cabecera de la tabla.
   function recortePlan(txt, codigo, nombre) {
