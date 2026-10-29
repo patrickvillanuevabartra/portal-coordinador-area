@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.1';
+  const VERSION_INTERNA = '2026-10-29.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10693,6 +10693,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   function pintarAdjuntos() {
     ADJUNTOS = ADJUNTOS.concat([...$('trArchivo').files]);
     $('trArchivo').value = '';
+    setTimeout(fijarAdjuntos, 0);
     setTimeout(pintarInsumos, 0);
     setTimeout(cronoDesdeAdjuntos, 0);
     const c = $('trAdjuntos');
@@ -10706,7 +10707,30 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       pintarAdjuntosDesde();
     }));
   }
+  // 29/10/2026: apenas se adjunta un archivo, se guarda una copia en la memoria de la página.
+  // Así, si el archivo original cambia o deja de estar disponible (descarga sin terminar, carpeta
+  // de OneDrive o Drive, antivirus, archivo movido), el análisis no falla con «could not be read».
+  const MAX_FIJAR_MB = 400;
+  async function fijarAdjuntos() {
+    for (let i = 0; i < ADJUNTOS.length; i++) {
+      const f = ADJUNTOS[i];
+      if (!f || f._fijo || f.size > MAX_FIJAR_MB * 1048576) continue;
+      try {
+        const copia = new File([await f.arrayBuffer()], f.name, { type: f.type, lastModified: f.lastModified });
+        copia._fijo = true;
+        if (f.webkitRelativePath) try { Object.defineProperty(copia, 'webkitRelativePath', { value: f.webkitRelativePath }); } catch (_) {}
+        const j = ADJUNTOS.indexOf(f); if (j >= 0) ADJUNTOS[j] = copia;
+      } catch (e) {
+        const j = ADJUNTOS.indexOf(f); if (j >= 0) ADJUNTOS.splice(j, 1);
+        const c = $('trAdjuntos'); if (c) pintarAdjuntosDesde();
+        alert('El navegador no pudo abrir «' + f.name + '», así que se quitó de los adjuntos.\n\n' +
+          'Suele pasar si la descarga no había terminado, si el archivo está en una carpeta de OneDrive o Google Drive que aún no lo descargó, ' +
+          'o si se movió o renombró después de elegirlo.\n\nQué hacer: copie el archivo al Escritorio y vuelva a adjuntarlo.');
+      }
+    }
+  }
   function pintarAdjuntosDesde() {
+    setTimeout(fijarAdjuntos, 0);
     const c = $('trAdjuntos');
     c.innerHTML = ADJUNTOS.map((f, i) =>
       '<span class="chat-chip">📄 ' + esc(f.name) +
@@ -11369,7 +11393,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     } catch (e) {
       btn.disabled = false;
       btn.textContent = 'Analizar ➤';
-      alert('No se pudo preparar la propuesta: ' + e.message);
+      const sinAcceso = (e && e.name === 'NotReadableError') || /could not be read|permission problems/i.test(String(e && e.message));
+      alert(sinAcceso
+        ? 'No se pudo leer el archivo adjunto: el navegador perdió el acceso a él después de elegirlo (descarga sin terminar, carpeta de OneDrive o Google Drive, o el archivo se movió).\n\nQué hacer: quite el adjunto con la ×, copie el archivo al Escritorio, vuelva a adjuntarlo y pulse Analizar.'
+        : 'No se pudo preparar la propuesta: ' + e.message);
     }
   }
 
