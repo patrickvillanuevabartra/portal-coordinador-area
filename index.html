@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.3';
+  const VERSION_INTERNA = '2026-10-29.4';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10277,6 +10277,45 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     return /plan|malla|curricul/i.test(nombre || '') && !/logro de la asignatura|programacion de contenidos/.test(t) ||
            (/plan de estudios|malla curricular/.test(t) && !/logro de la asignatura|s[ií]labo/.test(t));
   }
+  // 29/10/2026 (auditoría): el punto 01 no se deja solo al asistente. El portal compara él mismo el
+  // código del sílabo con el de la carga del DAI y el catálogo, y el requisito con la fila del curso
+  // en el plan de estudios. Si no coinciden, el punto no puede quedar «Cumple».
+  function chequearPunto01(txt, plan, a) {
+    const t = String(txt || '').slice(0, 15000), problemas = [], datos = {};
+    const norm = x => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const mc = t.match(/c[óo]digo(?:\s+de\s+la\s+asignatura|\s+del\s+curso)?\s*[:.\-–]?\s*\n?\s*([A-Z]{2,4}\s?[-–]?\s?\d{3,6}[A-Z]?)\b/i);
+    const codPortal = norm(a.codigo);
+    if (mc) {
+      datos.codigo = mc[1].trim();
+      if (codPortal && norm(mc[1]) !== codPortal)
+        problemas.push('Código: el sílabo dice «' + datos.codigo + '», pero el código del curso es «' + a.codigo + '» (carga del DAI y catálogo, plan ' + (a.planEstudio || '') + ').');
+    } else problemas.push('Código: no se encontró el código del curso en el sílabo (debe ser «' + a.codigo + '»).');
+    const mr = t.match(/(?:pre)?requisitos?\s*[:.\-–]\s*([^\n]{3,140})/i);
+    if (mr) {
+      datos.requisito = mr[1].replace(/\s+/g, ' ').trim();
+      const filaPlan = String(plan || '').replace(/^\[[^\]]*\]\s*/, '');
+      if (filaPlan && !/no se encontr/i.test(plan)) {
+        const raiz = w => sinAcentos(w).replace(/[^a-z0-9]/g, '').slice(0, 5);
+        const enPlan = sinAcentos(filaPlan).replace(/[^a-z0-9 ]/g, ' ');
+        const pal = sinAcentos(datos.requisito).split(/[^a-z0-9]+/).filter(w => w.length > 4 && !/^(ninguno|ninguna|creditos|aprobados)$/.test(w));
+        const ok = !pal.length || pal.filter(w => enPlan.indexOf(raiz(w)) >= 0).length / pal.length >= 0.5 || /ningun/.test(sinAcentos(datos.requisito));
+        if (!ok) problemas.push('Requisito: el sílabo dice «' + datos.requisito + '», que no figura en la fila del curso del plan de estudios ' + (a.planEstudio || '') +
+          '. Verifíquelo en el plan (en la biblioteca del portal).');
+      }
+    }
+    return { problemas, datos };
+  }
+  function imponerChequeo01(p, ch) {
+    const txt = 'Comprobado por el portal: ' + ch.problemas.join(' ');
+    const grave = ch.problemas.some(x => /^C[óo]digo/.test(x));
+    p['item:01'] = grave ? 'No cumple' : 'Parcial';
+    p['obs:01'] = txt + (p['obs:01'] && !/^cumple|ninguna/i.test(String(p['obs:01'])) ? ' ' + p['obs:01'] : '');
+    if (Array.isArray(p._informe)) {
+      const r = p._informe.find(x => /^\s*0?1\b|01/.test(String(x.item || '')));
+      if (r) { r.coincide = 'No'; r.diferencia = ch.problemas.join(' '); }
+      else p._informe.unshift({ item: '01. Datos administrativos del curso', coincide: 'No', diferencia: ch.problemas.join(' ') });
+    }
+  }
   function pareceSilabo(txt) {
     const t = sinAcentos(String(txt || '').slice(0, 20000));
     // También «S Í L A B O» con letras separadas, o sin la palabra pero con sumilla y logro o unidades.
@@ -11265,7 +11304,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         estado.ultimosArchivos = archivos.map(f => f.name);
         // Se pueden subir varios: el sílabo y, aparte, el documento oficial
         // contra el que se compara.
-        let haySilabo = false, hayPlan = false;
+        let haySilabo = false, hayPlan = false, textoSilabo = '', extractoPlan = '';
         const partes = [];
         imagenes = [];
         const MAX_IMG = 6;
@@ -11277,8 +11316,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
                 // Del plan de estudios solo interesa la fila de este curso: así el
                 // análisis es mucho más rápido y no se confunde con otros cursos.
                 txtArch = recortePlan(txtArch, (estado.actual || {}).codigo, nombreCurso((estado.actual || {}).asignatura));
-                hayPlan = true;
-              } else if (pareceSilabo(txtArch)) haySilabo = true;
+                hayPlan = true; extractoPlan = txtArch;
+              } else if (pareceSilabo(txtArch)) { haySilabo = true; if (!textoSilabo) textoSilabo = txtArch; }
             }
             partes.push('===== ' + arch.name + ' =====\n' + txtArch);
             if (estado.modulo === 'formula' && (/\.pdf$/i.test(arch.name) || arch.type === 'application/pdf')) {
@@ -11307,8 +11346,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           try {
             const blob = await (await fetch(planP.url)).blob();
             const txtPlan = await textoDelArchivo(new File([blob], planP.url.split('/').pop(), { type: 'application/pdf' }));
-            partes.push('===== ' + planP.t + ' (biblioteca del portal) =====\n' +
-              recortePlan(txtPlan, (estado.actual || {}).codigo, nombreCurso((estado.actual || {}).asignatura)));
+            extractoPlan = recortePlan(txtPlan, (estado.actual || {}).codigo, nombreCurso((estado.actual || {}).asignatura));
+            partes.push('===== ' + planP.t + ' (biblioteca del portal) =====\n' + extractoPlan);
             hayPlan = true;
           } catch (e) { console.warn('Portal: no se pudo leer el plan de la biblioteca →', e.message); }
         }
@@ -11322,6 +11361,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             '. Adjunte el sílabo: el plan de estudios solo sirve para comprobar el punto 01, junto con el sílabo.');
         }
         fuente = partes.join('\n\n');
+        estado.chequeo01 = estado.modulo === 'silabo' && textoSilabo ? chequearPunto01(textoSilabo, extractoPlan, estado.actual || {}) : null;
         const nota = $('trIndicacion').value.trim();
         if (nota) fuente = 'Indicación del coordinador: ' + nota + '\n\n' + fuente;
         // Los .vtt y .srt traen tiempos y numeración que solo estorban.
@@ -11391,6 +11431,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           if (n && fuenteDeItem(n)) x.fuente = fuenteDeItem(n);
         });
       }
+      if (estado.modulo === 'silabo' && estado.chequeo01 && estado.chequeo01.problemas.length) imponerChequeo01(d.propuesta = d.propuesta || {}, estado.chequeo01);
       aplicarPropuesta(F, d.propuesta || {});
       ADJUNTOS = []; if ($('trAdjuntos')) $('trAdjuntos').innerHTML = '';
       pintarInsumos();
