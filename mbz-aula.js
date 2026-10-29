@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-28.6';
+  const VERSION_REGLAS = 'mbz-2026-10-29.1';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -1691,6 +1691,38 @@
   //   extras: [{ nombre, motivo }] — copias que no se tomaron en cuenta
   const RANGO = s => ['Cumple', 'Subió', 'Existen'].includes(s) ? 3 : s === 'Parcial' ? 2 : /^No (cumple|subió|existen)$/.test(s) ? 1 : 0;
   const BASTA_UNA = ['01', '02', '07'];   // basta con que esté en una de sus aulas
+  // Une las tablas comparativas del punto 05 de dos o más aulas del mismo grupo (teoría y taller…).
+  function unirTablas(grupos) {
+    const NIVEL = { ok: 3, otra: 2, falta: 1 };
+    const sem = [...new Set([].concat(...grupos.map(g => g.tabla.map(t => t.n))))].sort((a, b) => a - b);
+    return sem.map(n => {
+      const filas = grupos.map(g => ({ g, t: g.tabla.find(x => x.n === n) })).filter(x => x.t);
+      const aula = [].concat(...filas.map(x => x.t.aula.map(it => typeof it === 'string' ? '[' + x.g.etiqueta + '] ' + it
+        : Object.assign({}, it, { t: '[Aula de ' + x.g.etiqueta + '] ' + it.t }))));
+      // Sílabo: el mejor estado de cada tema entre las aulas.
+      const silabo = [], vistos = {};
+      filas.forEach(x => x.t.silabo.forEach(it => {
+        if (typeof it === 'string' || it.marca === 'cab') { if (!silabo.some(z => (z.t || z) === (it.t || it))) silabo.push(it); return; }
+        const prev = vistos[it.t];
+        if (!prev) { const c = Object.assign({}, it, { nota: it.nota && it.marca !== 'falta' ? it.nota + ' (aula de ' + x.g.etiqueta + ')' : it.nota }); vistos[it.t] = c; silabo.push(c); }
+        else if ((NIVEL[it.marca] || 0) > (NIVEL[prev.marca] || 0)) { prev.marca = it.marca; prev.nota = it.nota + ' (aula de ' + x.g.etiqueta + ')'; }
+      }));
+      const items = aula.filter(it => typeof it !== 'string' && it.marca !== 'oculto');
+      const temas = silabo.filter(it => typeof it !== 'string' && it.marca !== 'cab');
+      const okA = items.filter(it => it.marca === 'ok').length, pub = temas.filter(it => it.marca === 'ok').length;
+      const hall = [], rec = [];
+      if (!items.length) hall.push('✖ Sin material en ninguna de las aulas');
+      else hall.push((okA === items.length ? '✔ ' : okA ? '◐ ' : '✖ ') + 'Aulas: ' + okA + ' de ' + plural(items.length, 'material publicado es', 'materiales publicados son') + ' de esta semana o su bloque');
+      if (temas.length) hall.push((pub === temas.length ? '✔ ' : pub ? '◐ ' : '✖ ') + 'Sílabo: ' + pub + ' de ' + plural(temas.length, 'tema publicado', 'temas publicados') + ' (contando las dos aulas)');
+      filas.forEach(x => x.t.hallazgo.filter(h => !/^(✔|◐|✖) (Aula|Sílabo):|Sin material|material está oculto/.test(h)).forEach(h => hall.push(h.replace(/^(\S+) /, '$1 [' + x.g.etiqueta + '] '))));
+      filas.forEach(x => x.t.recomendacion.filter(t => !/falta publicar|^Subir el material de|^Ninguna/.test(t)).forEach(t => rec.push('[Aula de ' + x.g.etiqueta + '] ' + t)));
+      const faltan = temas.filter(it => it.marca === 'falta' && !/en curso/.test(it.nota || ''));
+      if (faltan.length) rec.push('Publicar, en el aula de teoría o en la de ' + grupos.filter(g => !/teor/i.test(g.etiqueta)).map(g => g.etiqueta).join(' o ') + ': «' + faltan.map(it => it.t.split(':')[0]).join('», «') + '».');
+      if (!items.length && !faltan.length) rec.push('Subir el material de esta semana en alguna de las aulas.');
+      return { n, aula, silabo, hallazgo: hall, recomendacion: rec.length ? rec : ['Ninguna: está conforme.'], ok: !rec.length };
+    });
+  }
+
   function combinar(items, aulas, extras) {
     aulas = (aulas || []).map(a => Object.assign({}, a));
     if (!aulas.length) items.forEach(it => { if (!aulas.some(a => a === it.aula)) aulas.push(it.aula); });
@@ -1740,7 +1772,18 @@
       }
       const r = Object.assign({}, elegido.r);
       r.porAula = usadas.map(it => ({ etiqueta: it.aula.etiqueta, sugerido: it.res.puntos[n].sugerido, vacia: it.contenido.vacia }));
-      if (varias) r.tablas = rs.map(x => ({ etiqueta: x.it.aula.etiqueta, tabla: x.r.tabla || [] }));
+      // 29/10/2026: teoría + taller/laboratorio/práctica. El sílabo es uno solo y el material puede
+      // estar en cualquiera de las dos aulas: un tema cuenta como publicado si está en alguna.
+      if (varias && n === '05' && rs.some(x => (x.r.tabla || []).length)) {
+        r.tabla = unirTablas(rs.map(x => ({ etiqueta: x.it.aula.etiqueta, tabla: x.r.tabla || [] })));
+        delete r.tablas;
+        // El resultado sale de la tabla unida: una semana sin material en el aula de taller no es falta
+        // si su material está en la de teoría.
+        const conMat = r.tabla.filter(t => t.aula.length), okT = r.tabla.filter(t => t.ok);
+        r.__sugerido05 = okT.length === r.tabla.length ? 'Cumple' : conMat.length ? 'Parcial' : 'No cumple';
+        r.__porque05 = 'Mirando las dos aulas juntas: ' + okT.length + ' de ' + plural(r.tabla.length, 'semana está conforme', 'semanas están conformes') +
+          (r.tabla.length - conMat.length ? '; ' + plural(r.tabla.length - conMat.length, 'semana sin material en ninguna aula', 'semanas sin material en ninguna aula') : '') + '.';
+      } else if (varias) r.tablas = rs.map(x => ({ etiqueta: x.it.aula.etiqueta, tabla: x.r.tabla || [] }));
       if (varias) {
         r.evidencia = [].concat(...rs.map(x => x.r.evidencia.map(e => etq(x.it) + ': ' + e)));
         r.mejorar = [].concat(...rs.map(x => x.r.mejorar.map(e => (BASTA_UNA.includes(n) && RANGO(elegido.r.sugerido) === 3) ? null : etq(x.it) + ': ' + e))).filter(Boolean);
@@ -1762,6 +1805,7 @@
       if (faltan.length) reglas.push('Falta la copia del aula de ' + y(faltan.map(a => a.etiqueta)) + '.');
       r.nota_interna = [r.nota_interna].concat(reglas).filter(Boolean).join(' ');
       if (r.automatico && (vacias.length && llenas.length || faltan.length) && r.certeza === 'alta') r.certeza = 'media';
+      if (r.__sugerido05) { r.sugerido = r.__sugerido05; r.porque = r.__porque05; delete r.__sugerido05; delete r.__porque05; }
       r.nombre = et; r.estandar = base.estandar;
       R[n] = r;
     });
