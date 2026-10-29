@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-27.1';
+  const VERSION_REGLAS = 'mbz-2026-10-28.1';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -1178,6 +1178,47 @@
         : 'El tema de la semana ' + f.n + ' («' + f.tema.toLowerCase() + '») no tiene material en el aula.'); });
       cuadro.forEach(f => f.materiales.forEach(m => { if (m.pareceSemana) r.evidencia.push('En la semana ' + f.n + ', «' + m.titulo + '» trae el tema de la semana ' + m.pareceSemana + '.'); }));
       if (faltan.length) r.evidencia.push('Sin material: semana' + (faltan.length > 1 ? 's ' : ' ') + y(faltan.map(f => String(f.n))) + '.');
+      // 28/10/2026 (auditoría interna): el auditor cruza, semana por semana, el tema del sílabo
+      // con lo publicado en el aula. Se muestra esa comparación siempre, también cuando coincide,
+      // para que el coordinador vea qué se comparó. No cambia el resultado sugerido: lo que no
+      // se reconoce queda como «revisar a mano».
+      const corr = [], revisarTema = [];
+      evaluables.forEach(f => {
+        const vis = f.materiales.filter(m => m.visible);
+        if (!vis.length || !f.tema) return;
+        const s = semSil.find(x => x.n === f.n) || {};
+        const igual = vis.find(m => m.cmp && m.cmp.estado === 'igual');
+        const propio = vis.reduce((a, m) => Math.max(a, m.propio || 0), 0);
+        const otra = vis.find(m => m.pareceSemana);
+        const pare = vis.find(m => m.cmp && (m.cmp.estado === 'parecido' || m.cmp.estado === 'incompleto'));
+        const ref = igual || pare || vis.find(m => m.tituloPpt) || vis[0];
+        const enAula = '«' + (ref.tituloPpt || ref.titulo) + '»' + (vis.length > 1 ? ' y ' + plural(vis.length - 1, 'archivo más', 'archivos más') : '');
+        let veredicto;
+        if (igual) veredicto = '✔ el título es el del sílabo';
+        else if (otra) { veredicto = '✖ parece el tema de la semana ' + otra.pareceSemana; revisarTema.push(f.n); }
+        else if (propio >= 0.6) veredicto = '✔ el contenido corresponde al tema' + (pare ? ' (el título es parecido, no igual)' : '');
+        else if (pare) { veredicto = '◐ título parecido, pero no igual al del sílabo'; revisarTema.push(f.n); }
+        else if (!conTema(s) || !(kw[f.n] || []).length) veredicto = '? no se pudo comparar solo (el tema del sílabo es muy general): revíselo a mano';
+        else { veredicto = '? no se reconoce el tema del sílabo en el material: revíselo a mano'; revisarTema.push(f.n); }
+        corr.push('Semana ' + f.n + ': sílabo «' + f.tema + '» · aula ' + enAula + ' → ' + veredicto + '.');
+      });
+      if (corr.length) {
+        r.evidencia.push('Correspondencia del tema del sílabo con lo publicado en el aula, semana por semana:');
+        corr.forEach(t => r.evidencia.push(t));
+      } else if (evaluables.length) r.evidencia.push('Correspondencia con el sílabo: no hay semanas con material publicado para comparar con los temas del sílabo.');
+      if (revisarTema.length) {
+        r.certeza = 'media';
+        r.mejorar.push('Revisar que el material de ' + (revisarTema.length > 1 ? 'las semanas ' : 'la semana ') + y(revisarTema.map(String)) +
+          ' trate el tema que indica el sílabo para esa semana, y que el título de la presentación sea el mismo del sílabo.');
+      }
+      // El auditor también corrobora que estén todas las sesiones antes del examen parcial.
+      const semParcial = semSil.find(x => x.sinMaterial && /parcial/i.test(x.titulo || ''));
+      if (semParcial) {
+        const antes = evaluables.filter(f => f.n < semParcial.n), faltanAntes = antes.filter(f => f.estado === 'falta');
+        if (antes.length) r.evidencia.push('Antes del examen parcial (semana ' + semParcial.n + '): ' + (faltanAntes.length
+          ? 'faltan las sesiones de ' + (faltanAntes.length > 1 ? 'las semanas ' : 'la semana ') + y(faltanAntes.map(f => String(f.n))) + ' de ' + plural(antes.length, 'semana', 'semanas') + '.'
+          : 'están las sesiones de las ' + plural(antes.length, 'semana', 'semanas') + '.'));
+      }
       faltan.filter(f => f.temaEn).forEach(f => r.evidencia.push('El material del tema de la semana ' + f.n + ' («' + f.tema.toLowerCase() + '») está publicado en la semana ' + f.temaEn + '.'));
       // Títulos: lo que observó el auditor en 2025 (NC 8.5.2).
       const conT = evaluables.filter(f => f.conTitulo), titMal = conT.filter(f => !f.tituloOk);
