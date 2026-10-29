@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-28.5';
+  const VERSION_REGLAS = 'mbz-2026-10-28.6';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -1527,7 +1527,7 @@
     }).join('') + '</ul>' : '<span class="mbz-tc-vacio">— Nada publicado</span>';
     const tono = t => /^✖/.test(t) ? 'falla' : /^◐|^\?|^⚠/.test(t) ? 'parcial' : /^✔/.test(t) ? 'ok' : 'neutro';
     return '<dt>Tabla comparativa: aula virtual frente al sílabo</dt><dd><p class="mbz-sub">Cada fila es una semana que, a la fecha de la copia, ya debía tener material. ' +
-      'A la izquierda, lo que hay en el aula; a su lado, lo que el sílabo indica. <b>✔ verde</b> = coincide · <b>⚠ ámbar</b> = es tema de otra semana · <b>✖ rojo</b> = falta · <b>? gris</b> = no es un tema del sílabo (material de apoyo).</p>' +
+      '<span style="float:right;font-size:12px;color:#7a8580">reglas ' + VERSION_REGLAS + '</span>A la izquierda, lo que hay en el aula; a su lado, lo que el sílabo indica. <b>✔ verde</b> = coincide · <b>⚠ ámbar</b> = es tema de otra semana · <b>✖ rojo</b> = falta · <b>? gris</b> = no es un tema del sílabo (material de apoyo).</p>' +
       grupos.filter(g => g.tabla && g.tabla.length).map(g => (g.etiqueta ? '<p class="mbz-sub"><b>Aula de ' + esc(g.etiqueta) + '</b></p>' : '') +
         '<div class="mbz-scroll"><table class="mbz-tabla mbz-tc"><colgroup><col style="width:7%"><col style="width:27%"><col style="width:27%"><col style="width:19%"><col style="width:20%"></colgroup>' +
         '<thead><tr><th>Semana</th><th>Lo que hay en el aula virtual</th><th>Lo que debería estar según el sílabo</th><th>Hallazgo</th><th>Recomendación</th></tr></thead><tbody>' +
