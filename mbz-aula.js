@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-28.2';
+  const VERSION_REGLAS = 'mbz-2026-10-28.3';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -1230,7 +1230,7 @@
       // con lo publicado en el aula. Se muestra esa comparación siempre, también cuando coincide,
       // para que el coordinador vea qué se comparó. No cambia el resultado sugerido: lo que no
       // se reconoce queda como «revisar a mano».
-      const corr = [], revisarTema = [];
+      const corr = [], revisarTema = [], verd = {};
       evaluables.forEach(f => {
         const vis = f.materiales.filter(m => m.visible);
         if (!vis.length || !f.tema) return;
@@ -1248,18 +1248,48 @@
         else if (pare) { veredicto = '◐ título parecido, pero no igual al del sílabo'; revisarTema.push(f.n); }
         else if (!conTema(s) || !(kw[f.n] || []).length) veredicto = '? no se pudo comparar solo (el tema del sílabo es muy general): revíselo a mano';
         else { veredicto = '? no se reconoce el tema del sílabo en el material: revíselo a mano'; revisarTema.push(f.n); }
+        verd[f.n] = { veredicto, ref, igual, pare, otra };
         const temaCorto = f.tema.length > 170 ? f.tema.slice(0, 170).replace(/\s+\S*$/, '') + '…' : f.tema;
         corr.push('Semana ' + f.n + ': sílabo' + (s.rango ? ' (semanas ' + s.rango + ')' : '') + ' «' + temaCorto + '» · aula ' + enAula + ' → ' + veredicto + '.');
       });
       if (corr.length) {
-        r.evidencia.push('Correspondencia del tema del sílabo con lo publicado en el aula, semana por semana:');
-        corr.forEach(t => r.evidencia.push(t));
+        const nOk = Object.values(verd).filter(v => /^✔/.test(v.veredicto)).length;
+        r.evidencia.push('Correspondencia con el sílabo: en ' + nOk + ' de ' + plural(corr.length, 'semana con material', 'semanas con material') +
+          ' lo publicado corresponde al tema del sílabo. El detalle, semana por semana, está en la tabla comparativa de abajo.');
       } else if (evaluables.length) r.evidencia.push('Correspondencia con el sílabo: no hay semanas con material publicado para comparar con los temas del sílabo.');
       if (revisarTema.length) {
         r.certeza = 'media';
         r.mejorar.push('Revisar que el material de ' + (revisarTema.length > 1 ? 'las semanas ' : 'la semana ') + y(revisarTema.map(String)) +
           ' trate el tema que indica el sílabo para esa semana, y que el título de la presentación sea el mismo del sílabo.');
       }
+      // 28/10/2026: tabla comparativa por semana (aula | sílabo | hallazgo | recomendación).
+      r.tabla = evaluables.map(f => {
+        const s = semSil.find(x => x.n === f.n) || {};
+        const vis = f.materiales.filter(m => m.visible), ocultos = f.materiales.filter(m => !m.visible);
+        const aula = vis.map(m => (m.tituloPpt && norm(m.tituloPpt) !== norm(m.titulo) ? m.titulo + ' — título: «' + m.tituloPpt + '»' : m.titulo) +
+          (Z ? '' : ' (publicado el ' + fecha(m.agregado) + ')')).concat(ocultos.map(m => m.titulo + ' (oculto: los estudiantes no lo ven)'));
+        const silabo = (s.rango ? ['Bloque de las semanas ' + s.rango + ':'] : []).concat((s.temas && s.temas.length && s.temas[0] ? s.temas : [f.tema]).filter(Boolean));
+        if (!silabo.length) silabo.push('(no se pudo leer el tema de esta semana en el sílabo)');
+        const v = verd[f.n] || {}, hall = [], rec = [];
+        const temaRec = (v.pare && v.pare.cmp && v.pare.cmp.tema) || (s.temas || [])[0] || f.tema;
+        if (f.estado === 'falta') {
+          hall.push(ocultos.length ? '✖ El material está oculto' : '✖ Sin material');
+          rec.push(ocultos.length ? 'Hacer visible el material de esta semana.' : s.rango
+            ? 'Subir el material de esta semana con los temas del bloque ' + s.rango + ' que le corresponden (ver la columna del sílabo); el sílabo no dice cuál tema va en cada semana del bloque.'
+            : 'Subir el material de esta semana' + (temaRec ? ': «' + temaRec + '»' : '') + '.');
+        } else {
+          if (v.veredicto) hall.push(v.veredicto.charAt(0).toUpperCase() + v.veredicto.slice(1));
+          if (v.otra) rec.push('Mover «' + v.otra.titulo + '» a la semana ' + v.otra.pareceSemana + ' y subir aquí el material del tema del sílabo.');
+          else if (v.pare && !v.igual) rec.push('Poner como título de la presentación el tema exacto del sílabo: «' + v.pare.cmp.tema + '» (hoy dice «' + (v.pare.tituloPpt || v.pare.titulo) + '»).');
+          else if (/no se reconoce/.test(v.veredicto || '')) rec.push('Revisar que el material trate el tema del sílabo de esta semana; si es así, poner su título exacto en la primera diapositiva.');
+          if (!Z && f.publicado != null && !f.aTiempo) { hall.push('◐ Publicado tarde (' + diasTxt(f.anticipacion) + ' de su inicio)');
+            rec.push('Publicar el material al menos ' + REGLAS.diasMaterial + ' días antes de que empiece la semana.'); }
+          else if (!Z && f.publicado != null) hall.push('✔ Publicado a tiempo');
+          f.problemas.filter(t => /mismo archivo|Sesión|propio/.test(t)).forEach(t => hall.push('◐ ' + t.charAt(0).toUpperCase() + t.slice(1)));
+          if (f.problemas.some(t => /mismo archivo|propio/.test(t))) rec.push('Subir un material propio para el tema de esta semana (no repetir el de otra semana).');
+        }
+        return { n: f.n, aula, silabo, hallazgo: hall, recomendacion: rec.length ? rec : ['Ninguna: está conforme.'], ok: !rec.length };
+      });
       // El auditor también corrobora que estén todas las sesiones antes del examen parcial.
       const semParcial = semSil.find(x => x.sinMaterial && /parcial/i.test(x.titulo || ''));
       if (semParcial) {
@@ -1274,7 +1304,7 @@
       const sinLeer = evaluables.filter(f => !f.conTitulo && f.materiales.some(m => m.cmp && (m.cmp.estado === 'sin-titulo' || m.cmp.estado === 'sin-texto')));
       if (conT.length) r.evidencia.push('Títulos de las presentaciones: en ' + (conT.length - titMal.length) + ' de ' + plural(conT.length, 'semana', 'semanas') +
         ' el título es el mismo del tema del sílabo.');
-      titMal.forEach(f => { const m = f.materiales.find(x => x.cmp && x.cmp.tema && x.cmp.estado !== 'sin-texto');
+      if (!r.tabla) titMal.forEach(f => { const m = f.materiales.find(x => x.cmp && x.cmp.tema && x.cmp.estado !== 'sin-texto');
         if (m) r.evidencia.push('Semana ' + f.n + ': el sílabo dice «' + m.cmp.tema + '»; la presentación dice «' + m.tituloPpt + '».'); });
       if (sinLeer.length) r.certeza = 'media';
       if (sinLeer.length) r.nota.push('No se pudo leer el título de la presentación en la semana' + (sinLeer.length > 1 ? 's ' : ' ') + y(sinLeer.map(f => String(f.n))) + ' (¿es una imagen escaneada?): revíselo a mano.');
@@ -1402,6 +1432,22 @@
     futuro: ['neutro', 'Aún no corresponde'], evaluacion: ['neutro', 'Semana de examen']
   };
 
+  // Tabla comparativa del punto 05: aula virtual frente al sílabo, semana por semana.
+  function tablaComparativaHTML(r) {
+    const grupos = r.tablas && r.tablas.length ? r.tablas : (r.tabla && r.tabla.length ? [{ tabla: r.tabla }] : []);
+    if (!grupos.some(g => g.tabla && g.tabla.length)) return '';
+    const li = l => l.length ? '<ul class="mbz-tc-l">' + l.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<span class="mbz-tc-vacio">— Nada publicado</span>';
+    const tono = t => /^✖/.test(t) ? 'falla' : /^◐|^\?/.test(t) ? 'parcial' : /^✔/.test(t) ? 'ok' : 'neutro';
+    return '<dt>Tabla comparativa: aula virtual frente al sílabo</dt><dd><p class="mbz-sub">Cada fila es una semana que, a la fecha de la copia, ya debía tener material. ' +
+      'A la izquierda, lo que hay en el aula; a su lado, lo que el sílabo indica para esa semana; luego el hallazgo y la recomendación.</p>' +
+      grupos.filter(g => g.tabla && g.tabla.length).map(g => (g.etiqueta ? '<p class="mbz-sub"><b>Aula de ' + esc(g.etiqueta) + '</b></p>' : '') +
+        '<div class="mbz-scroll"><table class="mbz-tabla mbz-tc"><colgroup><col style="width:7%"><col style="width:27%"><col style="width:27%"><col style="width:19%"><col style="width:20%"></colgroup>' +
+        '<thead><tr><th>Semana</th><th>Lo que hay en el aula virtual</th><th>Lo que debería estar según el sílabo</th><th>Hallazgo</th><th>Recomendación</th></tr></thead><tbody>' +
+        g.tabla.map(t => '<tr class="' + (t.ok ? 'mbz-tc-ok' : '') + '"><td class="mbz-n">' + t.n + '</td><td>' + li(t.aula) + '</td><td>' + li(t.silabo) + '</td><td>' +
+          t.hallazgo.map(x => '<div class="mbz-tc-h mbz-' + tono(x) + '">' + esc(x) + '</div>').join('') + '</td><td>' + li(t.recomendacion) + '</td></tr>').join('') +
+        '</tbody></table></div>').join('') + '</dd>';
+  }
+
   function reporteHTML(res, op) {
     op = op || {};
     const H = res.hechos, A = H.aula, R = res.puntos, S = res.resumen;
@@ -1451,6 +1497,7 @@
       h.push('<dl>');
       h.push('<dt>Resultado sugerido</dt><dd>' + chip(r.sugerido) + (r.porque ? ' ' + esc(r.porque) : '') + '</dd>');
       h.push('<dt>Qué se encontró</dt><dd><ul>' + r.evidencia.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
+      h.push(tablaComparativaHTML(r));
       if (r.mejorar.length) h.push('<dt>Qué mejorar</dt><dd><ul>' + r.mejorar.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
       h.push('<dt>Certeza</dt><dd>' + esc(CERTEZA[r.certeza] || r.certeza) + '</dd>');
       if (r.automatico && r.para_docente && op.soloLectura) h.push('<dt>Mensaje para el docente</dt><dd class="mbz-msj-ro">' + esc(r.para_docente) + '</dd>');
@@ -1605,6 +1652,7 @@
       }
       const r = Object.assign({}, elegido.r);
       r.porAula = usadas.map(it => ({ etiqueta: it.aula.etiqueta, sugerido: it.res.puntos[n].sugerido, vacia: it.contenido.vacia }));
+      if (varias) r.tablas = rs.map(x => ({ etiqueta: x.it.aula.etiqueta, tabla: x.r.tabla || [] }));
       if (varias) {
         r.evidencia = [].concat(...rs.map(x => x.r.evidencia.map(e => etq(x.it) + ': ' + e)));
         r.mejorar = [].concat(...rs.map(x => x.r.mejorar.map(e => (BASTA_UNA.includes(n) && RANGO(elegido.r.sugerido) === 3) ? null : etq(x.it) + ': ' + e))).filter(Boolean);
@@ -1716,6 +1764,7 @@
       if (r.estandar) h.push('<p class="mbz-std"><b>Estándar:</b> ' + esc(r.estandar) + '</p>');
       h.push('<dl><dt>Resultado sugerido</dt><dd>' + chip(r.sugerido) + (r.porque ? ' ' + esc(r.porque) : '') + '</dd>');
       h.push('<dt>Qué se encontró</dt><dd><ul>' + r.evidencia.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
+      h.push(tablaComparativaHTML(r));
       if (r.mejorar.length) h.push('<dt>Qué mejorar</dt><dd><ul>' + r.mejorar.map(e => '<li>' + esc(e) + '</li>').join('') + '</ul></dd>');
       h.push('<dt>Certeza</dt><dd>' + esc(CERTEZA[r.certeza] || r.certeza) + '</dd>');
       if (r.automatico && r.para_docente !== undefined) h.push('<dt>Mensaje para el docente <small>(puede corregirlo)</small></dt><dd><textarea class="mbz-msj" data-punto="' + n + '" rows="' +
@@ -1752,6 +1801,8 @@
 .mbz-falla{background:#fdecea;color:#8f2418;border-color:#f1b9b2}.mbz-neutro{background:#f0f2f1;color:#5a6660;border-color:#dfe4e1}
 .mbz-manual{background:#eef3fb;color:#2d4f80;border-color:#c3d4ee}
 .mbz-tabla{border-collapse:collapse;width:100%;font-size:14px}.mbz-tabla th,.mbz-tabla td{border:1px solid var(--linea,#dfe4e1);padding:6px 8px;vertical-align:top;text-align:left}
+.mbz-tc{font-size:15px}.mbz-tc td{line-height:1.45}.mbz-tc-l{margin:0;padding-left:18px}.mbz-tc-l li{margin:2px 0}.mbz-tc-vacio{color:#8f2418;font-weight:600}
+.mbz-tc-ok td{background:#f3faf6}.mbz-tc-h{font-weight:600;margin:2px 0}.mbz-tc-h.mbz-falla{color:#8f2418}.mbz-tc-h.mbz-parcial{color:#8a5a00}.mbz-tc-h.mbz-ok{color:#0b6e48}
 .mbz-tabla th{background:#f3f6f4;font-size:13.5px;text-transform:none;letter-spacing:0;font-weight:700;color:#2b3a33}
 .mbz-sem{table-layout:fixed;width:100%}.mbz-sem td{word-wrap:break-word;overflow-wrap:anywhere}.mbz-sem .mbz-chip{white-space:normal;display:inline-block;max-width:100%}
 .mbz-resu td{font-size:14.5px}.mbz-ver{font-size:13px;white-space:nowrap;color:#2a6fb0}
