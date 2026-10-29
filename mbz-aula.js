@@ -14,14 +14,14 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-28.1';
+  const VERSION_REGLAS = 'mbz-2026-10-28.2';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
   const REGLAS = {
     diasMaterial: 7,          // material: días antes del inicio de su semana
     semana1DesdeInicio: true, // semana 1: se mide contra el inicio del curso, no 7 días antes
-    semanasSinMaterial: /^\s*(examen|evaluaci[oó]n final|sustentaci[oó]n de trabajos finales)/i,
+    semanasSinMaterial: /^\s*(examen|semana de ex[aá]menes|evaluaci[oó]n final|sustentaci[oó]n de trabajos finales)/i,
     maxPdfMB: 40,             // PDF más grande que se lee (los videos nunca se leen)
     maxTotalPdfMB: 250        // tope de PDF guardados en memoria durante la lectura
   };
@@ -284,36 +284,84 @@
     if (sm) s.semestre = sm[1] + '-' + (/^(2|ii)$/i.test(sm[2]) ? '2' : '1');
     // Cronograma: después de «Semana … Contenido», cada línea que empieza con
     // un número es una semana; las líneas siguientes completan su contenido.
-    let dentro = false, actual = null, unidad = '', sueltas = [];
+    // 28/10/2026: también semanas agrupadas («1-2-3», «4-5», «12-13-14-15») y el
+    // número centrado en la celda (texto antes y después del número), como en los
+    // sílabos de Taller de Investigación. Cada bloque se reparte a todas sus semanas.
+    let dentro = false, unidad = '', sec = [];
+    const RANGO = /^(\d{1,2})((?:\s*[-–,]\s*\d{1,2})+|\s+(?:al?|y)\s+\d{1,2})(?:\s+(.*))?$/i;
+    const esExamen = t => /ex[aá]men|sustitutorio/i.test(t || '');
+    const numsDe = (a, resto) => { const l = [a].concat((resto.match(/\d{1,2}/g) || []).map(Number));
+      if (/\b(al?|y)\b/i.test(resto) && l.length === 2 && l[1] > l[0] && !/y/i.test(resto)) { const r = []; for (let k = l[0]; k <= l[1]; k++) r.push(k); return r; }
+      return l; };
+    const cerrar = () => {
+      if (!sec.length) return;
+      const iNum = sec.map((x, i) => x.nums ? i : -1).filter(i => i >= 0);
+      if (!iNum.length) { sec = []; return; }
+      const due = new Array(sec.length).fill(-1);
+      iNum.forEach(i => due[i] = i);
+      const centrado = iNum[0] > 0;          // hay texto antes del primer número
+      for (let i = 0; i < sec.length; i++) {
+        if (due[i] >= 0) continue;
+        const prev = iNum.filter(k => k < i).pop(), next = iNum.find(k => k > i);
+        let d;
+        if (prev == null) d = next;
+        else if (next == null) d = prev;
+        else if (!centrado) d = prev;                                   // número arriba: el texto sigue
+        else if (/^[a-záéíóúñü(]/.test(sec[i].t) && i > 0 && due[i - 1] >= 0) d = due[i - 1];   // continúa la línea anterior
+        else if (esExamen(sec[next].t)) d = prev;                       // «16 SEMANA DE EXÁMENES» no absorbe texto
+        else if (esExamen(sec[prev].t)) d = next;
+        else d = (i - prev) <= (next - i) ? prev : next;
+        due[i] = d;
+      }
+      iNum.forEach(k => {
+        const lineas = [];
+        sec.forEach((x, i) => { if (due[i] !== k) return; const t = i === k ? x.t : x.t; if (!t) return;
+          if (lineas.length && /^[a-záéíóúñü(]/.test(t)) lineas[lineas.length - 1] += ' ' + t; else lineas.push(t); });
+        const contenido = lineas.join(' ');
+        const nums = sec[k].nums;
+        nums.forEach(n => { if (n < 1 || n > 20 || s.semanas.some(x => x.n === n)) return;
+          s.semanas.push({ n, contenido, unidad: sec[k].unidad, rango: nums.length > 1 ? nums.join('-') : '', lineasTema: lineas }); });
+      });
+      sec = [];
+    };
     for (const l0 of lineas) {
       const l = l0.trim(), n = norm(l);
-      if (!l || l === '\f' || ES_PIE.test(n)) continue;
-      if (/^semana\b.*contenido/.test(n) || /^seman(a)?$/.test(n) || /programacion de contenidos/.test(n)) { dentro = true; actual = null; sueltas = []; continue; }
+      if (!l || l === '\f' || ES_PIE.test(n) || /^pagina \d+ de \d+$/.test(n)) continue;
+      if (/^semana\b.*contenido/.test(n) || /^seman(a)?$/.test(n) || /programacion de contenidos/.test(n)) { cerrar(); dentro = true; continue; }
       if (dentro && (/^contenido$/.test(n) || /^a$/.test(n))) continue;
       const u = l.match(/^UNIDAD\s+([IVX]+|\d+)\s*:?\s*(.*)$/i);
-      if (u) { unidad = (u[1] + (u[2] ? ': ' + u[2] : '')).trim(); actual = null; sueltas = []; continue; }
-      if (/^logro\b/.test(n)) { actual = null; sueltas = []; continue; }
-      if (dentro && /^(vii|viii|ix|x)\.?\s+[a-z]/.test(n) && s.semanas.length) break;
+      if (u) { cerrar(); unidad = (u[1] + (u[2] ? ': ' + u[2] : '')).trim(); continue; }
+      if (/^logro\b/.test(n)) { cerrar(); continue; }
+      if (dentro && /^(vii|viii|ix|x)\.?\s+[a-z]/.test(n) && (s.semanas.length || sec.some(x => x.nums))) { cerrar(); break; }
       if (!dentro) continue;
       const w = l.match(/^(\d{1,2})\s+(.*[A-Za-zÁÉÍÓÚÑáéíóúñ]{3}.*)$/);
       const solo = l.match(/^(\d{1,2})$/);
-      const sigue = (s.semanas.length ? Math.max(...s.semanas.map(x => x.n)) : 0) + 1;
-      if (w && +w[1] >= 1 && +w[1] <= 20 && !s.semanas.some(x => x.n === +w[1])) {
-        actual = { n: +w[1], contenido: (sueltas.join(' ') + ' ' + w[2]).trim(), unidad }; sueltas = [];
-        s.semanas.push(actual);
-      } else if (solo && +solo[1] === sigue && !actual) {
-        // Número centrado en la celda: el texto que vino antes es de esta semana.
-        actual = { n: +solo[1], contenido: sueltas.join(' '), unidad }; sueltas = [];
-        s.semanas.push(actual);
-      } else if (actual && !/^\d{1,3}$/.test(l)) actual.contenido += ' ' + l;
-      else if (!actual && !/^\d{1,3}$/.test(l)) sueltas.push(l);
+      const rg = l.match(RANGO);
+      if (rg && !/^\d{1,2}\s+(al?|y)\s+\d{1,2}\s*[a-z]/i.test(l) && (rg[3] == null || /[A-Za-zÁÉÍÓÚÑáéíóúñ]{3}/.test(rg[3])))
+        sec.push({ nums: numsDe(+rg[1], rg[2]), t: (rg[3] || '').trim(), unidad });
+      else if (w && +w[1] >= 1 && +w[1] <= 20) sec.push({ nums: [+w[1]], t: w[2], unidad });
+      else if (solo && +solo[1] >= 1 && +solo[1] <= 20) sec.push({ nums: [+solo[1]], t: '', unidad });
+      else if (!/^\d{1,3}$/.test(l)) sec.push({ t: l });
     }
+    cerrar();
     s.semanas.forEach(x => {
       x.contenido = x.contenido.replace(/\s+/g, ' ').trim();
       x.temas = temasDeSemana(x.contenido);
+      // Semanas agrupadas: cada línea del bloque es un tema (el sílabo no dice cuál va en cada semana).
+      if (x.rango && x.lineasTema && x.lineasTema.length > 1) {
+        const tm = x.lineasTema.map(t => t.replace(/[.\s]+$/, '').trim()).filter(t => t && !/^(monitoreo|evaluaci[oó]n del logro)/i.test(t));
+        if (tm.length) x.temas = tm;
+        // Para comparar títulos: también la parte antes de «:» y sin el paréntesis
+        // («Matriz de consistencia: Redacción…» → «Matriz de consistencia»).
+        const cand = [];
+        x.temas.forEach(t => { [t.split(':')[0], t.replace(/\s*\([^)]*\)/g, ''), t.split(':')[0].replace(/\s*\([^)]*\)/g, '')]
+          .map(z => z.trim()).filter(z => z.length >= 6).forEach(z => { if (!cand.includes(z)) cand.push(z); }); });
+        x.temasCmp = cand.sort((p, q) => p.length - q.length);
+      }
       x.titulo = x.temas.join('. ');
       // Para mostrar: si la semana no empieza con su título en mayúsculas, el inicio del texto.
-      x.tituloVer = norm(x.contenido).indexOf(norm(x.temas[0])) === 0 ? x.titulo : x.contenido.slice(0, 110).replace(/\s+\S*$/, '') + '…';
+      x.tituloVer = x.rango || norm(x.contenido).indexOf(norm(x.temas[0])) === 0 ? x.titulo : x.contenido.slice(0, 110).replace(/\s+\S*$/, '') + '…';
+      delete x.lineasTema;
       x.sinMaterial = REGLAS.semanasSinMaterial.test(x.contenido);
     });
     s.semanas.sort((a, b) => a.n - b.n);
@@ -1065,7 +1113,7 @@
       const STOP = new Set('para como entre sobre desde segun mediante concepto conceptos objetivos objetivo casos problemas aplicacion ventajas desventajas estrategia metodo metodos procedimiento aspectos tecnicos caso aplicativos tipo tipos respecto luego integralmente sesiones trabajos derivados conocimientos'.split(' '));
       const conNum = s => norm(s).replace(/\((\d{1,2})\)/g, ' n$1 ');
       const palabras = s => [...new Set(conNum(s).split(/[^a-z0-9]+/).filter(w => (w.length > 4 || /^n\d+$/.test(w)) && !STOP.has(w)))];
-      const kw = {}; semSil.forEach(s => kw[s.n] = palabras(s.titulo));
+      const kw = {}; semSil.forEach(s => kw[s.n] = palabras(s.rango ? s.contenido : s.titulo));
       const conTema = s => s && !s.sinMaterial && !/pr[aá]ctica calificada|sustentaci[oó]n/i.test(s.titulo || '');
       const df = {}; Object.values(kw).forEach(l => l.forEach(w => df[w] = (df[w] || 0) + 1));
       const nS = Math.max(1, semSil.length);
@@ -1110,7 +1158,7 @@
           m.tituloPpt = ft ? ft.tituloDeclarado : '';
           m.enlace = a.mod === 'url' ? nombreDominio(a.dominio) : '';
           // Solo si la semana del sílabo tiene un título claro (en MAYÚSCULAS al inicio).
-          if (s.temas && conTema(s) && !m.repetidoDe && s.tituloVer === s.titulo) m.cmp = ft ? compararTitulo(m.tituloPpt, s.temas) : { estado: 'sin-texto' };
+          if (s.temas && conTema(s) && !m.repetidoDe && s.tituloVer === s.titulo) m.cmp = ft ? compararTitulo(m.tituloPpt, s.temasCmp || s.temas) : { estado: 'sin-texto' };
           if (semSil.length && !m.repetidoDe && conTema(s) && (kw[n] || []).length) {
             const propio = parecido(n, texto);
             let mejor = n, pm = propio;
@@ -1200,7 +1248,8 @@
         else if (pare) { veredicto = '◐ título parecido, pero no igual al del sílabo'; revisarTema.push(f.n); }
         else if (!conTema(s) || !(kw[f.n] || []).length) veredicto = '? no se pudo comparar solo (el tema del sílabo es muy general): revíselo a mano';
         else { veredicto = '? no se reconoce el tema del sílabo en el material: revíselo a mano'; revisarTema.push(f.n); }
-        corr.push('Semana ' + f.n + ': sílabo «' + f.tema + '» · aula ' + enAula + ' → ' + veredicto + '.');
+        const temaCorto = f.tema.length > 170 ? f.tema.slice(0, 170).replace(/\s+\S*$/, '') + '…' : f.tema;
+        corr.push('Semana ' + f.n + ': sílabo' + (s.rango ? ' (semanas ' + s.rango + ')' : '') + ' «' + temaCorto + '» · aula ' + enAula + ' → ' + veredicto + '.');
       });
       if (corr.length) {
         r.evidencia.push('Correspondencia del tema del sílabo con lo publicado en el aula, semana por semana:');
@@ -1231,7 +1280,10 @@
       if (sinLeer.length) r.nota.push('No se pudo leer el título de la presentación en la semana' + (sinLeer.length > 1 ? 's ' : ' ') + y(sinLeer.map(f => String(f.n))) + ' (¿es una imagen escaneada?): revíselo a mano.');
       const proximas = cuadro.filter(f => !f.corresponde && !f.sinMaterial).slice(0, 1);
       // Qué mejorar: qué + dónde + cuándo.
-      if (faltan.length) r.mejorar.push('Subir el material de ' + (faltan.length > 1 ? 'las semanas ' : 'la semana ') + y(faltan.map(f => f.n + (f.tema ? ' (' + f.tema.toLowerCase() + ')' : ''))) + '.');
+      const corto = t => { t = String(t || '').toLowerCase(); return t.length > 90 ? t.slice(0, 90).replace(/\s+\S*$/, '') + '…' : t; };
+      const rangoDe = n => (semSil.find(x => x.n === n) || {}).rango;
+      if (faltan.length) r.mejorar.push('Subir el material de ' + (faltan.length > 1 ? 'las semanas ' : 'la semana ') + y(faltan.map(f => f.n +
+        (rangoDe(f.n) ? ' (bloque de las semanas ' + rangoDe(f.n) + ': ' + corto(f.tema) + ')' : f.tema ? ' (' + corto(f.tema) + ')' : ''))) + '.');
       const aRevisar = [...new Set(rep.map(p => p[1]).concat(sinTema.map(f => f.n)))];
       if (aRevisar.length) r.mejorar.push((aRevisar.length > 1 ? 'Revisar las semanas ' : 'Revisar la semana ') + y(aRevisar.sort((a, b) => a - b).map(String)) + ': cada semana debe tener el material de su propio tema (hoy hay archivos repetidos o de otra semana).');
       if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» no se puede revisar la anticipación (material publicado ' + REGLAS.diasMaterial +
@@ -1745,7 +1797,7 @@
   }
 
   const API = { VERSION_REGLAS, REGLAS, PUNTOS, notaZipHTML, leerHorario, horarioDelAula, cargarHorarioPublicado, esCopiaMbz, buscarCopia, buscarCopias, leer, cruzar, evaluar, hallazgosJSON, textoBorrador, reporteHTML, ponerEstilos,
-    aulasDeLaCarga, aulaDelNombre, contenidoAula, combinar, textoBorradorCarga, cuadroCopiasHTML, reporteCargaHTML, fecha, fechaHora };
+    aulasDeLaCarga, aulaDelNombre, contenidoAula, combinar, textoBorradorCarga, cuadroCopiasHTML, reporteCargaHTML, fecha, fechaHora, _prueba: { lineasPdf, leerSilabo } };
   raiz.MBZ = API;
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
 })(typeof window !== 'undefined' ? window : globalThis);
