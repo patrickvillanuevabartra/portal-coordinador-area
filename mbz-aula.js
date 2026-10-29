@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-28.4';
+  const VERSION_REGLAS = 'mbz-2026-10-28.5';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -1340,13 +1340,20 @@
             : 'Subir el material de esta semana' + (faltanT.length ? ': «' + faltanT.map(tm => tm.t.split(':')[0]).join('», «') + '»' : '') + '.');
         } else {
           const okM = aula.filter(x => x.marca === 'ok').length;
-          hall.push((okM ? '✔ ' : '✖ ') + okM + ' de ' + plural(vis.length, 'material coincide', 'materiales coinciden') + ' con el sílabo de esta semana');
+          // Dos conteos distintos, cada uno con su columna: lo publicado (izquierda) y los temas del sílabo (derecha).
+          hall.push((okM === vis.length ? '✔ ' : okM ? '◐ ' : '✖ ') + 'Aula: ' + okM + ' de ' + plural(vis.length, 'material publicado es', 'materiales publicados son') +
+            ' de ' + (b && b.semanas.length > 1 ? 'este bloque' : 'esta semana'));
+          if (b) { const pub = b.temas.length - faltanT.length;
+            hall.push((pub === b.temas.length ? '✔ ' : pub ? '◐ ' : '✖ ') + 'Sílabo: ' + pub + ' de ' + plural(b.temas.length, 'tema publicado', 'temas publicados') +
+              (b.semanas.length > 1 ? ' en el bloque ' + b.clave : '')); }
           fuera.forEach(x => { hall.push('◐ «' + (x.m.tituloPpt || x.m.titulo) + '» es tema de ' + x.u.b.etiqueta);
             rec.push('Mover «' + (x.m.tituloPpt || x.m.titulo) + '» a ' + x.u.b.etiqueta + ', donde lo pone el sílabo.'); });
           if (fuera.length) conProblemaTema.add(f.n);
-          if (faltanT.length && (b.semanas.length === 1 || (ultimaDelBloque && yaPaso(b)))) {
-            hall.push('✖ ' + (faltanT.length === 1 ? 'Falta 1 tema del sílabo' : 'Faltan ' + faltanT.length + ' temas del sílabo'));
-            rec.push('Subir el material de: «' + faltanT.map(tm => tm.t.split(':')[0]).join('», «') + '».'); conProblemaTema.add(f.n);
+          if (faltanT.length) {
+            const enCurso = b.semanas.length > 1 && !yaPaso(b);
+            rec.push((b.semanas.length > 1 ? 'Del bloque ' + b.clave + (enCurso ? ' (aún en curso)' : '') + ' falta publicar: «' : 'Subir el material de: «') +
+              faltanT.map(tm => tm.t.split(':')[0] + (tm.en.length ? '» (hoy está en la semana ' + y([...new Set(tm.en)].map(String)) + ')' : '»')).join(', «').replace(/»$/, '') + (faltanT[faltanT.length - 1].en.length ? '.' : '».'));
+            if (b.semanas.length === 1 || (ultimaDelBloque && yaPaso(b))) conProblemaTema.add(f.n);
           }
           const v = verd[f.n] || {};
           if (v.pare && !v.igual) rec.push('Poner como título de la presentación el tema exacto del sílabo: «' + v.pare.cmp.tema + '» (hoy dice «' + (v.pare.tituloPpt || v.pare.titulo) + '»).');
