@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.4';
+  const VERSION_INTERNA = '2026-10-29.5';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10280,7 +10280,27 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // 29/10/2026 (auditoría): el punto 01 no se deja solo al asistente. El portal compara él mismo el
   // código del sílabo con el de la carga del DAI y el catálogo, y el requisito con la fila del curso
   // en el plan de estudios. Si no coinciden, el punto no puede quedar «Cumple».
-  function chequearPunto01(txt, plan, a) {
+  // Tabla del plan de estudios transcrita y verificada (una por carrera y plan).
+  const PLANES_VERIFICADOS = {};
+  async function filaDelPlanVerificado(a) {
+    const slug = sinAcentos(nombreCarreraCorto(a.programa || '') || a.programa || '').replace(/^ingenieria\s+/, '').replace(/[^a-z]/g, '');
+    const plan = String(a.planEstudio || '').toUpperCase().replace(/\s/g, '');
+    if (!slug || !/^20\d\d-I{1,2}$/.test(plan)) return null;
+    const k = slug + '-' + plan;
+    if (!(k in PLANES_VERIFICADOS)) {
+      try { const r = await fetch('docs/planes/' + k + '.json', { cache: 'no-cache' }); PLANES_VERIFICADOS[k] = r.ok ? await r.json() : null; }
+      catch (e) { PLANES_VERIFICADOS[k] = null; }
+    }
+    const t = PLANES_VERIFICADOS[k]; if (!t) return null;
+    const cod = String(a.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    const f = (t.cursos || []).find(x => x.codigo === cod);
+    return f ? Object.assign({ plan: t.plan, programa: t.programa }, f) : null;
+  }
+  function textoFilaPlan(f) {
+    return 'Código ' + f.codigoPlan + ' · ' + f.curso + ' · semestre ' + f.semestre + ' · ' + f.condicion + ' · horas: ' + f.horasTeoria + ' de teoría y ' +
+      f.horasPractica + ' de práctica · ' + f.creditos + ' créditos · requisito: ' + f.requisito;
+  }
+  function chequearPunto01(txt, plan, a, fila) {
     const t = String(txt || '').slice(0, 15000), problemas = [], datos = {};
     const norm = x => String(x || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const mc = t.match(/c[óo]digo(?:\s+de\s+la\s+asignatura|\s+del\s+curso)?\s*[:.\-–]?\s*\n?\s*([A-Z]{2,4}\s?[-–]?\s?\d{3,6}[A-Z]?)\b/i);
@@ -10293,21 +10313,32 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     const mr = t.match(/(?:pre)?requisitos?\s*[:.\-–]\s*([^\n]{3,140})/i);
     if (mr) {
       datos.requisito = mr[1].replace(/\s+/g, ' ').trim();
-      const filaPlan = String(plan || '').replace(/^\[[^\]]*\]\s*/, '');
-      if (filaPlan && !/no se encontr/i.test(plan)) {
+      const filaPlan = fila ? fila.requisito : String(plan || '').replace(/^\[[^\]]*\]\s*/, '');
+      if (filaPlan && (fila || !/no se encontr/i.test(plan))) {
         const raiz = w => sinAcentos(w).replace(/[^a-z0-9]/g, '').slice(0, 5);
         const enPlan = sinAcentos(filaPlan).replace(/[^a-z0-9 ]/g, ' ');
         const pal = sinAcentos(datos.requisito).split(/[^a-z0-9]+/).filter(w => w.length > 4 && !/^(ninguno|ninguna|creditos|aprobados)$/.test(w));
         const ok = !pal.length || pal.filter(w => enPlan.indexOf(raiz(w)) >= 0).length / pal.length >= 0.5 || /ningun/.test(sinAcentos(datos.requisito));
-        if (!ok) problemas.push('Requisito: el sílabo dice «' + datos.requisito + '», que no figura en la fila del curso del plan de estudios ' + (a.planEstudio || '') +
+        if (!ok) problemas.push(fila
+          ? 'Requisito: el sílabo dice «' + datos.requisito + '», pero según el plan de estudios ' + fila.plan + ' el requisito es «' + fila.requisito + '».'
+          : 'Requisito: el sílabo dice «' + datos.requisito + '», que no figura en la fila del curso del plan de estudios ' + (a.planEstudio || '') +
           '. Verifíquelo en el plan (en la biblioteca del portal).');
       }
+    }
+    if (fila) {
+      const num = rx => { const m = t.match(rx); return m ? Number(m[1].replace(',', '.')) : null; };
+      const cr = num(/cr[ée]ditos?\s*[:.\-–]?\s*(\d+(?:[.,]\d)?)/i);
+      if (cr != null && cr !== fila.creditos) problemas.push('Créditos: el sílabo dice ' + cr + ', pero según el plan ' + fila.plan + ' son ' + fila.creditos + '.');
+      const ht = num(/horas?\s+de\s+teor[ií]a\s*[:.\-–]?\s*(\d+)/i), hp = num(/horas?\s+de\s+pr[áa]ctica\s*[:.\-–]?\s*(\d+)/i);
+      if (ht != null && ht !== fila.horasTeoria) problemas.push('Horas de teoría: el sílabo dice ' + ht + ', pero según el plan ' + fila.plan + ' son ' + fila.horasTeoria + '.');
+      if (hp != null && hp !== fila.horasPractica) problemas.push('Horas de práctica: el sílabo dice ' + hp + ', pero según el plan ' + fila.plan + ' son ' + fila.horasPractica + '.');
+      datos.plan = fila;
     }
     return { problemas, datos };
   }
   function imponerChequeo01(p, ch) {
     const txt = 'Comprobado por el portal: ' + ch.problemas.join(' ');
-    const grave = ch.problemas.some(x => /^C[óo]digo/.test(x));
+    const grave = ch.problemas.some(x => /^(C[óo]digo|Requisito: el sílabo dice «[^»]*», pero)/.test(x));
     p['item:01'] = grave ? 'No cumple' : 'Parcial';
     p['obs:01'] = txt + (p['obs:01'] && !/^cumple|ninguna/i.test(String(p['obs:01'])) ? ' ' + p['obs:01'] : '');
     if (Array.isArray(p._informe)) {
@@ -11340,6 +11371,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             } else throw e;
           }
         }
+        // 29/10/2026: primero, la tabla del plan transcrita y verificada a mano (docs/planes/…json).
+        // Los planes escaneados se leen con errores («1N-0604», «Estadisice Infor… encial»).
+        const filaPlan = estado.modulo === 'silabo' ? await filaDelPlanVerificado(estado.actual || {}) : null;
+        if (filaPlan && !hayPlan) {
+          extractoPlan = textoFilaPlan(filaPlan);
+          partes.push('===== Plan de estudios ' + filaPlan.plan + ' de ' + filaPlan.programa + ' (tabla verificada del portal; úsala para el punto 01) =====\n' + extractoPlan);
+          hayPlan = true;
+        }
         // Si no se adjuntó el plan de estudios y el portal lo tiene, se usa ese.
         const planP = estado.modulo === 'silabo' && !hayPlan ? planDelPortal(estado.actual) : null;
         if (planP) {
@@ -11361,7 +11400,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             '. Adjunte el sílabo: el plan de estudios solo sirve para comprobar el punto 01, junto con el sílabo.');
         }
         fuente = partes.join('\n\n');
-        estado.chequeo01 = estado.modulo === 'silabo' && textoSilabo ? chequearPunto01(textoSilabo, extractoPlan, estado.actual || {}) : null;
+        estado.chequeo01 = estado.modulo === 'silabo' && textoSilabo ? chequearPunto01(textoSilabo, extractoPlan, estado.actual || {}, filaPlan) : null;
         const nota = $('trIndicacion').value.trim();
         if (nota) fuente = 'Indicación del coordinador: ' + nota + '\n\n' + fuente;
         // Los .vtt y .srt traen tiempos y numeración que solo estorban.
