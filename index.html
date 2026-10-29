@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-27.13';
+  const VERSION_INTERNA = '2026-10-28.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -11016,6 +11016,25 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       }, opc);
     } catch (e) {
       console.warn('Portal: no se pudo leer la copia .mbz →', e);
+      // 28/10/2026: «The requested file could not be read…» (NotReadableError) no es un
+      // problema de la copia: el navegador perdió el acceso al archivo después de adjuntarlo
+      // (la descarga no había terminado, se movió o renombró, está en OneDrive/Drive sin
+      // descargar o el antivirus lo estaba revisando). Se explica en palabras sencillas y se
+      // quita el adjunto para que se vuelva a adjuntar.
+      const sinAcceso = (e && e.name === 'NotReadableError') || /could not be read|permission problems|NotReadable/i.test(String(e && e.message));
+      if (sinAcceso) {
+        ADJUNTOS = ADJUNTOS.filter(f => f !== archivo); try { pintarAdjuntosDesde(); } catch (_) {}
+        caja.innerHTML = '<div class="mbz-alto"><b>El navegador ya no puede abrir el archivo «' + esc(archivo.name) + '».</b> ' +
+          'La copia no está dañada: el archivo cambió o dejó de estar disponible después de adjuntarlo.' +
+          '<br><b>Suele pasar cuando:</b><ul style="margin:6px 0 6px 20px">' +
+          '<li>se adjuntó <b>antes de que terminara la descarga</b> de Moodle;</li>' +
+          '<li>el archivo se <b>movió, renombró o borró</b> después de adjuntarlo;</li>' +
+          '<li>está en una carpeta de <b>OneDrive o Google Drive</b> que aún no lo descarga del todo;</li>' +
+          '<li>el <b>antivirus</b> lo estaba revisando.</li></ul>' +
+          '<b>Qué hacer:</b> espere a que la descarga termine, copie el archivo al <b>Escritorio</b>, vuelva a adjuntarlo con 📎 Adjuntar y pulse <b>Analizar</b>.' +
+          '<br><small>Ya se quitó de los adjuntos. No se leyó ni se guardó nada de él.</small></div>';
+        return;
+      }
       caja.innerHTML = '<div class="mbz-alto"><b>No se pudo leer la copia del aula.</b> ' + esc(e.message) +
         '<br>Verifique que sea la copia de seguridad descargada de Moodle (archivo .mbz) o el .zip de «Descargar contenido del curso», y vuelva a intentarlo.</div>';
       return;
