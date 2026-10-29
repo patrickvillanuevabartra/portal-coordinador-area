@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-28.3';
+  const VERSION_REGLAS = 'mbz-2026-10-28.4';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -1263,33 +1263,108 @@
           ' trate el tema que indica el sílabo para esa semana, y que el título de la presentación sea el mismo del sílabo.');
       }
       // 28/10/2026: tabla comparativa por semana (aula | sílabo | hallazgo | recomendación).
+      // Cada material se cruza con TODOS los temas del sílabo: si es de esta semana (o de su
+      // bloque) se marca ✔; si es tema de otra semana, se dice de cuál; si no es ningún tema,
+      // queda como material de apoyo. Y cada tema del sílabo se marca ✔ (está publicado) o ✖ (falta).
+      const VAC = new Set('para como entre sobre desde segun mediante sesion sesiones aprendizaje clase clases semana tema temas unidad parte ppt pdf archivo material lectura video del las los una uno con por que sus este esta'.split(' '));
+      const raizP = w => w.replace(/(es|s)$/, '').replace(/[ao]$/, '');
+      const pals = t => [...new Set(norm(t).replace(/\(\s*\d+\s*\)/g, ' ').split(/[^a-z0-9ñ]+/).filter(w => w.length > 3 && !/^\d+$/.test(w)).map(raizP).filter(w => w.length > 2 && !VAC.has(w)))];
+      const bloques = [];   // { semanas:[n…], etiqueta, temas:[{t, cab, cuerpo, en:[]}] , unidad }
+      semSil.filter(x => conTema(x)).forEach(x => {
+        const clave = x.rango || String(x.n);
+        if (bloques.some(b => b.clave === clave)) return;
+        const lista = (x.temas && x.temas.length && x.temas[0] ? x.temas : [x.titulo || x.contenido]).filter(Boolean);
+        bloques.push({ clave, semanas: x.rango ? x.rango.split('-').map(Number) : [x.n], etiqueta: x.rango ? 'las semanas ' + x.rango : 'la semana ' + x.n,
+          unidad: String(x.unidad || '').replace(/^[IVX\d]+\s*:\s*/, ''),
+          temas: lista.map(t => ({ t, cab: pals(t.split(':')[0].replace(/\([^)]*\)/g, '')), cuerpo: pals(t), en: [] })) });
+      });
+      const todosT = [].concat(...bloques.map(b => b.temas));
+      const dfT = {}; todosT.forEach(tm => tm.cuerpo.forEach(w => dfT[w] = (dfT[w] || 0) + 1));
+      const pw = w => Math.log(1 + todosT.length / (dfT[w] || 0.5));
+      const puntaje = (m, tm) => {
+        const mp = pals(quitarPrefijo(m.titulo) + ' ' + (m.tituloPpt || '')); if (!mp.length || !tm.cuerpo.length) return 0;
+        const enM = new Set(mp);
+        const cab = tm.cab.length ? tm.cab : tm.cuerpo;
+        const cubreCab = cab.reduce((a, w) => a + (enM.has(w) ? pw(w) : 0), 0) / cab.reduce((a, w) => a + pw(w), 0);
+        const cuerpo = new Set(tm.cuerpo), cab2 = new Set(cab);
+        const sig = mp.filter(w => (dfT[w] || 0) < todosT.length * 0.5);   // palabras del material que distinguen
+        // Peso por rareza: «problema» pesa más que «investigación», que está en muchos temas.
+        const tot = sig.reduce((a, w) => a + pw(w), 0);
+        const cubreMat = tot ? sig.reduce((a, w) => a + pw(w) * (cab2.has(w) ? 1 : cuerpo.has(w) ? 0.6 : 0), 0) / tot : 0;
+        // Una palabra que solo aparece en este tema del sílabo («hipótesis») basta si el título es corto.
+        const unica = sig.length <= 3 && sig.some(w => w.length >= 7 && dfT[w] === 1 && cuerpo.has(w));
+        // Si el material trae una palabra poco común del sílabo que este tema no tiene («teórico» frente a
+        // «Marco histórico»), no es este tema aunque comparta otra palabra.
+        const contradice = sig.some(w => !cuerpo.has(w) && (dfT[w] || 0) >= 1 && dfT[w] <= 3);
+        return Math.max(cubreCab >= 0.6 ? cubreCab : 0, cubreMat >= 0.6 && !contradice ? cubreMat : 0, unica ? 0.5 : 0);
+      };
+      const ubicar = m => { let mejor = null, pm = 0;
+        bloques.forEach(b => b.temas.forEach(tm => { const v = puntaje(m, tm); if (v > pm + 0.001) { pm = v; mejor = { b, tm }; } }));
+        return pm >= 0.45 ? mejor : null; };
+      // Todos los materiales visibles de las semanas que ya corresponden: dónde están y qué tema son.
+      const ubic = new Map();
+      cuadro.filter(f => f.corresponde || f.materiales.length).forEach(f => f.materiales.filter(m => m.visible).forEach(m => {
+        const u = ubicar(m); ubic.set(m, u); if (u) u.tm.en.push(f.n); }));
+      const bloqueDe = n => bloques.find(b => b.semanas.includes(n));
+      const yaPaso = b => b.semanas.every(k => { const fk = cuadro.find(g => g.n === k); return fk && fk.corresponde; });
+      const conProblemaTema = new Set();
       r.tabla = evaluables.map(f => {
-        const s = semSil.find(x => x.n === f.n) || {};
+        const s = semSil.find(x => x.n === f.n) || {}, b = bloqueDe(f.n);
         const vis = f.materiales.filter(m => m.visible), ocultos = f.materiales.filter(m => !m.visible);
-        const aula = vis.map(m => (m.tituloPpt && norm(m.tituloPpt) !== norm(m.titulo) ? m.titulo + ' — título: «' + m.tituloPpt + '»' : m.titulo) +
-          (Z ? '' : ' (publicado el ' + fecha(m.agregado) + ')')).concat(ocultos.map(m => m.titulo + ' (oculto: los estudiantes no lo ven)'));
-        const silabo = (s.rango ? ['Bloque de las semanas ' + s.rango + ':'] : []).concat((s.temas && s.temas.length && s.temas[0] ? s.temas : [f.tema]).filter(Boolean));
-        if (!silabo.length) silabo.push('(no se pudo leer el tema de esta semana en el sílabo)');
-        const v = verd[f.n] || {}, hall = [], rec = [];
-        const temaRec = (v.pare && v.pare.cmp && v.pare.cmp.tema) || (s.temas || [])[0] || f.tema;
+        const hall = [], rec = [], fuera = [];
+        const nombreM = m => (m.tituloPpt && norm(m.tituloPpt) !== norm(m.titulo) ? m.titulo + ' — título: «' + m.tituloPpt + '»' : m.titulo) + (Z ? '' : ' (publicado el ' + fecha(m.agregado) + ')');
+        const aula = vis.map(m => {
+          const u = ubic.get(m);
+          if (u && b && u.b === b) return { t: nombreM(m), marca: 'ok', nota: 'Coincide con «' + u.tm.t.split(':')[0] + '»' };
+          if (u) { fuera.push({ m, u }); return { t: nombreM(m), marca: 'otra', nota: 'Es tema de ' + u.b.etiqueta + ': «' + u.tm.t.split(':')[0] + '»' }; }
+          if (b && b.unidad && pals(b.unidad).length && pals(b.unidad).every(w => pals(m.titulo + ' ' + (m.tituloPpt || '')).includes(w)))
+            return { t: nombreM(m), marca: 'apoyo', nota: 'Es el nombre de la unidad («' + b.unidad.toLowerCase() + '»), no un tema de la semana' };
+          return { t: nombreM(m), marca: 'apoyo', nota: 'No coincide con ningún tema del sílabo (¿material de apoyo?)' };
+        }).concat(ocultos.map(m => ({ t: m.titulo, marca: 'oculto', nota: 'Oculto: los estudiantes no lo ven' })));
+        const silabo = [];
+        if (b) {
+          if (b.semanas.length > 1) silabo.push({ t: 'Bloque de las semanas ' + b.clave + ':', marca: 'cab' });
+          b.temas.forEach(tm => {
+            const enBloque = tm.en.filter(k => b.semanas.includes(k)), afuera = tm.en.filter(k => !b.semanas.includes(k));
+            if (enBloque.length) silabo.push({ t: tm.t, marca: 'ok', nota: b.semanas.length > 1 ? 'Publicado en la semana ' + y([...new Set(enBloque)].map(String)) : 'Publicado' });
+            else if (afuera.length) silabo.push({ t: tm.t, marca: 'otra', nota: 'Está publicado en la semana ' + y([...new Set(afuera)].map(String)) + ', no en ' + b.etiqueta });
+            else silabo.push({ t: tm.t, marca: 'falta', nota: b.semanas.length > 1 && !yaPaso(b) ? 'Aún no publicado (el bloque sigue en curso)' : 'Falta: no está publicado' });
+          });
+        } else silabo.push({ t: f.tema || '(no se pudo leer el tema de esta semana en el sílabo)', marca: 'cab' });
+        const faltanT = b ? b.temas.filter(tm => !tm.en.some(k => b.semanas.includes(k))) : [];
+        const ultimaDelBloque = b && f.n === Math.max(...b.semanas.filter(k => evaluables.some(g => g.n === k)));
         if (f.estado === 'falta') {
           hall.push(ocultos.length ? '✖ El material está oculto' : '✖ Sin material');
-          rec.push(ocultos.length ? 'Hacer visible el material de esta semana.' : s.rango
-            ? 'Subir el material de esta semana con los temas del bloque ' + s.rango + ' que le corresponden (ver la columna del sílabo); el sílabo no dice cuál tema va en cada semana del bloque.'
-            : 'Subir el material de esta semana' + (temaRec ? ': «' + temaRec + '»' : '') + '.');
+          rec.push(ocultos.length ? 'Hacer visible el material de esta semana.' : b && b.semanas.length > 1
+            ? 'Subir el material de esta semana con los temas del bloque ' + b.clave + ' que le corresponden' + (faltanT.length ? '; aún faltan: «' + faltanT.map(tm => tm.t.split(':')[0]).join('», «') + '»' : '') + '.'
+            : 'Subir el material de esta semana' + (faltanT.length ? ': «' + faltanT.map(tm => tm.t.split(':')[0]).join('», «') + '»' : '') + '.');
         } else {
-          if (v.veredicto) hall.push(v.veredicto.charAt(0).toUpperCase() + v.veredicto.slice(1));
-          if (v.otra) rec.push('Mover «' + v.otra.titulo + '» a la semana ' + v.otra.pareceSemana + ' y subir aquí el material del tema del sílabo.');
-          else if (v.pare && !v.igual) rec.push('Poner como título de la presentación el tema exacto del sílabo: «' + v.pare.cmp.tema + '» (hoy dice «' + (v.pare.tituloPpt || v.pare.titulo) + '»).');
-          else if (/no se reconoce/.test(v.veredicto || '')) rec.push('Revisar que el material trate el tema del sílabo de esta semana; si es así, poner su título exacto en la primera diapositiva.');
+          const okM = aula.filter(x => x.marca === 'ok').length;
+          hall.push((okM ? '✔ ' : '✖ ') + okM + ' de ' + plural(vis.length, 'material coincide', 'materiales coinciden') + ' con el sílabo de esta semana');
+          fuera.forEach(x => { hall.push('◐ «' + (x.m.tituloPpt || x.m.titulo) + '» es tema de ' + x.u.b.etiqueta);
+            rec.push('Mover «' + (x.m.tituloPpt || x.m.titulo) + '» a ' + x.u.b.etiqueta + ', donde lo pone el sílabo.'); });
+          if (fuera.length) conProblemaTema.add(f.n);
+          if (faltanT.length && (b.semanas.length === 1 || (ultimaDelBloque && yaPaso(b)))) {
+            hall.push('✖ ' + (faltanT.length === 1 ? 'Falta 1 tema del sílabo' : 'Faltan ' + faltanT.length + ' temas del sílabo'));
+            rec.push('Subir el material de: «' + faltanT.map(tm => tm.t.split(':')[0]).join('», «') + '».'); conProblemaTema.add(f.n);
+          }
+          const v = verd[f.n] || {};
+          if (v.pare && !v.igual) rec.push('Poner como título de la presentación el tema exacto del sílabo: «' + v.pare.cmp.tema + '» (hoy dice «' + (v.pare.tituloPpt || v.pare.titulo) + '»).');
           if (!Z && f.publicado != null && !f.aTiempo) { hall.push('◐ Publicado tarde (' + diasTxt(f.anticipacion) + ' de su inicio)');
             rec.push('Publicar el material al menos ' + REGLAS.diasMaterial + ' días antes de que empiece la semana.'); }
           else if (!Z && f.publicado != null) hall.push('✔ Publicado a tiempo');
-          f.problemas.filter(t => /mismo archivo|Sesión|propio/.test(t)).forEach(t => hall.push('◐ ' + t.charAt(0).toUpperCase() + t.slice(1)));
-          if (f.problemas.some(t => /mismo archivo|propio/.test(t))) rec.push('Subir un material propio para el tema de esta semana (no repetir el de otra semana).');
+          f.problemas.filter(t => /mismo archivo|Sesión/.test(t)).forEach(t => hall.push('◐ ' + t.charAt(0).toUpperCase() + t.slice(1)));
         }
         return { n: f.n, aula, silabo, hallazgo: hall, recomendacion: rec.length ? rec : ['Ninguna: está conforme.'], ok: !rec.length };
       });
+      if (conProblemaTema.size) {
+        const l = [...conProblemaTema].sort((a, b) => a - b);
+        r.evidencia.push('Temas fuera de su semana o que faltan publicar: semana' + (l.length > 1 ? 's ' : ' ') + y(l.map(String)) + ' (ver la tabla comparativa).');
+        if (r.sugerido === 'Cumple') r.sugerido = 'Parcial';
+        r.porque = (r.porque || '').replace(/\.$/, '') + '; ' + plural(l.length, 'semana con temas fuera de lugar o faltantes', 'semanas con temas fuera de lugar o faltantes') + '.';
+        r.certeza = 'media';
+        r.mejorar.push('Ordenar el material según el sílabo: cada tema debe estar publicado en la semana que el sílabo indica (semana' + (l.length > 1 ? 's ' : ' ') + y(l.map(String)) + ').');
+      }
       // El auditor también corrobora que estén todas las sesiones antes del examen parcial.
       const semParcial = semSil.find(x => x.sinMaterial && /parcial/i.test(x.titulo || ''));
       if (semParcial) {
@@ -1436,10 +1511,16 @@
   function tablaComparativaHTML(r) {
     const grupos = r.tablas && r.tablas.length ? r.tablas : (r.tabla && r.tabla.length ? [{ tabla: r.tabla }] : []);
     if (!grupos.some(g => g.tabla && g.tabla.length)) return '';
-    const li = l => l.length ? '<ul class="mbz-tc-l">' + l.map(x => '<li>' + esc(x) + '</li>').join('') + '</ul>' : '<span class="mbz-tc-vacio">— Nada publicado</span>';
-    const tono = t => /^✖/.test(t) ? 'falla' : /^◐|^\?/.test(t) ? 'parcial' : /^✔/.test(t) ? 'ok' : 'neutro';
+    const MARCA = { ok: ['✔', 'ok'], otra: ['⚠', 'parcial'], apoyo: ['?', 'neutro'], falta: ['✖', 'falla'], oculto: ['✖', 'falla'] };
+    const li = l => l.length ? '<ul class="mbz-tc-l">' + l.map(x => {
+      if (typeof x === 'string') return '<li>' + esc(x) + '</li>';
+      if (x.marca === 'cab') return '<li class="mbz-tc-cab">' + esc(x.t) + '</li>';
+      const m = MARCA[x.marca] || ['', 'neutro'];
+      return '<li class="mbz-tc-i mbz-tc-' + m[1] + '"><span class="mbz-tc-m">' + m[0] + '</span> ' + esc(x.t) + (x.nota ? '<div class="mbz-tc-nota">' + esc(x.nota) + '</div>' : '') + '</li>';
+    }).join('') + '</ul>' : '<span class="mbz-tc-vacio">— Nada publicado</span>';
+    const tono = t => /^✖/.test(t) ? 'falla' : /^◐|^\?|^⚠/.test(t) ? 'parcial' : /^✔/.test(t) ? 'ok' : 'neutro';
     return '<dt>Tabla comparativa: aula virtual frente al sílabo</dt><dd><p class="mbz-sub">Cada fila es una semana que, a la fecha de la copia, ya debía tener material. ' +
-      'A la izquierda, lo que hay en el aula; a su lado, lo que el sílabo indica para esa semana; luego el hallazgo y la recomendación.</p>' +
+      'A la izquierda, lo que hay en el aula; a su lado, lo que el sílabo indica. <b>✔ verde</b> = coincide · <b>⚠ ámbar</b> = es tema de otra semana · <b>✖ rojo</b> = falta · <b>? gris</b> = no es un tema del sílabo (material de apoyo).</p>' +
       grupos.filter(g => g.tabla && g.tabla.length).map(g => (g.etiqueta ? '<p class="mbz-sub"><b>Aula de ' + esc(g.etiqueta) + '</b></p>' : '') +
         '<div class="mbz-scroll"><table class="mbz-tabla mbz-tc"><colgroup><col style="width:7%"><col style="width:27%"><col style="width:27%"><col style="width:19%"><col style="width:20%"></colgroup>' +
         '<thead><tr><th>Semana</th><th>Lo que hay en el aula virtual</th><th>Lo que debería estar según el sílabo</th><th>Hallazgo</th><th>Recomendación</th></tr></thead><tbody>' +
@@ -1802,7 +1883,10 @@
 .mbz-manual{background:#eef3fb;color:#2d4f80;border-color:#c3d4ee}
 .mbz-tabla{border-collapse:collapse;width:100%;font-size:14px}.mbz-tabla th,.mbz-tabla td{border:1px solid var(--linea,#dfe4e1);padding:6px 8px;vertical-align:top;text-align:left}
 .mbz-tc{font-size:15px}.mbz-tc td{line-height:1.45}.mbz-tc-l{margin:0;padding-left:18px}.mbz-tc-l li{margin:2px 0}.mbz-tc-vacio{color:#8f2418;font-weight:600}
-.mbz-tc-ok td{background:#f3faf6}.mbz-tc-h{font-weight:600;margin:2px 0}.mbz-tc-h.mbz-falla{color:#8f2418}.mbz-tc-h.mbz-parcial{color:#8a5a00}.mbz-tc-h.mbz-ok{color:#0b6e48}
+.mbz-tc-ok td{background:#f3faf6}.mbz-tc-l li.mbz-tc-i{list-style:none;margin:5px 0 5px -18px;padding:4px 6px;border-radius:6px}.mbz-tc-l li.mbz-tc-cab{list-style:none;margin-left:-18px;font-weight:700}
+.mbz-tc-i.mbz-tc-ok{background:#e6f4ee}.mbz-tc-i.mbz-tc-parcial{background:#fff3d6}.mbz-tc-i.mbz-tc-falla{background:#fde8e5}.mbz-tc-i.mbz-tc-neutro{background:#f1f3f2}
+.mbz-tc-m{font-weight:700;display:inline-block;width:1.2em}.mbz-tc-i.mbz-tc-ok .mbz-tc-m{color:#0b6e48}.mbz-tc-i.mbz-tc-parcial .mbz-tc-m{color:#8a5a00}.mbz-tc-i.mbz-tc-falla .mbz-tc-m{color:#8f2418}
+.mbz-tc-nota{font-size:13px;color:#4b5a53;margin:2px 0 0 1.3em;font-style:italic}.mbz-tc-h{font-weight:600;margin:2px 0}.mbz-tc-h.mbz-falla{color:#8f2418}.mbz-tc-h.mbz-parcial{color:#8a5a00}.mbz-tc-h.mbz-ok{color:#0b6e48}
 .mbz-tabla th{background:#f3f6f4;font-size:13.5px;text-transform:none;letter-spacing:0;font-weight:700;color:#2b3a33}
 .mbz-sem{table-layout:fixed;width:100%}.mbz-sem td{word-wrap:break-word;overflow-wrap:anywhere}.mbz-sem .mbz-chip{white-space:normal;display:inline-block;max-width:100%}
 .mbz-resu td{font-size:14.5px}.mbz-ver{font-size:13px;white-space:nowrap;color:#2a6fb0}
