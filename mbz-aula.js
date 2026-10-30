@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-29.1';
+  const VERSION_REGLAS = 'mbz-2026-10-29.2';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -660,6 +660,8 @@
   const nombreDominio = d => { for (const [rx, n] of DOMINIOS) if (rx.test(d || '')) return n; return (d || '').replace(/^www\./, '') || 'enlace'; };
   const esReunion = d => /zoom\.us$|meet\.google\.com$|teams\.(microsoft|live)\.com$|webex\.com$/.test(d || '');
   const esChat = d => /whatsapp\.com$|wa\.me$|t\.me$|telegram|discord/.test(d || '');
+  // 29/10/2026 (auditoría): en talleres y laboratorios también se publica el solucionario.
+  const RX_SOL = /solucionario|soluci[oó]n(es)?\s+(del?|de\s+la|al)\b|resuelt[oa]s?\b|resoluci[oó]n\s+(del?|de\s+la)|clave\s+de\s+respuestas/i;
   const RX_RETRO = /retroalimentaci|resultados?\s+(de\s+)?(la\s+)?evaluaci|calificaciones\s+del|notas\s+del/i;
   function claseDeUrl(a) {
     if (esReunion(a.dominio)) return 'reunion';
@@ -764,12 +766,15 @@
     const tareas = H.acts.filter(a => a.mod === 'assign' && a.visible);
     // Avisos de evaluación sin tarea (p. ej. «Taller N° 3 …» como etiqueta): se revisan igual, desde que se anuncian.
     const avisos = [];
-    H.acts.filter(a => a.mod === 'label' && a.visible && /taller|informe|pr[aá]ctica calificada|trabajo|entrega/i.test(a.titulo) && claveEval(a.titulo).tipo)
+    H.acts.filter(a => a.mod === 'label' && a.visible && /taller|informe|pr[aá]ctica calificada|trabajo|entrega/i.test(a.titulo) && claveEval(a.titulo).tipo &&
+        !/enlace|ingreso a (las )?clases|zoom|meet|teams|clases? virtual/i.test(a.titulo))
       .forEach(a => { if (!tareas.some(t => mismaEvaluacion(t.titulo, a.titulo)) && !avisos.some(v => mismaEvaluacion(v.titulo, a.titulo))) avisos.push(a); });
     const evals = tareas.concat(avisos);
     const cuest = H.acts.filter(a => a.mod === 'quiz' && a.visible);
     const rubRec = H.acts.filter(a => a.visible && (a.mod === 'resource' || a.mod === 'url' || a.mod === 'folder') && RX_RUB.test(nombreDe(a)));
     const retros = H.acts.filter(a => a.visible && (a.mod === 'url' || a.mod === 'resource') && RX_RETRO.test(a.titulo));
+    const sols = H.acts.filter(a => a.visible && (a.mod === 'resource' || a.mod === 'url' || a.mod === 'folder' || a.mod === 'page') && RX_SOL.test(nombreDe(a)));
+    const pideSol = a => ['taller', 'lab'].includes(claveEval(a.titulo).tipo);
     const usadas = new Set();
     evals.forEach(a => {
       const esAviso = a.mod === 'label';
@@ -788,12 +793,23 @@
       if (retro) a.rub.retro = { dia: diaLima(retro.agregado), despues: cierre ? diaLima(retro.agregado) - diaLima(cierre) : null };
       const venceHace = cierre ? diaCopia - diaLima(cierre) : null;
       a.rub.retroOk = retro ? (a.rub.retro.despues == null || a.rub.retro.despues <= 14) : (venceHace == null || venceHace <= 14);
+      // Solucionario (talleres y laboratorios): en la tarea, o publicado aparte con el nombre de la evaluación.
+      if (pideSol(a)) {
+        const sol = (a.adjuntos || []).filter(f => RX_SOL.test(f.nombre)).map(f => ({ titulo: f.nombre, agregado: a.agregado }))
+          .concat(sols.filter(x => mismaEvaluacion(a.titulo, nombreDe(x)) || (enSeccion && x.seccion === a.seccion && claveEval(nombreDe(x)).num == null)))
+          .sort((p, q) => p.agregado - q.agregado)[0];
+        a.rub.pideSol = true;
+        if (sol) a.rub.sol = { titulo: sol.titulo, dia: diaLima(sol.agregado) };
+        a.rub.solOk = !!sol || venceHace == null || venceHace <= 14;
+      } else a.rub.solOk = true;
       const cuandoRub = d => d > 0 ? d + (d === 1 ? ' día' : ' días') + ' antes de ' + (esAviso ? 'anunciarse' : 'abrir') : d === 0 ? 'el mismo día que ' + (esAviso ? 'se anunció' : 'abre') : Math.abs(d) + (d === -1 ? ' día' : ' días') + ' después de ' + (esAviso ? 'anunciarse' : 'abrir');
       r.evidencia.push('«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '…') + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + (esAviso ? ', anunciada el ' + fecha(abre) : ', abre el ' + fecha(abre) + ', cierra ' + (cierre ? fecha(cierre) : 'sin fecha')) + '). ' +
         (mejor ? 'Rúbrica ' + mejor.que + ', publicada ' + cuandoRub(a.rub.antic) + (a.rub.ok ? ' ✔' : ' (debe ser al menos 2 días antes)') + '.'
           : a.rub.mencion ? 'La descripción menciona una rúbrica, pero no está publicada.' : 'Sin rúbrica publicada.') +
         (retro ? ' Retroalimentación: «' + retro.titulo + '», publicada el ' + fecha(retro.agregado) + (a.rub.retro.despues != null ? ', ' + a.rub.retro.despues + ' días después del cierre' + (a.rub.retroOk ? ' ✔' : ' (más de 2 semanas)') : '') + '.'
-          : venceHace != null && venceHace > 14 ? ' Sin retroalimentación publicada (cerró hace ' + venceHace + ' días).' : ''));
+          : venceHace != null && venceHace > 14 ? ' Sin retroalimentación publicada (cerró hace ' + venceHace + ' días).' : '') +
+        (a.rub.pideSol ? (a.rub.sol ? ' Solucionario: «' + a.rub.sol.titulo + '», publicado el ' + fechaDeDia(a.rub.sol.dia) + ' ✔.'
+          : (a.rub.solOk ? ' Solucionario: aún no se exige (se espera dentro de las 2 semanas siguientes al cierre).' : ' Sin solucionario publicado.')) : ''));
       if (!esAviso && !a.vence) r.nota.push('«' + a.titulo + '» no tiene fecha de cierre.');
     });
     const sueltas = rubRec.filter(x => !usadas.has(x));
@@ -815,20 +831,24 @@
       r.evidencia.push('No hay tareas ni evaluaciones anunciadas en el aula para revisar sus rúbricas.');
       return r;
     }
-    const ok = evals.filter(a => a.rub.ok && a.rub.retroOk), con = evals.filter(a => a.rub.fuentes.length);
+    const ok = evals.filter(a => a.rub.ok && a.rub.retroOk && a.rub.solOk), con = evals.filter(a => a.rub.fuentes.length);
     r.sugerido = ok.length === evals.length ? 'Cumple' : (con.length ? 'Parcial' : 'No cumple');
     r.certeza = evals.some(a => a.rub.mencion) || avisos.length ? 'media' : 'alta';
     r.porque = con.length + ' de ' + plural(evals.length, 'evaluación tiene', 'evaluaciones tienen') + ' rúbrica; ' + evals.filter(a => a.rub.ok).length + ' se ' +
       (evals.filter(a => a.rub.ok).length === 1 ? 'publicó' : 'publicaron') + ' con 2 días de anticipación' +
-      (evals.filter(a => !a.rub.retroOk).length ? '; falta retroalimentación en ' + evals.filter(a => !a.rub.retroOk).length : '') + '.';
+      (evals.filter(a => !a.rub.retroOk).length ? '; falta retroalimentación en ' + evals.filter(a => !a.rub.retroOk).length : '') +
+      (evals.filter(a => !a.rub.solOk).length ? '; falta solucionario en ' + evals.filter(a => !a.rub.solOk).length : '') + '.';
     const sin = evals.filter(a => !a.rub.fuentes.length), tarde = evals.filter(a => a.rub.fuentes.length && !a.rub.ok);
     const sinRetro = evals.filter(a => !a.rub.retroOk);
     const nom = a => '«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '').replace(/[:.]?\s*$/, '') + '»';
     if (sin.length) r.mejorar.push('Publicar la rúbrica de ' + y(sin.map(nom)) + ', en la misma tarea o como archivo con su nombre (p. ej. «Rúbrica Taller N° 5»).');
     if (tarde.length) r.mejorar.push('Publicar la rúbrica al menos 2 días antes de que se abra la entrega; esta vez llegó tarde en ' + y(tarde.map(nom)) + '.');
     if (sinRetro.length) r.mejorar.push('Publicar la retroalimentación a más tardar 2 semanas después del cierre (' + y(sinRetro.map(nom)) + ').');
+    const sinSol = evals.filter(a => !a.rub.solOk);
+    if (sinSol.length) r.mejorar.push('Publicar en el aula el solucionario de ' + y(sinSol.map(nom)) + ', con su nombre (p. ej. «Solucionario Taller N° 2»).');
+    if (evals.some(a => a.rub.pideSol)) r.nota.push('Solucionario y retroalimentación en talleres y laboratorios: lo observó el auditor en la auditoría del 29/10/2026. El portal reconoce el solucionario por su nombre («solucionario», «solución del…», «resuelto»); si el docente lo nombra de otra forma, confírmelo a mano.');
     r.para_docente = r.sugerido === 'Cumple'
-      ? 'Gracias: cada evaluación tiene su rúbrica publicada con anticipación y su retroalimentación a tiempo.'
+      ? 'Gracias: cada evaluación tiene su rúbrica publicada con anticipación y su retroalimentación a tiempo' + (evals.some(a => a.rub.pideSol) ? ', y los talleres y laboratorios, su solucionario.' : '.')
       : 'Para el punto de rúbricas le pedimos:\n' + r.mejorar.map((t, i) => (i + 1) + '. ' + t).join('\n');
     return r;
   }
