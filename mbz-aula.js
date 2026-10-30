@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-29.5';
+  const VERSION_REGLAS = 'mbz-2026-10-30.1';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -848,7 +848,8 @@
     if (tarde.length) r.mejorar.push('Publicar la rúbrica al menos 2 días antes de que se abra la entrega; esta vez llegó tarde en ' + y(tarde.map(nom)) + '.');
     if (sinRetro.length) r.mejorar.push('Publicar la retroalimentación y las notas a más tardar ' + REGLAS.diasRetro + ' días calendario después del cierre (' + y(sinRetro.map(nom)) + ').');
     const sinSol = evals.filter(a => !a.rub.solOk);
-    if (sinSol.length) r.mejorar.push('Publicar en el aula el solucionario de ' + y(sinSol.map(nom)) + ', con su nombre (p. ej. «Solucionario Taller N° 2»).');
+    if (sinSol.length) r.mejorar.push('Publicar en el aula el solucionario de ' + y(sinSol.map(nom)) + ', con su nombre (p. ej. «CÓDIGO.TA2.PERIODO.Solucionario» o «Solucionario Taller N° 2»).');
+    r.nota.push('Sugerencia de rotulado en el aula virtual (no es parte de la directiva): «CÓDIGO.SIGLA.PERIODO.Enunciado y solucionario» si van en un solo archivo o carpeta; si van separados, «….Enunciado» y «….Solucionario» (numerados si son varios). Sirve cualquier formato (PDF, Word, Excel). En el portafolio el enunciado sigue igual: «CÓDIGO.SIGLA.PERIODO.PDF». Detalle en la Guía de rotulado del portal.');
     r.nota.push('Plazo de la retroalimentación: ' + REGLAS.diasRetro + ' días calendario tras el cierre, según las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (vigentes en 2026-II) (más exigente que las 2 semanas de la Guía Operativa Docente, 4.4).');
     if (evals.some(a => a.rub.pideSol)) r.nota.push('Solucionario y retroalimentación en talleres y laboratorios: lo observó el auditor en la auditoría del 29/10/2026. El portal reconoce el solucionario por su nombre («solucionario», «solución del…», «resuelto»); si el docente lo nombra de otra forma, confírmelo a mano.');
     r.para_docente = r.sugerido === 'Cumple'
