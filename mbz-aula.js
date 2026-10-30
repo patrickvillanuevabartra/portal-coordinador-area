@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-29.4';
+  const VERSION_REGLAS = 'mbz-2026-10-29.5';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -884,7 +884,7 @@
   const esVirtual = h => /virtual|remot|en l[ií]nea|online/i.test((h.aula || '') + ' ' + (h.modalidad || ''));
   const esGrabacion = a => a.visible && (/grabaci|grabad|recording|clase grabada|video de (la )?clase/i.test(a.titulo || '') ||
     (a.archivos || []).some(f => /^video\//.test(f.tipo || '')));
-  function regla08(H, ctx, cuadro, inicioSemana, diaCopia) {
+  function regla08(H, ctx, cuadro, inicioSemana, diaCopia, silabo) {
     const reun = H.acts.filter(a => a.visible && a.clase === 'reunion');
     const grab = H.acts.filter(esGrabacion);
     cuadro.forEach(f => { f.grabaciones = grab.filter(a => a.seccion === f.n).map(a => a.titulo); });
@@ -894,6 +894,24 @@
     r.evidencia.push(reun.length ? plural(reun.length, 'enlace de reunión', 'enlaces de reunión') + ': ' + lista(reun, a => (a.mod === 'url' ? nombreDominio(a.dominio) : 'aviso') + ' «' + a.titulo + '»' + (Z ? '' : ' (' + fecha(a.agregado) + ')')) + '.' : 'No hay enlaces de reunión.');
     if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» las grabaciones se reconocen solo por el nombre: no trae fechas para comprobar que se publicaron después de cada clase.');
     r.evidencia.push(grab.length ? plural(grab.length, 'grabación', 'grabaciones') + ': ' + lista(grab, a => '«' + a.titulo + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + ')') + '.' : 'No se encontraron grabaciones (enlaces o videos con «grabación» en el nombre).');
+    // 29/10/2026: el nombre de cada grabación debe indicar el tema o los temas tratados en la clase
+    // (los del sílabo para esa semana). Se compara con las palabras propias de los temas de su semana.
+    const semS = (silabo && silabo.semanas) || [];
+    const VAC8 = new Set('para como entre sobre desde segun mediante grabacion grabada clase clases sesion semana virtual video enlace parte unidad tema temas'.split(' '));
+    const pal8 = t => [...new Set(norm(t).split(/[^a-z0-9ñ]+/).filter(w => w.length > 4 && !VAC8.has(w)).map(w => w.replace(/(es|s)$/, '').replace(/[ao]$/, '')))];
+    const sinTema8 = [];
+    if (semS.length) grab.filter(a => a.seccion).forEach(a => {
+      const s8 = semS.find(x => x.n === a.seccion);
+      if (!s8 || s8.sinMaterial) return;
+      const tp = pal8(s8.rango ? s8.contenido : (s8.temas || []).join(' ') + ' ' + (s8.titulo || ''));
+      if (!tp.length) return;
+      const gp = new Set(pal8(a.titulo + ' ' + (a.archivos || []).map(f => f.nombre).join(' ')));
+      if (!tp.some(w => gp.has(w))) sinTema8.push({ a, tema: (s8.rango ? 'bloque ' + s8.rango + ': ' : '') + ((s8.temas || []).slice(0, s8.rango ? 3 : 1).join('; ') || s8.titulo || '') });
+    });
+    if (sinTema8.length) {
+      r.evidencia.push('Grabaciones cuyo nombre no indica el tema de la clase: ' + sinTema8.map(x => '«' + x.a.titulo + '» (semana ' + x.a.seccion + '; el sílabo dice «' + String(x.tema).slice(0, 140) + '»)').join('; ') + '.');
+      r.mejorar.push('Rotular cada grabación con el tema o los temas tratados en la clase, tal como figuran en el sílabo (p. ej. «Grabación semana ' + sinTema8[0].a.seccion + ' – ' + String(sinTema8[0].tema).replace(/^bloque [\d-]+: /, '').split(';')[0].slice(0, 60) + '»).');
+    }
     const horario = Array.isArray(ctx.horario) ? ctx.horario : null;
     if (!horario) {
       r.sugerido = ''; r.certeza = 'pendiente'; r.automatico = false; r.para_docente = '';
@@ -945,19 +963,21 @@
     if (!grab.length) {
       r.sugerido = 'No existen'; r.certeza = 'alta';
       r.mejorar.push('Publicar la grabación de cada clase virtual en la semana que corresponde (van ' + dictadas + ' clases virtuales sin grabación).');
-      r.para_docente = 'Le pedimos publicar en el aula virtual la grabación de cada clase virtual, en la semana que corresponde, con la fecha de la clase en el nombre (por ejemplo: «Grabación clase 24/08»). A la fecha van ' + plural(dictadas, 'clase virtual', 'clases virtuales') + '.';
+      r.para_docente = 'Le pedimos publicar en el aula virtual la grabación de cada clase virtual, en la semana que corresponde, rotulada con la fecha y el tema o los temas tratados según el sílabo (por ejemplo: «Grabación 24/08 – Matriz de consistencia»). A la fecha van ' + plural(dictadas, 'clase virtual', 'clases virtuales') + '.';
     } else {
       r.sugerido = 'Existen'; r.certeza = 'media';
       if (grab.length < dictadas) {
         r.evidencia.push('Cobertura incompleta: ' + grab.length + ' de ' + dictadas + '. Semanas sin grabación: ' + y(faltan.map(String)) + '.');
         r.mejorar.push('Completar las grabaciones de las semanas ' + y(faltan.map(String)) + '.');
         r.nota.push('El formulario no tiene la opción «Parcial»: se sugiere «Existen», pero la cobertura está incompleta (' + grab.length + ' de ' + dictadas + ').');
-        r.para_docente = 'Gracias por publicar grabaciones de clase. Faltan las de las semanas ' + y(faltan.map(String)) + '; le pedimos subirlas en la semana que corresponde, con la fecha de la clase en el nombre.';
+        r.para_docente = 'Gracias por publicar grabaciones de clase. Faltan las de las semanas ' + y(faltan.map(String)) + '; le pedimos subirlas en la semana que corresponde, rotuladas con la fecha y el tema o los temas tratados según el sílabo.';
       } else r.para_docente = 'Gracias por publicar la grabación de cada clase virtual.';
     }
+ if (sinTema8.length && r.para_docente) r.para_docente += ' Le pedimos también que el nombre de cada grabación indique el tema o los temas tratados en la clase, tal como figuran en el sílabo.';
     if (grabTarde.length && r.para_docente) r.para_docente += ' Le pedimos además publicar cada grabación a más tardar 24 horas después de la clase, como indica el Vicerrectorado Académico.';
     r.nota.push('Según las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (vigentes en 2026-II): se graban todas las sesiones, el enlace se publica en el aula en 24 horas como máximo y Zoom o Meet se usan solo con el correo institucional. ' +
       'El plazo de 24 horas se mide con la fecha en que se agregó la grabación al aula y el día de la clase (de la guía de matrícula): cuenta la clase más cercana anterior a la publicación.');
+    r.nota.push('Rotulado de la grabación: debe indicar el tema o los temas tratados en la clase, según el sílabo de esa semana. El portal busca en el nombre las palabras propias del tema; si el docente usa otras palabras, confírmelo a mano.');
     r.nota.push('Las grabaciones se reconocen por el nombre («grabación», «clase grabada») o porque son videos subidos al aula. Si el docente las nombra de otra forma, confírmelo a mano.');
     return r;
   }
@@ -1485,7 +1505,7 @@
         evidencia: ['En el aula: ' + (lista06.length ? lista06.join('; ') : 'no hay tareas, cuestionarios ni foros') + '.'].concat(evSil.length ? ['El sílabo programa: ' + evSil.map(x => 'semana ' + x.n + ' («' + (x.tituloVer || x.titulo).replace(/…$/, '') + '»)').join('; ') + '.'] : []),
         nota: ['Qué revisar: que cada evaluación del sílabo tenga su actividad en el aula (o que se haya tomado en clase) y que los foros y tareas correspondan a los contenidos del curso. ' +
           'El portal no puede juzgar si son coherentes: por eso este punto lo decide usted.'] };
-      R['08'] = regla08(H, ctx, cuadro, inicioSemana, diaCopia);
+      R['08'] = regla08(H, ctx, cuadro, inicioSemana, diaCopia, silabo);
     })();
 
     // Por qué de cada resultado, en una línea, para el resumen.

@@ -226,7 +226,7 @@ window.PCA_CONFIG = {
         { etiqueta:'Materiales', nota: 'Los materiales cargados corresponden a los temas y contenidos que el sílabo indica para esa semana, y se publican con una semana de anticipación.',                      id:'aOWPbklLrcJ4kFlCoCcmku' },
         { etiqueta:'Actividades y tareas', nota: 'Los foros, talleres, tareas y cuestionarios son coherentes con los objetivos y contenidos del curso.',            id:'cgActcJIDcQyorhCk9x8od' },
         { etiqueta:'Materiales adicionales', nota: 'Los recursos complementarios están disponibles y guardan relación con el desarrollo del curso.',          id:'b8jmoGW75cKikCw3ldQmkf' },
-        { etiqueta:'Links y grabaciones de sesiones', nota: 'Los enlaces y grabaciones de las sesiones están publicados y accesibles para los estudiantes.', id:'ddOmoAedLmWRJcJSolg8k_' }
+        { etiqueta:'Links y grabaciones de sesiones', nota: 'Los enlaces y grabaciones de las sesiones están publicados y accesibles para los estudiantes. Cada grabación se publica a más tardar 24 horas después de la clase (Vicerrectorado Académico) y su nombre indica la fecha y el tema o los temas tratados, según el sílabo.', id:'ddOmoAedLmWRJcJSolg8k_' }
       ]
     },
 
