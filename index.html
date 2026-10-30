@@ -2161,6 +2161,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   function renovarSesion() {
     if (renovando || !estado.credential) return;
     if (String(estado.credential).indexOf('pca.') !== 0) return;
+    // Con la pestaña olvidada (más de una hora sin uso) no se renueva: así no
+    // se hacen llamadas toda la noche. Al volver, la sesión sigue valiendo
+    // (dura 12 horas) y se renueva con el primer movimiento.
+    if (estado.ultimaActividad && Date.now() - estado.ultimaActividad > 60 * 60 * 1000) return;
     renovando = true;
     estado.ultimaRenovacion = Date.now();
     renovarUnaVez().then(() => { renovando = false; });
@@ -2225,21 +2229,43 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   }
 
   /* ------------------------------------------------ datos en vivo ---- */
-  // Cada 8 segundos el portal pregunta al servidor si cambió algo (en QuintaDB
-  // o desde otro portal). Si cambió, vuelve a pintar la pantalla con lo nuevo,
+  // Cada minuto el portal pregunta al servidor si cambió algo (en QuintaDB o
+  // desde otro portal). Si cambió, vuelve a pintar la pantalla con lo nuevo,
   // sin recargar. Mientras se llena un formato no se toca nada: se actualiza al
   // salir de él, para no borrar lo que se está escribiendo.
+  // 30/10/2026: antes preguntaba cada 8 segundos, también con la pestaña
+  // olvidada de noche; eso agotó la capacidad de QuintaDB y de Google. Ahora
+  // pregunta cada minuto y deja de preguntar tras 15 minutos sin que nadie
+  // mueva el ratón o escriba; al volver, se pone al día en el acto.
+  const VIVO_CADA_MS = 60 * 1000;
+  const VIVO_INACTIVO_MS = 15 * 60 * 1000;
+
   function iniciarVivo() {
     if (estado.vivo) return;
-    estado.vivo = setInterval(revisarCambios, 8000);
-    document.addEventListener('visibilitychange', () => { if (!document.hidden) revisarCambios(); });
+    estado.ultimaActividad = Date.now();
+    const despertar = () => {
+      const dormido = Date.now() - (estado.ultimaActividad || 0) > VIVO_INACTIVO_MS;
+      estado.ultimaActividad = Date.now();
+      if (dormido) revisarCambios();
+    };
+    ['pointerdown', 'mousemove', 'keydown', 'wheel', 'touchstart']
+      .forEach(ev => document.addEventListener(ev, despertar, { passive: true }));
+    estado.vivo = setInterval(revisarCambios, VIVO_CADA_MS);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) return;
+      estado.ultimaActividad = Date.now();
+      revisarCambios();
+    });
   }
 
   const pantallaVisible = id => $(id) && !$(id).classList.contains('oculto');
 
   async function revisarCambios() {
     if (document.hidden || !estado.credential || estado.revisandoCambios) return;
+    if (Date.now() - (estado.ultimaActividad || 0) > VIVO_INACTIVO_MS) return;   // nadie lo usa
+    if (Date.now() - (estado.ultimaRevision || 0) < 20 * 1000) return;           // ya se preguntó hace poco
     if (pantallaVisible('ficha') || pantallaVisible('ingreso')) return;   // no interrumpir
+    estado.ultimaRevision = Date.now();
     estado.revisandoCambios = true;
     try {
       const d = await api('/version-datos');
@@ -2269,7 +2295,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-30.1';
+  const VERSION_INTERNA = '2026-10-30.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
