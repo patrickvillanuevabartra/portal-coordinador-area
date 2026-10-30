@@ -14,12 +14,15 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-29.3';
+  const VERSION_REGLAS = 'mbz-2026-10-29.4';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
   const REGLAS = {
-    diasMaterial: 7,          // material: días antes del inicio de su semana
+    // 29/10/2026: rigen las Recomendaciones del VRA para la modalidad virtual (confirmado para 2026-II).
+    diasMaterial: 2,          // material: 48 horas antes de la primera clase de la semana
+    diasRetro: 7,             // retroalimentación y notas: 7 días calendario tras el cierre
+    horasGrabacion: 24,       // grabación publicada a más tardar 24 horas después de la clase
     semana1DesdeInicio: true, // semana 1: se mide contra el inicio del curso, no 7 días antes
     semanasSinMaterial: /^\s*(examen|semana de ex[aá]menes|evaluaci[oó]n final|sustentaci[oó]n de trabajos finales)/i,
     maxPdfMB: 40,             // PDF más grande que se lee (los videos nunca se leen)
@@ -792,7 +795,7 @@
       a.rub.ok = !!mejor && a.rub.antic >= 2;
       if (retro) a.rub.retro = { dia: diaLima(retro.agregado), despues: cierre ? diaLima(retro.agregado) - diaLima(cierre) : null };
       const venceHace = cierre ? diaCopia - diaLima(cierre) : null;
-      a.rub.retroOk = retro ? (a.rub.retro.despues == null || a.rub.retro.despues <= 14) : (venceHace == null || venceHace <= 14);
+      a.rub.retroOk = retro ? (a.rub.retro.despues == null || a.rub.retro.despues <= REGLAS.diasRetro) : (venceHace == null || venceHace <= REGLAS.diasRetro);
       // Solucionario (talleres y laboratorios): en la tarea, o publicado aparte con el nombre de la evaluación.
       if (pideSol(a)) {
         const sol = (a.adjuntos || []).filter(f => RX_SOL.test(f.nombre)).map(f => ({ titulo: f.nombre, agregado: a.agregado }))
@@ -800,16 +803,16 @@
           .sort((p, q) => p.agregado - q.agregado)[0];
         a.rub.pideSol = true;
         if (sol) a.rub.sol = { titulo: sol.titulo, dia: diaLima(sol.agregado) };
-        a.rub.solOk = !!sol || venceHace == null || venceHace <= 14;
+        a.rub.solOk = !!sol || venceHace == null || venceHace <= REGLAS.diasRetro;
       } else a.rub.solOk = true;
       const cuandoRub = d => d > 0 ? d + (d === 1 ? ' día' : ' días') + ' antes de ' + (esAviso ? 'anunciarse' : 'abrir') : d === 0 ? 'el mismo día que ' + (esAviso ? 'se anunció' : 'abre') : Math.abs(d) + (d === -1 ? ' día' : ' días') + ' después de ' + (esAviso ? 'anunciarse' : 'abrir');
       r.evidencia.push('«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '…') + '» (' + (a.seccion ? 'semana ' + a.seccion : 'sección general') + (esAviso ? ', anunciada el ' + fecha(abre) : ', abre el ' + fecha(abre) + ', cierra ' + (cierre ? fecha(cierre) : 'sin fecha')) + '). ' +
         (mejor ? 'Rúbrica ' + mejor.que + ', publicada ' + cuandoRub(a.rub.antic) + (a.rub.ok ? ' ✔' : ' (debe ser al menos 2 días antes)') + '.'
           : a.rub.mencion ? 'La descripción menciona una rúbrica, pero no está publicada.' : 'Sin rúbrica publicada.') +
-        (retro ? ' Retroalimentación: «' + retro.titulo + '», publicada el ' + fecha(retro.agregado) + (a.rub.retro.despues != null ? ', ' + a.rub.retro.despues + ' días después del cierre' + (a.rub.retroOk ? ' ✔' : ' (más de 2 semanas)') : '') + '.'
-          : venceHace != null && venceHace > 14 ? ' Sin retroalimentación publicada (cerró hace ' + venceHace + ' días).' : '') +
+        (retro ? ' Retroalimentación: «' + retro.titulo + '», publicada el ' + fecha(retro.agregado) + (a.rub.retro.despues != null ? ', ' + a.rub.retro.despues + ' días después del cierre' + (a.rub.retroOk ? ' ✔' : ' (más de ' + REGLAS.diasRetro + ' días)') : '') + '.'
+          : venceHace != null && venceHace > REGLAS.diasRetro ? ' Sin retroalimentación publicada (cerró hace ' + venceHace + ' días).' : '') +
         (a.rub.pideSol ? (a.rub.sol ? ' Solucionario: «' + a.rub.sol.titulo + '», publicado el ' + fechaDeDia(a.rub.sol.dia) + ' ✔.'
-          : (a.rub.solOk ? ' Solucionario: aún no se exige (se espera dentro de las 2 semanas siguientes al cierre).' : ' Sin solucionario publicado.')) : ''));
+          : (a.rub.solOk ? ' Solucionario: aún no se exige (se espera dentro de los ' + REGLAS.diasRetro + ' días siguientes al cierre).' : ' Sin solucionario publicado.')) : ''));
       if (!esAviso && !a.vence) r.nota.push('«' + a.titulo + '» no tiene fecha de cierre.');
     });
     const sueltas = rubRec.filter(x => !usadas.has(x));
@@ -843,10 +846,10 @@
     const nom = a => '«' + a.titulo.replace(/\s*\(\.\.\.\s*$/, '').replace(/[:.]?\s*$/, '') + '»';
     if (sin.length) r.mejorar.push('Publicar la rúbrica de ' + y(sin.map(nom)) + ', en la misma tarea o como archivo con su nombre (p. ej. «Rúbrica Taller N° 5»).');
     if (tarde.length) r.mejorar.push('Publicar la rúbrica al menos 2 días antes de que se abra la entrega; esta vez llegó tarde en ' + y(tarde.map(nom)) + '.');
-    if (sinRetro.length) r.mejorar.push('Publicar la retroalimentación a más tardar 2 semanas después del cierre (' + y(sinRetro.map(nom)) + ').');
+    if (sinRetro.length) r.mejorar.push('Publicar la retroalimentación y las notas a más tardar ' + REGLAS.diasRetro + ' días calendario después del cierre (' + y(sinRetro.map(nom)) + ').');
     const sinSol = evals.filter(a => !a.rub.solOk);
     if (sinSol.length) r.mejorar.push('Publicar en el aula el solucionario de ' + y(sinSol.map(nom)) + ', con su nombre (p. ej. «Solucionario Taller N° 2»).');
-    r.nota.push('Referencia: las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (2026-I, en la biblioteca del portal) piden retroalimentación clara en toda actividad calificada y las notas en 7 días calendario como máximo; el portal aplica las 2 semanas de la Guía Operativa Docente (4.4).');
+    r.nota.push('Plazo de la retroalimentación: ' + REGLAS.diasRetro + ' días calendario tras el cierre, según las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (vigentes en 2026-II) (más exigente que las 2 semanas de la Guía Operativa Docente, 4.4).');
     if (evals.some(a => a.rub.pideSol)) r.nota.push('Solucionario y retroalimentación en talleres y laboratorios: lo observó el auditor en la auditoría del 29/10/2026. El portal reconoce el solucionario por su nombre («solucionario», «solución del…», «resuelto»); si el docente lo nombra de otra forma, confírmelo a mano.');
     r.para_docente = r.sugerido === 'Cumple'
       ? 'Gracias: cada evaluación tiene su rúbrica publicada con anticipación y su retroalimentación a tiempo' + (evals.some(a => a.rub.pideSol) ? ', y los talleres y laboratorios, su solucionario.' : '.')
@@ -870,7 +873,7 @@
         rub.length || conAdj.length ? 'Archivos o enlaces que dicen «rúbrica» en el nombre: ' + y(rub.map(a => '«' + a.titulo + '» (' + sem(a) + ')')
           .concat(conAdj.map(a => 'adjunto en la tarea «' + a.titulo + '»'))) + '.' : 'No se encontraron archivos ni enlaces con «rúbrica» en el nombre.'
       ].concat(cuest.length ? ['Cuestionarios: ' + y(cuest.map(a => '«' + a.titulo + '»')) + '.'] : []),
-      nota: ['Qué revisar en el aula: que cada evaluación tenga su rúbrica, publicada al menos 2 días antes de que se abra la entrega, y que la retroalimentación esté a más tardar 2 semanas después del cierre. ' +
+      nota: ['Qué revisar en el aula: que cada evaluación tenga su rúbrica, publicada al menos 2 días antes de que se abra la entrega, y que la retroalimentación esté a más tardar 7 días calendario después del cierre (VRA). ' +
         'Para que el portal lo revise solo, use la copia de seguridad (.mbz).'] };
   }
 
@@ -927,6 +930,17 @@
     r.evidencia.unshift('Según la guía de matrícula, este grupo tiene ' + plural(virt.length, 'clase virtual', 'clases virtuales') + ' por semana (' + y(virt.map(txtH)) +
       '). Hasta la fecha de la copia se dictaron ' + plural(dictadas, 'clase virtual', 'clases virtuales') + '; se encontraron ' + plural(grab.length, 'grabación', 'grabaciones') + '.');
     const faltan = cuadro.filter(f => f.virtuales > f.grabaciones.length).map(f => f.n);
+    // VRA: la grabación se publica a más tardar 24 horas después de la clase.
+    const diasVirtuales = n => virt.map(h => DIAS[norm(h.dia).slice(0, 9).replace(/[^a-z]/g, '')]).filter(d => d != null).map(d => inicioSemana(n) + ((d - dSemIni + 7) % 7));
+    // Tarde: ninguna clase virtual de su semana fue el mismo día o el día anterior a su publicación.
+    const grabTarde = Z ? [] : grab.filter(a => a.seccion && a.agregado).map(a => {
+      const pub = diaLima(a.agregado), ds = diasVirtuales(a.seccion).filter(d => d <= pub);
+      return { a, clase: ds.length ? Math.max(...ds) : null, pub };
+    }).filter(x => x.clase != null && x.pub - x.clase > Math.ceil(REGLAS.horasGrabacion / 24));
+    if (grabTarde.length) {
+      r.evidencia.push('Publicadas después de 24 horas: ' + grabTarde.map(x => '«' + x.a.titulo + '» (semana ' + x.a.seccion + ', clase del ' + fechaDeDia(x.clase) + ', publicada el ' + fecha(x.a.agregado) + ')').join('; ') + '.');
+      r.mejorar.push('Publicar la grabación de cada clase virtual a más tardar 24 horas después de la clase (esta vez llegó tarde en ' + plural(grabTarde.length, 'grabación', 'grabaciones') + ').');
+    }
     r.porque = plural(grab.length, 'grabación', 'grabaciones') + ' para ' + plural(dictadas, 'clase virtual dictada', 'clases virtuales dictadas') + (faltan.length ? '; faltan las de las semanas ' + y(faltan.map(String)) : '') + '.';
     if (!grab.length) {
       r.sugerido = 'No existen'; r.certeza = 'alta';
@@ -941,7 +955,9 @@
         r.para_docente = 'Gracias por publicar grabaciones de clase. Faltan las de las semanas ' + y(faltan.map(String)) + '; le pedimos subirlas en la semana que corresponde, con la fecha de la clase en el nombre.';
       } else r.para_docente = 'Gracias por publicar la grabación de cada clase virtual.';
     }
-    r.nota.push('Referencia: las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (2026-I, en la biblioteca del portal) exigen grabar todas las sesiones y publicar el enlace en el aula en 24 horas como máximo, y conectarse a Zoom o Meet solo con el correo institucional.');
+    if (grabTarde.length && r.para_docente) r.para_docente += ' Le pedimos además publicar cada grabación a más tardar 24 horas después de la clase, como indica el Vicerrectorado Académico.';
+    r.nota.push('Según las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (vigentes en 2026-II): se graban todas las sesiones, el enlace se publica en el aula en 24 horas como máximo y Zoom o Meet se usan solo con el correo institucional. ' +
+      'El plazo de 24 horas se mide con la fecha en que se agregó la grabación al aula y el día de la clase (de la guía de matrícula): cuenta la clase más cercana anterior a la publicación.');
     r.nota.push('Las grabaciones se reconocen por el nombre («grabación», «clase grabada») o porque son videos subidos al aula. Si el docente las nombra de otra forma, confírmelo a mano.');
     return r;
   }
@@ -1148,6 +1164,15 @@
         let a = 0, b = 0; l.forEach(w => { b += peso(w); if (new RegExp('\\b' + w + '\\b').test(t)) a += peso(w); }); return a / b; };
 
       const hashSemana = {};
+      // Primera clase de la semana según el horario del grupo (48 horas antes de ella, VRA).
+      // Sin horario, se cuenta desde el primer día de la semana.
+      let desfase = 0, conHorario = false;
+      if (ini != null && Array.isArray(ctx.horario) && ctx.horario.length) {
+        const dIni = new Date(ini * DIA * 1000).getUTCDay();
+        const ds = ctx.horario.map(h => DIAS[norm(h.dia).slice(0, 9).replace(/[^a-z]/g, '')]).filter(d => d != null).map(d => (d - dIni + 7) % 7);
+        if (ds.length) { desfase = Math.min(...ds); conHorario = true; }
+      }
+      const inicioClase = n => inicioSemana(n) + desfase;
       // Sin calendario (solo pasa con el .zip): se revisa hasta la última semana que tiene material.
       const ultimaConMat = Math.max(0, ...recursos.filter(a => a.visible && ['clase', 'lectura', 'sesion'].includes(a.clase)).concat(presentaciones).map(a => a.seccion));
       for (let n = 1; n <= totalSem; n++) {
@@ -1155,7 +1180,7 @@
         const mats = recursos.filter(a => a.seccion === n && ['clase', 'lectura', 'sesion'].includes(a.clase)).concat(presentaciones.filter(a => a.seccion === n));
         const evals = H.acts.filter(a => a.seccion === n && (a.mod === 'assign' || a.mod === 'quiz' || (a.archivos.length && (a.clase === 'evaluacion' || a.clase === 'rubrica'))));
         const reun = H.acts.filter(a => a.seccion === n && a.clase === 'reunion');
-        const limite = ini == null ? null : n === 1 && REGLAS.semana1DesdeInicio ? ini : inicioSemana(n) - REGLAS.diasMaterial;
+        const limite = ini == null ? null : n === 1 && REGLAS.semana1DesdeInicio ? ini : inicioClase(n) - REGLAS.diasMaterial;
         const fila = { n, inicio: inicioSemana(n), tema: s.tituloVer || s.titulo || '', unidad: s.unidad || '', sinMaterial: !!s.sinMaterial,
           limite, materiales: [], evaluaciones: evals.map(a => a.titulo), reuniones: reun.map(a => nombreDominio(a.dominio) + ' «' + a.titulo + '»'),
           problemas: [], estado: '' };
@@ -1197,9 +1222,9 @@
         else {
           if (Z) fila.aTiempo = true;
           else { const primero = Math.min(...vis.map(m => diaLima(m.agregado)));
-            fila.publicado = primero; fila.anticipacion = inicioSemana(n) - primero;
+            fila.publicado = primero; fila.anticipacion = inicioClase(n) - primero;
             fila.aTiempo = primero <= limite; }
-          if (!fila.aTiempo) fila.problemas.push(n === 1 && REGLAS.semana1DesdeInicio ? 'publicado después del inicio del curso' : 'publicado con menos de ' + REGLAS.diasMaterial + ' días de anticipación');
+          if (!fila.aTiempo) fila.problemas.push(n === 1 && REGLAS.semana1DesdeInicio ? 'publicado después del inicio del curso' : 'publicado con menos de 48 horas de anticipación a la clase');
           vis.filter(m => m.repetidoDe).forEach(m => fila.problemas.push('«' + m.titulo + '» es el mismo archivo de la semana ' + m.repetidoDe));
           const sesOk = vis.some(m => m.sesion === n);
           vis.forEach(m => { if (m.sesion != null && m.sesion !== n && !m.repetidoDe && !sesOk) { m.sesionMal = true; fila.problemas.push('el archivo «' + m.titulo + '» dice «Sesión ' + m.sesion + '»'); } });
@@ -1380,7 +1405,7 @@
           const v = verd[f.n] || {};
           if (v.pare && !v.igual) rec.push('Poner como título de la presentación el tema exacto del sílabo: «' + v.pare.cmp.tema + '» (hoy dice «' + (v.pare.tituloPpt || v.pare.titulo) + '»).');
           if (!Z && f.publicado != null && !f.aTiempo) { hall.push('◐ Publicado tarde (' + diasTxt(f.anticipacion) + ' de su inicio)');
-            rec.push('Publicar el material al menos ' + REGLAS.diasMaterial + ' días antes de que empiece la semana.'); }
+            rec.push('Publicar el material al menos 48 horas antes de la primera clase de la semana.'); }
           else if (!Z && f.publicado != null) hall.push('✔ Publicado a tiempo');
           f.problemas.filter(t => /mismo archivo|Sesión/.test(t)).forEach(t => hall.push('◐ ' + t.charAt(0).toUpperCase() + t.slice(1)));
         }
@@ -1420,9 +1445,9 @@
         (rangoDe(f.n) ? ' (bloque de las semanas ' + rangoDe(f.n) + ': ' + corto(f.tema) + ')' : f.tema ? ' (' + corto(f.tema) + ')' : ''))) + '.');
       const aRevisar = [...new Set(rep.map(p => p[1]).concat(sinTema.map(f => f.n)))];
       if (aRevisar.length) r.mejorar.push((aRevisar.length > 1 ? 'Revisar las semanas ' : 'Revisar la semana ') + y(aRevisar.sort((a, b) => a - b).map(String)) + ': cada semana debe tener el material de su propio tema (hoy hay archivos repetidos o de otra semana).');
-      if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» no se puede revisar la anticipación (material publicado ' + REGLAS.diasMaterial +
-        ' días antes de cada semana) ni si algo está oculto: no trae esos datos. Aquí se revisa solo que cada semana tenga su material y que corresponda a su tema.');
-      if (!Z && (tarde.length || proximas.length)) r.mejorar.push('Publicar el material de cada semana al menos ' + REGLAS.diasMaterial + ' días antes de que empiece' +
+      if (Z) r.nota.push('Con el archivo «Descargar contenido del curso» no se puede revisar la anticipación (material publicado ' +
+        '48 horas antes de la clase) ni si algo está oculto: no trae esos datos. Aquí se revisa solo que cada semana tenga su material y que corresponda a su tema.');
+      if (!Z && (tarde.length || proximas.length)) r.mejorar.push('Publicar el material de cada semana al menos 48 horas antes de su primera clase' +
         (proximas.length ? ' (el de la semana ' + proximas[0].n + ', a más tardar el ' + fechaDeDia(proximas[0].limite) + ')' : '') + '.');
       if (titMal.length) {
         const ej = titMal[0], mj = ej.materiales.find(x => x.cmp && x.cmp.tema);
@@ -1431,9 +1456,10 @@
         r.nota.push('En la auditoría interna 2025 (NC 8.5.2, trazabilidad) se observó una presentación cuyo título no era el del sílabo, aunque el tema fuera parecido. ' +
           'Aquí se exige el mismo texto del tema (sin importar mayúsculas, tildes ni signos).');
       }
-      if (!Z) r.nota.push('Referencia: las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (2026-I, en la biblioteca del portal) piden los materiales organizados por semanas y disponibles 48 horas antes de la clase; el portal exige ' + REGLAS.diasMaterial + ' días antes de la semana.');
+      if (!Z) r.nota.push('Plazo del material: disponible 48 horas antes de la clase, según las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (vigentes en 2026-II). ' + (conHorario
+        ? 'Se toma la primera clase de la semana según el horario del grupo.' : 'Sin el horario del grupo, se cuenta desde el primer día de la semana: puede ser algo más exigente que la norma.'));
       if (sesionMal.length) r.nota.push('Puede que la numeración de sesiones del docente no sea por semana (p. ej., dos sesiones por semana). Confírmelo antes de observarlo.');
-      if (cuadro.some(f => f.n === 1 && f.publicado != null && !f.aTiempo)) r.nota.push('La semana 1 se mide contra el primer día de clases (' + fechaDeDia(ini) + '), no 7 días antes. Esta regla está por confirmar.');
+      if (cuadro.some(f => f.n === 1 && f.publicado != null && !f.aTiempo)) r.nota.push('La semana 1 se mide contra el primer día de clases (' + fechaDeDia(ini) + '), no 48 horas antes. Esta regla está por confirmar.');
       r.para_docente = r.sugerido === 'Cumple'
         ? (Z ? 'Gracias: cada semana tiene su material y corresponde a su tema.' : 'Gracias: el material de cada semana está publicado a tiempo y corresponde a su tema.')
         : 'Gracias por el material que ya publicó' + (conMat.length ? ' en las semanas ' + y(conMat.map(f => String(f.n))) : '') + '. Para completar este punto le pedimos:\n' +
@@ -1621,8 +1647,7 @@
     // Cuadro por semanas
     h.push('<h4 class="mbz-h">Cuadro por semanas</h4><p class="mbz-sub">' + (H.fuente === 'zip'
       ? 'Con el archivo «Descargar contenido del curso» no hay fechas: se revisa que cada semana tenga material propio y de su tema, pero no la anticipación. Las semanas de examen no exigen material.'
-      : 'Regla: el material de cada semana se publica al menos ' + REGLAS.diasMaterial +
-      ' días antes de que empiece' + (REGLAS.semana1DesdeInicio ? ' (la semana 1, a más tardar el primer día de clases)' : '') +
+      : 'Regla (VRA): el material de cada semana se publica al menos 48 horas antes de su primera clase' + (REGLAS.semana1DesdeInicio ? ' (la semana 1, a más tardar el primer día de clases)' : '') +
       '. «Publicado» es la fecha en que el docente agregó el archivo al aula. Las semanas de examen no exigen material.') + '</p>');
     h.push('<div class="mbz-scroll"><table class="mbz-tabla mbz-sem"><colgroup><col style="width:7%"><col style="width:17%"><col style="width:19%"><col style="width:15%"><col style="width:15%"><col style="width:15%"><col style="width:12%"></colgroup>' +
       '<thead><tr><th>Semana</th><th>Tema del sílabo</th><th>Material publicado</th><th>¿Título igual al sílabo?</th><th>Estado</th><th>Evaluaciones</th><th>Clase virtual</th></tr></thead><tbody>');

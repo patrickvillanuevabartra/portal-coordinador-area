@@ -1993,8 +1993,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
 </main>
 
-<script src="config.js?v=2026-10-29.1"></script>
-<script src="mbz-aula.js?v=2026-10-29.03"></script>
+<script src="config.js?v=2026-10-29.2"></script>
+<script src="mbz-aula.js?v=2026-10-29.04"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.8';
+  const VERSION_INTERNA = '2026-10-29.9';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2923,7 +2923,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       local: 'docs/guia-rotulado.html' },
     { k: 'recomendaciones_virtual', n: 'Recomendaciones para el dictado de asignaturas en modalidad virtual (Vicerrectorado Académico, 2026-I)',
       para: 'Referencia para el aula virtual: sílabo y cronograma antes de la primera sesión; materiales por unidades o semanas, disponibles 48 horas antes de la clase; grabar todas las sesiones y publicar el enlace en 24 horas como máximo; Zoom o Meet solo con el correo institucional; responder consultas en 24 horas hábiles; retroalimentación de toda actividad calificada y notas en 7 días calendario como máximo.',
-      hoy: 'Se usa como referencia: el documento es del semestre 2026-I y falta confirmar su vigencia en 2026-II. El portal mantiene sus plazos (material 7 días antes, retroalimentación en 2 semanas según la Guía Operativa Docente 4.4) y en los puntos 04, 05 y 08 del aula virtual indica lo que recomienda el Vicerrectorado.',
+      hoy: 'Vigente en 2026-II (confirmado el 29/10/2026). El portal aplica sus plazos en el aula virtual: material 48 horas antes de la clase (punto 05), retroalimentación y notas en 7 días calendario (punto 04) y grabación publicada en 24 horas (punto 08).',
       local: 'docs/recomendaciones-clases-virtuales-vra.pdf',
       estudiar: 'Es de una página y media. Lea 1 (materiales: 48 horas antes), 2 (grabación publicada en 24 horas) y 4 (retroalimentación y notas en 7 días).' },
     { k: 'procedimiento_informacion', n: 'Procedimiento de Información Documentada (FI-GCA-PR-001)',
@@ -9990,7 +9990,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     nota: 'Por CADA evaluación del cronograma del sílabo: (1) la rúbrica o instrumento está publicado en el aula virtual antes ' +
       'de la evaluación —mínimo dos días antes en talleres, trabajos y proyectos; los exámenes, desde el inicio del semestre—; ' +
       '(2) después de la evaluación está la rúbrica aplicada (la evaluación hecha con ella); y (3) está la retroalimentación ' +
-      'individual o grupal, a más tardar 2 semanas después. Guía Operativa Docente 4.4; Guía para los Coordinadores de Área.'
+      'individual o grupal, y las notas, a más tardar 7 días calendario después (Recomendaciones del Vicerrectorado Académico para la modalidad virtual, vigentes en 2026-II; ' +
+      'la Guía Operativa Docente 4.4 daba 2 semanas); en talleres y laboratorios, también el solucionario (observación del auditor, 29/10/2026). Guía para los Coordinadores de Área.'
   };
   function pintarRubricasPorEntregable() {
     const M = M_ACTUAL(), lista = M.items || [];
@@ -10042,7 +10043,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '<div id="resultadoRubricas"></div></div>' +
         '<div class="cab-rub">📋 Revise cada entregable en el aula virtual y marque lo que encuentre</div>' +
         '<div style="overflow-x:auto"><table class="tabla-rub"><tr><th>Entregable</th><th>1. Rúbrica antes de la evaluación</th>' +
-        '<th>2. Evaluación con la rúbrica</th><th>3. Retroalimentación (máx. 2 semanas)</th></tr>' + filas + '</table></div>' +
+        '<th>2. Evaluación con la rúbrica</th><th>3. Retroalimentación (máx. 7 días)</th></tr>' + filas + '</table></div>' +
         '<p class="nota-crono">Las fechas salen del cronograma del sílabo y del calendario académico. Lo que marque se escribe solo en la ' +
         'observación de este punto, para que quede constancia y se envíe al docente. La calificación del punto la decide usted.</p>';
       const actualizar = () => {
