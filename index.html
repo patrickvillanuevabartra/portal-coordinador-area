@@ -1994,7 +1994,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 </main>
 
 <script src="config.js?v=2026-10-29.1"></script>
-<script src="mbz-aula.js?v=2026-10-29.02"></script>
+<script src="mbz-aula.js?v=2026-10-29.03"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
 (function(){
@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.7';
+  const VERSION_INTERNA = '2026-10-29.8';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -2921,6 +2921,11 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       hoy: 'Vigente. El portal revisa el rotulado con esta guía. Para rotular un archivo paso a paso, use el Asistente de rotulado (módulo Portafolios).',
       estudiar: 'Cómo nombrar cada archivo del portafolio: CÓDIGO.SIGLA.PERIODO y, en los trabajos de estudiantes, .Nombre Apellido.Mayor|Menor|Promedio.Nota. Para no equivocarse, use el Asistente de rotulado (botón 🏷️ en el módulo Portafolios).',
       local: 'docs/guia-rotulado.html' },
+    { k: 'recomendaciones_virtual', n: 'Recomendaciones para el dictado de asignaturas en modalidad virtual (Vicerrectorado Académico, 2026-I)',
+      para: 'Referencia para el aula virtual: sílabo y cronograma antes de la primera sesión; materiales por unidades o semanas, disponibles 48 horas antes de la clase; grabar todas las sesiones y publicar el enlace en 24 horas como máximo; Zoom o Meet solo con el correo institucional; responder consultas en 24 horas hábiles; retroalimentación de toda actividad calificada y notas en 7 días calendario como máximo.',
+      hoy: 'Se usa como referencia: el documento es del semestre 2026-I y falta confirmar su vigencia en 2026-II. El portal mantiene sus plazos (material 7 días antes, retroalimentación en 2 semanas según la Guía Operativa Docente 4.4) y en los puntos 04, 05 y 08 del aula virtual indica lo que recomienda el Vicerrectorado.',
+      local: 'docs/recomendaciones-clases-virtuales-vra.pdf',
+      estudiar: 'Es de una página y media. Lea 1 (materiales: 48 horas antes), 2 (grabación publicada en 24 horas) y 4 (retroalimentación y notas en 7 días).' },
     { k: 'procedimiento_informacion', n: 'Procedimiento de Información Documentada (FI-GCA-PR-001)',
       para: 'Control de los documentos del SGOE: versiones vigentes, copias controladas y no controladas.',
       hoy: 'Vigente (versión 03, aprobada el 10/10/2026).',
@@ -3062,7 +3067,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   /* ------------------------------------------------ guía rápida (notas) ---- */
   // Biblioteca para estudiar: los documentos oficiales con su enlace, para qué
   // sirven y qué leer primero. La ven todos los roles.
-  const ORDEN_BIBLIO = ['guia_coordinador', 'guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'directiva_rotulado', 'procedimiento_informacion'];
+  const ORDEN_BIBLIO = ['guia_coordinador', 'guia_operativa_docente', 'modelo_pedagogico', 'guia_silabos', 'taxonomia_bloom', 'directiva_rotulado', 'recomendaciones_virtual', 'procedimiento_informacion'];
   function bibliotecaHtml(docs) {
     const items = ORDEN_BIBLIO.map(k => DOCS_REF.find(d => d.k === k)).filter(Boolean).map(d => {
       const e = enlaceDoc(d, docs);

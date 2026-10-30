@@ -14,7 +14,7 @@
 (function (raiz) {
   'use strict';
 
-  const VERSION_REGLAS = 'mbz-2026-10-29.2';
+  const VERSION_REGLAS = 'mbz-2026-10-29.3';
 
   // Parámetros que todavía decide Patrick (Traspaso v3, sección 7). Se dejan
   // con la recomendación del traspaso y se pueden cambiar aquí.
@@ -846,6 +846,7 @@
     if (sinRetro.length) r.mejorar.push('Publicar la retroalimentación a más tardar 2 semanas después del cierre (' + y(sinRetro.map(nom)) + ').');
     const sinSol = evals.filter(a => !a.rub.solOk);
     if (sinSol.length) r.mejorar.push('Publicar en el aula el solucionario de ' + y(sinSol.map(nom)) + ', con su nombre (p. ej. «Solucionario Taller N° 2»).');
+    r.nota.push('Referencia: las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (2026-I, en la biblioteca del portal) piden retroalimentación clara en toda actividad calificada y las notas en 7 días calendario como máximo; el portal aplica las 2 semanas de la Guía Operativa Docente (4.4).');
     if (evals.some(a => a.rub.pideSol)) r.nota.push('Solucionario y retroalimentación en talleres y laboratorios: lo observó el auditor en la auditoría del 29/10/2026. El portal reconoce el solucionario por su nombre («solucionario», «solución del…», «resuelto»); si el docente lo nombra de otra forma, confírmelo a mano.');
     r.para_docente = r.sugerido === 'Cumple'
       ? 'Gracias: cada evaluación tiene su rúbrica publicada con anticipación y su retroalimentación a tiempo' + (evals.some(a => a.rub.pideSol) ? ', y los talleres y laboratorios, su solucionario.' : '.')
@@ -940,6 +941,7 @@
         r.para_docente = 'Gracias por publicar grabaciones de clase. Faltan las de las semanas ' + y(faltan.map(String)) + '; le pedimos subirlas en la semana que corresponde, con la fecha de la clase en el nombre.';
       } else r.para_docente = 'Gracias por publicar la grabación de cada clase virtual.';
     }
+    r.nota.push('Referencia: las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (2026-I, en la biblioteca del portal) exigen grabar todas las sesiones y publicar el enlace en el aula en 24 horas como máximo, y conectarse a Zoom o Meet solo con el correo institucional.');
     r.nota.push('Las grabaciones se reconocen por el nombre («grabación», «clase grabada») o porque son videos subidos al aula. Si el docente las nombra de otra forma, confírmelo a mano.');
     return r;
   }
@@ -1429,6 +1431,7 @@
         r.nota.push('En la auditoría interna 2025 (NC 8.5.2, trazabilidad) se observó una presentación cuyo título no era el del sílabo, aunque el tema fuera parecido. ' +
           'Aquí se exige el mismo texto del tema (sin importar mayúsculas, tildes ni signos).');
       }
+      if (!Z) r.nota.push('Referencia: las Recomendaciones del Vicerrectorado Académico para la modalidad virtual (2026-I, en la biblioteca del portal) piden los materiales organizados por semanas y disponibles 48 horas antes de la clase; el portal exige ' + REGLAS.diasMaterial + ' días antes de la semana.');
       if (sesionMal.length) r.nota.push('Puede que la numeración de sesiones del docente no sea por semana (p. ej., dos sesiones por semana). Confírmelo antes de observarlo.');
       if (cuadro.some(f => f.n === 1 && f.publicado != null && !f.aTiempo)) r.nota.push('La semana 1 se mide contra el primer día de clases (' + fechaDeDia(ini) + '), no 7 días antes. Esta regla está por confirmar.');
       r.para_docente = r.sugerido === 'Cumple'
