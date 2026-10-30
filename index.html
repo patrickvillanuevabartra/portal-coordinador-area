@@ -2269,7 +2269,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-29.5';
+  const VERSION_INTERNA = '2026-10-29.6';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10293,12 +10293,18 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     }
     const t = PLANES_VERIFICADOS[k]; if (!t) return null;
     const cod = String(a.codigo || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-    const f = (t.cursos || []).find(x => x.codigo === cod);
+    const nom = sinAcentos(nombreCurso(a.asignatura || '')).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const f = (t.cursos || []).find(x => x.codigo === cod) ||
+      (nom ? (t.cursos || []).find(x => sinAcentos(x.curso).replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim() === nom) : null);
     return f ? Object.assign({ plan: t.plan, programa: t.programa }, f) : null;
   }
   function textoFilaPlan(f) {
-    return 'Código ' + f.codigoPlan + ' · ' + f.curso + ' · semestre ' + f.semestre + ' · ' + f.condicion + ' · horas: ' + f.horasTeoria + ' de teoría y ' +
-      f.horasPractica + ' de práctica · ' + f.creditos + ' créditos · requisito: ' + f.requisito;
+    const h = [f.horasTeoria + ' de teoría', f.horasPractica + ' de práctica'];
+    if (f.horasLaboratorio) h.push(f.horasLaboratorio + ' de laboratorio');
+    if (f.horasTaller) h.push(f.horasTaller + ' de taller');
+    return (f.codigoPlan ? 'Código ' + f.codigoPlan : 'Código (según el catálogo; el plan no trae códigos) ' + (f.codigo || '—')) + ' · ' + f.curso +
+      ' · semestre ' + f.semestre + ' · ' + f.condicion + ' · horas: ' + h.join(', ') + ' · ' + f.creditos + ' créditos · requisito: ' +
+      (f.requisito || 'no figura en el plan') + (f.requisitoCodigo ? ' (' + f.requisitoCodigo + ')' : '');
   }
   function chequearPunto01(txt, plan, a, fila) {
     const t = String(txt || '').slice(0, 15000), problemas = [], datos = {};
@@ -10318,7 +10324,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         const raiz = w => sinAcentos(w).replace(/[^a-z0-9]/g, '').slice(0, 5);
         const enPlan = sinAcentos(filaPlan).replace(/[^a-z0-9 ]/g, ' ');
         const pal = sinAcentos(datos.requisito).split(/[^a-z0-9]+/).filter(w => w.length > 4 && !/^(ninguno|ninguna|creditos|aprobados)$/.test(w));
-        const ok = !pal.length || pal.filter(w => enPlan.indexOf(raiz(w)) >= 0).length / pal.length >= 0.5 || /ningun/.test(sinAcentos(datos.requisito));
+        const codReq = fila && fila.requisitoCodigo ? fila.requisitoCodigo.toUpperCase().replace(/[^A-Z0-9/]/g, '').split('/') : [];
+        const porCodigo = codReq.length && codReq.some(c => datos.requisito.toUpperCase().replace(/[^A-Z0-9]/g, '').indexOf(c) >= 0);
+        const silNing = /ningun/.test(sinAcentos(datos.requisito)), planNing = /ningun/.test(sinAcentos(filaPlan));
+        const ok = porCodigo || (silNing ? planNing : (!pal.length || pal.filter(w => enPlan.indexOf(raiz(w)) >= 0).length / pal.length >= 0.5));
         if (!ok) problemas.push(fila
           ? 'Requisito: el sílabo dice «' + datos.requisito + '», pero según el plan de estudios ' + fila.plan + ' el requisito es «' + fila.requisito + '».'
           : 'Requisito: el sílabo dice «' + datos.requisito + '», que no figura en la fila del curso del plan de estudios ' + (a.planEstudio || '') +
@@ -10331,7 +10340,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       if (cr != null && cr !== fila.creditos) problemas.push('Créditos: el sílabo dice ' + cr + ', pero según el plan ' + fila.plan + ' son ' + fila.creditos + '.');
       const ht = num(/horas?\s+de\s+teor[ií]a\s*[:.\-–]?\s*(\d+)/i), hp = num(/horas?\s+de\s+pr[áa]ctica\s*[:.\-–]?\s*(\d+)/i);
       if (ht != null && ht !== fila.horasTeoria) problemas.push('Horas de teoría: el sílabo dice ' + ht + ', pero según el plan ' + fila.plan + ' son ' + fila.horasTeoria + '.');
-      if (hp != null && hp !== fila.horasPractica) problemas.push('Horas de práctica: el sílabo dice ' + hp + ', pero según el plan ' + fila.plan + ' son ' + fila.horasPractica + '.');
+      if (hp != null && hp !== fila.horasPractica && !(fila.horasLaboratorio || fila.horasTaller)) problemas.push('Horas de práctica: el sílabo dice ' + hp + ', pero según el plan ' + fila.plan + ' son ' + fila.horasPractica + '.');
       datos.plan = fila;
     }
     return { problemas, datos };
