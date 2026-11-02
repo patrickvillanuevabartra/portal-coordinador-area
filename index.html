@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.8';
+  const VERSION_INTERNA = '2026-11-02.9';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9495,7 +9495,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               '<li>Pulsa <b>📎 Adjuntar</b> y sube el <b>sílabo corregido</b> (o la fórmula nueva del sistema, si la corrección se hizo allí).</li>' +
               '<li>Pulsa <b>Analizar ➤</b>. Yo comparo otra vez; mi análisis nuevo <b>reemplaza</b> al anterior en las observaciones.</li>' +
               '<li>Si ahora <b>sí coinciden</b>: pon la <b>fecha de levantamiento</b> y pulsa <b>Guardar</b>. Yo cambio solo el estado a «Levantado» y el botón se pone en verde.</li>' +
-              '<li>Si <b>todavía no coinciden</b>: no pongas la fecha; guarda y avisa otra vez al docente.</li>' +
+              '<li>Si <b>todavía no coinciden</b>: deja el estado en <b>«Observado»</b> y deja <b>vacía</b> la fecha de levantamiento. ' +
+                'En «Fecha de comunicación al docente» pon la <b>fecha de hoy</b> y pulsa <b>Guardar</b>: así queda registrado el análisis nuevo y que le volviste a avisar. ' +
+                'Después pulsa <b>Notificar por correo</b> o <b>WhatsApp</b> para enviarle lo que todavía falta corregir.</li>' +
               '</ol></li></ol>',
           campos:[
           { k:'estado', etq:'Estado de la verificación', col:'Estado de la verificacion',
