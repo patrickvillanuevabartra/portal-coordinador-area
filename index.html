@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.1';
+  const VERSION_INTERNA = '2026-11-02.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3407,10 +3407,11 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     const sem = CAL.ciclo === cicloVigente() ? semanaDelCiclo(CAL.datos) : null;
     return !!(sem && SEMANAS_SUPERVISION[clave] && SEMANAS_SUPERVISION[clave].indexOf(sem) >= 0);
   }
-  function contenidoChip(clave, m, ok, niv, bloqueada, sinAvance) {
+  function contenidoChip(clave, m, ok, niv, bloqueada, sinAvance, subPendiente) {
     const tipo = bloqueada ? 'bl' : sinAvance ? 'esp' : !ok ? 'pe'
       : niv && niv.n === 'alto' ? 'c' : niv && niv.n === 'medio' ? 'p' : niv && niv.n === 'bajo' ? 'n' : 'r';
     const sub = (niv && niv.e && niv.t && niv.e !== niv.t) ? niv.t
+      : (tipo === 'pe' && subPendiente) ? subPendiente
       : (tipo === 'pe' && tocaEstaSemana(clave)) ? 'Toca esta semana' : '';
     return '<svg class="chip-ico" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" ' +
       'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONOS_CHIP[tipo] + '</svg>' +
@@ -3781,10 +3782,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
               ' title="' + esc(m.nombre) +
               (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
-                  : ' — pendiente') + '">' +
+                  : (a.idInforme ? ' — pendiente: falta el informe de ' + (a.programa || 'su carrera') +
+                     '. Ábralo, pulse «Hacer el informe de ' + String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '') +
+                     ' a partir de este», revíselo y guarde.' : ' — pendiente')) + '">' +
               // Mejora 2026-10: el botón dice el formato y, debajo, su estado en
               // palabras («Pendiente», o cómo salió si ya se registró).
-              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance) +
+              // Curso común (02/11/2026): en la carrera que no supervisa, lo
+              // pendiente es su propio informe; se dice para que no parezca
+              // que falta supervisar.
+              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance, a.idInforme ? 'falta su informe' : '') +
               '</button>';
           }).join('');
 
@@ -9407,7 +9413,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             tipo:'select', req:true, opciones:['Conforme','Observado','Levantado'] },
           { k:'fechaComunicacion', etq:'Fecha de comunicación al docente',
             col:'Fecha de comunicacion al docente', tipo:'fecha' },
-          { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha' }
+          { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha',
+            ayuda:'Póngala cuando el docente ya corrigió. Al guardar, el estado pasa solo a «Levantado» y la fórmula queda como coincidente; el botón de Mis cursos se pone en verde.' }
         ]},
         { tipo:'grid', ancho:true, campos:[
           { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true,
@@ -12306,9 +12313,12 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
     if (!lineas.length) return '';
     const texto = 'BORRADOR DEL ASISTENTE — revíselo, corríjalo o bórrelo antes de guardar\n\n' + lineas.join('\n');
-    caja.value = caja.value.trim()
-      ? caja.value.trim() + '\n\n' + texto
-      : texto;
+    // Al volver a analizar (p. ej., con el sílabo corregido) el borrador nuevo
+    // REEMPLAZA al anterior: antes se iban apilando y seguía viéndose el
+    // análisis viejo. Lo que escribió el coordinador antes del borrador se
+    // conserva.
+    const previo = caja.value.split(/\n*BORRADOR DEL ASISTENTE — /)[0].trim();
+    caja.value = previo ? previo + '\n\n' + texto : texto;
     caja.dispatchEvent(new Event('input', { bubbles: true }));
     return texto;
   }
@@ -14050,6 +14060,30 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       });
     }
 
+    // Fórmula de evaluación (02/11/2026, consulta de Electrónica): poner la
+    // fecha de levantamiento es declarar que el docente ya corrigió y que la
+    // fórmula del sílabo ahora coincide con la del sistema. Antes el estado
+    // seguía «Observado» y la coincidencia en «No», y el formato no cambiaba.
+    if (clave === 'formula' && M.campos.fechaLevantamiento && valores[M.campos.fechaLevantamiento]) {
+      const ajustes = [];
+      if (M.campos.estado && valores[M.campos.estado] !== 'Levantado') {
+        valores[M.campos.estado] = 'Levantado';
+        if ($('f_estado')) $('f_estado').value = 'Levantado';
+        ajustes.push('estado «Levantado»');
+      }
+      if (M.campos.coincide && valores[M.campos.coincide] === 'No') {
+        valores[M.campos.coincide] = 'Si';
+        if ($('f_coincide')) $('f_coincide').value = 'Si';
+        ajustes.push('«¿Coincide con la del sílabo?» en «Sí»');
+      }
+      if (M.campos.registroSistema && /no registrada|parcial/i.test(valores[M.campos.registroSistema] || '')) {
+        valores[M.campos.registroSistema] = 'Registrada';
+        if ($('f_registroSistema')) $('f_registroSistema').value = 'Registrada';
+        ajustes.push('«Registrada» en el sistema');
+      }
+      if (ajustes.length) estado.avisoLevantamiento = 'Como hay fecha de levantamiento, se guardó con ' + ajustes.join(', ') + '.';
+    }
+
     $('btnGuardar').disabled = true;
     aviso('Guardando…', '');
     api('/modulo', {
@@ -14089,8 +14123,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             aviso('Guardado, pero el informe no se pudo enviar por correo: ' + (inf.motivo || 'motivo desconocido') + '.', 'error');
           }
         } else {
-          aviso('Guardado.', 'ok');
+          aviso('Guardado.' + (estado.avisoLevantamiento ? ' ' + estado.avisoLevantamiento : ''), 'ok');
         }
+        estado.avisoLevantamiento = '';
         $('btnGuardar').disabled = false;
       })
       .catch(e => { aviso(e.message, 'error'); $('btnGuardar').disabled = false; });
