@@ -80,6 +80,10 @@ main{max-width:1180px;margin:0 auto;padding:20px}
 .ca-tab th{text-align:left;font-size:12.5px;color:var(--tinta-media);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--linea)}
 .ca-tab td{padding:8px;border-bottom:1px solid #eef1ef;vertical-align:middle}
 .ca-tab td small{color:var(--tinta-media)}
+.ca-cursos{margin-top:6px;font-size:15px}
+.ca-cursos summary{cursor:pointer;color:var(--verde,#1f6f4a);font-weight:600;font-size:15px}
+.ca-cursos ul{margin:6px 0 0;padding-left:18px;font-weight:400}
+.ca-cursos li{margin:3px 0;line-height:1.4}
 .ca-sin{color:#9a5b00;font-weight:600}
 .ca-chk{display:none}
 #tablaCoord.modo-clonar .ca-chk{display:inline-block}
@@ -2295,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-10-30.2';
+  const VERSION_INTERNA = '2026-11-02.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -8815,6 +8819,32 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       .catch(e => { $('tablaCoord').innerHTML = '<div class="vacio">' + esc(e.message) + '</div>'; });
   }
 
+  // Cursos a cargo de cada área (02/11/2026): son los cursos con carga en el
+  // ciclo que se está viendo en «Mis cursos», agrupados por código. Se cuentan
+  // los grupos para que se vea cuánto supervisa cada coordinador.
+  function cursosDelArea(programa, area) {
+    const k = t => sinAcentos(t || '');
+    const por = {};
+    (estado.asignaciones || []).forEach(x => {
+      if (k(x.programa) !== k(programa) || k(x.area) !== k(area) || !x.codigo) return;
+      const c = por[x.codigo] || (por[x.codigo] = { codigo: x.codigo, nombre: nombreCurso(x.asignatura),
+        plan: x.planEstudio || x.plan || '', semestre: x.semestre || '', grupos: new Set() });
+      if (x.grupo) c.grupos.add(String(x.grupo));
+    });
+    const ordenSem = s => ['I','II','III','IV','V','VI','VII','VIII','IX','X'].indexOf(String(s).trim());
+    return Object.values(por).sort((a, b) => (ordenSem(a.semestre) - ordenSem(b.semestre)) || a.codigo.localeCompare(b.codigo));
+  }
+  function listaCursosArea(cursos) {
+    const ciclo = ($('filtroCiclo') || {}).value || '';
+    if (!cursos.length) return '<div class="ca-cursos"><small class="ca-sin">Sin cursos con carga' + (ciclo ? ' en ' + esc(ciclo) : '') + '</small></div>';
+    return '<details class="ca-cursos"><summary>📚 ' + cursos.length + (cursos.length === 1 ? ' curso a su cargo' : ' cursos a su cargo') + '</summary><ul>' +
+      cursos.map(c => '<li><b>' + esc(c.codigo) + '</b> ' + esc(c.nombre) +
+        ' <small>· ' + [c.semestre ? 'semestre ' + esc(c.semestre) : '', c.plan ? 'plan ' + esc(c.plan) : '',
+          c.grupos.size ? c.grupos.size + (c.grupos.size === 1 ? ' grupo' : ' grupos') : ''].filter(Boolean).join(' · ') + '</small></li>').join('') +
+      '</ul><p class="ayuda" style="margin:4px 0 0">Cursos con carga docente' + (ciclo ? ' en el ciclo ' + esc(ciclo) : '') +
+      ', según la carga del Departamento Académico registrada en el portal.</p></details>';
+  }
+
   // Coordinadores y áreas en una sola vista por carrera, en desplegables.
   const CA_ABIERTAS = new Set();
   function pintarCoordinadores() {
@@ -8841,8 +8871,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       const filasA = areas.map(a => {
         const cs = vig.filter(c => !/general/i.test(c.rol) && k(c.area) === k(a));
         if (!cs.length) nSin++;
-        const busca = k([corto(a)].concat(cs.map(c => c.nombre + ' ' + c.correo + ' ' + (c.celular || ''))).join(' '));
-        return '<tr data-busca="' + esc(busca) + '"><td><b>' + esc(corto(a)) + '</b></td>' + (cs.length
+        const cursosA = cursosDelArea(p, a);
+        const busca = k([corto(a)].concat(cs.map(c => c.nombre + ' ' + c.correo + ' ' + (c.celular || '')))
+          .concat(cursosA.map(x => x.codigo + ' ' + x.nombre)).join(' '));
+        return '<tr data-busca="' + esc(busca) + '"><td><b>' + esc(corto(a)) + '</b>' + listaCursosArea(cursosA) + '</td>' + (cs.length
           ? '<td>' + cs.map(c => chk(c) + esc(c.nombre)).join('<br>') + '</td><td><small>' + cs.map(c => esc(c.correo || 'sin correo') +
               ' · ' + (c.celular ? '📱 ' + esc(c.celular) : '<span class="ca-sin">sin celular</span>')).join('<br>') +
             '</small></td><td style="text-align:right">' + cs.map(editar).join('<br>') + '</td>'
@@ -8863,7 +8895,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           (c.historial ? ' · <small>' + esc(String(c.historial).split('\n').pop()) + '</small>' : '') + ' ' + editar(c) + '</li>').join('') + '</ul></details>' : '';
       return '<details class="ca-car" data-p="' + esc(p) + '"' + (CA_ABIERTAS.has(p) ? ' open' : '') + '><summary><span class="ca-n">' + esc(p) + '</span>' + chips + '</summary>' +
         gensHtml +
-        (areas.length ? '<table class="ca-tab"><thead><tr><th style="width:26%">Área</th><th>Coordinador</th><th style="width:30%">Correo</th><th style="width:100px"></th></tr></thead><tbody>' + filasA + '</tbody></table>'
+        (areas.length ? '<table class="ca-tab"><thead><tr><th style="width:36%">Área y cursos a cargo</th><th>Coordinador</th><th style="width:26%">Correo</th><th style="width:100px"></th></tr></thead><tbody>' + filasA + '</tbody></table>'
                       : '<p class="ayuda" style="margin:0 16px 10px">Esta carrera no tiene áreas registradas.</p>') +
         '<div class="ca-pie">' + hist + '<button type="button" class="btn-mini verde" data-nueva-area="' + esc(p) + '">＋ Agregar un área a ' + esc(p.replace(/^Ingeniería\s+/i, '')) + '</button></div></details>';
     }).join('');
