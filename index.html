@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.3';
+  const VERSION_INTERNA = '2026-11-02.4';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3388,6 +3388,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // Nada de esto cambia datos ni llama al servidor: lee lo que el tablero ya
   // tiene (asignaciones, avance, nivel) y el calendario que ya se consulta.
 
+  // Urpito guía (02/11/2026): explica paso a paso, como de la mano. Si la
+  // persona ocultó a Urpito, el mismo texto se ve como nota normal.
+  window.urpTrasAlternar = () => { try { if (typeof pintarTablero === 'function') pintarTablero(); } catch (e) {} };
+  function guiaUrp(html) {
+    const conUrp = window.URP && URP.on && URP.on();
+    return conUrp
+      ? '<div class="urp-guia urp-paso">' + URP.img('urp-img') + '<div class="urp-cuerpo"><div class="urp-globo">' + html + '</div></div></div>'
+      : '<div class="nota-guia-paso">' + html + '</div>';
+  }
+
   function textoEstadoChip(ok, niv, bloqueada, sinAvance) {
     if (bloqueada) return 'Sin datos';
     if (sinAvance) return '…';
@@ -3737,9 +3747,18 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               '. La supervisión se hace una sola vez, para que no queden dos evaluaciones ' +
               'distintas del mismo curso.<br>' +
               '<b>Eso no te quita la responsabilidad</b> de presentar el informe de este ' +
-              'curso ante tu Escuela. Abre cualquier formato: verás lo que se registró y ' +
-              'podrás descargar el informe o reportar una inconsistencia al área padre, que ' +
-              'conviene levantar antes de presentarlo.'
+              'curso ante tu Escuela.' +
+              guiaUrp('<b>Te llevo paso a paso</b> para hacer el informe de ' +
+                esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + ':' +
+                '<ol class="urp-pasos">' +
+                '<li>Abajo, pulsa un botón que diga <b>«falta su informe»</b>.</li>' +
+                '<li>Arriba del formato verás lo que registró ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) +
+                '. Pulsa el botón verde <b>«Hacer el informe de ' + esc(String(c.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + ' a partir de este»</b>.</li>' +
+                '<li>Revisa lo copiado. Si algo no se cumple para tu carrera, cámbialo.</li>' +
+                '<li>Pulsa <b>Guardar</b>. El botón se pinta de color y ya cuenta en tu avance.</li>' +
+                '<li>Repite con los demás botones que digan «falta su informe».</li></ol>' +
+                '<small>«Delegados» no se hace aquí: lo registra ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) +
+                ' y no te cuenta como pendiente. Si ves algo que no cuadra, avísale al área padre antes de presentar tu informe.</small>')
             : '<b>Tu área es la padre de este curso.</b> ' +
               'Lo llevan alumnos de tu carrera y también de ' +
               esc(c.compartidoCon || 'otra carrera') +
@@ -9417,7 +9436,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           { k:'formulaSistema', etq:'Fórmula en el sistema', col:'Formula en el sistema', tipo:'textarea',
             ayuda:'Tal como está configurada en el Sistema de Evaluación.' }
         ]},
-        { tipo:'grid', campos:[
+        { tipo:'grid', titulo:'Resultado y seguimiento',
+          urp:'<b>¿Cómo marco el resultado?</b><ol class="urp-pasos">' +
+            '<li>Si la fórmula del sílabo y la del sistema dan los mismos pesos: elige <b>«Conforme»</b>.</li>' +
+            '<li>Si no coinciden: elige <b>«Observado»</b>, pon la <b>fecha en que avisaste al docente</b> y guarda.</li>' +
+            '<li>Cuando el docente ya corrigió (el sílabo o el sistema): vuelve aquí, pon la <b>fecha de levantamiento</b> y pulsa <b>Guardar</b>. ' +
+            'Yo cambio solo el estado a «Levantado» y el botón se pone en verde.</li></ol>' +
+            '<small>Si subiste el sílabo corregido y pides de nuevo el análisis, mi borrador nuevo reemplaza al anterior en las observaciones.</small>',
+          campos:[
           { k:'estado', etq:'Estado de la verificación', col:'Estado de la verificacion',
             tipo:'select', req:true, opciones:['Conforme','Observado','Levantado'] },
           { k:'fechaComunicacion', etq:'Fecha de comunicación al docente',
@@ -9718,7 +9744,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   function pintarFormulario(M, F) {
     const partes = F.bloques.map((b, bi) => {
       if (b.tipo === 'grid') {
-        const titulo = b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '';
+        const titulo = (b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '') +
+          (b.urp ? guiaUrp(b.urp) : '');   // nota de Urpito, paso a paso
         const cuerpo = '<div class="rejilla">' + b.campos.map(campoHTML).join('') + '</div>';
         const cont = b.contar
           ? '<div class="resumen"><div><div class="cifra" id="b' + bi + '_cifra">0</div>' +
@@ -13725,14 +13752,20 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         'ajustar lo que, desde los objetivos de su carrera, no se cumplió. El informe de ' +
         esc(padre) + ' no cambia.</p>' +
         (estado.soloLectura ? '' :
-          '<button type="button" class="btn">Hacer el informe de ' +
-          esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) +
-          ' a partir de este</button>');
+          guiaUrp('<b>Paso 1 de 3.</b> Pulsa el botón verde de abajo. Copiaré aquí todo lo que registró ' +
+            esc(String(padre).replace(/^Ingeniería\s+/i, '')) + ', para que no empieces de cero.') +
+          '<button type="button" class="btn" style="margin-top:10px">Hacer el informe de ' +
+          esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + ' a partir de este</button>');
       const b = caja.querySelector('button');
       if (b) b.addEventListener('click', () => {
         alCopiar();
         b.textContent = 'Copiado: revise, ajuste y guarde';
         b.disabled = true;
+        const g = caja.querySelector('.urp-paso, .nota-guia-paso');
+        if (g) g.outerHTML = guiaUrp('<b>Paso 2 de 3.</b> ¡Listo, ya copié el informe! Ahora revísalo con calma, de arriba abajo. ' +
+          'Si algo no se cumple para los objetivos de ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + ', cámbialo y escribe por qué en sus observaciones.<br>' +
+          '<b>Paso 3 de 3.</b> Cuando termines, pulsa <b>Guardar</b>, al final del formato. El informe de ' +
+          esc(String(padre).replace(/^Ingeniería\s+/i, '')) + ' no cambia.');
       });
     }
     form.prepend(caja);
@@ -14133,6 +14166,18 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           }
         } else {
           aviso('Guardado.' + (estado.avisoLevantamiento ? ' ' + estado.avisoLevantamiento : ''), 'ok');
+          // Urpito acompaña: en un curso común, dice cuántos formatos faltan.
+          if (a.idInforme && clave !== 'delegados' && window.URP && URP.festejo) {
+            const hechosC = new Set(estado.avance[a.idAsignacion] || []);
+            const faltan = ORDEN_MODULOS.filter(k => k !== 'delegados' && !hechosC.has(k) &&
+              !noAplicanCarga([a]).has(k)).length;
+            URP.festejo('¡Muy bien!', faltan
+              ? 'Guardé el informe de ' + esc(String(a.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) +
+                '. Te ' + (faltan === 1 ? 'falta 1 formato' : 'faltan ' + faltan + ' formatos') + ' de este curso: vuelve a la lista y pulsa los que digan «falta su informe».'
+              : 'Terminaste el informe de este curso común. Ya cuenta completo en tu avance. 🎉');
+          } else if (estado.avisoLevantamiento && window.URP && URP.festejo) {
+            URP.festejo('¡Levantado!', 'Como pusiste la fecha de levantamiento, dejé la fórmula como «Levantado». El botón se pondrá en verde.');
+          }
         }
         estado.avisoLevantamiento = '';
         $('btnGuardar').disabled = false;
@@ -14800,6 +14845,14 @@ document.addEventListener('DOMContentLoaded',()=>{
 #avisoArrastre.ver{opacity:1;transform:translateX(-50%) translateY(0)}
 </style>
 
+<style id="urp-pasos-css">
+  .urp-paso{margin-top:10px}
+  .urp-paso .urp-img{width:78px}
+  .urp-paso .urp-globo{font-size:15.5px;margin-bottom:0}
+  .urp-pasos{margin:6px 0 6px;padding-left:22px}
+  .urp-pasos li{margin:4px 0;line-height:1.45}
+  .nota-guia-paso{margin-top:10px;background:#fff;border:1.5px solid #0fa968;border-radius:12px;padding:9px 13px;font-size:15.5px;line-height:1.5}
+</style>
 <style id="urp-comun-css">
   /* ===== Urpito · SGOE FI URP (módulo común) ===== */
   .urp-guia{display:flex;gap:14px;align-items:flex-start}
