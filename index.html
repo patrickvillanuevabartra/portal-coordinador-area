@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.2';
+  const VERSION_INTERNA = '2026-11-02.3';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3318,8 +3318,12 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   const esTeoria = t => /^(teo|tal)/i.test(sinAcentos(t || ''));
   function noAplicanCarga(partes) {
     const ps = (partes || []).map(p => p.a || p);
-    if (!ps.length || ps.some(p => esTeoria(p.tipo)) || !ps.some(p => p.tipo)) return new Set();
-    return new Set(SOLO_TEORIA);
+    // Curso común, carrera que no supervisa (02/11/2026): los datos de
+    // delegados son uno solo y los registra el área padre; esta carrera no
+    // puede guardarlos, así que no se le cuentan como pendientes.
+    const comun = ps.length && ps.every(p => p.idInforme) ? ['delegados'] : [];
+    if (!ps.length || ps.some(p => esTeoria(p.tipo)) || !ps.some(p => p.tipo)) return new Set(comun);
+    return new Set(SOLO_TEORIA.concat(comun));
   }
   function hechosDeLaCarga(a) {
     const h = new Set();
@@ -3766,6 +3770,11 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           const sinAvance = !estado.avanceListo;
           const noAplica = noAplicanCarga(partes);
           const chips = ORDEN_MODULOS.map(clave => [clave, CFG.MODULOS[clave]]).map(([clave, m]) => {
+            if (noAplica.has(clave) && !hechos.has(clave) && clave === 'delegados' && a.idInforme) return '<button class="chip no-aplica" disabled title="' + esc(m.nombre) +
+              ' — No aplica a ' + esc(a.programa || 'su carrera') + ': en un curso común los datos de delegados son uno solo y los registra ' +
+              esc(a.supervisa || 'la carrera que lo supervisa') + '.">' +
+              '<span class="chip-txt"><span class="chip-mod">' + esc(m.corto) + '</span><span class="chip-est">No aplica</span>' +
+              '<span class="chip-sub">lo registra ' + esc(String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '</span></span></button>';
             if (noAplica.has(clave) && !hechos.has(clave)) return '<button class="chip no-aplica" disabled title="' + esc(m.nombre) +
               ' — No aplica: lo presenta el docente de teoría o taller; este docente solo tiene laboratorio o práctica.">' +
               '<span class="chip-txt"><span class="chip-mod">' + esc(m.corto) + '</span><span class="chip-est">No aplica</span>' +
