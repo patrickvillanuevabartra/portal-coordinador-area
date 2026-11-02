@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.12';
+  const VERSION_INTERNA = '2026-11-02.13';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3749,7 +3749,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               '<b>Eso no te quita la responsabilidad</b> de presentar el informe de este ' +
               'curso ante tu Escuela.' +
               guiaUrp('<b>¿Qué tengo que hacer con este curso?</b> Este curso lo llevan alumnos de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + ' y de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '. ' +
-                esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' ya hizo su revisión. <b>Tú también tienes que revisarlo</b>, pensando en <b>tus estudiantes de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '</b>, ' +
+                esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' es el <b>área padre</b> de este curso (allí registró la carga el Departamento Académico), ' +
+                'por eso <b>hace la primera revisión</b>, y ya la hizo. <b>Tú también tienes que revisarlo</b>, pensando en <b>tus estudiantes de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '</b>, ' +
                 'pero <b>no empiezas de cero</b>: partes de la revisión de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' y confirmas o cambias cada punto.' +
                 '<ol class="urp-pasos">' +
                 '<li>En la fila de este curso, pulsa un botón gris que diga <b>«Falta revisar · ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' ya lo revisó»</b>.</li>' +
