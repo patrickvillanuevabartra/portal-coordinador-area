@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.6';
+  const VERSION_INTERNA = '2026-11-02.7';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9302,13 +9302,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // Lo que Urpito explica en cada formato, como de la mano. Texto sencillo:
   // los coordinadores y docentes son, en su mayoría, personas mayores.
   const GUIAS_URPITO = {
-    silabo: { titulo: 'Te acompaño a revisar el sílabo. Son 6 pasos:', pasos: [
+    silabo: { titulo: 'Te acompaño a revisar el sílabo. Son 7 pasos:', pasos: [
       '<b>Paso 1 (cronograma):</b> elige el PDF o Word del sílabo. Yo leo en qué semana se entrega cada evaluación. Revisa y pulsa <b>«Guardar cronograma»</b>. Se hace una sola vez por curso.',
       '<b>Paso 2 (calidad):</b> más abajo, en «Revisión de los 12 puntos», el sílabo ya aparece adjuntado. Si no, pulsa <b>📎 Adjuntar</b> y elígelo.',
       'Pulsa <b>Analizar ➤</b>. Yo leo el sílabo y te propongo cómo está cada uno de los 12 puntos.',
       'Lee cada punto con calma. <b>Tú decides</b>: elige Cumple, Parcial, No cumple o No aplica. Si no cumple, escribe qué falta.',
       'Al final, pulsa <b>Guardar</b>.',
-      'Si hubo observaciones, pulsa <b>Notificar por correo</b> o <b>WhatsApp</b>. Cuando el docente corrija, vuelve, pon la <b>fecha de levantamiento</b> y guarda otra vez.'],
+      'Si hubo observaciones, pulsa <b>Notificar por correo</b> o <b>WhatsApp</b>.',
+      'Cuando el docente te avise que ya corrigió: adjunta el <b>sílabo corregido</b>, pulsa <b>Analizar ➤</b> y revisa otra vez los puntos observados. Si ya cumplen, cámbialos, pon la <b>fecha de levantamiento</b> y guarda. Si no, avísale otra vez.'],
       nota: 'Si te equivocas, no pasa nada: abres el formato otra vez, corriges y guardas.' },
     entrevistas: { titulo: 'Te acompaño a registrar la entrevista con los delegados:', pasos: [
       'Escribe la <b>fecha y hora</b> de la reunión y elige si fue presencial, virtual o mixta.',
@@ -9340,7 +9341,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       'Pulsa <b>Analizar ➤</b>. Yo comparo las dos fórmulas y te digo si dan los mismos pesos.',
       'Responde las dos preguntas: ¿está registrada en el sistema? y ¿coincide con la del sílabo?',
       'Marca el resultado (te lo explico más abajo, en «Resultado y seguimiento») y pulsa <b>Guardar</b>.',
-      'Si no coincide, avisa al docente con <b>Notificar por correo</b> o <b>WhatsApp</b>.'] },
+      'Si no coincide, avisa al docente con <b>Notificar por correo</b> o <b>WhatsApp</b>. Cuando corrija, sigue el paso 3 de «Resultado y seguimiento».'] },
     delegados: { titulo: 'Te acompaño a registrar a los delegados del curso:', pasos: [
       'No tienes que escribir todo. Pulsa <b>Analizar ➤</b>: yo traigo los datos del delegado y del subdelegado desde el formulario F1.',
       'Revisa que el <b>código</b>, los <b>apellidos y nombres</b> y el <b>correo</b> estén bien. Corrige si hace falta.',
@@ -9489,16 +9490,20 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           urp:'<b>¿Cómo marco el resultado?</b><ol class="urp-pasos">' +
             '<li>Si la fórmula del sílabo y la del sistema dan los mismos pesos: elige <b>«Conforme»</b>.</li>' +
             '<li>Si no coinciden: elige <b>«Observado»</b>, pon la <b>fecha en que avisaste al docente</b> y guarda.</li>' +
-            '<li>Cuando el docente ya corrigió (el sílabo o el sistema): vuelve aquí, pon la <b>fecha de levantamiento</b> y pulsa <b>Guardar</b>. ' +
-            'Yo cambio solo el estado a «Levantado» y el botón se pone en verde.</li></ol>' +
-            '<small>Si subiste el sílabo corregido y pides de nuevo el análisis, mi borrador nuevo reemplaza al anterior en las observaciones.</small>',
+            '<li>Cuando el docente te avise que <b>ya corrigió</b>, compruébalo antes de levantar:' +
+              '<ol type="a">' +
+              '<li>Pulsa <b>📎 Adjuntar</b> y sube el <b>sílabo corregido</b> (o la fórmula nueva del sistema, si la corrección se hizo allí).</li>' +
+              '<li>Pulsa <b>Analizar ➤</b>. Yo comparo otra vez; mi análisis nuevo <b>reemplaza</b> al anterior en las observaciones.</li>' +
+              '<li>Si ahora <b>sí coinciden</b>: pon la <b>fecha de levantamiento</b> y pulsa <b>Guardar</b>. Yo cambio solo el estado a «Levantado» y el botón se pone en verde.</li>' +
+              '<li>Si <b>todavía no coinciden</b>: no pongas la fecha; guarda y avisa otra vez al docente.</li>' +
+              '</ol></li></ol>',
           campos:[
           { k:'estado', etq:'Estado de la verificación', col:'Estado de la verificacion',
             tipo:'select', req:true, opciones:['Conforme','Observado','Levantado'] },
           { k:'fechaComunicacion', etq:'Fecha de comunicación al docente',
             col:'Fecha de comunicacion al docente', tipo:'fecha' },
           { k:'fechaLevantamiento', etq:'Fecha de levantamiento', tipo:'fecha',
-            ayuda:'Póngala cuando el docente ya corrigió. Al guardar, el estado pasa solo a «Levantado» y la fórmula queda como coincidente; el botón de Mis cursos se pone en verde.' }
+            ayuda:'Póngala solo después de comprobar la corrección: suba el sílabo corregido, pulse Analizar y vea que ya coincide. Al guardar, el estado pasa solo a «Levantado» y el botón de Mis cursos se pone en verde.' }
         ]},
         { tipo:'grid', ancho:true, campos:[
           { k:'observaciones', etq:'Observaciones', tipo:'textarea', opcional:true,
