@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.7';
+  const VERSION_INTERNA = '2026-11-02.8';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3748,17 +3748,17 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               'distintas del mismo curso.<br>' +
               '<b>Eso no te quita la responsabilidad</b> de presentar el informe de este ' +
               'curso ante tu Escuela.' +
-              guiaUrp('<b>Tranquila, tranquilo: no tienes que escribir ningún documento.</b> ' +
-                '«Hacer el informe de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '» solo quiere decir esto: <b>copiar con un botón</b> lo que ya revisó ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) +
-                ', <b>mirarlo</b> y <b>guardarlo</b> a nombre de tu carrera. Es como firmar una copia. Toma un par de minutos por botón.' +
+              guiaUrp('<b>¿Qué tengo que hacer con este curso?</b> Este curso lo llevan alumnos de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + ' y de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '. ' +
+                esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' <b>ya lo revisó</b>. Tú <b>no tienes que revisarlo de nuevo</b>: solo tienes que <b>traer esa revisión</b> a ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) +
+                ', para que también quede registrada en tu Escuela. No hay que escribir ningún documento.' +
                 '<ol class="urp-pasos">' +
-                '<li>Abajo, pulsa un botón que diga <b>«falta copiar»</b>.</li>' +
-                '<li>Arriba del formato verás lo que registró ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '. Pulsa el botón verde <b>«Copiar a ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '»</b>.</li>' +
-                '<li>Míralo. Si todo está bien, no cambies nada. Solo si algo no se cumple para tu carrera, lo cambias.</li>' +
-                '<li>Pulsa <b>Guardar</b>. El botón se pinta de color y ya cuenta en tu avance.</li>' +
-                '<li>Repite con los demás botones que digan «falta copiar».</li></ol>' +
+                '<li>En la fila de este curso, pulsa un botón gris que diga <b>«traer de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '»</b>.</li>' +
+                '<li>Se abre la revisión. Arriba verás lo que hizo ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '. Pulsa el botón verde <b>«Traer esta revisión a ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '»</b>.</li>' +
+                '<li>Léela. Si estás de acuerdo, <b>no cambies nada</b>.</li>' +
+                '<li>Baja hasta el final y pulsa <b>Guardar</b>. El botón se pinta de color y ya cuenta en tu avance.</li>' +
+                '<li>Haz lo mismo con los demás botones de este curso que digan «traer de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '».</li></ol>' +
                 '<small>«Delegados» no se hace aquí: lo registra ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) +
-                ' y no te cuenta como pendiente. Lo que guardes es lo que luego presentas a tu Escuela; el portal lo arma solo. ' +
+                ' y no te cuenta como pendiente. Lo que guardes es lo que luego presentas a tu Escuela; el portal arma el informe solo. ' +
                 'Si ves algo que no cuadra, avísale al área padre.</small>')
             : '<b>Tu área es la padre de este curso.</b> ' +
               'Lo llevan alumnos de tu carrera y también de ' +
@@ -3811,14 +3811,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
               ' title="' + esc(m.nombre) +
               (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
-                  : (a.idInforme ? ' — pendiente: no hay que escribir nada. Ábralo, pulse «Copiar a ' +
-                     String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '') + '», mírelo y guarde.' : ' — pendiente')) + '">' +
+                  : (a.idInforme ? ' — pendiente: ' + String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '') +
+                     ' ya lo revisó. Ábralo, pulse «Traer esta revisión a ' + String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '') + '», léala y guarde.' : ' — pendiente')) + '">' +
               // Mejora 2026-10: el botón dice el formato y, debajo, su estado en
               // palabras («Pendiente», o cómo salió si ya se registró).
               // Curso común (02/11/2026): en la carrera que no supervisa, lo
               // pendiente es su propio informe; se dice para que no parezca
               // que falta supervisar.
-              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance, a.idInforme ? 'falta copiar' : '') +
+              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance, a.idInforme ? 'traer de ' + String(a.supervisa || 'área padre').replace(/^Ingeniería\s+/i, '') : '') +
               '</button>';
           }).join('');
 
@@ -13818,16 +13818,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         'ajustar lo que, desde los objetivos de su carrera, no se cumplió. El informe de ' +
         esc(padre) + ' no cambia.</p>' +
         (estado.soloLectura ? '' :
-          guiaUrp('<b>No tienes que escribir nada desde cero.</b> Aquí arriba está lo que ya revisó ' + esc(String(padre).replace(/^Ingeniería\s+/i, '')) + '.<br>' +
-            '<b>Paso 1 de 3.</b> Pulsa el botón verde de abajo y yo lo copio todo en este formato, a nombre de ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '.') +
-          '<button type="button" class="btn" style="margin-top:10px">Copiar a ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '</button>');
+          guiaUrp('<b>No tienes que revisar este curso de nuevo.</b> Aquí arriba está la revisión que ya hizo ' + esc(String(padre).replace(/^Ingeniería\s+/i, '')) + '.<br>' +
+            '<b>Paso 1 de 3.</b> Pulsa el botón verde de abajo y yo pongo esa misma revisión en este formato, a nombre de ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '.') +
+          '<button type="button" class="btn" style="margin-top:10px">Traer esta revisión a ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '</button>');
       const b = caja.querySelector('button');
       if (b) b.addEventListener('click', () => {
         alCopiar();
-        b.textContent = 'Copiado: mírelo y pulse Guardar';
+        b.textContent = 'Listo: léala y pulse Guardar (abajo)';
         b.disabled = true;
         const g = caja.querySelector('.urp-paso, .nota-guia-paso');
-        if (g) g.outerHTML = guiaUrp('<b>Paso 2 de 3.</b> ¡Listo, ya lo copié! Ahora míralo con calma, de arriba abajo. Si todo está bien, no cambies nada. ' +
+        if (g) g.outerHTML = guiaUrp('<b>Paso 2 de 3.</b> ¡Listo, ya traje la revisión! Ahora léela con calma, de arriba abajo. Si estás de acuerdo, no cambies nada. ' +
           'Si algo no se cumple para los objetivos de ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + ', cámbialo y escribe por qué en sus observaciones.<br>' +
           '<b>Paso 3 de 3.</b> Cuando termines, pulsa <b>Guardar</b>, al final del formato. El informe de ' +
           esc(String(padre).replace(/^Ingeniería\s+/i, '')) + ' no cambia.');
@@ -14238,7 +14238,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               !noAplicanCarga([a]).has(k)).length;
             URP.festejo('¡Muy bien!', faltan
               ? 'Guardé el informe de ' + esc(String(a.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) +
-                '. Te ' + (faltan === 1 ? 'falta 1 formato' : 'faltan ' + faltan + ' formatos') + ' de este curso: vuelve a la lista y pulsa los que digan «falta copiar».'
+                '. Te ' + (faltan === 1 ? 'falta 1 formato' : 'faltan ' + faltan + ' formatos') + ' de este curso: vuelve a la lista y pulsa los que digan «traer de ' + esc(String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '».'
               : 'Terminaste el informe de este curso común. Ya cuenta completo en tu avance. 🎉');
           } else if (estado.avisoLevantamiento && window.URP && URP.festejo) {
             URP.festejo('¡Levantado!', 'Como pusiste la fecha de levantamiento, dejé la fórmula como «Levantado». El botón se pondrá en verde.');
