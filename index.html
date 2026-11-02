@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.11';
+  const VERSION_INTERNA = '2026-11-02.12';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3752,8 +3752,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
                 esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' ya hizo su revisión. <b>Tú también tienes que revisarlo</b>, pensando en <b>tus estudiantes de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '</b>, ' +
                 'pero <b>no empiezas de cero</b>: partes de la revisión de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' y confirmas o cambias cada punto.' +
                 '<ol class="urp-pasos">' +
-                '<li>En la fila de este curso, pulsa un botón gris que diga <b>«Falta revisar · parte de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '»</b>.</li>' +
-                '<li>Arriba verás la revisión de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '. Pulsa el botón verde <b>«Traer esta revisión a ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '»</b>: así no tienes que llenar todo desde el principio.</li>' +
+                '<li>En la fila de este curso, pulsa un botón gris que diga <b>«Falta revisar · ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ' ya lo revisó»</b>.</li>' +
+                '<li>Arriba verás la revisión de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '. Pulsa el botón verde <b>«Llenar con las respuestas de ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + '»</b>. Las casillas de abajo se llenan solas con lo que marcó ' + esc(String(c.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '')) + ', para que no tengas que escribir todo.</li>' +
                 '<li>Ahora <b>revisa tú cada punto</b> pensando en tus estudiantes de ' + esc(String(c.programa || 'tu carrera').replace(/^Ingeniería\s+/i, '')) + '. Lo que se cumple, déjalo igual. ' +
                 'Lo que no se cumple para ellos, cámbialo y escribe por qué.</li>' +
                 '<li>Baja hasta el final y pulsa <b>Guardar</b>. El botón se pinta de color y ya cuenta en tu avance.</li>' +
@@ -3812,14 +3812,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               '" data-partes="' + esc(partes.map(p => p.a.tipo + ':' + p.a.subGrupo).join(', ')) + '"') +
               ' title="' + esc(m.nombre) +
               (ok ? ' — ' + (niv ? niv.t + (niv.e && niv.e !== niv.t ? ' · ' + niv.e : '') : 'registrado')
-                  : (a.idInforme ? ' — pendiente: ábralo, traiga la revisión de ' + String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '') +
+                  : (a.idInforme ? ' — pendiente: ábralo, llene las casillas con las respuestas de ' + String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '') +
                      ' para no empezar de cero, revise cada punto pensando en sus estudiantes de ' + String(a.programa || 'su carrera').replace(/^Ingeniería\s+/i, '') + ' y guarde.' : ' — pendiente')) + '">' +
               // Mejora 2026-10: el botón dice el formato y, debajo, su estado en
               // palabras («Pendiente», o cómo salió si ya se registró).
               // Curso común (02/11/2026): en la carrera que no supervisa, lo
               // pendiente es su propio informe; se dice para que no parezca
               // que falta supervisar.
-              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance, a.idInforme ? 'parte de ' + String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '') : '') +
+              contenidoChip(clave, m, ok, niv, bloqueada, sinAvance, a.idInforme ? String(a.supervisa || 'el área padre').replace(/^Ingeniería\s+/i, '') + ' ya lo revisó' : '') +
               '</button>';
           }).join('');
 
@@ -13822,15 +13822,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         esc(padre) + ' no cambia.</p>' +
         (estado.soloLectura ? '' :
           guiaUrp('<b>No empiezas de cero.</b> Aquí arriba está la revisión que hizo ' + esc(String(padre).replace(/^Ingeniería\s+/i, '')) + '.<br>' +
-            '<b>Paso 1 de 3.</b> Pulsa el botón verde de abajo y yo pongo esa revisión en este formato, como punto de partida para ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '.') +
-          '<button type="button" class="btn" style="margin-top:10px">Traer esta revisión a ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '</button>');
+            '<b>Paso 1 de 3.</b> Pulsa el botón verde de abajo. Las casillas de este formato se llenan solas con lo que marcó ' + esc(String(padre).replace(/^Ingeniería\s+/i, '')) + ', para que no tengas que escribir todo.') +
+          '<button type="button" class="btn" style="margin-top:10px">Llenar con las respuestas de ' + esc(String(padre).replace(/^Ingeniería\s+/i, '')) + '</button>');
       const b = caja.querySelector('button');
       if (b) b.addEventListener('click', () => {
         alCopiar();
-        b.textContent = 'Listo: revísela y pulse Guardar (abajo)';
+        b.textContent = 'Listo: revise las casillas y pulse Guardar (abajo)';
         b.disabled = true;
         const g = caja.querySelector('.urp-paso, .nota-guia-paso');
-        if (g) g.outerHTML = guiaUrp('<b>Paso 2 de 3.</b> ¡Listo, ya traje la revisión! Ahora <b>revísala tú</b>, punto por punto, pensando en tus estudiantes de ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '. ' +
+        if (g) g.outerHTML = guiaUrp('<b>Paso 2 de 3.</b> ¡Listo, ya se llenaron las casillas! Ahora <b>revísalas tú</b>, una por una, pensando en tus estudiantes de ' + esc(String(a.programa || 'mi carrera').replace(/^Ingeniería\s+/i, '')) + '. ' +
           'Lo que se cumple, déjalo igual. Lo que no se cumple para ellos, cámbialo y escribe por qué en sus observaciones.<br>' +
           '<b>Paso 3 de 3.</b> Cuando termines, pulsa <b>Guardar</b>, al final del formato. La revisión de ' + esc(String(padre).replace(/^Ingeniería\s+/i, '')) + ' no cambia.');
       });
