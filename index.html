@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.4';
+  const VERSION_INTERNA = '2026-11-02.5';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9299,6 +9299,55 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     }
   };
 
+  // Lo que Urpito explica en cada formato, como de la mano. Texto sencillo:
+  // los coordinadores y docentes son, en su mayoría, personas mayores.
+  const GUIAS_URPITO = {
+    silabo: { titulo: 'Te acompaño a revisar el sílabo. Son 6 pasos:', pasos: [
+      '<b>Paso 1 (cronograma):</b> elige el PDF o Word del sílabo. Yo leo en qué semana se entrega cada evaluación. Revisa y pulsa <b>«Guardar cronograma»</b>. Se hace una sola vez por curso.',
+      '<b>Paso 2 (calidad):</b> más abajo, en «Revisión de los 12 puntos», el sílabo ya aparece adjuntado. Si no, pulsa <b>📎 Adjuntar</b> y elígelo.',
+      'Pulsa <b>Analizar ➤</b>. Yo leo el sílabo y te propongo cómo está cada uno de los 12 puntos.',
+      'Lee cada punto con calma. <b>Tú decides</b>: elige Cumple, Parcial, No cumple o No aplica. Si no cumple, escribe qué falta.',
+      'Al final, pulsa <b>Guardar</b>.',
+      'Si hubo observaciones, pulsa <b>Notificar por correo</b> o <b>WhatsApp</b>. Cuando el docente corrija, vuelve, pon la <b>fecha de levantamiento</b> y guarda otra vez.'],
+      nota: 'Si te equivocas, no pasa nada: abres el formato otra vez, corriges y guardas.' },
+    entrevistas: { titulo: 'Te acompaño a registrar la entrevista con los delegados:', pasos: [
+      'Escribe la <b>fecha y hora</b> de la reunión y elige si fue presencial, virtual o mixta.',
+      'En «Delegados participantes» te propongo la lista: <b>deja solo a quienes asistieron</b>.',
+      'Si tienes la transcripción de la reunión, pulsa <b>📎 Adjuntar</b> y luego <b>Analizar ➤</b>: yo te propongo lo que se dijo en cada tema. Si no la tienes, escríbelo tú.',
+      'Escribe las <b>sugerencias para la Escuela</b> (son sugerencias, no acuerdos) y elige la prioridad.',
+      'Pulsa <b>Guardar</b>. El informe llega solo al Director de la Escuela, con copia para ti.'] },
+    formularios: { titulo: 'Te acompaño a revisar los formularios F1 a F4:', pasos: [
+      '<b>F1</b> es el registro del delegado y subdelegado; <b>F2</b>, la constancia de que el sílabo se presentó en la primera clase; <b>F3</b>, la prueba de entrada. El <b>F4</b> se presenta al cerrar el ciclo.',
+      'No tienes que adjuntar nada. Pulsa <b>Analizar ➤</b>: yo busco los formularios que llegaron de este curso y grupo y te propongo las respuestas.',
+      'Revisa: en cada uno debe decir <b>Presentado</b>, <b>Pendiente</b>, <b>Fuera de plazo</b> o <b>No aplica</b>, con su fecha. Corrige si hace falta.',
+      'Pulsa <b>Guardar</b>.',
+      'Si falta alguno, pulsa <b>Notificar por correo</b> o <b>WhatsApp</b> para recordárselo al docente.'],
+      nota: 'Si en el mismo grupo la teoría y la práctica (o el laboratorio o taller) las dictan docentes distintos, los formularios los presenta solo el docente de teoría.' },
+    aulaVirtual: { titulo: 'Te acompaño a revisar el aula virtual. Son 5 pasos:', pasos: [
+      'Consigue la <b>copia de seguridad del aula en Moodle</b> (un archivo que termina en <b>.mbz</b>, sin usuarios). Más abajo te muestro cómo se descarga.',
+      'Pulsa <b>📎 Adjuntar</b> y elige esa copia. Si el curso tiene teoría y taller (o laboratorio), adjunta <b>las dos</b>.',
+      'Pulsa <b>Analizar ➤</b>. Yo reviso los 8 puntos y comparo, semana por semana, lo publicado con el sílabo.',
+      'Lee mi propuesta en cada punto y elige lo que corresponda. <b>Tú decides.</b>',
+      'Pulsa <b>Guardar</b>. Si hubo observaciones, avisa al docente por correo o WhatsApp.'] },
+    portafolios: { titulo: 'Te acompaño a revisar el portafolio del curso:', pasos: [
+      'No tienes que adjuntar nada. Pulsa <b>Analizar ➤</b>: yo reviso la carpeta de Drive del portafolio de este curso y grupo.',
+      'Yo miro que cada evaluación tenga su enunciado y sus evidencias (mayor nota, menor nota y promedio), con el nombre correcto.',
+      'Lee mi propuesta en cada criterio y elige lo que corresponda. <b>Tú decides.</b>',
+      'Pulsa <b>Guardar</b>. Si falta algo, avisa al docente por correo o WhatsApp.'],
+      nota: 'Si un archivo tiene mal el nombre, el <b>🏷️ Asistente de rotulado</b> le da al docente el nombre exacto con unas preguntas sencillas.' },
+    formula: { titulo: 'Te acompaño a verificar la fórmula de evaluación:', pasos: [
+      'Pulsa <b>📎 Adjuntar</b> y elige el sílabo y la fórmula del Sistema de Evaluación (o carga la carpeta de fórmulas).',
+      'Pulsa <b>Analizar ➤</b>. Yo comparo las dos fórmulas y te digo si dan los mismos pesos.',
+      'Responde las dos preguntas: ¿está registrada en el sistema? y ¿coincide con la del sílabo?',
+      'Marca el resultado (te lo explico más abajo, en «Resultado y seguimiento») y pulsa <b>Guardar</b>.',
+      'Si no coincide, avisa al docente con <b>Notificar por correo</b> o <b>WhatsApp</b>.'] },
+    delegados: { titulo: 'Te acompaño a registrar a los delegados del curso:', pasos: [
+      'No tienes que escribir todo. Pulsa <b>Analizar ➤</b>: yo traigo los datos del delegado y del subdelegado desde el formulario F1.',
+      'Revisa que el <b>código</b>, los <b>apellidos y nombres</b> y el <b>correo</b> estén bien. Corrige si hace falta.',
+      'Pulsa <b>Guardar</b>.'],
+      nota: 'Estos datos los uso después, solos, en la entrevista con los delegados: no tendrás que escribirlos otra vez.' }
+  };
+
   const FORMULARIOS = {
 
     silabo: {
@@ -9855,6 +9904,18 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     leyenda.innerHTML = '<span><i style="background:#3aa56e"></i>Completado</span>' +
                         '<span><i style="background:#e2b457"></i>Falta completar</span>';
     $('fichaForm').prepend(leyenda);
+
+    // Urpito, paso a paso (02/11/2026): en cada formato explica qué hacer,
+    // en orden y con palabras sencillas, antes de los campos.
+    const pasosUrp = GUIAS_URPITO[estado.modulo];
+    if (pasosUrp) {
+      const g = document.createElement('div');
+      g.className = 'guia-formato';
+      g.innerHTML = guiaUrp('<b>' + pasosUrp.titulo + '</b><ol class="urp-pasos">' +
+        pasosUrp.pasos.map(x => '<li>' + x + '</li>').join('') + '</ol>' +
+        (pasosUrp.nota ? '<small>' + pasosUrp.nota + '</small>' : ''));
+      $('fichaForm').prepend(g);
+    }
 
     // La sumilla oficial de la carrera, a la vista: el ítem 02 pide compararla
     // con la del sílabo y hasta ahora había que buscarla fuera del portal.
@@ -14846,6 +14907,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 </style>
 
 <style id="urp-pasos-css">
+  .guia-formato{margin-bottom:14px}
   .urp-paso{margin-top:10px}
   .urp-paso .urp-img{width:78px}
   .urp-paso .urp-globo{font-size:15.5px;margin-bottom:0}
