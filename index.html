@@ -2299,7 +2299,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.14';
+  const VERSION_INTERNA = '2026-11-02.15';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -13723,6 +13723,21 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
                  : ((a.soloConsulta && a.idEspejo) ? a.idEspejo : a.idAsignacion);
     const leerModulo = (id) =>
       api('/modulo?clave=' + encodeURIComponent(clave) + '&idAsignacion=' + encodeURIComponent(id));
+    // Registro del área padre (02/11/2026). Cuando el Departamento Académico
+    // registra la misma carga en las dos carreras, el portal distingue los
+    // códigos con «-TEO», «-TEO-2», etc., y el número puede no coincidir entre
+    // lo que ve cada coordinador. Si no se encuentra con el código exacto, se
+    // prueban esas variantes antes de decir que el área padre no lo registró.
+    const leerDelPadre = (id, claveMod) => {
+      const leer = x => api('/modulo?clave=' + encodeURIComponent(claveMod || clave) + '&idAsignacion=' + encodeURIComponent(x));
+      const base = String(id || '').replace(/(-(TEO|LAB|PRA|TAL))?(-\d+)?$/i, '');
+      const tipos = ['TEO', 'LAB', 'PRA', 'TAL'];
+      const cands = [id, base].concat(...tipos.map(t => [base + '-' + t, base + '-' + t + '-2', base + '-' + t + '-3']))
+        .filter((x, i, l) => x && l.indexOf(x) === i);
+      const probar = i => i >= cands.length ? Promise.resolve({ registro: null })
+        : leer(cands[i]).then(d => (d && d.registro) ? d : probar(i + 1)).catch(() => probar(i + 1));
+      return probar(0);
+    };
 
     // Entrevista: el delegado y el subdelegado salen de «Datos de delegados»
     // del mismo curso y grupo (en un curso común, del área que lo supervisa).
@@ -13742,7 +13757,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       const fD = $('f_delegado'), fS = $('f_subdelegado');
       if (!fD || (fD.value.trim() && (!fS || fS.value.trim()))) return;
       const idDel = a.idInforme ? a.idEspejo : a.idAsignacion;
-      api('/modulo?clave=delegados&idAsignacion=' + encodeURIComponent(idDel))
+      (a.idInforme ? leerDelPadre(idDel, 'delegados') : api('/modulo?clave=delegados&idAsignacion=' + encodeURIComponent(idDel)))
         .then(d => {
           if (estado.actual !== a || estado.modulo !== 'entrevistas') return;
           if (!d.registro) {
@@ -13779,7 +13794,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         if (!propio || !a.idEspejo) { listo(); return; }
 
         // Todavía no hay informe propio: se muestra el del área padre.
-        return leerModulo(a.idEspejo).then(d2 => {
+        return leerDelPadre(a.idEspejo).then(d2 => {
           listo();
           if (estado.actual !== a || estado.modulo !== clave) return;
           mostrarInformePadre(a, d2.registro, () => {
