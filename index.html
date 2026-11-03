@@ -73,6 +73,19 @@ main{max-width:1180px;margin:0 auto;padding:20px}
 .ca-car[open]>summary::before{content:"▾"}
 .ca-car .ca-n{font-weight:700;font-size:17px;flex:1;min-width:200px}
 .ca-chip{font-size:13px;border-radius:999px;padding:3px 10px;background:#e6f4ee;color:#14532d;font-weight:600}
+.at-cuerpo{padding:0 14px 10px 30px}
+.at-area,.at-curso{border-left:3px solid #cfe5da;margin:8px 0;background:#fbfdfc;border-radius:8px}
+.at-area>summary,.at-curso>summary{list-style:none;cursor:pointer;padding:9px 12px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:16px}
+.at-area>summary::-webkit-details-marker,.at-curso>summary::-webkit-details-marker{display:none}
+.at-area>summary::before,.at-curso>summary::before{content:"▸";color:var(--brand);font-size:16px;width:12px}
+.at-area[open]>summary::before,.at-curso[open]>summary::before{content:"▾"}
+.at-coord{color:var(--tinta-media);font-size:15px;flex:1;min-width:180px}
+.at-curso{border-left-color:#e8d9b0;background:#fff}
+.at-lista{list-style:none;margin:0;padding:4px 14px 10px 34px}
+.at-lista li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef1ef;font-size:16px}
+.at-lista li:last-child{border-bottom:0}
+.at-ico{font-size:18px;line-height:1.2}
+.at-tipo{display:block;color:#8a5a00;font-size:15px;margin-top:2px}
 .ca-chip.w{background:#fff3d6;color:#7a4d00}
 .ca-gen{margin:0 16px 10px;padding:10px 14px;border-left:4px solid var(--brand);background:#f4faf7;border-radius:8px;display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .ca-gen .q{flex:1;min-width:220px}.ca-gen small{display:block;color:var(--tinta-media)}
@@ -2299,7 +2312,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.15';
+  const VERSION_INTERNA = '2026-11-02.16';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -6502,15 +6515,46 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     if (!(d.atencion || []).length) {
       h += '<div class="vacio">Nada pendiente de atención.</div>';
     } else {
-      h += '<div class="tabla"><table><thead><tr><th>Situación</th><th>Curso</th>' +
-        '<th>Docente</th><th>Área</th></tr></thead><tbody>';
-      d.atencion.forEach(a => {
-        h += '<tr><td><b>' + esc(a.tipo) + '</b><small class="codigo">' + esc(a.detalle || '') + '</small></td>' +
-          '<td>' + esc(nombreCurso(a.curso)) + '</td>' +
-          '<td>' + esc(a.docente) + '</td>' +
-          '<td>' + esc(a.area) + '<small class="codigo">' + esc(a.coordinador || '') + '</small></td></tr>';
+      // 02/11/2026: en desplegables, como el resto del portal: carrera →
+      // área (con su coordinador) → curso → docentes con lo que les falta.
+      const cortoA = t => String(t || '').replace(/\s*\([^)]*\)\s*$/, '');
+      const progDeArea = {};
+      (d.areas || []).forEach(x => { if (x.area) progDeArea[x.area] = x.programa; });
+      const progDe = x => progDeArea[x.area] || (/\(([^)]+)\)\s*$/.test(x.area || '') ? 'Ingeniería ' + RegExp.$1 : 'Sin carrera');
+      const arbol = {};
+      d.atencion.forEach(x => {
+        const pr = progDe(x), ar = x.area || 'Sin área', cu = nombreCurso(x.curso) || 'Sin curso';
+        arbol[pr] = arbol[pr] || {};
+        arbol[pr][ar] = arbol[pr][ar] || { coord: x.coordinador, cursos: {} };
+        arbol[pr][ar].cursos[cu] = arbol[pr][ar].cursos[cu] || [];
+        arbol[pr][ar].cursos[cu].push(x);
       });
-      h += '</tbody></table></div>';
+      const nCasos = o => Object.values(o).reduce((t, v) => t + (Array.isArray(v) ? v.length : nCasos(v.cursos || v)), 0);
+      const chipN = n => '<span class="ca-chip w">' + n + (n === 1 ? ' caso' : ' casos') + '</span>';
+      const icono = t => /sílabo observado/i.test(t) ? '📄' : /distintos/i.test(t) ? '👥' : /entrevista/i.test(t) ? '🗣️' : '📉';
+      h += '<p class="ayuda" style="margin:0 0 10px">Pulse cada carrera para ver sus áreas; cada área, para ver sus cursos; y cada curso, para ver qué docente tiene pendiente y por qué.</p>' +
+        '<div class="ca-barra"><button type="button" class="btn-mini" id="atAbrirTodo">Abrir todas</button>' +
+        '<button type="button" class="btn-mini" id="atCerrarTodo">Cerrar todas</button></div>';
+      Object.keys(arbol).sort((x, y) => x.localeCompare(y, 'es')).forEach(pr => {
+        const areas = arbol[pr];
+        h += '<details class="ca-car at-car"><summary><span class="ca-n">' + esc(pr) + '</span>' + chipN(nCasos(areas)) +
+          '<span class="ca-chip">' + Object.keys(areas).length + (Object.keys(areas).length === 1 ? ' área' : ' áreas') + '</span></summary><div class="at-cuerpo">';
+        Object.keys(areas).sort((x, y) => cortoA(x).localeCompare(cortoA(y), 'es')).forEach(ar => {
+          const A = areas[ar];
+          h += '<details class="at-area"><summary><b>' + esc(cortoA(ar)) + '</b>' +
+            '<span class="at-coord">' + (A.coord ? 'Coordinador: ' + esc(A.coord) : '<span class="ca-sin">⚠ Sin coordinador</span>') + '</span>' +
+            chipN(nCasos(A.cursos)) + '</summary><div class="at-cuerpo">';
+          Object.keys(A.cursos).sort((x, y) => x.localeCompare(y, 'es')).forEach(cu => {
+            const L = A.cursos[cu];
+            h += '<details class="at-curso"><summary>' + esc(cu) + chipN(L.length) + '</summary><ul class="at-lista">' +
+              L.map(x => '<li><span class="at-ico">' + icono(x.tipo) + '</span><div><b>' + esc(x.docente || 'Sin docente') + '</b>' +
+                '<span class="at-tipo">' + esc(x.tipo) + (x.detalle ? ' · ' + esc(x.detalle) : '') + '</span></div></li>').join('') +
+              '</ul></details>';
+          });
+          h += '</div></details>';
+        });
+        h += '</div></details>';
+      });
       if (d.atencionTotal > d.atencion.length) {
         h += '<p class="ayuda">Se muestran los primeros ' + d.atencion.length + ' de ' + d.atencionTotal + '.</p>';
       }
@@ -6596,6 +6640,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     estado.indicadores = d;
     document.querySelectorAll('#indCuerpo .av-car').forEach(x => x.addEventListener('toggle', () => {
       if (x.open) AV_ABIERTAS.add(x.dataset.p); else AV_ABIERTAS.delete(x.dataset.p); }));
+    if ($('atAbrirTodo')) $('atAbrirTodo').addEventListener('click', () => document.querySelectorAll('#indCuerpo .at-car, #indCuerpo .at-area, #indCuerpo .at-curso').forEach(x => { x.open = true; }));
+    if ($('atCerrarTodo')) $('atCerrarTodo').addEventListener('click', () => document.querySelectorAll('#indCuerpo .at-car, #indCuerpo .at-area, #indCuerpo .at-curso').forEach(x => { x.open = false; }));
     if ($('avAbrir')) $('avAbrir').addEventListener('click', () => document.querySelectorAll('#indCuerpo .av-car').forEach(x => { x.open = true; }));
     if ($('avCerrar')) $('avCerrar').addEventListener('click', () => document.querySelectorAll('#indCuerpo .av-car').forEach(x => { x.open = false; }));
     $('btnExpInd').addEventListener('click', () => descargarIndicadores(d));
