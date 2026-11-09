@@ -2010,7 +2010,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
 </main>
 
-<script src="config.js?v=2026-10-30.1"></script>
+<script src="config.js?v=2026-11-09.1"></script>
 <script src="mbz-aula.js?v=2026-10-30.01"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
@@ -2312,7 +2312,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-02.16';
+  const VERSION_INTERNA = '2026-11-09.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10557,6 +10557,20 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '. Verifíquelo en el plan (en la biblioteca del portal).');
       }
     }
+    // Plan de estudios (auditoría 27/10–04/11/2026): el sílabo debe decir a qué
+    // plan pertenece; si no, el auditor no puede saber con qué plan compararlo.
+    const planCarga = String(a.planEstudio || (fila && fila.plan) || '').trim();
+    const clavePl = x => String(x || '').toUpperCase().replace(/\s|-|–/g, '').replace(/2$/, 'II').replace(/1$/, 'I');
+    const mpl = t.match(/plan(?:\s+de\s+estudios?|\s+curricular)?\s*(?:vigente)?\s*[:.\-–]?\s*(20\d\d\s*[-–]?\s*(?:II|I|2|1)\b)/i) ||
+                t.match(/\b(20(?:15|24)\s*[-–]\s*(?:II|I))\b/);
+    if (!mpl) {
+      problemas.push('Plan de estudios: el sílabo no dice a qué plan pertenece. Debe indicarlo en los datos generales (por ejemplo, «Plan de estudios: ' +
+        (planCarga || '2015-II o 2024-I') + '»): sin ese dato no se puede verificar contra el plan correcto (observación de la auditoría).');
+    } else {
+      datos.planSilabo = mpl[1].replace(/\s+/g, '');
+      if (planCarga && clavePl(datos.planSilabo) !== clavePl(planCarga))
+        problemas.push('Plan de estudios: el sílabo dice «' + datos.planSilabo + '», pero la carga del curso es del plan ' + planCarga + '.');
+    }
     if (fila) {
       const num = rx => { const m = t.match(rx); return m ? Number(m[1].replace(',', '.')) : null; };
       const cr = num(/cr[ée]ditos?\s*[:.\-–]?\s*(\d+(?:[.,]\d)?)/i);
@@ -10567,6 +10581,37 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       datos.plan = fila;
     }
     return { problemas, datos };
+  }
+  // Punto 07 (auditoría 27/10–04/11/2026): si el curso tiene horas de
+  // práctica, laboratorio o taller, la programación semanal debe mostrar cada
+  // práctica, laboratorio o taller que se presenta a lo largo del ciclo.
+  function chequearPunto07(txt, a, fila) {
+    const t = sinAcentos(String(txt || ''));
+    const tipos = new Set(partesDeLaCarga(a).map(p => sinAcentos(p.tipo || '').slice(0, 3)));
+    const n = x => Number(x) || 0;
+    const exige = [];
+    if (tipos.has('lab') || (fila && n(fila.horasLaboratorio))) exige.push({ k: 'laboratorio', rx: /\b(laboratorio|lab\.?)\s*(calificado\s*)?(n[°ºro.]*\s*)?\(?\d+|\b(lab|lb|plb)\s?\d+\b|practica de laboratorio\s*(calificada\s*)?(n[°ºro.]*\s*)?\(?\d+/g });
+    if (tipos.has('tal') || (fila && n(fila.horasTaller))) exige.push({ k: 'taller', rx: /\btaller\s*(calificado\s*)?(n[°ºro.]*\s*)?\(?\d+|\btal\s?\d+\b/g });
+    if (tipos.has('pra') || (fila && n(fila.horasPractica) && !n(fila.horasLaboratorio) && !n(fila.horasTaller)))
+      exige.push({ k: 'práctica', rx: /\bpractica\s*(calificada\s*)?(n[°ºro.]*\s*)?\(?\d+|\b(pc|prt|pra|p)\s?\d+\b/g });
+    const problemas = [];
+    exige.forEach(e => {
+      const hits = new Set((t.match(e.rx) || []).map(x => x.replace(/\D/g, '')));
+      if (hits.size < 2) problemas.push('Prácticas, laboratorios o talleres: el curso tiene horas de ' + e.k + ', pero en la programación del sílabo ' +
+        (hits.size ? 'solo se identifica ' + (hits.size === 1 ? 'uno' : hits.size) : 'no se identifica ninguno') +
+        ' numerado (por ejemplo, «' + (e.k === 'práctica' ? 'Práctica 1' : e.k.charAt(0).toUpperCase() + e.k.slice(1) + ' 1') + '»). ' +
+        'Cada ' + e.k + ' que se presenta a lo largo del ciclo debe figurar con su tema en la semana que corresponde (observación de la auditoría).');
+    });
+    return { problemas };
+  }
+  function imponerChequeo07(p, ch) {
+    const txt = 'Comprobado por el portal: ' + ch.problemas.join(' ');
+    if (!/^No cumple$/i.test(p['item:07'] || '')) p['item:07'] = 'Parcial';
+    p['obs:07'] = txt + (p['obs:07'] && !/^cumple|ninguna/i.test(String(p['obs:07'])) ? ' ' + p['obs:07'] : '');
+    if (Array.isArray(p._informe)) {
+      const r = p._informe.find(x => /^\s*0?7\b|07/.test(String(x.item || '')));
+      if (r) { r.coincide = 'Parcial'; r.diferencia = ch.problemas.join(' ') + (r.diferencia ? ' ' + r.diferencia : ''); }
+    }
   }
   function imponerChequeo01(p, ch) {
     const txt = 'Comprobado por el portal: ' + ch.problemas.join(' ');
@@ -11633,6 +11678,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         }
         fuente = partes.join('\n\n');
         estado.chequeo01 = estado.modulo === 'silabo' && textoSilabo ? chequearPunto01(textoSilabo, extractoPlan, estado.actual || {}, filaPlan) : null;
+        estado.chequeo07 = estado.modulo === 'silabo' && textoSilabo ? chequearPunto07(textoSilabo, estado.actual || {}, filaPlan) : null;
         const nota = $('trIndicacion').value.trim();
         if (nota) fuente = 'Indicación del coordinador: ' + nota + '\n\n' + fuente;
         // Los .vtt y .srt traen tiempos y numeración que solo estorban.
@@ -11703,6 +11749,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         });
       }
       if (estado.modulo === 'silabo' && estado.chequeo01 && estado.chequeo01.problemas.length) imponerChequeo01(d.propuesta = d.propuesta || {}, estado.chequeo01);
+      if (estado.modulo === 'silabo' && estado.chequeo07 && estado.chequeo07.problemas.length) imponerChequeo07(d.propuesta = d.propuesta || {}, estado.chequeo07);
       aplicarPropuesta(F, d.propuesta || {});
       ADJUNTOS = []; if ($('trAdjuntos')) $('trAdjuntos').innerHTML = '';
       pintarInsumos();
@@ -12060,7 +12107,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     const a = estado.actual || {};
     const otros = docentesDelCurso(a).filter(d => sinAcentos(d.docente) !== sinAcentos(a.docente || ''));
     return ({
-      '01': 'Catálogo de cursos del portal (curso, código, carrera, plan y semestre) y carga del portal (docente, sesiones y horas); los ocho datos que exige la ' + GUIA_SILABOS + ' (p. 3). Créditos, requisitos y condición: plan de estudios (si se adjuntó)',
+      '01': 'Catálogo de cursos del portal (curso, código, carrera, plan y semestre) y carga del portal (docente, sesiones y horas); los ocho datos que exige la ' + GUIA_SILABOS + ' (p. 3), más el plan de estudios al que pertenece el sílabo (exigido por la auditoría). Créditos, requisitos y condición: plan de estudios (si se adjuntó)',
       '02': 'Sumilla oficial del catálogo de cursos del portal (plan curricular vigente); ' + GUIA_SILABOS + ' (p. 4)',
       '03': 'Competencias genéricas de la carrera registradas en el portal (Coordinadores → Competencias de las carreras); ' + GUIA_SILABOS + ' (p. 4) y ' + MODELO_PEDAGOGICO + ' (Figura 10, p. 83)',
       '04': 'Competencias específicas del curso registradas en el portal (Coordinadores → Competencias de las carreras); ' + GUIA_SILABOS + ' (p. 5)',
@@ -12197,7 +12244,9 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
                          'logro de aprendizaje (tiempo, sujeto, acción, resultado y criterios) alineado al logro de la asignatura. ' +
                          'Dentro de cada unidad los contenidos se programan por semana, y la semana en que se evalúa se indica ' +
                          '(«Evaluación del logro», como en el ejemplo de la guía). Así, cada taller, práctica o producto debe figurar ' +
-                         'en la semana en que se entrega: el portal usa esas semanas para saber cuándo exigirlo en el portafolio.',
+                         'en la semana en que se entrega: el portal usa esas semanas para saber cuándo exigirlo en el portafolio. ' +
+                         'Si el curso tiene horas de práctica, laboratorio o taller, cada una de esas sesiones evaluadas ' +
+                         '(Laboratorio 1, 2…, Taller 1, 2…, Práctica 1, 2…) debe figurar con su tema en su semana.',
             falta: SUBIR_SILABO },
     '08': { de: 'formato', titulo: 'Estándar de estrategias didácticas: ' + MODELO_PEDAGOGICO + ' (Figura 14) y ' + GUIA_SILABOS,
             texto: () => 'Referencia prioritaria: el ' + MODELO_PEDAGOGICO + ' (4.1.1, Figura 14, p. 108, basada en Tobón, Pimienta y ' +
@@ -12248,7 +12297,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // orientar al docente. Se mejoran poco a poco: cada cambio sube la versión.
   const ORIENTA_ITEM = {
     '01': [
-      'Cumple: están los ocho datos de la Guía (asignatura, código, condición, requisitos, créditos, horas teóricas y prácticas, semestre, docente con su correo institucional) y coinciden con la carga del portal y con el plan de estudios.',
+      'Cumple: están los ocho datos de la Guía (asignatura, código, condición, requisitos, créditos, horas teóricas y prácticas, semestre, docente con su correo institucional), además del plan de estudios al que pertenece (2015-II o 2024-I), y coinciden con la carga del portal y con el plan de estudios.',
+      'Nota aclaratoria (auditoría 27/10–04/11/2026): el sílabo debe decir a qué plan de estudios pertenece. Sin ese dato el auditor no puede saber con qué plan compararlo. El portal lo comprueba solo.',
       'Parcial: falta alguno de los datos o no coincide con el plan (por ejemplo, otras horas o créditos, o el requisito de otro plan).',
       'Nota aclaratoria: el correo debe ser el institucional (@urp.edu.pe), no uno personal.',
       'Cómo orientar al docente: pídale que copie los datos del plan de estudios vigente, no de un sílabo de ciclos anteriores.'],
@@ -12277,6 +12327,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     '07': [
       'Cumple: entre tres y cuatro unidades, cada una con nombre y logro; contenidos programados por semana; y la semana de evaluación de cada unidad indicada («Evaluación del logro»), con los talleres, prácticas o productos en la semana en que se entregan.',
       'Parcial: más de cuatro unidades, unidades sin logro, o no se indica en qué semana se evalúa o se entrega cada producto.',
+      'Nota aclaratoria (auditoría 27/10–04/11/2026): si el curso tiene horas de práctica, laboratorio o taller, la programación debe mostrar cada práctica, laboratorio o taller que se presenta a lo largo del ciclo, numerado y con su tema, en su semana (por ejemplo, «Semana 5 — Laboratorio 2: …»). Si no figuran, el punto es Parcial. El portal lo comprueba solo.',
       'Nota aclaratoria: la Guía dice «se sugiere» entre tres y cuatro unidades; cinco unidades no invalidan el sílabo, pero se recomienda agruparlas.',
       'Nota aclaratoria: la Guía Operativa Docente (4.1) pide además que los contenidos se distribuyan equilibradamente en las 16 semanas del semestre.',
       'Nota aclaratoria: la semana de entrega importa también para el portafolio: el portal usa esas semanas para saber desde cuándo exigir cada evidencia (' + GRACIA_DIAS + ' días después de la semana de la evaluación; el parcial y el final, ' + PLAZO_EXAMEN_DIAS + ' días).'],
