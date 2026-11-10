@@ -149,39 +149,44 @@ window.PCA_CONFIG = {
       },
       // 10/11/2026: los mismos temas de siempre (no cambian sus preguntas ni
       // dónde se guardan), ordenados por las dimensiones del modelo de
-      // acreditación del SINEACE, según el cruce enviado por la Escuela.
+      // acreditación del SINEACE. Cada dimensión 1-3 abre con su «Respuesta
+      // general» (campos nuevos del 10/11/2026); los demás son sus repreguntas.
+      // Orden según el cruce enviado por la Escuela.
       temas: [
+        { dim:'d1', general:true, etiqueta:'Respuesta general: Gestión estratégica', nota: 'Lo que respondieron a la pregunta general de esta dimensión, y lo que dijeron de los puntos que no tienen un tema propio abajo.', id:'a-gmkmpencSOoSW6uOW7T_' },
         { dim:'d1', etiqueta:'Prerrequisitos', nota: 'Si los estudiantes cuentan con los conocimientos previos que el curso supone.',                 id:'ddJHBdHCjdW5FdUCkmW7Ot' },
-        { dim:'d1', etiqueta:'Horas asignadas al curso', nota: 'Si las sesiones se dictan completas y en el horario previsto.',       id:'bhyCkfWOPnW4FcJdy6aCoO' },
-        { dim:'d1', etiqueta:'Puntualidad', nota: 'Si el docente inicia y termina las sesiones en el horario establecido.',                    id:'cciJTry3roWO_cIsFcGJXU' },
+        { dim:'d1', etiqueta:'Horas asignadas al curso', nota: 'Horarios de clases: si la programación horaria fue adecuada y si las sesiones se dictan completas y en el horario previsto.',       id:'bhyCkfWOPnW4FcJdy6aCoO' },
+        { dim:'d1', etiqueta:'Puntualidad', nota: 'Cumplimiento del horario: si el docente inicia y termina las sesiones a la hora establecida.',                    id:'cciJTry3roWO_cIsFcGJXU' },
+        { dim:'d2', general:true, etiqueta:'Respuesta general: Formación integral', nota: 'Lo que respondieron a la pregunta general de esta dimensión, y lo que dijeron de los puntos que no tienen un tema propio abajo.', id:'byW7VdSrHcJ5D8WQVcLCom' },
         { dim:'d2', etiqueta:'Cumplimiento del sílabo', nota: 'Si el desarrollo del curso avanza conforme a la programación del sílabo.',        id:'ddLmobW6rnu4NcPtH_WRmz' },
         { dim:'d2', etiqueta:'Retroalimentación al estudiante', nota: 'Si el docente devuelve las evaluaciones y responde consultas en un plazo razonable, no mayor a dos semanas.',id:'dcUtBdVSngWPldQSkKWOa0' },
+        { dim:'d3', general:true, etiqueta:'Respuesta general: Soporte institucional', nota: 'Lo que respondieron a la pregunta general de esta dimensión, y lo que dijeron de los puntos que no tienen un tema propio abajo.', id:'brW6PaECnfgyoiW5bLW7K-' },
         { dim:'d3', etiqueta:'Experiencias de laboratorio', nota: 'Si las prácticas de laboratorio se realizan según lo programado y con los recursos necesarios.',    id:'ddNYbwzf1cGlldQh3dOCoq' },
         { dim:'d3', etiqueta:'Bibliografía', nota: 'Si la bibliografía indicada en el sílabo está disponible y es accesible para los estudiantes.',                   id:'byWQydbSjjWRtcJmkDE8o_' },
-        { dim:'cierre', etiqueta:'Comentarios de los estudiantes', nota: 'Cualquier otro asunto que los delegados planteen sobre el desarrollo del curso.', id:'aarCoNAmjooOWPD8kZWQTt' }
+        { dim:'cierre', etiqueta:'Comentarios de los estudiantes', nota: 'Pregunta de cierre: «¿Qué recomendaciones o propuestas prioritarias formularía para optimizar la calidad del servicio académico en la Escuela?». Anote las propuestas y cualquier otro asunto que planteen los delegados.', id:'aarCoNAmjooOWPD8kZWQTt' }
       ],
       dimensiones: {
         d1: { titulo:'Dimensión 1: Gestión estratégica',
               pregunta:'¿Cómo evalúa la planificación académica y el proceso administrativo llevado a cabo durante el semestre académico?',
-              pautas:['<b>Gestión de matrícula:</b> pregunta si el proceso fue ordenado, fluido y sin contratiempos administrativos.',
-                      '<b>Oferta de cursos:</b> repregunta si alcanzaron las vacantes, asignaturas y grupos para la demanda de los estudiantes.',
-                      '<b>Horarios de clases:</b> comprueba si la programación horaria fue adecuada y si se cumplió estrictamente.'] },
+              pautas:['<b>Gestión de matrícula:</b> pregunta si el proceso fue ordenado, fluido y sin contratiempos administrativos. → <i>anótalo en la respuesta general</i>.',
+                      '<b>Oferta de cursos:</b> repregunta si alcanzaron las vacantes, asignaturas y grupos para la demanda de los estudiantes. → <i>anótalo en la respuesta general</i>.',
+                      '<b>Horarios de clases:</b> comprueba si la programación horaria fue adecuada y si se cumplió estrictamente. → <i>anótalo en «Horas asignadas al curso» y «Puntualidad»</i>.'] },
         d2: { titulo:'Dimensión 2: Formación integral',
               pregunta:'¿Cuál es su apreciación sobre el desempeño pedagógico, la metodología y la atención brindada por los docentes?',
-              pautas:['<b>Dominio temático:</b> si el docente domina los conceptos de la asignatura.',
-                      '<b>Estrategias de enseñanza:</b> si la forma de enseñar ayudó a aprender de manera activa.',
-                      '<b>Cumplimiento del sílabo y evaluación:</b> cuánto se avanzó del sílabo y si las evaluaciones se devolvieron a tiempo y con retroalimentación.',
-                      '<b>Atención al estudiante:</b> si el docente está disponible, es amable y resuelve las consultas o la tutoría.',
-                      '<b>Recursos didácticos:</b> si los materiales (diapositivas, talleres, guías, videos) son buenos, pertinentes y actualizados.'] },
+              pautas:['<b>Dominio temático:</b> si el docente domina los conceptos de la asignatura. → <i>respuesta general</i>.',
+                      '<b>Estrategias de enseñanza:</b> si la forma de enseñar ayudó a aprender de manera activa. → <i>respuesta general</i>.',
+                      '<b>Cumplimiento del sílabo y evaluación:</b> cuánto se avanzó del sílabo y si las evaluaciones se devolvieron a tiempo y con retroalimentación. → <i>«Cumplimiento del sílabo» y «Retroalimentación al estudiante»</i>.',
+                      '<b>Atención al estudiante:</b> si el docente está disponible, es amable y resuelve las consultas o la tutoría. → <i>«Retroalimentación al estudiante»</i>.',
+                      '<b>Recursos didácticos:</b> si los materiales (diapositivas, talleres, guías, videos) son buenos, pertinentes y actualizados. → <i>respuesta general</i>.'] },
         d3: { titulo:'Dimensión 3: Soporte institucional',
               pregunta:'¿Cómo valora el estado de la infraestructura, laboratorios y herramientas tecnológicas disponibles para el desarrollo de sus clases?',
-              pautas:['<b>Condiciones de aulas:</b> iluminación, limpieza, ventilación y espacio.',
-                      '<b>Equipos multimedia:</b> si funcionan los proyectores, el sonido y el internet.',
-                      '<b>Laboratorios y software:</b> si los equipos y programas especializados de la carrera están actualizados.',
-                      '<b>Biblioteca y bases de datos:</b> si hay libros, revistas científicas y acceso a repositorios digitales.'] },
+              pautas:['<b>Condiciones de aulas:</b> iluminación, limpieza, ventilación y espacio. → <i>respuesta general</i>.',
+                      '<b>Equipos multimedia:</b> si funcionan los proyectores, el sonido y el internet. → <i>respuesta general</i>.',
+                      '<b>Laboratorios y software:</b> si los equipos y programas especializados de la carrera están actualizados. → <i>«Experiencias de laboratorio»</i>.',
+                      '<b>Biblioteca y bases de datos:</b> si hay libros, revistas científicas y acceso a repositorios digitales. → <i>«Bibliografía»</i>.'] },
         cierre: { titulo:'Sección 4: Cierre cualitativo',
               pregunta:'¿Qué recomendaciones o propuestas prioritarias formularía para optimizar la calidad del servicio académico en la Escuela?',
-              pautas:['<b>Propuestas de mejora:</b> pide ejemplos concretos de los problemas que se repiten en sus aulas y cómo creen que se podrían solucionar.'] }
+              pautas:['<b>Propuestas de mejora:</b> pide ejemplos concretos de los problemas que se repiten en sus aulas y cómo creen que se podrían solucionar. → <i>«Comentarios de los estudiantes»</i>.'] }
       },
       referenciaDimensiones: 'Dimensiones del Modelo de acreditación para programas de estudios de educación superior universitaria del SINEACE (Resolución de Presidencia del Consejo Directivo Ad Hoc N.° 175-2016-SINEACE/CDAH-P).'
     },

@@ -838,6 +838,9 @@ tbody tr:hover{background:#fafcfb}
 .dim-ent{border:1px solid var(--linea);border-radius:12px;padding:14px 16px 4px;margin-bottom:16px;background:#fff}
 .dim-tit{margin:0 0 10px;font-size:18px;color:#1f5c46}
 .ref-dim{font-size:14px;color:var(--tinta-media);margin:0 0 12px}
+.tema-general{background:#eef7f2;border:1.5px solid #0fa968;border-radius:10px;padding:10px 12px}
+.tema-general label{font-size:16.5px;color:#14532d}
+.sub-reprg{font-weight:700;color:#4d5b55;font-size:15px;margin:2px 0 8px;text-transform:uppercase;letter-spacing:.04em}
 
 .chips{display:flex;gap:4px;flex-wrap:wrap}
 .chip{
@@ -2013,7 +2016,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
 </main>
 
-<script src="config.js?v=2026-11-10.1"></script>
+<script src="config.js?v=2026-11-10.2"></script>
 <script src="mbz-aula.js?v=2026-10-30.01"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
@@ -2315,7 +2318,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-10.1';
+  const VERSION_INTERNA = '2026-11-10.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9365,7 +9368,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     entrevistas: { titulo: 'Te acompaño a registrar la entrevista con los delegados:', pasos: [
       'Escribe la <b>fecha y hora</b> de la reunión y elige si fue presencial, virtual o mixta.',
       'En «Delegados participantes» te propongo la lista: <b>deja solo a quienes asistieron</b>.',
-      'En «Temas tratados» los temas están ordenados en <b>4 bloques</b>: Gestión estratégica, Formación integral, Soporte institucional y Cierre (son las dimensiones del modelo del SINEACE). En cada bloque te doy la <b>pregunta</b> para los delegados y en qué <b>repreguntar</b>.',
+      'En «Temas tratados» hay <b>4 bloques</b>: Gestión estratégica, Formación integral, Soporte institucional y Cierre (dimensiones del modelo del SINEACE). En cada bloque: 1) haz la <b>pregunta general</b> y anota la respuesta en el cuadro verde; 2) <b>repregunta</b> y anota en cada tema lo que digan. La flecha → te dice dónde va cada punto.',
       'Si tienes la transcripción de la reunión, pulsa <b>📎 Adjuntar</b> y luego <b>Analizar ➤</b>: yo te propongo lo que se dijo en cada tema. Si no la tienes, escríbelo tú.',
       'Escribe las <b>sugerencias para la Escuela</b> (son sugerencias, no acuerdos) y elige la prioridad.',
       'Pulsa <b>Guardar</b>. El informe llega solo al Director de la Escuela, con copia para ti.'] },
@@ -9891,9 +9894,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         const lista = M[b.fuente] || [];
         const titulo = b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '';
         const temaHTML = (t, i) =>
-          '<div><label for="t_' + i + '">' + esc(t.etiqueta) + '</label>' +
+          '<div' + (t.general ? ' class="tema-general"' : '') + '><label for="t_' + i + '">' +
+          (t.general ? '✍️ Respuesta a la pregunta general' : esc(t.etiqueta)) + '</label>' +
           (t.nota ? '<p class="nota-item">' + esc(t.nota) + '</p>' : '') +
-          '<textarea id="t_' + i + '" data-tema="' + i + '"></textarea></div>';
+          '<textarea id="t_' + i + '" data-tema="' + i + '"' + (t.general ? ' rows="4"' : '') + '></textarea></div>';
         // Entrevistas (10/11/2026): los temas se agrupan por las dimensiones del
         // modelo SINEACE; en cada una, Urpito da la pregunta general y cómo repreguntar.
         const dims = M.dimensiones;
@@ -9908,8 +9912,12 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
               (D.pregunta ? guiaUrp('<b>Pregunta a los delegados:</b> «' + esc(D.pregunta) + '»' +
                 (D.pautas && D.pautas.length ? '<br><b>Si responden muy general, repregunta por:</b><ul class="urp-pasos">' +
                   D.pautas.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '') +
-                '<small>Abajo escribe, en cada tema, lo que dijeron los delegados.</small>') : '') +
-              '<div class="temas">' + g.items.map(([t, i]) => temaHTML(t, i)).join('') + '</div></section>';
+                '<small>' + (g.items.some(([t]) => t.general)
+                  ? 'Primero escribe la respuesta general; luego, en cada repregunta, lo que dijeron los delegados. La flecha → te dice dónde anotar cada punto.'
+                  : 'Abajo escribe lo que dijeron los delegados. La flecha → te dice dónde anotarlo.') + '</small>') : '') +
+              '<div class="temas">' + g.items.filter(([t]) => t.general).map(([t, i]) => temaHTML(t, i)).join('') + '</div>' +
+              (g.items.some(([t]) => t.general) && g.items.some(([t]) => !t.general) ? '<div class="sub-reprg">Repreguntas</div>' : '') +
+              '<div class="temas">' + g.items.filter(([t]) => !t.general).map(([t, i]) => temaHTML(t, i)).join('') + '</div></section>';
           }).join('');
       }
       return '';
