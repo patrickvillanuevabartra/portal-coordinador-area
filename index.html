@@ -840,6 +840,7 @@ tbody tr:hover{background:#fafcfb}
 .ref-dim{font-size:14px;color:var(--tinta-media);margin:0 0 12px}
 .tema-general{background:#eef7f2;border:1.5px solid #0fa968;border-radius:10px;padding:10px 12px}
 .tema-general label{font-size:16.5px;color:#14532d}
+.preg-gen{font-size:17px;font-weight:600;color:#11161d;margin:4px 0 6px;line-height:1.45}
 .sub-reprg{font-weight:700;color:#4d5b55;font-size:15px;margin:2px 0 8px;text-transform:uppercase;letter-spacing:.04em}
 
 .chips{display:flex;gap:4px;flex-wrap:wrap}
@@ -2318,7 +2319,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-10.2';
+  const VERSION_INTERNA = '2026-11-10.3';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9896,6 +9897,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         const temaHTML = (t, i) =>
           '<div' + (t.general ? ' class="tema-general"' : '') + '><label for="t_' + i + '">' +
           (t.general ? '✍️ Respuesta a la pregunta general' : esc(t.etiqueta)) + '</label>' +
+          (t.general && M.dimensiones && M.dimensiones[t.dim] && M.dimensiones[t.dim].pregunta
+            ? '<p class="preg-gen">Pregunta: «' + esc(M.dimensiones[t.dim].pregunta) + '»</p>' : '') +
           (t.nota ? '<p class="nota-item">' + esc(t.nota) + '</p>' : '') +
           '<textarea id="t_' + i + '" data-tema="' + i + '"' + (t.general ? ' rows="4"' : '') + '></textarea></div>';
         // Entrevistas (10/11/2026): los temas se agrupan por las dimensiones del
