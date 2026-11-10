@@ -835,6 +835,9 @@ tbody tr:hover{background:#fafcfb}
 .rejilla .full{grid-column:1 / -1}
 .temas{display:grid;gap:12px;margin-bottom:20px}
 .temas textarea{min-height:56px}
+.dim-ent{border:1px solid var(--linea);border-radius:12px;padding:14px 16px 4px;margin-bottom:16px;background:#fff}
+.dim-tit{margin:0 0 10px;font-size:18px;color:#1f5c46}
+.ref-dim{font-size:14px;color:var(--tinta-media);margin:0 0 12px}
 
 .chips{display:flex;gap:4px;flex-wrap:wrap}
 .chip{
@@ -2010,7 +2013,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
 
 </main>
 
-<script src="config.js?v=2026-11-09.1"></script>
+<script src="config.js?v=2026-11-10.1"></script>
 <script src="mbz-aula.js?v=2026-10-30.01"></script>
 <script src="https://accounts.google.com/gsi/client" async defer></script>
 <script>
@@ -2312,7 +2315,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-09.1';
+  const VERSION_INTERNA = '2026-11-10.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9362,6 +9365,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     entrevistas: { titulo: 'Te acompaño a registrar la entrevista con los delegados:', pasos: [
       'Escribe la <b>fecha y hora</b> de la reunión y elige si fue presencial, virtual o mixta.',
       'En «Delegados participantes» te propongo la lista: <b>deja solo a quienes asistieron</b>.',
+      'En «Temas tratados» los temas están ordenados en <b>4 bloques</b>: Gestión estratégica, Formación integral, Soporte institucional y Cierre (son las dimensiones del modelo del SINEACE). En cada bloque te doy la <b>pregunta</b> para los delegados y en qué <b>repreguntar</b>.',
       'Si tienes la transcripción de la reunión, pulsa <b>📎 Adjuntar</b> y luego <b>Analizar ➤</b>: yo te propongo lo que se dijo en cada tema. Si no la tienes, escríbelo tú.',
       'Escribe las <b>sugerencias para la Escuela</b> (son sugerencias, no acuerdos) y elige la prioridad.',
       'Pulsa <b>Guardar</b>. El informe llega solo al Director de la Escuela, con copia para ti.'] },
@@ -9886,11 +9890,27 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       if (b.tipo === 'textos') {
         const lista = M[b.fuente] || [];
         const titulo = b.titulo ? '<div class="subtitulo">' + esc(b.titulo) + '</div>' : '';
-        return titulo + '<div class="temas">' + lista.map((t, i) =>
+        const temaHTML = (t, i) =>
           '<div><label for="t_' + i + '">' + esc(t.etiqueta) + '</label>' +
           (t.nota ? '<p class="nota-item">' + esc(t.nota) + '</p>' : '') +
-          '<textarea id="t_' + i + '" data-tema="' + i + '"></textarea></div>'
-        ).join('') + '</div>';
+          '<textarea id="t_' + i + '" data-tema="' + i + '"></textarea></div>';
+        // Entrevistas (10/11/2026): los temas se agrupan por las dimensiones del
+        // modelo SINEACE; en cada una, Urpito da la pregunta general y cómo repreguntar.
+        const dims = M.dimensiones;
+        if (!dims || !lista.some(t => t.dim)) return titulo + '<div class="temas">' + lista.map(temaHTML).join('') + '</div>';
+        const orden = [];
+        lista.forEach((t, i) => { const k = t.dim || 'otros'; let g = orden.find(x => x.k === k); if (!g) orden.push(g = { k, items: [] }); g.items.push([t, i]); });
+        return titulo +
+          (M.referenciaDimensiones ? '<p class="ref-dim">📘 ' + esc(M.referenciaDimensiones) + '</p>' : '') +
+          orden.map(g => {
+            const D = dims[g.k] || { titulo: 'Otros temas' };
+            return '<section class="dim-ent"><h4 class="dim-tit">' + esc(D.titulo) + '</h4>' +
+              (D.pregunta ? guiaUrp('<b>Pregunta a los delegados:</b> «' + esc(D.pregunta) + '»' +
+                (D.pautas && D.pautas.length ? '<br><b>Si responden muy general, repregunta por:</b><ul class="urp-pasos">' +
+                  D.pautas.map(x => '<li>' + x + '</li>').join('') + '</ul>' : '') +
+                '<small>Abajo escribe, en cada tema, lo que dijeron los delegados.</small>') : '') +
+              '<div class="temas">' + g.items.map(([t, i]) => temaHTML(t, i)).join('') + '</div></section>';
+          }).join('');
       }
       return '';
     });

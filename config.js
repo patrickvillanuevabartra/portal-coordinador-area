@@ -147,16 +147,43 @@ window.PCA_CONFIG = {
         alerta:       'cnW51lp0TcG5u2zSkElSoi',
         enlace:       'cGcCksW4fcNOoyW4pdSCov'
       },
+      // 10/11/2026: los mismos temas de siempre (no cambian sus preguntas ni
+      // dónde se guardan), ordenados por las dimensiones del modelo de
+      // acreditación del SINEACE, según el cruce enviado por la Escuela.
       temas: [
-        { etiqueta:'Prerrequisitos', nota: 'Si los estudiantes cuentan con los conocimientos previos que el curso supone.',                 id:'ddJHBdHCjdW5FdUCkmW7Ot' },
-        { etiqueta:'Cumplimiento del sílabo', nota: 'Si el desarrollo del curso avanza conforme a la programación del sílabo.',        id:'ddLmobW6rnu4NcPtH_WRmz' },
-        { etiqueta:'Horas asignadas al curso', nota: 'Si las sesiones se dictan completas y en el horario previsto.',       id:'bhyCkfWOPnW4FcJdy6aCoO' },
-        { etiqueta:'Experiencias de laboratorio', nota: 'Si las prácticas de laboratorio se realizan según lo programado y con los recursos necesarios.',    id:'ddNYbwzf1cGlldQh3dOCoq' },
-        { etiqueta:'Puntualidad', nota: 'Si el docente inicia y termina las sesiones en el horario establecido.',                    id:'cciJTry3roWO_cIsFcGJXU' },
-        { etiqueta:'Retroalimentación al estudiante', nota: 'Si el docente devuelve las evaluaciones y responde consultas en un plazo razonable, no mayor a dos semanas.',id:'dcUtBdVSngWPldQSkKWOa0' },
-        { etiqueta:'Bibliografía', nota: 'Si la bibliografía indicada en el sílabo está disponible y es accesible para los estudiantes.',                   id:'byWQydbSjjWRtcJmkDE8o_' },
-        { etiqueta:'Comentarios de los estudiantes', nota: 'Cualquier otro asunto que los delegados planteen sobre el desarrollo del curso.', id:'aarCoNAmjooOWPD8kZWQTt' }
-      ]
+        { dim:'d1', etiqueta:'Prerrequisitos', nota: 'Si los estudiantes cuentan con los conocimientos previos que el curso supone.',                 id:'ddJHBdHCjdW5FdUCkmW7Ot' },
+        { dim:'d1', etiqueta:'Horas asignadas al curso', nota: 'Si las sesiones se dictan completas y en el horario previsto.',       id:'bhyCkfWOPnW4FcJdy6aCoO' },
+        { dim:'d1', etiqueta:'Puntualidad', nota: 'Si el docente inicia y termina las sesiones en el horario establecido.',                    id:'cciJTry3roWO_cIsFcGJXU' },
+        { dim:'d2', etiqueta:'Cumplimiento del sílabo', nota: 'Si el desarrollo del curso avanza conforme a la programación del sílabo.',        id:'ddLmobW6rnu4NcPtH_WRmz' },
+        { dim:'d2', etiqueta:'Retroalimentación al estudiante', nota: 'Si el docente devuelve las evaluaciones y responde consultas en un plazo razonable, no mayor a dos semanas.',id:'dcUtBdVSngWPldQSkKWOa0' },
+        { dim:'d3', etiqueta:'Experiencias de laboratorio', nota: 'Si las prácticas de laboratorio se realizan según lo programado y con los recursos necesarios.',    id:'ddNYbwzf1cGlldQh3dOCoq' },
+        { dim:'d3', etiqueta:'Bibliografía', nota: 'Si la bibliografía indicada en el sílabo está disponible y es accesible para los estudiantes.',                   id:'byWQydbSjjWRtcJmkDE8o_' },
+        { dim:'cierre', etiqueta:'Comentarios de los estudiantes', nota: 'Cualquier otro asunto que los delegados planteen sobre el desarrollo del curso.', id:'aarCoNAmjooOWPD8kZWQTt' }
+      ],
+      dimensiones: {
+        d1: { titulo:'Dimensión 1: Gestión estratégica',
+              pregunta:'¿Cómo evalúa la planificación académica y el proceso administrativo llevado a cabo durante el semestre académico?',
+              pautas:['<b>Gestión de matrícula:</b> pregunta si el proceso fue ordenado, fluido y sin contratiempos administrativos.',
+                      '<b>Oferta de cursos:</b> repregunta si alcanzaron las vacantes, asignaturas y grupos para la demanda de los estudiantes.',
+                      '<b>Horarios de clases:</b> comprueba si la programación horaria fue adecuada y si se cumplió estrictamente.'] },
+        d2: { titulo:'Dimensión 2: Formación integral',
+              pregunta:'¿Cuál es su apreciación sobre el desempeño pedagógico, la metodología y la atención brindada por los docentes?',
+              pautas:['<b>Dominio temático:</b> si el docente domina los conceptos de la asignatura.',
+                      '<b>Estrategias de enseñanza:</b> si la forma de enseñar ayudó a aprender de manera activa.',
+                      '<b>Cumplimiento del sílabo y evaluación:</b> cuánto se avanzó del sílabo y si las evaluaciones se devolvieron a tiempo y con retroalimentación.',
+                      '<b>Atención al estudiante:</b> si el docente está disponible, es amable y resuelve las consultas o la tutoría.',
+                      '<b>Recursos didácticos:</b> si los materiales (diapositivas, talleres, guías, videos) son buenos, pertinentes y actualizados.'] },
+        d3: { titulo:'Dimensión 3: Soporte institucional',
+              pregunta:'¿Cómo valora el estado de la infraestructura, laboratorios y herramientas tecnológicas disponibles para el desarrollo de sus clases?',
+              pautas:['<b>Condiciones de aulas:</b> iluminación, limpieza, ventilación y espacio.',
+                      '<b>Equipos multimedia:</b> si funcionan los proyectores, el sonido y el internet.',
+                      '<b>Laboratorios y software:</b> si los equipos y programas especializados de la carrera están actualizados.',
+                      '<b>Biblioteca y bases de datos:</b> si hay libros, revistas científicas y acceso a repositorios digitales.'] },
+        cierre: { titulo:'Sección 4: Cierre cualitativo',
+              pregunta:'¿Qué recomendaciones o propuestas prioritarias formularía para optimizar la calidad del servicio académico en la Escuela?',
+              pautas:['<b>Propuestas de mejora:</b> pide ejemplos concretos de los problemas que se repiten en sus aulas y cómo creen que se podrían solucionar.'] }
+      },
+      referenciaDimensiones: 'Dimensiones del Modelo de acreditación para programas de estudios de educación superior universitaria del SINEACE (Resolución de Presidencia del Consejo Directivo Ad Hoc N.° 175-2016-SINEACE/CDAH-P).'
     },
 
     formularios: {
