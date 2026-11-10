@@ -1771,6 +1771,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         </div>
         <div id="caResumen"></div>
         <div id="tablaCoord"></div>
+        <div id="dirEscuela"></div>
         <span class="aviso" id="avisoCoord"></span>
         <p class="nota-crono" style="margin-top:10px"><b>¿Cambió el coordinador de un área?</b> Use <b>✏️ Editar → Reemplazar</b>:
           el anterior queda como «Inactivo» con su historial (🕘) y el nuevo entra con su correo. Para un error de tipeo, use <b>Corregir datos</b>.</p>
@@ -2325,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-10.4';
+  const VERSION_INTERNA = '2026-11-10.5';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -4165,7 +4166,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           }
           cargarDatos(); cargarReportes(); cargarComunes();
         } else if (x.ir === 'coordinadores') {
-          mostrar('coordinadores'); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
+          mostrar('coordinadores'); cargarCoordinadores(); cargarDirectores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
     if (!$('plazoCiclo').value) $('plazoCiclo').value = $('filtroCiclo').value || CFG.CICLO_ACTIVO || '';
         } else if (x.ir === 'indicadores') { mostrar('indicadores'); cargarIndicadores(); }
       });
@@ -8869,9 +8870,91 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   /* ------------------------------------------- coordinadores y clonado */
 
   $('btnCoord').addEventListener('click', () => {
-    mostrar('coordinadores', false, true); cargarCoordinadores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
+    mostrar('coordinadores', false, true); cargarCoordinadores(); cargarDirectores(); cargarAreas(); prepararPlantillas(); iniciarCompetencias(); cargarEntrevistasCarrera();
   });
   $('volverCoord').addEventListener('click', () => regresar('coordinadores'));
+
+  /* ---------------------------------------------- Directores de Escuela ----
+     10/11/2026: reciben el informe de la entrevista con delegados y el de
+     portafolios. Al cambiar un Director, el anterior queda «Inactivo» con su
+     historial y el nuevo entra «Vigente» (ruta /directores, DirectoresEscuela.gs). */
+  let DIRS = { lista: [], puede: false };
+  function cargarDirectores() {
+    const caja = $('dirEscuela'); if (!caja) return;
+    caja.innerHTML = '<div class="vacio">Cargando Directores de Escuela…</div>';
+    api('/directores').then(d => {
+      if (d.error) throw new Error(d.error);
+      DIRS = { lista: d.directores || [], puede: !!d.puedeEditar };
+      pintarDirectores();
+    }).catch(e => {
+      caja.innerHTML = '<details class="ca-car"><summary><span class="ca-n">🎓 Directores de Escuela</span></summary>' +
+        '<p class="ayuda" style="margin:0 16px 12px">No se pudo cargar la lista (' + esc(e.message) + '). ' +
+        'Si es la primera vez, falta publicar el archivo DirectoresEscuela.gs en el Apps Script del portal.</p></details>';
+    });
+  }
+  function pintarDirectores() {
+    const caja = $('dirEscuela'); if (!caja) return;
+    const abiertas = caja.querySelector('details[open]');
+    const vig = DIRS.lista.filter(x => x.estado !== 'Inactivo').sort((a, b) => a.carrera.localeCompare(b.carrera, 'es'));
+    const ina = DIRS.lista.filter(x => x.estado === 'Inactivo');
+    caja.innerHTML = '<details class="ca-car"' + (abiertas ? ' open' : '') + '><summary><span class="ca-n">🎓 Directores de Escuela</span>' +
+      '<span class="ca-chip">' + vig.length + ' vigentes</span></summary>' +
+      guiaUrp('<b>¿Para qué sirve esta lista?</b> A cada Director le llega, por correo, el informe de la entrevista con delegados y el de portafolios de su Escuela.' +
+        (DIRS.puede ? '<br><b>¿Llegó un Director nuevo?</b> Pulsa <b>«Cambiar Director»</b> en su carrera y escribe su nombre y su correo institucional. ' +
+          'Yo dejo al anterior como «Inactivo», con la fecha, y registro al nuevo. Si solo hay un error en el nombre o el correo, usa <b>«Corregir datos»</b>.'
+          : '<br>Si cambió un Director, avise al administrador del portal.')) +
+      '<table class="ca-tab"><thead><tr><th style="width:24%">Carrera</th><th>Director(a)</th><th style="width:30%">Correo</th><th style="width:210px"></th></tr></thead><tbody>' +
+      vig.map(x => '<tr><td><b>' + esc(x.carrera) + '</b></td><td>' + esc(x.nombre) + '</td><td><small>' + esc(x.correo) + '</small></td><td style="text-align:right">' +
+        (DIRS.puede ? '<button type="button" class="btn-mini verde" data-dcambiar="' + esc(x.recordId) + '">Cambiar Director</button> ' +
+          '<button type="button" class="btn-mini" data-dcorregir="' + esc(x.recordId) + '">Corregir datos</button>' : '') + '</td></tr>').join('') +
+      '</tbody></table>' +
+      (ina.length ? '<div class="ca-pie"><details><summary>🕘 ' + ina.length + (ina.length === 1 ? ' Director anterior' : ' Directores anteriores') + '</summary><ul class="ca-hist">' +
+        ina.map(x => '<li><b>' + esc(x.nombre) + '</b> · ' + esc(x.carrera) + (x.historial ? ' · <small>' + esc(String(x.historial).split('\n').pop()) + '</small>' : '') + '</li>').join('') +
+        '</ul></details></div>' : '') +
+      '</details>';
+    caja.querySelectorAll('[data-dcambiar]').forEach(b => b.addEventListener('click', () => dialogoDirector('cambiar', DIRS.lista.find(x => x.recordId === b.dataset.dcambiar))));
+    caja.querySelectorAll('[data-dcorregir]').forEach(b => b.addEventListener('click', () => dialogoDirector('corregir', DIRS.lista.find(x => x.recordId === b.dataset.dcorregir))));
+  }
+  function dialogoDirector(accion, d) {
+    if (!d) return;
+    const capa = document.createElement('div');
+    capa.className = 'capa';
+    const cambiar = accion === 'cambiar';
+    capa.innerHTML = '<div class="dialogo" role="dialog" aria-modal="true" style="width:min(640px,100%);font-size:16px">' +
+      '<h3 style="font-size:20px">' + (cambiar ? 'Cambiar al Director de ' : 'Corregir datos del Director de ') + esc(d.carrera) + '</h3>' +
+      '<p style="margin:0 0 12px;color:var(--tinta-media)">' + (cambiar
+        ? 'Director actual: <b>' + esc(d.nombre) + '</b>. Quedará como «Inactivo», con la fecha de hoy. Escriba los datos del nuevo Director:'
+        : 'Use esto solo si hay un error de escritura. Si es otra persona, use «Cambiar Director».') + '</p>' +
+      '<div class="rejilla"><div><label for="dirNombre">Apellidos y nombres <span class="req">*</span></label>' +
+      '<input type="text" id="dirNombre" value="' + (cambiar ? '' : esc(d.nombre)) + '"></div>' +
+      '<div><label for="dirCorreo">Correo institucional <span class="req">*</span></label>' +
+      '<input type="email" id="dirCorreo" placeholder="nombre.apellido@urp.edu.pe" value="' + (cambiar ? '' : esc(d.correo)) + '"></div></div>' +
+      '<p id="dirAviso" class="aviso" style="margin-top:10px"></p>' +
+      '<div class="pie" style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px">' +
+      '<button type="button" class="btn gris" id="dirNo">Cancelar</button>' +
+      '<button type="button" class="btn" id="dirSi">' + (cambiar ? 'Registrar al nuevo Director' : 'Guardar corrección') + '</button></div></div>';
+    document.body.appendChild(capa);
+    $('dirNombre').focus();
+    $('dirNo').onclick = () => capa.remove();
+    $('dirSi').onclick = () => {
+      const nombre = $('dirNombre').value.trim(), correo = $('dirCorreo').value.trim().toLowerCase();
+      if (!nombre) { $('dirAviso').textContent = 'Escriba los apellidos y nombres.'; return; }
+      if (!/^[^@\s]+@urp\.edu\.pe$/.test(correo)) { $('dirAviso').textContent = 'El correo debe ser el institucional (termina en @urp.edu.pe).'; return; }
+      $('dirSi').disabled = true; $('dirAviso').textContent = 'Guardando…';
+      api('/directores', { method: 'POST', body: JSON.stringify(cambiar
+        ? { accion: 'cambiar', carrera: d.carrera, nombre, correo }
+        : { accion: 'corregir', recordId: d.recordId, nombre, correo }) })
+        .then(r => {
+          if (r.error) throw new Error(r.error);
+          DIRS = { lista: r.directores || [], puede: !!r.puedeEditar };
+          capa.remove(); pintarDirectores();
+          const det = $('dirEscuela').querySelector('details'); if (det) det.open = true;
+          avisoEn('avisoCoord', cambiar ? 'Listo: ' + nombre + ' es ahora Director(a) de ' + d.carrera + '. El anterior quedó como «Inactivo».' : 'Datos corregidos.', 'ok');
+          if (cambiar && window.URP && URP.festejo) URP.festejo('¡Director registrado!', 'Desde ahora los informes de ' + esc(d.carrera) + ' le llegarán a ' + esc(nombre) + '.');
+        })
+        .catch(e => { $('dirSi').disabled = false; $('dirAviso').textContent = e.message; });
+    };
+  }
 
   function cargarCoordinadores() {
     $('tablaCoord').innerHTML = '<div class="vacio">Cargando…</div>';
