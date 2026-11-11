@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-10.5';
+  const VERSION_INTERNA = '2026-11-11.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -3338,8 +3338,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   /* 27/10/2026 (prof. Roxana, Electrónica): el sílabo y la fórmula de evaluación los
      presenta el docente de TEORÍA o de TALLER. Si el docente solo tiene laboratorio o
      práctica en ese grupo, esos dos formatos «No aplican»: no se cuentan
-     como pendientes ni en el avance. Vale también para los cursos que solo tienen
-     práctica (indicación de Patrick, 27/10/2026). */
+     como pendientes ni en el avance. Excepción (11/11/2026): si el curso no tiene
+     teoría ni taller en ningún grupo, el docente de práctica sí presenta ambos. */
   const SOLO_TEORIA = ['silabo', 'formula'];
   // Teoría o taller presentan el sílabo y la fórmula (27/10/2026: «cuando sea solo taller, sí aplican»).
   const esTeoria = t => /^(teo|tal)/i.test(sinAcentos(t || ''));
@@ -3350,6 +3350,14 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     // puede guardarlos, así que no se le cuentan como pendientes.
     const comun = ps.length && ps.every(p => p.idInforme) ? ['delegados'] : [];
     if (!ps.length || ps.some(p => esTeoria(p.tipo)) || !ps.some(p => p.tipo)) return new Set(comun);
+    // 11/11/2026 (indicación de Patrick): si el CURSO no tiene teoría ni taller
+    // en ningún grupo (p. ej., Curso de Trabajo de Investigación, que es solo
+    // práctica), el sílabo y la fórmula SÍ aplican al docente de práctica: no
+    // hay otro docente que los presente.
+    const a0 = ps[0];
+    const cursoConTeoria = (estado.asignaciones || []).some(x => x.programa === a0.programa && x.codigo === a0.codigo &&
+      x.asignatura === a0.asignatura && esTeoria(x.tipo));
+    if (!cursoConTeoria) return new Set(comun);
     return new Set(SOLO_TEORIA.concat(comun));
   }
   function hechosDeLaCarga(a) {
@@ -6438,7 +6446,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         '<button type="button" class="btn fantasma" style="margin-left:auto;white-space:nowrap" id="btnXlsCarrera">📥 Descargar en Excel</button></header><div class="tarjeta-cuerpo">' +
         '<p class="nota-car">ℹ️ <b>Qué mide el avance:</b> cuántas de las supervisiones que corresponden ya están registradas. ' +
         'Cada carga lectiva tiene 6 formatos (lista de verificación del sílabo, F1 a F3, aula virtual, portafolio, fórmula y delegados); ' +
-        'al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el de teoría o taller. ' +
+        'al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el de teoría o taller. Excepción: en los cursos que solo tienen práctica (sin teoría ni taller en ningún grupo, como el Curso de Trabajo de Investigación), el docente de práctica sí presenta el sílabo y la fórmula. ' +
         '<b>Avance = registros hechos ÷ (cargas × 6) × 100.</b></p>';
       porCar.forEach((c, i) => {
         h += '<div class="fila-car">' +
@@ -6472,7 +6480,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
             cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos') + '. Ordenado de mayor a menor avance general.',
               'CÓMO LEER ESTE CUADRO:',
               '• Avance general (%): cuántas supervisiones ya registró la carrera, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
-              '• Supervisiones que corresponden: cada carga lectiva tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
+              '• Supervisiones que corresponden: cada carga lectiva tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller. Excepción: en los cursos que solo tienen práctica (sin teoría ni taller en ningún grupo, como el Curso de Trabajo de Investigación), el docente de práctica sí presenta el sílabo y la fórmula.',
               '• Columnas por formato (por ejemplo «Sílabo: 12 de 47 (26 %)»): de las 47 cargas a las que les corresponde ese formato, 12 ya están registradas, es decir, el 26 %.'],
             ['Escuela', 'Responsable de la carrera', 'Registradas ÷ que corresponden × 100',
              'Formatos ya guardados en el portal', 'Formatos que la carrera debe registrar', 'Docente + curso + grupo']
@@ -6693,7 +6701,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         cols, filas, ['Ciclo académico: ' + (d.ciclo || 'todos') + '. Ordenado de mayor a menor avance del área.',
           'CÓMO LEER ESTE CUADRO:',
           '• Avance del área (%): cuántas supervisiones ya registró el coordinador del área, de todas las que le corresponden. Se calcula: supervisiones registradas ÷ supervisiones que corresponden × 100.',
-          '• Supervisiones que corresponden: cada carga lectiva del área tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller.',
+          '• Supervisiones que corresponden: cada carga lectiva del área tiene 6 formatos (sílabo, F1-F4, aula virtual, portafolio, fórmula y delegados). Al docente que solo tiene laboratorio o práctica no se le cuentan el sílabo ni la fórmula, porque los presenta el docente de teoría o taller. Excepción: en los cursos que solo tienen práctica (sin teoría ni taller en ningún grupo, como el Curso de Trabajo de Investigación), el docente de práctica sí presenta el sílabo y la fórmula.',
           '• Columnas por formato (por ejemplo «Sílabo: 5 de 8 (63 %)»): de las 8 cargas del área a las que les corresponde ese formato, 5 ya están registradas, es decir, el 63 %.',
           '• Semáforo del portal: verde 70 % o más; ámbar de 40 % a 69 %; rojo menos de 40 %.'],
         (soloCarrera ? [] : ['Escuela'])
