@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-12.1';
+  const VERSION_INTERNA = '2026-11-12.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10082,11 +10082,12 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       const listaHTML = Object.keys(arbol).sort((x, y) => x.localeCompare(y, 'es')).map(ar => {
         const cursos = arbol[ar];
         const n = Object.values(cursos).reduce((s, l) => s + l.length, 0);
-        return '<details class="pl-area"><summary><b>' + esc(ar) + '</b> <span>' + n + ' delegados y subdelegados</span></summary>' +
+        return '<details class="pl-area"><summary><b>' + esc(ar) + '</b> <span>' + Object.keys(cursos).length + ' cursos · ' + n + ' delegados y subdelegados</span></summary>' +
           Object.keys(cursos).sort((x, y) => x.localeCompare(y, 'es')).map(cu =>
-            '<div class="pl-cur"><div class="pl-cur-t">' + esc(cu) + '</div>' +
+            '<div class="pl-cur"><div class="pl-cur-t"><span>📘 ' + esc(cu) + '</span><small>' + cursos[cu].length +
+              (cursos[cu].length === 1 ? ' estudiante' : ' estudiantes') + '</small></div>' +
             cursos[cu].sort((x, y) => x.rol.localeCompare(y.rol)).map(({ p, rol }) =>
-              '<div class="pl-per"><div><b>' + esc(p.nombre) + '</b> <span class="pl-rol">' + esc(rol) + '</span>' +
+              '<div class="pl-per"><div><b>' + esc(p.nombre) + '</b> <span class="pl-rol' + (rol === 'Subdelegado' ? ' sub' : '') + '">' + esc(rol) + '</span>' +
               (p.codigo ? ' <span class="pl-cod">cód. ' + esc(p.codigo) + '</span>' : '') +
               '<div class="pl-con">' + contacto(p) + '</div></div>' +
               (enMuestra(p.k) ? '<span class="pl-ya">✔ en la muestra</span>'
@@ -15450,9 +15451,19 @@ document.addEventListener('DOMContentLoaded',()=>{
 .pl-falta{color:#b4532a}
 .pl-area{border:1px solid #e3e8ee;border-radius:10px;margin:0 0 8px;padding:0 12px}
 .pl-area>summary{cursor:pointer;padding:12px 0;font-size:16px}.pl-area>summary span{color:var(--tinta-media);font-size:14px}
-.pl-cur{margin:0 0 12px 8px}.pl-cur-t{font-weight:700;margin:6px 0}
+.pl-cur{margin:0 0 14px;border:1px solid #d5e2ee;border-left:6px solid #1f6fb2;border-radius:10px;overflow:hidden;background:#fff}
+.pl-cur:nth-of-type(even){border-left-color:#2e8b57}
+.pl-cur-t{display:flex;justify-content:space-between;gap:10px;align-items:center;font-weight:700;font-size:17px;
+  padding:10px 14px;background:#eef4fa;border-bottom:1px solid #d5e2ee}
+.pl-cur:nth-of-type(even) .pl-cur-t{background:#eef7f1}
+.pl-cur-t small{font-weight:500;font-size:14px;color:var(--tinta-media);white-space:nowrap}
+.pl-cur .pl-per{padding:10px 14px}
+.pl-cur .pl-per+.pl-per{border-top:1px solid #edf1f5}
 .pl-per{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:7px 0;border-top:1px dashed #e7ebf0}
-.pl-rol{font-size:13px;background:#eef3f8;border-radius:6px;padding:1px 6px}.pl-cod{font-size:13px;color:var(--tinta-media)}
+.pl-cur .pl-per:first-of-type{border-top:none}
+.pl-area[open]>summary{border-bottom:1px solid #e3e8ee;margin-bottom:12px}
+.pl-rol{font-size:13px;background:#e3eefa;color:#1a5a92;border-radius:6px;padding:2px 8px;font-weight:600}
+.pl-rol.sub{background:#fdf0dc;color:#8a5a12}.pl-cod{font-size:13px;color:var(--tinta-media)}
 .pl-ya{color:#2e8b57;font-weight:600;font-size:14px;white-space:nowrap}
 @media (max-width:720px){.pl-per{flex-direction:column;align-items:flex-start}.pl-acc{white-space:normal}}
 
