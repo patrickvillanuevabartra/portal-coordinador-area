@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-13.3';
+  const VERSION_INTERNA = '2026-11-13.4';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10123,8 +10123,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           '<li><b>Convocatoria:</b> escribe la fecha, la hora, si será presencial o virtual, el lugar o el enlace, y hasta qué día deben confirmar.</li>' +
           '<li><b>Muestra:</b> pulsa <b>🎲 Elegir 10 al azar</b>. Yo elijo hasta 10 delegados y subdelegados de todos los cursos, ' +
             'tratando de que haya de todas las áreas y de que no se repita el curso. Son 10 como máximo porque con más personas la conversación ya no rinde.</li>' +
-          '<li><b>Invitación:</b> revisa el mensaje (donde dice {nombre} pongo el nombre de cada uno). Pulsa <b>✉ Enviar por correo a los que faltan</b>: ' +
-            'el portal lo envía y las respuestas te llegan a tu correo. Para WhatsApp, pulsa el botón de cada uno: se abre con el mensaje escrito y tú lo envías.</li>' +
+          '<li><b>Invitación:</b> revisa el mensaje (donde dice {nombre} pongo el nombre de cada uno). Pulsa el botón verde <b>✉ Enviar la invitación por correo</b>: ' +
+            'el portal envía un correo a cada elegido que todavía no fue invitado, y las respuestas te llegan a tu correo. Para WhatsApp, pulsa el botón de cada uno: se abre con el mensaje escrito y tú lo envías.</li>' +
           '<li><b>Respuestas:</b> cuando alguien te conteste, cambia su estado a <b>Confirmó</b> o <b>No puede</b>. ' +
             'Si no responde o no puede, pulsa <b>🔄 Reemplazar</b>: elijo otro al azar y lo invitas.</li>' +
           '<li>El día de la reunión, pasa a la pestaña <b>② Registro de la entrevista</b>: te propongo como participantes a los que confirmaron.</li></ol>' +
@@ -10148,8 +10148,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           (plan.reemplazados.length ? ' · ' + plan.reemplazados.length + ' reemplazados' : '') + '</div>' +
         '<div class="pl-botones">' +
           (plan.muestra.length < PLAN_MAX ? '<button type="button" class="btn" id="plAzar">🎲 Elegir ' + (plan.muestra.length ? 'los que faltan' : PLAN_MAX) + ' al azar</button>' : '') +
-          (plan.muestra.some(m => m.estado === 'Por invitar') ? '<button type="button" class="btn" id="plEnviar">✉ Enviar por correo a los que faltan</button>' : '') +
+          (porInvitar => porInvitar
+            ? '<button type="button" class="btn" id="plEnviar">✉ Enviar la invitación por correo a ' +
+              (porInvitar === plan.muestra.length ? (porInvitar === 1 ? 'el elegido' : 'los ' + porInvitar + ' elegidos')
+                : (porInvitar === 1 ? '1 que aún no fue invitado' : 'los ' + porInvitar + ' que aún no fueron invitados')) + '</button>'
+            : '')(plan.muestra.filter(m => m.estado === 'Por invitar' && porK[m.k] && porK[m.k].correo).length) +
           '<span class="aviso" id="plAviso"></span></div>' +
+          (plan.muestra.length ? '<div class="pl-nota">ℹ️ <b>Cómo invitar:</b> el botón verde envía <b>un correo a cada estudiante</b> de la lista que todavía dice «Por invitar» ' +
+            '(a los que ya invitaste no se les vuelve a enviar). Si prefieres hacerlo uno por uno, usa los botones de cada fila: ' +
+            '<b>✉ Correo</b> le envía la invitación solo a ese estudiante; <b>WhatsApp</b> abre WhatsApp con el mensaje ya escrito y tú lo envías; ' +
+            '<b>🔄 Reemplazar</b> lo cambia por otro estudiante elegido al azar. Las respuestas por correo te llegan a tu bandeja.</div>' : '') +
         (plan.muestra.length
           ? '<div class="tabla-scroll"><table class="pl-tabla"><thead><tr><th>#</th><th>Delegado o subdelegado</th><th>Respuesta</th><th>Invitar o reemplazar</th></tr></thead><tbody>' + filas + '</tbody></table></div>'
           : '<div class="vacio">Todavía no hay muestra. Pulsa «🎲 Elegir 10 al azar».</div>') +
