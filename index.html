@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-12.2';
+  const VERSION_INTERNA = '2026-11-13.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10082,13 +10082,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       const listaHTML = Object.keys(arbol).sort((x, y) => x.localeCompare(y, 'es')).map(ar => {
         const cursos = arbol[ar];
         const n = Object.values(cursos).reduce((s, l) => s + l.length, 0);
-        return '<details class="pl-area"><summary><b>' + esc(ar) + '</b> <span>' + Object.keys(cursos).length + ' cursos · ' + n + ' delegados y subdelegados</span></summary>' +
+        return '<details class="pl-area"><summary><b>' + esc(ar) + '</b> <span>' + Object.keys(cursos).length + ' cursos · ' + n + (n === 1 ? ' cargo' : ' cargos') + ' de delegado o subdelegado</span></summary>' +
           Object.keys(cursos).sort((x, y) => x.localeCompare(y, 'es')).map(cu =>
             '<div class="pl-cur"><div class="pl-cur-t"><span>📘 ' + esc(cu) + '</span><small>' + cursos[cu].length +
               (cursos[cu].length === 1 ? ' estudiante' : ' estudiantes') + '</small></div>' +
             cursos[cu].sort((x, y) => x.rol.localeCompare(y.rol)).map(({ p, rol }) =>
               '<div class="pl-per"><div><b>' + esc(p.nombre) + '</b> <span class="pl-rol' + (rol === 'Subdelegado' ? ' sub' : '') + '">' + esc(rol) + '</span>' +
               (p.codigo ? ' <span class="pl-cod">cód. ' + esc(p.codigo) + '</span>' : '') +
+              ((p.cursos || []).length > 1 ? ' <span class="pl-varios" title="' + esc((p.cursos || []).map(c => c.rol + ' de ' + c.curso + ' (G' + c.grupo + ')').join(' · ')) +
+                '">también en ' + ((p.cursos || []).length - 1) + ((p.cursos || []).length === 2 ? ' curso más' : ' cursos más') + '</span>' : '') +
               '<div class="pl-con">' + contacto(p) + '</div></div>' +
               (enMuestra(p.k) ? '<span class="pl-ya">✔ en la muestra</span>'
                 : (plan.muestra.length < PLAN_MAX ? '<button type="button" class="btn fantasma pl-mini" data-anadir="' + esc(p.k) + '">➕ Añadir a la muestra</button>' : '')) +
@@ -10150,8 +10152,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         '</div>' +
 
         '<div class="pl-caja"><div class="subtitulo">3 · Todos los delegados y subdelegados de la carrera, por área y curso</div>' +
-        '<p class="ayuda">' + personas.length + ' estudiantes registrados en «Datos de delegados» de los cursos de ' + esc(a.programa) +
-          '. Pulsa un área para ver sus cursos y los datos de contacto.</p>' +
+        (() => {
+          const cargos = personas.reduce((t, p) => t + (p.cursos || []).length, 0);
+          const varios = personas.filter(p => (p.cursos || []).length > 1).length;
+          return '<p class="ayuda">En los cursos de ' + esc(a.programa) + ' hay <b>' + personas.length + ' estudiantes distintos</b> registrados en «Datos de delegados», que ocupan <b>' +
+            cargos + ' cargos</b> de delegado o subdelegado.' +
+            (varios ? ' La cifra no coincide porque <b>' + varios + (varios === 1 ? ' estudiante es' : ' estudiantes son') +
+              ' delegado o subdelegado en más de un curso</b>: aparece en cada uno de sus cursos (con la marca «también en … cursos más»), ' +
+              'pero en la muestra cuenta una sola vez.' : '') +
+            ' Pulsa un área para ver sus cursos y los datos de contacto.</p>';
+        })() +
         (listaHTML || '<div class="vacio">Ningún curso de la carrera tiene todavía registrados sus delegados.</div>') + '</div>';
 
       // eventos
@@ -15464,6 +15474,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 .pl-area[open]>summary{border-bottom:1px solid #e3e8ee;margin-bottom:12px}
 .pl-rol{font-size:13px;background:#e3eefa;color:#1a5a92;border-radius:6px;padding:2px 8px;font-weight:600}
 .pl-rol.sub{background:#fdf0dc;color:#8a5a12}.pl-cod{font-size:13px;color:var(--tinta-media)}
+.pl-varios{font-size:13px;background:#efe9fb;color:#5b3c9e;border-radius:6px;padding:2px 8px;font-weight:600;cursor:help}
 .pl-ya{color:#2e8b57;font-weight:600;font-size:14px;white-space:nowrap}
 @media (max-width:720px){.pl-per{flex-direction:column;align-items:flex-start}.pl-acc{white-space:normal}}
 
