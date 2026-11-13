@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-13.5';
+  const VERSION_INTERNA = '2026-11-13.6';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -5554,7 +5554,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         ' · ' + (e.personas || e.delegados).length + ' delegados y subdelegados en los cursos' +
         (e.plan && (e.plan.muestra || []).length
           ? ' · planificada: ' + e.plan.muestra.filter(m => m.estado === 'Confirmó').length + ' de ' + e.plan.muestra.length + ' confirmaron'
-          : '') + '</span></div>' +
+          : '') +
+        (e.sugPendientes ? ' · <b class="urg">' + e.sugPendientes + (e.sugPendientes === 1 ? ' sugerencia abierta' : ' sugerencias abiertas') + '</b>' : '') + '</span></div>' +
         '<button type="button" class="btn' + (e.registrada ? ' gris' : '') + '" data-entrev="' + i + '">' +
         (e.registrada ? 'Abrir entrevista' : 'Planificar y registrar') + '</button></div>').join('');
       $('listaEntrevistas').querySelectorAll('[data-entrev]').forEach(b => b.addEventListener('click', () => {
@@ -9986,6 +9987,90 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     el.dispatchEvent(new Event('input', { bubbles: true }));
     return lineas.length;
   }
+  // 13/11/2026: seguimiento de cada sugerencia (trazabilidad de punta a punta):
+  // entrevista → informe al Director → respuesta de la Escuela → evidencia →
+  // verificación con los delegados en la entrevista siguiente.
+  const SEG_ESTADOS = ['Pendiente', 'En atención', 'Atendida', 'No procede'];
+  const URL_AC_OM = 'https://patrickvillanuevabartra.github.io/acciones-correctivas/';
+  function idEntrevistaActual(a) { return a.esCarrera ? a.idAsignacion : (a.idInforme || a.idAsignacion); }
+  function sincronizarSugerencias(a) {
+    const el = $('f_compromisos'); if (!el) return;
+    const lista = el.value.split('\n').map(x => x.trim()).filter(Boolean).map(x => {
+      const m = x.match(/^(I[EC][CD]-[A-Z0-9-]+-S\d{2})\s*[·:–-]\s*(.*)$/);
+      return m ? { codigo: m[1], texto: m[2] } : null;
+    }).filter(Boolean);
+    const al = $('f_alerta') ? $('f_alerta').value : '';
+    api('/sugerencias', { method: 'POST', body: JSON.stringify({ accion: 'sincronizar', carrera: a.programa,
+        idEntrevista: idEntrevistaActual(a), ciclo: a.ciclo || cicloVigente(),
+        curso: a.esCarrera ? '' : [a.codigo, a.asignatura, a.grupo ? 'G' + a.grupo : ''].filter(Boolean).join(' · '),
+        prioridad: al === 'Si' ? 'Urgente' : (al === 'No' ? 'Para conocimiento' : ''), lista }) })
+      .then(d => { if (estado.actual === a) pintarSeguimiento(a, d.sugerencias || []); })
+      .catch(e => console.warn('Portal: no se pudo registrar el seguimiento de sugerencias:', e.message));
+  }
+  function cargarSeguimiento(a) {
+    api('/sugerencias?carrera=' + encodeURIComponent(a.programa || ''))
+      .then(d => { if (estado.actual === a && estado.modulo === 'entrevistas') pintarSeguimiento(a, d.sugerencias || []); })
+      .catch(e => { const c = $('segSug'); if (c) c.innerHTML = '<div class="vacio">No se pudo leer el seguimiento: ' + esc(e.message) + '</div>'; });
+  }
+  function pintarSeguimiento(a, todas) {
+    const id = idEntrevistaActual(a);
+    const fmtF = f => { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})/); return m ? m[3] + '/' + m[2] + '/' + m[1] : (f || ''); };
+    const propias = todas.filter(s => s.idEntrevista === id && s.estado !== 'Retirada').sort((x, y) => x.codigo.localeCompare(y.codigo));
+    const abiertas = s => /^(pendiente|en atenci)/i.test(s.estado || 'Pendiente');
+    const anteriores = todas.filter(s => s.idEntrevista !== id && abiertas(s) &&
+      (a.esCarrera ? /^ENTREV\|/.test(s.idEntrevista) : true)).sort((x, y) => x.codigo.localeCompare(y.codigo));
+    const clase = e => /atendida/i.test(e) ? 'ok' : (/no procede/i.test(e) ? 'gris' : (/en atenci/i.test(e) ? 'med' : 'pend'));
+    const tarjeta = s => '<div class="seg-card" data-cod="' + esc(s.codigo) + '">' +
+      '<div class="seg-cab"><span class="cod-inf">' + esc(s.codigo) + '</span><span class="seg-est ' + clase(s.estado) + '">' + esc(s.estado || 'Pendiente') + '</span>' +
+        (s.prioridad ? '<span class="seg-pri">' + esc(s.prioridad) + '</span>' : '') + '</div>' +
+      '<div class="seg-txt">' + esc(s.sugerencia) + (s.curso ? '<small> · ' + esc(s.curso) + '</small>' : '') + '</div>' +
+      '<div class="seg-rej">' +
+        '<label>1. ¿En qué está?<select data-k="estado">' + SEG_ESTADOS.map(e => '<option' + (e === (s.estado || 'Pendiente') ? ' selected' : '') + '>' + e + '</option>').join('') + '</select></label>' +
+        '<label>2. Fecha en que respondió la Escuela<input type="date" data-k="fecha" value="' + esc(s.fecha) + '"></label>' +
+        '<label class="ancho">3. ¿Qué respondió o qué hizo la Escuela?<textarea data-k="respuesta" rows="2" placeholder="Por ejemplo: se compraron 10 ejemplares; se cambió el horario del laboratorio.">' + esc(s.respuesta) + '</textarea></label>' +
+        '<label class="ancho">4. Evidencia (enlace al documento, correo o acta)<input type="url" data-k="evidencia" value="' + esc(s.evidencia) + '" placeholder="https://drive.google.com/..."></label>' +
+        '<label class="ancho">5. En la entrevista siguiente: ¿qué dijeron los delegados? ¿mejoró?<textarea data-k="verificacion" rows="2" placeholder="Por ejemplo: 13/04/2027 — los delegados confirman que ya hay libros.">' + esc(s.verificacion) + '</textarea></label>' +
+        '<label>6. Si necesita una acción formal: código en Acciones Correctivas y OM<input type="text" data-k="codigoOM" value="' + esc(s.codigoOM) + '" placeholder="Ej.: OM-2026-015"></label>' +
+        '<div class="seg-om"><a class="btn fantasma pl-mini" href="' + URL_AC_OM + '" target="_blank" rel="noopener">Abrir Acciones Correctivas y OM ↗</a></div>' +
+      '</div>' +
+      '<div class="tr-entrev-bot"><button type="button" class="btn pl-mini" data-guardar-seg>Guardar el seguimiento de ' + esc(s.codigo) + '</button><span class="aviso"></span></div>' +
+      (s.historial ? '<details class="seg-hist"><summary>Historial (todo lo que pasó con esta sugerencia)</summary><pre>' + esc(s.historial) + '</pre></details>' : '') +
+      '</div>';
+    const c = $('segSug'); if (!c) return;
+    c.innerHTML = '<div class="subtitulo seg-tit">Seguimiento de las sugerencias</div>' +
+      guiaUrp('<b>Así se sigue cada sugerencia de punta a punta:</b><ol class="urp-pasos">' +
+        '<li>Al <b>guardar la entrevista</b>, cada sugerencia queda registrada con su código y el informe llega al Director.</li>' +
+        '<li>Cuando la Escuela responda o actúe, abre esta entrevista y en la sugerencia anota <b>en qué está</b>, <b>qué hizo la Escuela</b>, la fecha y la <b>evidencia</b>. Pulsa Guardar.</li>' +
+        '<li>En la <b>entrevista siguiente</b> te recuerdo las que siguen abiertas, para que preguntes a los delegados si mejoró. Anota lo que digan en el punto 5.</li>' +
+        '<li>Si alguna necesita una acción formal, regístrala en <b>Acciones Correctivas y OM</b> y escribe aquí su código: así quedan unidas.</li></ol>' +
+        '<small>Todo cambio queda en el «Historial» de cada sugerencia, con la fecha y quién lo hizo. Eso es lo que verá el auditor.</small>') +
+      (propias.length ? propias.map(tarjeta).join('')
+        : '<div class="vacio">Las sugerencias de esta entrevista aparecerán aquí al guardarla, cada una con su código.</div>') +
+      (anteriores.length ? '<details class="pl-area seg-ant" open><summary><b>Sugerencias de entrevistas anteriores que siguen abiertas</b> <span>' + anteriores.length +
+        '</span></summary><p class="ayuda">Pregunta a los delegados si mejoró y anótalo en el punto 5 de cada una.</p>' + anteriores.map(tarjeta).join('') + '</details>' : '');
+    c.querySelectorAll('[data-guardar-seg]').forEach(b => b.addEventListener('click', () => {
+      const card = b.closest('.seg-card'), av = card.querySelector('.aviso');
+      const cuerpo = { accion: 'actualizar', carrera: a.programa, codigo: card.dataset.cod };
+      card.querySelectorAll('[data-k]').forEach(x => { cuerpo[x.dataset.k] = x.value; });
+      if (cuerpo.estado === 'Atendida' && !cuerpo.respuesta.trim()) { av.textContent = 'Para marcarla «Atendida», escriba qué hizo la Escuela (punto 3).'; return; }
+      b.disabled = true; av.textContent = 'Guardando…';
+      api('/sugerencias', { method: 'POST', body: JSON.stringify(cuerpo) })
+        .then(d => { if (d.sugerencias) pintarSeguimiento(a, d.sugerencias); else { b.disabled = false; av.textContent = '✓ Sin cambios'; } })
+        .catch(e => { b.disabled = false; av.textContent = '⚠ ' + e.message; });
+    }));
+    // En «Temas tratados», recordatorio de lo que hay que verificar con los delegados.
+    const h1 = $('fichaForm').querySelector('[data-hoja="1"]');
+    const rec = $('segRecordatorio'); if (rec) rec.remove();
+    if (h1 && anteriores.length) {
+      const r = document.createElement('div');
+      r.id = 'segRecordatorio'; r.className = 'pl-nota';
+      r.innerHTML = '🔁 <b>Pregunta también por las sugerencias de la entrevista anterior que siguen abiertas</b> (' + anteriores.length + '): ' +
+        anteriores.map(s => '<b>' + esc(s.codigo) + '</b> ' + esc(String(s.sugerencia).replace(/[.\s]+$/, ''))).join(' · ') +
+        '. Lo que digan los delegados se anota en «Sugerencias a la Escuela» → Seguimiento, punto 5.';
+      h1.prepend(r);
+    }
+  }
+
   let guardaNumeraPuesto = false;
   function prepararHojasEntrevista() {
     if (estado.modulo !== 'entrevistas') return;
@@ -10068,6 +10153,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
         } catch (e) { $('sugAviso').textContent = '⚠ ' + e.message; }
         b.disabled = false; b.textContent = antes;
       });
+    }
+    // Seguimiento: debajo de las sugerencias, en la misma pestaña.
+    const hoja2 = $('fichaForm').querySelector('[data-hoja="2"]');
+    if (hoja2 && !$('segSug')) {
+      const sc = document.createElement('div');
+      sc.id = 'segSug'; sc.className = 'seg-sug';
+      sc.innerHTML = '<div class="vacio">Cargando el seguimiento de las sugerencias…</div>';
+      hoja2.appendChild(sc);
+      cargarSeguimiento(a);
     }
     // Al guardar, las sugerencias salen siempre con su código.
     if (!guardaNumeraPuesto) {
@@ -14879,6 +14973,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     })
       .then(r => {
         if (r.recordId && !estado.registro) estado.registro = { recordId: r.recordId, valores: {} };
+        if (clave === 'entrevistas') sincronizarSugerencias(a);
         // El avance se actualiza aquí: volver a consultarlo al servidor por un
         // registro obligaría a releer las siete tablas de módulos.
         const hechos = estado.avance[a.idAsignacion] || [];
@@ -15593,6 +15688,22 @@ document.addEventListener('DOMContentLoaded',()=>{
 .tr-entrev-arch{font-size:15px;color:var(--tinta-media)}
 #sugEntrev{margin:0 0 12px}
 .cod-inf{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff3c4;padding:2px 8px;border-radius:6px}
+.seg-sug{margin-top:24px;border-top:3px solid #e3e8ee;padding-top:16px}
+.seg-tit{font-size:15px}
+.seg-card{border:1px solid #d5e2ee;border-left:6px solid #c9a227;border-radius:10px;padding:12px 14px;margin:0 0 14px;background:#fff}
+.seg-cab{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}
+.seg-est{font-size:14px;font-weight:700;border-radius:6px;padding:2px 10px}
+.seg-est.pend{background:#fdf0dc;color:#8a5a12}.seg-est.med{background:#e3eefa;color:#1a5a92}
+.seg-est.ok{background:#e3f5ea;color:#1f6d42}.seg-est.gris{background:#eceff2;color:#555}
+.seg-pri{font-size:13px;color:var(--tinta-media)}
+.seg-txt{font-size:17px;margin:4px 0 10px}
+.seg-rej{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px 14px}
+.seg-rej label{display:flex;flex-direction:column;gap:4px;font-weight:600;font-size:15px}
+.seg-rej label.ancho{grid-column:1 / -1}
+.seg-rej input,.seg-rej select,.seg-rej textarea{font:inherit;font-weight:400;font-size:16px;padding:8px}
+.seg-om{display:flex;align-items:flex-end}
+.seg-hist pre{white-space:pre-wrap;font-size:14px;background:#f7f8fa;padding:8px;border-radius:8px}
+.seg-ant>summary span{background:#fdf0dc;color:#8a5a12;border-radius:6px;padding:1px 8px;font-weight:700}
 .tabs-entrev{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;border-bottom:2px solid #dfe5ec}
 .tabs-entrev button{font:inherit;font-size:17px;font-weight:600;padding:12px 18px;border:2px solid #dfe5ec;border-bottom:none;
   border-radius:10px 10px 0 0;background:#f4f6f9;color:var(--tinta-media);cursor:pointer;margin-bottom:-2px}
