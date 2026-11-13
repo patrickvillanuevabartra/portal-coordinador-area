@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-13.1';
+  const VERSION_INTERNA = '2026-11-13.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -10082,7 +10082,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       const listaHTML = Object.keys(arbol).sort((x, y) => x.localeCompare(y, 'es')).map(ar => {
         const cursos = arbol[ar];
         const n = Object.values(cursos).reduce((s, l) => s + l.length, 0);
-        return '<details class="pl-area"><summary><b>' + esc(ar) + '</b> <span>' + Object.keys(cursos).length + ' cursos · ' + n + (n === 1 ? ' cargo' : ' cargos') + ' de delegado o subdelegado</span></summary>' +
+        return '<details class="pl-area"><summary><b>' + esc(ar) + '</b> <span>' + Object.keys(cursos).length + ' cursos · ' + n + (n === 1 ? ' cargo' : ' cargos') + ' de delegado o subdelegado, ocupados por ' +
+          (u => u + (u === 1 ? ' estudiante' : ' estudiantes'))(new Set([].concat(...Object.values(cursos)).map(x => x.p.k)).size) + '</span></summary>' +
           Object.keys(cursos).sort((x, y) => x.localeCompare(y, 'es')).map(cu =>
             '<div class="pl-cur"><div class="pl-cur-t"><span>📘 ' + esc(cu) + '</span><small>' + cursos[cu].length +
               (cursos[cu].length === 1 ? ' estudiante' : ' estudiantes') + '</small></div>' +
