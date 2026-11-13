@@ -2326,7 +2326,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-13.4';
+  const VERSION_INTERNA = '2026-11-13.5';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9469,10 +9469,10 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       nota: 'Si te equivocas, no pasa nada: abres el formato otra vez, corriges y guardas.' },
     entrevistas: { titulo: 'Te acompaño a registrar la entrevista con los delegados:', pasos: [
       'Escribe la <b>fecha y hora</b> de la reunión y elige si fue presencial, virtual o mixta.',
-      'En «Delegados participantes» te propongo la lista: <b>deja solo a quienes asistieron</b>.',
+      'En «Delegados participantes» te propongo a los que <b>confirmaron</b> en la Planificación: <b>deja solo a quienes asistieron</b>.',
       'En «Temas tratados» hay <b>4 bloques</b>: Gestión estratégica, Formación integral, Soporte institucional y Cierre (dimensiones del modelo del SINEACE). En cada bloque: <b>Paso 1</b>, haz la pregunta general y anota la respuesta en el cuadro verde; <b>Paso 2</b>, haz las preguntas específicas de siempre y anota cada una en su cuadro. Debajo de cada cuadro te digo qué más preguntar.',
-      'Si tienes la transcripción de la reunión, pulsa <b>📎 Adjuntar</b> y luego <b>Analizar ➤</b>: yo te propongo lo que se dijo en cada tema. Si no la tienes, escríbelo tú.',
-      'Escribe las <b>sugerencias para la Escuela</b> (son sugerencias, no acuerdos) y elige la prioridad.',
+      'Si tienes la transcripción de la reunión, en «Temas tratados» pulsa <b>📎 Subir la transcripción</b> y luego <b>Analizar ➤</b>: yo pongo cada respuesta bajo su pregunta. Si no la tienes, escríbelo tú.',
+      'En «Sugerencias a la Escuela» pulsa <b>✨ Proponer sugerencias</b> (o escríbelas, una por línea) y elige la prioridad. Cada sugerencia recibe un <b>código</b> para su seguimiento.',
       'Pulsa <b>Guardar</b>. El informe llega solo al Director de la Escuela, con copia para ti.'] },
     formularios: { titulo: 'Te acompaño a revisar los formularios F1 a F4:', pasos: [
       '<b>F1</b> es el registro del delegado y subdelegado; <b>F2</b>, la constancia de que el sílabo se presentó en la primera clase; <b>F3</b>, la prueba de entrada. El <b>F4</b> se presenta al cerrar el ciclo.',
@@ -9541,7 +9541,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           { k:'fechaHora', etq:'Fecha y hora de reunión', tipo:'fechahora', req:true },
           { k:'modalidad', etq:'Modalidad', tipo:'select', opciones:['Presencial','Virtual','Mixta'], req:true },
           { k:'delegado', etq:'Delegados participantes', tipo:'textarea', req:true, full:true,
-            ayuda:'Uno por línea. Se propone la lista de delegados registrados en los cursos de la carrera: deje solo a quienes participaron.' }
+            ayuda:'Uno por línea. Se proponen los que confirmaron en la pestaña ① Planificación (máximo 10): deje solo a quienes asistieron.' }
         ]},
         { pestana:1, tipo:'textos', fuente:'temas' },
         { pestana:2, tipo:'grid', ancho:true, campos:[
@@ -9962,11 +9962,128 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   const PLAN_MAX = 10;
   const PLAN_ESTADOS = ['Por invitar', 'Invitado', 'Confirmó', 'No respondió', 'No puede'];
 
+  // 13/11/2026: en «Temas tratados», la transcripción se sube y se analiza
+  // ahí mismo; en «Sugerencias», cada sugerencia lleva un código para su
+  // seguimiento (trazabilidad de punta a punta, pedido tras la auditoría).
+  function siglaCarreraCli(p) {
+    return String(p || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase()
+      .replace(/^INGENIERIA\s+(DE\s+)?/, '').replace(/[^A-Z0-9]/g, '');
+  }
+  function codigoInformeEntrevista(a) {
+    const ciclo = String(a.ciclo || cicloVigente() || '').replace(/\s+/g, '');
+    return a.esCarrera
+      ? 'IEC-' + siglaCarreraCli(a.programa) + '-' + ciclo
+      : 'IED-' + siglaCarreraCli(a.programa) + '-' + String(a.codigo || '').replace(/\s+/g, '') + '-G' + (a.grupo || '') + '-' + ciclo;
+  }
+  function numerarSugerencias(a) {
+    const el = $('f_compromisos');
+    if (!el || !el.value.trim()) return 0;
+    const base = codigoInformeEntrevista(a);
+    const lineas = el.value.split('\n').map(x => x.trim()).filter(Boolean)
+      .map(x => x.replace(/^I[EC][CD]-[A-Z0-9-]+-S\d{2}\s*[·:–-]\s*/, '').replace(/^(\d+[.)-]|[-•*])\s*/, ''))
+      .filter(Boolean);
+    el.value = lineas.map((x, i) => base + '-S' + String(i + 1).padStart(2, '0') + ' · ' + x).join('\n');
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return lineas.length;
+  }
+  let guardaNumeraPuesto = false;
+  function prepararHojasEntrevista() {
+    if (estado.modulo !== 'entrevistas') return;
+    const a = estado.actual || {};
+    // Temas tratados: subir la transcripción y analizar, ahí mismo.
+    const hoja1 = $('fichaForm').querySelector('[data-hoja="1"]');
+    if (hoja1 && !$('trEntrev')) {
+      const c = document.createElement('div');
+      c.id = 'trEntrev';
+      c.className = 'tr-entrev';
+      c.innerHTML = guiaUrp('<b>¿Grabaste la reunión? Yo ubico cada respuesta bajo su pregunta.</b><ol class="urp-pasos">' +
+        '<li>Pulsa <b>📎 Subir la transcripción</b> y elige el archivo que te dio Zoom, Meet o Teams (.vtt, .docx, .txt o .pdf).</li>' +
+        '<li>Pulsa <b>Analizar ➤</b>. Leo la transcripción y, para cada pregunta (la general y las específicas de cada bloque), ' +
+        'escribo en su cuadro lo que respondieron los delegados. Solo lleno los cuadros vacíos.</li>' +
+        '<li>Lee cada cuadro y corrige lo que haga falta: <b>tú decides</b> qué queda.</li></ol>' +
+        '<small>Si no tienes transcripción, escribe tú las respuestas en cada cuadro. El archivo no se guarda: solo se usa para leerlo.</small>') +
+        '<div class="tr-entrev-bot"><button type="button" class="btn fantasma" id="trSubir">📎 Subir la transcripción</button>' +
+        '<button type="button" class="btn" id="trAnalizar">Analizar ➤</button><span class="tr-entrev-arch" id="trNombre">Ningún archivo elegido</span></div>';
+      hoja1.prepend(c);
+      $('trSubir').addEventListener('click', () => { const f = $('trArchivo'); if (f) f.click(); });
+      $('trAnalizar').addEventListener('click', () => {
+        if (!ADJUNTOS.length && !confirm('No has subido la transcripción. ¿Analizar solo con lo que escribiste en la caja del asistente?')) return;
+        const b = $('btnProponer'); if (b) b.click();
+      });
+      const mirar = () => { $('trNombre') && ($('trNombre').textContent = ADJUNTOS.length
+        ? '📄 ' + ADJUNTOS.map(f => f.name).join(', ') : 'Ningún archivo elegido'); };
+      setTimeout(() => { const f = $('trArchivo'); if (f) f.addEventListener('change', () => setTimeout(mirar, 300)); }, 0);
+    }
+    // Sugerencias con código.
+    const fc = $('f_compromisos');
+    if (fc && !$('sugEntrev')) {
+      const cod = codigoInformeEntrevista(a);
+      const c = document.createElement('div');
+      c.id = 'sugEntrev';
+      c.className = 'full';
+      c.innerHTML = guiaUrp('<b>Código de este informe: <span class="cod-inf">' + esc(cod) + '</span></b><br>' +
+        'Así se arman las sugerencias:<ol class="urp-pasos">' +
+        '<li>Pulsa <b>✨ Proponer sugerencias</b>: leo lo que anotaste en «Temas tratados» y te propongo una sugerencia por cada problema que mencionaron los delegados. ' +
+        'O escríbelas tú, <b>una por línea</b>.</li>' +
+        '<li>Revisa y corrige. Son <b>sugerencias</b> para la Escuela, no acuerdos.</li>' +
+        '<li>Al guardar, pongo a cada una su <b>código</b> (por ejemplo <b>' + esc(cod) + '-S01</b>). Con ese código la Escuela, tú y el auditor ' +
+        'pueden seguir cada sugerencia de punta a punta: de qué entrevista salió, a quién se informó y qué se hizo.</li></ol>') +
+        '<div class="tr-entrev-bot"><button type="button" class="btn fantasma" id="sugProponer">✨ Proponer sugerencias a partir de lo anotado</button>' +
+        '<button type="button" class="btn fantasma" id="sugNumerar">🔢 Poner el código a cada sugerencia</button><span class="aviso" id="sugAviso"></span></div>';
+      const caja = fc.closest('div');
+      caja.parentNode.insertBefore(c, caja);
+      $('sugNumerar').addEventListener('click', () => {
+        const n = numerarSugerencias(a);
+        $('sugAviso').textContent = n ? '✓ ' + n + (n === 1 ? ' sugerencia con código' : ' sugerencias con código') : 'Primero escriba las sugerencias, una por línea.';
+      });
+      $('sugProponer').addEventListener('click', async () => {
+        const anot = [...$('fichaForm').querySelectorAll('[data-tema]')].map(t => {
+          const tema = (M_ACTUAL().temas || [])[Number(t.dataset.tema)] || {};
+          return t.value.trim() ? '• ' + (tema.etiqueta || '') + ': ' + t.value.trim() : '';
+        }).filter(Boolean).join('\n');
+        if (!anot) { $('sugAviso').textContent = 'Primero anote lo que dijeron los delegados en «Temas tratados».'; return; }
+        if (fc.value.trim() && !confirm('Ya hay sugerencias escritas. ¿Reemplazarlas por las que yo proponga?')) return;
+        const b = $('sugProponer'), antes = b.textContent;
+        b.disabled = true; b.textContent = 'Leyendo lo anotado…';
+        try {
+          const r = await fetch('https://asistente-pca.patrick-villanueva.workers.dev/proponer', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ modulo: 'Entrevista con delegados — sugerencias para la Escuela',
+              curso: a.esCarrera ? a.programa + ' · ' + a.ciclo : [a.codigo, a.asignatura].filter(Boolean).join(' · '),
+              campos: [{ clave: 'campo:compromisos', etiqueta: 'Sugerencias para la Escuela: una por línea, sin numerar. Cada una empieza con el tema entre corchetes ' +
+                '(por ejemplo [Bibliografía]) y dice en una frase qué debería atender la Escuela. Solo a partir de lo que dijeron los delegados; ' +
+                'no invente problemas; agrupe lo repetido; son sugerencias, no acuerdos.' }],
+              contexto: {}, texto: 'LO ANOTADO EN LA ENTREVISTA:\n' + anot, imagenes: [] })
+          });
+          const d = await r.json();
+          if (d.error) throw new Error(d.error);
+          const p = d.propuesta || {};
+          let v = p['campo:compromisos'] || (p.campos && p.campos.compromisos) || p.compromisos ||
+            Object.values(p).find(x => typeof x === 'string' && x.length > 20) || '';
+          if (Array.isArray(v)) v = v.join('\n');
+          if (!v) throw new Error('El asistente no propuso sugerencias.');
+          fc.value = String(v).trim();
+          const n = numerarSugerencias(a);
+          $('sugAviso').textContent = '✓ Propuse ' + n + (n === 1 ? ' sugerencia' : ' sugerencias') + ' con su código. Revíselas y corríjalas.';
+        } catch (e) { $('sugAviso').textContent = '⚠ ' + e.message; }
+        b.disabled = false; b.textContent = antes;
+      });
+    }
+    // Al guardar, las sugerencias salen siempre con su código.
+    if (!guardaNumeraPuesto) {
+      guardaNumeraPuesto = true;
+      $('btnGuardar').addEventListener('click', () => {
+        if (estado.modulo === 'entrevistas' && estado.actual) numerarSugerencias(estado.actual);
+      }, true);
+    }
+  }
+
   function prepararPestanasEntrevista() {
     const viejo = document.querySelectorAll('#tabsEntrev, #planEntrev');
     viejo.forEach(x => x.remove());
     $('fichaForm').classList.remove('oculto');
     document.querySelector('.ficha-cuerpo .pie').classList.remove('oculto');
+    prepararHojasEntrevista();
     const a = estado.actual;
     if (!a || !a.esCarrera || estado.modulo !== 'entrevistas') return;
     const cuerpo = document.querySelector('.ficha-cuerpo');
@@ -9996,9 +10113,16 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // Al pasar al registro, los participantes propuestos son los que confirmaron.
   function proponerParticipantesDelPlan() {
     const a = estado.actual, fD = $('f_delegado');
-    if (!a || !a.plan || !fD || fD.value.trim()) return;
-    const conf = (a.plan.muestra || []).filter(m => m.estado === 'Confirmó');
-    if (!conf.length) return;
+    if (!a || !fD) return;
+    const listaAuto = (a.delegados || []).join('\n');
+    if (fD.value.trim() && fD.value.trim() !== listaAuto.trim()) return;   // ya lo editó: se respeta
+    const conf = ((a.plan && a.plan.muestra) || []).filter(m => m.estado === 'Confirmó');
+    if (!conf.length) {
+      if (fD.value.trim()) { fD.value = ''; fD.dispatchEvent(new Event('input', { bubbles: true })); }
+      aviso('Todavía nadie figura como «Confirmó» en la pestaña ① Planificación. Marque allí quién confirmó y ' +
+            'aquí aparecerán solos; o escriba a mano a quienes asistieron.', '');
+      return;
+    }
     const porK = {};
     (a.personas || []).forEach(p => { porK[p.k] = p; });
     fD.value = conf.map(m => {
@@ -10579,8 +10703,19 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       if (b.tipo === 'textos') {
         (M_ACTUAL().temas || []).forEach((t, i) =>
           lista.push({ clave: 'tema:' + i,
-            etiqueta: t.etiqueta + ' — redacte en una o dos frases lo que dijeron los delegados sobre: ' +
-                      (t.nota || t.etiqueta) }));
+            etiqueta: (() => {
+              const dim = t.dim && M_ACTUAL().dimensiones && M_ACTUAL().dimensiones[t.dim];
+              const limpio = x => String(x || '').replace(/<[^>]+>/g, '');
+              if (t.general && dim) {
+                return t.etiqueta + ' — redacte en una o dos frases lo que respondieron los delegados a la pregunta general «' +
+                  dim.pregunta + '»' + ((dim.pautas || []).filter(x => x.en === 'general').length
+                    ? ', incluido lo que dijeron sobre: ' + dim.pautas.filter(x => x.en === 'general').map(x => limpio(x.t)).join(' ') : '') +
+                  '. No repita lo que corresponde a las preguntas específicas.';
+              }
+              const extra = dim ? (dim.pautas || []).filter(x => Array.isArray(x.en) && x.en.indexOf(t.etiqueta) > -1).map(x => limpio(x.t)).join(' ') : '';
+              return t.etiqueta + ' — redacte en una o dos frases lo que dijeron los delegados sobre: ' + (t.nota || t.etiqueta) +
+                (extra ? ' (también: ' + extra + ')' : '');
+            })() }));
       }
     });
     return lista;
@@ -14265,7 +14400,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       if (clave !== 'entrevistas') return;
       if (a.esCarrera) {
         const fD = $('f_delegado');
-        if (a.plan && (a.plan.muestra || []).some(m => m.estado === 'Confirmó')) { proponerParticipantesDelPlan(); return; }
+        // Participan los de la muestra que confirmaron (máx. 10), no todos los delegados.
+        proponerParticipantesDelPlan(); return;
         if (fD && !fD.value.trim() && (a.delegados || []).length) {
           fD.value = a.delegados.join('\n');
           fD.dispatchEvent(new Event('input', { bubbles: true }));
@@ -15451,6 +15587,12 @@ document.addEventListener('DOMContentLoaded',()=>{
 
 <style id="urp-pasos-css">
   .guia-formato{margin-bottom:14px}
+.tr-entrev{border:2px solid #cfe3d6;background:#f5fbf7;border-radius:12px;padding:12px 14px;margin:0 0 18px}
+.tr-entrev-bot{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 4px}
+.tr-entrev-bot .btn{font-size:16px}
+.tr-entrev-arch{font-size:15px;color:var(--tinta-media)}
+#sugEntrev{margin:0 0 12px}
+.cod-inf{font-family:ui-monospace,Menlo,Consolas,monospace;background:#fff3c4;padding:2px 8px;border-radius:6px}
 .tabs-entrev{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;border-bottom:2px solid #dfe5ec}
 .tabs-entrev button{font:inherit;font-size:17px;font-weight:600;padding:12px 18px;border:2px solid #dfe5ec;border-bottom:none;
   border-radius:10px 10px 0 0;background:#f4f6f9;color:var(--tinta-media);cursor:pointer;margin-bottom:-2px}
