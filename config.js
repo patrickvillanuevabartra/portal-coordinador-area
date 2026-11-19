@@ -159,7 +159,7 @@ window.PCA_CONFIG = {
         { dim:'d1', etiqueta:'Puntualidad', nota: 'Si el docente inicia y termina las sesiones a la hora establecida.',                    id:'cciJTry3roWO_cIsFcGJXU' },
         { dim:'d2', general:true, etiqueta:'Respuesta general: Formación integral', nota: 'Anote aquí lo que respondieron los delegados.', id:'byW7VdSrHcJ5D8WQVcLCom' },
         { dim:'d2', etiqueta:'Cumplimiento del sílabo', nota: 'Si el desarrollo del curso avanza conforme a la programación del sílabo.',        id:'ddLmobW6rnu4NcPtH_WRmz' },
-        { dim:'d2', etiqueta:'Retroalimentación al estudiante', nota: 'Si el docente devuelve las evaluaciones y responde consultas en un plazo razonable, no mayor a dos semanas.',id:'dcUtBdVSngWPldQSkKWOa0' },
+        { dim:'d2', etiqueta:'Retroalimentación al estudiante', nota: 'Si el docente devuelve las evaluaciones calificadas a tiempo (prácticas y parcial, hasta 7 días; final, 3 días; sustitutorio, 24 horas: Reglamento General de Evaluación, art. 27), si registra las notas en el sistema y si responde las consultas.',id:'dcUtBdVSngWPldQSkKWOa0' },
         { dim:'d3', general:true, etiqueta:'Respuesta general: Soporte institucional', nota: 'Anote aquí lo que respondieron los delegados.', id:'brW6PaECnfgyoiW5bLW7K-' },
         { dim:'d3', etiqueta:'Experiencias de laboratorio', nota: 'Si las prácticas de laboratorio se realizan según lo programado y con los recursos necesarios.',    id:'ddNYbwzf1cGlldQh3dOCoq' },
         { dim:'d3', etiqueta:'Bibliografía', nota: 'Si la bibliografía indicada en el sílabo está disponible y es accesible para los estudiantes.',                   id:'byWQydbSjjWRtcJmkDE8o_' },
