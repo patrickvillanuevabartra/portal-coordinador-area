@@ -2329,7 +2329,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-25.1';
+  const VERSION_INTERNA = '2026-11-25.2';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -9484,14 +9484,15 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // Lo que Urpito explica en cada formato, como de la mano. Texto sencillo:
   // los coordinadores y docentes son, en su mayoría, personas mayores.
   const GUIAS_URPITO = {
-    silabo: { titulo: 'Te acompaño a revisar el sílabo. Son 7 pasos:', pasos: [
+    silabo: { titulo: 'Te acompaño a revisar el sílabo. Son 8 pasos:', pasos: [
       '<b>Paso 1 (cronograma):</b> elige el PDF o Word del sílabo. Yo leo en qué semana se entrega cada evaluación. Revisa y pulsa <b>«Guardar cronograma»</b>. Se hace una sola vez por curso.',
       '<b>Paso 2 (calidad):</b> más abajo, en «Revisión de los 12 puntos», el sílabo ya aparece adjuntado. Si no, pulsa <b>📎 Adjuntar</b> y elígelo.',
       'Pulsa <b>Analizar ➤</b>. Yo leo el sílabo y te propongo cómo está cada uno de los 12 puntos.',
       'Lee cada punto con calma. <b>Tú decides</b>: elige Cumple, Parcial, No cumple o No aplica. Si no cumple, escribe qué falta.',
       'Al final, pulsa <b>Guardar</b>.',
       'Si hubo observaciones, pulsa <b>Notificar por correo</b> o <b>WhatsApp</b>.',
-      'Cuando el docente te avise que ya corrigió: adjunta el <b>sílabo corregido</b>, pulsa <b>Analizar ➤</b> y revisa otra vez los puntos observados. Si ya cumplen, cámbialos, pon la <b>fecha de levantamiento</b> y guarda. Si no, avísale otra vez.'],
+      'Cuando el docente te avise que ya corrigió: adjunta el <b>sílabo corregido</b>, pulsa <b>Analizar ➤</b> y revisa otra vez los puntos observados. Si ya cumplen, cámbialos, pon la <b>fecha de levantamiento</b> y guarda. Si no, avísale otra vez.',
+      'Cada vez que termines un reporte (el primero y cada levantamiento), pulsa <b>📌 Guardar y cerrar la revisión</b>: queda en el <b>Historial de revisiones</b>, con su fecha, para seguir si se superaron las observaciones.'],
       nota: 'Si te equivocas, no pasa nada: abres el formato otra vez, corriges y guardas.' },
     entrevistas: { titulo: 'Te acompaño a registrar la entrevista con los delegados:', pasos: [
       'Escribe la <b>fecha y hora</b> de la reunión y elige si fue presencial, virtual o mixta.',
@@ -10601,8 +10602,8 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
           (pend.length ? 'quedaron <b>' + pend.length + (pend.length === 1 ? ' observación' : ' observaciones') + '</b>. Las marqué abajo con ' +
             '<span class="hist-marca">🔁 Verificar</span>: revisa primero si el docente ya las corrigió y cambia su estado.' : 'no quedaron observaciones.')
         : 'Todavía no hay revisiones cerradas de este formato.') +
-      '<ol class="urp-pasos"><li>Revisa y pulsa <b>Guardar</b> cuantas veces quieras: mientras no cierres, sigues en la misma revisión.</li>' +
-      '<li>Cuando termines el reporte (y lo comuniques al docente), pulsa <b>📌 Guardar y cerrar la revisión</b>, junto a Guardar. ' +
+      '<ol class="urp-pasos"><li>Revisa y pulsa <b>' + esc($('btnGuardar').textContent.trim() || 'Guardar') + '</b> cuantas veces quieras: mientras no cierres, sigues en la misma revisión.</li>' +
+      '<li>Cuando termines el reporte (y lo comuniques al docente), pulsa <b>📌 Guardar y cerrar la revisión</b>, al lado. ' +
       'Queda una foto con la fecha que <b>ya no se puede cambiar</b>.</li>' +
       '<li>El formato sigue con los mismos datos para la siguiente revisión, y yo comparo: ✅ superada, ⚠️ persiste, 🆕 nueva.</li></ol>') +
       (l.length ? '<div class="hist-lista">' + l.slice().reverse().map(tarjeta).join('') + '</div>' : '');
