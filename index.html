@@ -2329,7 +2329,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
   // navegador cargó la última entrega (GitHub Pages tarda hasta 10 minutos).
   const VERSION_PORTAL = '26/10/2026';
   // Identificador interno de cada entrega (cambia aunque la fecha sea la misma).
-  const VERSION_INTERNA = '2026-11-19.1';
+  const VERSION_INTERNA = '2026-11-25.1';
 
   // GitHub Pages entrega durante unos minutos una copia guardada de la página,
   // aunque se pulse Ctrl + F5. Al abrir, el portal pide la página con una
@@ -6688,6 +6688,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     h += '</div></section>';
 
     $('indCuerpo').innerHTML = h;
+    pintarSeguimientoObservaciones(d.ciclo);
     estado.indicadores = d;
     document.querySelectorAll('#indCuerpo .av-car').forEach(x => x.addEventListener('toggle', () => {
       if (x.open) AV_ABIERTAS.add(x.dataset.p); else AV_ABIERTAS.delete(x.dataset.p); }));
@@ -10479,6 +10480,217 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     pintar();
   }
 
+  /* ------------------------------------ historial de revisiones (25/11/2026) --
+     Cada formato guarda una sola fila por carga: al volver a revisar, lo nuevo
+     reemplazaba a lo anterior. Ahora el coordinador «cierra» cada revisión:
+     queda una foto inmodificable (fecha, revisor, cómo quedó cada punto) y la
+     siguiente revisión se compara con ella: superada, persiste o nueva. */
+  const HIST_OBS_RE = /^(no cumple|parcial|no subi[oó]|no existen?|pendiente|fuera de plazo|observad[oa]|no coincide|no registrad[oa]|no conforme|no)$/i;
+  const HIST_OK_RE = /^(cumple|subi[oó]|existen?|presentad[oa]|levantad[oa]|conforme|registrad[oa]|s[ií]|no aplica|vigente|completo)$/i;
+  const HIST_SIN_COMPARAR = ['alerta', 'modalidad', 'revisor'];
+  const HIST = { lista: [], puede: false, cerrarTras: 0 };
+  function histClase(v) { v = String(v || '').trim(); if (!v) return ''; if (HIST_OBS_RE.test(v)) return 'obs'; if (HIST_OK_RE.test(v)) return 'ok'; return ''; }
+  function idRegistroDe(a, clave) { return (a.idInforme && clave !== 'delegados') ? a.idInforme : a.idAsignacion; }
+  function fmtFechaHora(f) { const m = String(f || '').match(/^(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{2}:\d{2}))?/); return m ? m[3] + '/' + m[2] + '/' + m[1] + (m[4] ? ' ' + m[4] : '') : (f || ''); }
+  function claveItem(it, i) { return 'item:' + (it.n || String(i + 1).padStart(2, '0')); }
+
+  function fotoFormulario() {
+    const M = M_ACTUAL(), F = FORMULARIOS[estado.modulo] || { bloques: [] };
+    const lista = M.items || M.criterios || [];
+    const puntos = [], campos = [];
+    $('fichaForm').querySelectorAll('#listaItems select[data-estado]').forEach(s => {
+      const i = Number(s.dataset.estado), it = lista[i] || {};
+      const ob = $('fichaForm').querySelector('textarea[data-obs="' + i + '"]');
+      puntos.push({ k: claveItem(it, i), n: it.n || String(i + 1).padStart(2, '0'), etq: it.etiqueta || '', v: s.value,
+                    c: histClase(s.value), obs: ob ? ob.value.trim().slice(0, 1500) : '' });
+    });
+    F.bloques.forEach(b => (b.campos || []).forEach(c => {
+      const el = $('f_' + c.k); if (!el) return;
+      const v = String(el.value || '').trim();
+      if (c.tipo === 'select' && HIST_SIN_COMPARAR.indexOf(c.k) < 0) {
+        const txt = el.selectedOptions && el.selectedOptions[0] && v ? el.selectedOptions[0].text : v;
+        puntos.push({ k: 'campo:' + c.k, etq: c.etq, v: txt, c: histClase(v) || histClase(txt), obs: '' });
+      } else if (v && c.k !== 'revisor') {
+        campos.push({ etq: c.etq, v: v.slice(0, 1500) });
+      }
+    }));
+    $('fichaForm').querySelectorAll('[data-tema]').forEach(t => {
+      const tema = (M.temas || [])[Number(t.dataset.tema)] || {};
+      if (t.value.trim()) campos.push({ etq: tema.etiqueta || 'Tema', v: t.value.trim().slice(0, 1500) });
+    });
+    return { puntos, campos };
+  }
+
+  function compararRevision(foto, previa) {
+    const ant = {};
+    ((previa && previa.detalle && previa.detalle.puntos) || []).forEach(p => { ant[p.k] = p; });
+    const r = { evaluados: 0, observados: 0, superadas: 0, persisten: 0, nuevas: 0, sinRevisar: 0,
+                obsAnteriores: Object.values(ant).filter(p => p.c === 'obs').length };
+    foto.puntos.forEach(p => {
+      const pp = ant[p.k];
+      if (p.c) r.evaluados++;
+      if (p.c === 'obs') {
+        r.observados++;
+        if (pp && pp.c === 'obs') { p.cmp = 'persiste'; p.racha = (pp.racha || 1) + 1; r.persisten++; }
+        else { p.cmp = previa ? 'nueva' : 'observada'; p.racha = 1; if (previa) r.nuevas++; }
+      } else if (pp && pp.c === 'obs') {
+        if (p.c === 'ok') { p.cmp = 'superada'; r.superadas++; } else { p.cmp = 'sin revisar'; r.sinRevisar++; }
+      }
+    });
+    r.pctSuperadas = r.obsAnteriores ? Math.round(r.superadas / r.obsAnteriores * 100) : null;
+    return r;
+  }
+
+  function resumenRevisionTexto(r) {
+    const partes = [];
+    partes.push(r.observados ? r.observados + (r.observados === 1 ? ' observación' : ' observaciones') : 'sin observaciones');
+    if (r.obsAnteriores) partes.push('✅ ' + r.superadas + ' superada' + (r.superadas === 1 ? '' : 's') + ' de ' + r.obsAnteriores +
+      ' · ⚠️ ' + r.persisten + ' persiste' + (r.persisten === 1 ? '' : 'n') + ' · 🆕 ' + r.nuevas + ' nueva' + (r.nuevas === 1 ? '' : 's'));
+    return partes.join(' · ');
+  }
+
+  function prepararHistorial() {
+    const viejo = $('histRev'); if (viejo) viejo.remove();
+    HIST.lista = []; HIST.cerrarTras = 0;
+    const a = estado.actual, clave = estado.modulo;
+    if (!a || !clave || !CFG.MODULOS[clave]) return;
+    const caja = document.createElement('div');
+    caja.id = 'histRev'; caja.className = 'hist-rev';
+    caja.innerHTML = '<div class="vacio">Cargando el historial de revisiones…</div>';
+    const guia = $('fichaForm').querySelector('.guia-formato');
+    if (guia) guia.after(caja); else $('fichaForm').prepend(caja);
+    let bot = $('btnCerrarRev');
+    if (!bot) {
+      bot = document.createElement('button');
+      bot.type = 'button'; bot.id = 'btnCerrarRev'; bot.className = 'btn fantasma';
+      $('btnGuardar').after(bot);
+      bot.addEventListener('click', pedirCierreRevision);
+    }
+    bot.classList.add('oculto');
+    const id = idRegistroDe(a, clave);
+    api('/historial?idAsignacion=' + encodeURIComponent(id) + '&modulo=' + encodeURIComponent(clave))
+      .then(d => { if (estado.actual === a && estado.modulo === clave) { HIST.lista = d.historial || []; HIST.puede = !!d.puedeEscribir; pintarHistorial(); } })
+      .catch(e => { caja.innerHTML = '<div class="vacio">No se pudo leer el historial: ' + esc(e.message) + '</div>'; });
+  }
+
+  function pintarHistorial() {
+    const caja = $('histRev'); if (!caja) return;
+    const l = HIST.lista, ult = l[l.length - 1], n = l.length + 1;
+    const puede = HIST.puede && !$('btnGuardar').classList.contains('oculto');
+    const bot = $('btnCerrarRev');
+    if (bot) { bot.textContent = '📌 Guardar y cerrar la revisión ' + n; bot.classList.toggle('oculto', !puede); }
+    const pend = ult ? (ult.detalle && ult.detalle.puntos || []).filter(p => p.c === 'obs') : [];
+    const icono = { superada: '✅', persiste: '⚠️', nueva: '🆕', observada: '🔴', 'sin revisar': '⏳' };
+    const filaPunto = p => '<li class="hp-' + (p.cmp || p.c || 'nada').replace(' ', '-') + '">' + (icono[p.cmp] || (p.c === 'obs' ? '🔴' : '')) + ' <b>' +
+      esc((p.n ? p.n + '. ' : '') + p.etq) + ':</b> ' + esc(p.v || '—') +
+      (p.cmp ? ' <i>(' + esc(p.cmp) + (p.cmp === 'persiste' ? ', ' + p.racha + ' revisiones seguidas' : '') + ')</i>' : '') +
+      (p.obs ? '<div class="hp-obs">' + esc(p.obs) + '</div>' : '') + '</li>';
+    const tarjeta = h => {
+      const ps = (h.detalle && h.detalle.puntos) || [];
+      const conCambio = ps.filter(p => p.c === 'obs' || p.cmp);
+      return '<details class="hist-item"><summary><b>Revisión ' + h.revision + '</b> · ' + esc(fmtFechaHora(h.fecha)) + ' · ' + esc(h.revisor || '') +
+        '<span class="hist-res">' + esc(resumenRevisionTexto(h.resumen || {})) + '</span></summary>' +
+        (conCambio.length ? '<ul class="hist-puntos">' + conCambio.map(filaPunto).join('') + '</ul>' : '<p class="ayuda">Todos los puntos revisados cumplían.</p>') +
+        ((h.detalle && h.detalle.campos || []).length ? '<details class="hist-campos"><summary>Datos registrados en esa revisión</summary><ul>' +
+          h.detalle.campos.map(c => '<li><b>' + esc(c.etq) + ':</b> ' + esc(c.v) + '</li>').join('') + '</ul></details>' : '') +
+        '</details>';
+    };
+    caja.innerHTML = guiaUrp('<b>🕘 Historial de revisiones de este formato</b><br>' +
+      (l.length
+        ? 'Vas en la <b>revisión ' + n + '</b>. En la revisión ' + ult.revision + ' (' + esc(fmtFechaHora(ult.fecha)) + ') ' +
+          (pend.length ? 'quedaron <b>' + pend.length + (pend.length === 1 ? ' observación' : ' observaciones') + '</b>. Las marqué abajo con ' +
+            '<span class="hist-marca">🔁 Verificar</span>: revisa primero si el docente ya las corrigió y cambia su estado.' : 'no quedaron observaciones.')
+        : 'Todavía no hay revisiones cerradas de este formato.') +
+      '<ol class="urp-pasos"><li>Revisa y pulsa <b>Guardar</b> cuantas veces quieras: mientras no cierres, sigues en la misma revisión.</li>' +
+      '<li>Cuando termines el reporte (y lo comuniques al docente), pulsa <b>📌 Guardar y cerrar la revisión</b>, junto a Guardar. ' +
+      'Queda una foto con la fecha que <b>ya no se puede cambiar</b>.</li>' +
+      '<li>El formato sigue con los mismos datos para la siguiente revisión, y yo comparo: ✅ superada, ⚠️ persiste, 🆕 nueva.</li></ol>') +
+      (l.length ? '<div class="hist-lista">' + l.slice().reverse().map(tarjeta).join('') + '</div>' : '');
+    // Marcar lo que quedó observado en la revisión anterior.
+    $('fichaForm').querySelectorAll('.hist-verificar').forEach(x => x.remove());
+    $('fichaForm').querySelectorAll('.por-verificar').forEach(x => x.classList.remove('por-verificar'));
+    if (!pend.length) return;
+    const lista = M_ACTUAL().items || M_ACTUAL().criterios || [];
+    const porK = {}; pend.forEach(p => { porK[p.k] = p; });
+    $('fichaForm').querySelectorAll('#listaItems select[data-estado]').forEach(s => {
+      const i = Number(s.dataset.estado), p = porK[claveItem(lista[i] || {}, i)];
+      if (!p) return;
+      const fila = s.closest('.item'); if (!fila) return;
+      fila.classList.add('por-verificar');
+      const m = document.createElement('div'); m.className = 'hist-verificar';
+      m.innerHTML = '🔁 <b>Verificar:</b> en la revisión ' + ult.revision + ' estaba «' + esc(p.v) + '»' +
+        (p.racha > 1 ? ' (' + p.racha + ' revisiones seguidas)' : '') + (p.obs ? ': ' + esc(p.obs.slice(0, 200)) : '') + '.';
+      fila.appendChild(m);
+    });
+    pend.filter(p => p.k.indexOf('campo:') === 0).forEach(p => {
+      const el = $('f_' + p.k.slice(6)); if (!el) return;
+      const c = el.closest('div'); if (!c) return;
+      c.classList.add('por-verificar');
+      const m = document.createElement('div'); m.className = 'hist-verificar';
+      m.innerHTML = '🔁 <b>Verificar:</b> en la revisión ' + ult.revision + ' estaba «' + esc(p.v) + '».';
+      c.appendChild(m);
+    });
+  }
+
+  function pedirCierreRevision() {
+    const n = HIST.lista.length + 1;
+    if (!confirm('Se guardará el formato y se cerrará la REVISIÓN ' + n + '.\n\n' +
+      'Quedará en el historial con la fecha de hoy y ya no se podrá cambiar.\n' +
+      'El formato seguirá con estos mismos datos, listo para la revisión ' + (n + 1) + '.\n\n¿Continuar?')) return;
+    HIST.cerrarTras = Date.now();
+    $('btnGuardar').click();
+  }
+
+  function cerrarRevisionTrasGuardar(a, clave) {
+    if (!HIST.cerrarTras || Date.now() - HIST.cerrarTras > 120000) { HIST.cerrarTras = 0; return; }
+    HIST.cerrarTras = 0;
+    const foto = fotoFormulario();
+    const resumen = compararRevision(foto, HIST.lista[HIST.lista.length - 1]);
+    api('/historial', { method: 'POST', body: JSON.stringify({ accion: 'cerrar', modulo: clave,
+        idAsignacion: idRegistroDe(a, clave), resumen, detalle: foto }) })
+      .then(d => {
+        if (estado.actual !== a) return;
+        HIST.lista = d.historial || HIST.lista; pintarHistorial();
+        aviso('Guardado. Se cerró la revisión ' + d.revision + ' (' + resumenRevisionTexto(resumen) + '). El formato queda listo para la revisión ' + (d.revision + 1) + '.', 'ok');
+        if (window.URP && URP.festejo) try { URP.festejo('¡Revisión ' + d.revision + ' cerrada!', 'Quedó en el historial con la fecha de hoy.'); } catch (x) {}
+      })
+      .catch(e => aviso('Se guardó el formato, pero no se pudo cerrar la revisión: ' + e.message, 'error'));
+  }
+
+  // Indicador: % de observaciones superadas de una revisión a la siguiente.
+  function pintarSeguimientoObservaciones(ciclo) {
+    if (!$('indCuerpo')) return;
+    const sec = document.createElement('section');
+    sec.className = 'tarjeta'; sec.id = 'indSeguimiento';
+    sec.innerHTML = '<header class="tarjeta-cab"><div><h2>Seguimiento de observaciones</h2><p>Cargando…</p></div></header>';
+    $('indCuerpo').appendChild(sec);
+    api('/historial?todos=1&ciclo=' + encodeURIComponent(ciclo || '')).then(d => {
+      const l = d.historial || [];
+      const nomMod = k => (CFG.MODULOS[k] && CFG.MODULOS[k].nombre) || k;
+      const agg = {}, porArea = {};
+      const sumar = (o, h) => { o.rev++; const r = h.resumen || {}; if (h.revision >= 2) { o.ant += r.obsAnteriores || 0; o.sup += r.superadas || 0; o.per += r.persisten || 0; o.nue += r.nuevas || 0; } o.cargas[h.idAsignacion] = 1; };
+      const nuevo = () => ({ rev: 0, ant: 0, sup: 0, per: 0, nue: 0, cargas: {} });
+      l.forEach(h => { sumar(agg[h.modulo] = agg[h.modulo] || nuevo(), h); sumar(porArea[h.area || h.programa] = porArea[h.area || h.programa] || nuevo(), h); });
+      const tot = nuevo(); l.forEach(h => sumar(tot, h));
+      const pct = o => o.ant ? Math.round(o.sup / o.ant * 100) + '%' : '—';
+      const fila = (nom, o) => '<tr><td>' + esc(nom) + '</td><td>' + Object.keys(o.cargas).length + '</td><td>' + o.rev + '</td><td>' + o.ant +
+        '</td><td>' + o.sup + '</td><td>' + o.per + '</td><td>' + o.nue + '</td><td><b>' + pct(o) + '</b></td></tr>';
+      const cab = '<tr><th></th><th>Cargas con historial</th><th>Revisiones cerradas</th><th>Observaciones a verificar</th><th>✅ Superadas</th><th>⚠️ Persisten</th><th>🆕 Nuevas</th><th>% superadas</th></tr>';
+      sec.innerHTML = '<header class="tarjeta-cab"><div><h2>Seguimiento de observaciones</h2>' +
+        '<p>¿Se corrigió lo observado de una revisión a la siguiente? Ciclo ' + esc(ciclo || 'todos') + '.</p></div></header>' +
+        '<div class="tarjeta-cuerpo">' +
+        '<div class="nota-ind">ℹ️ <b>Qué mide:</b> de las observaciones que quedaron en una revisión cerrada, cuántas ya cumplían en la revisión siguiente del mismo formato, curso y grupo. ' +
+        '<b>Cómo se calcula:</b> % superadas = observaciones superadas ÷ observaciones a verificar × 100. «Observaciones a verificar» son las que quedaron observadas en la revisión anterior; ' +
+        '«persisten» las que siguen igual y «nuevas» las que aparecieron. Solo cuentan las revisiones que el coordinador cerró con «📌 Guardar y cerrar la revisión».</div>' +
+        (l.length
+          ? '<div class="tabla-scroll"><table class="tabla-seg"><thead>' + cab.replace('<th></th>', '<th>Formato</th>') + '</thead><tbody>' +
+            Object.keys(agg).map(k => fila(nomMod(k), agg[k])).join('') + '</tbody><tfoot>' + fila('Total', tot) + '</tfoot></table></div>' +
+            '<details class="pl-area"><summary><b>Por área</b></summary><div class="tabla-scroll"><table class="tabla-seg"><thead>' + cab.replace('<th></th>', '<th>Área</th>') +
+            '</thead><tbody>' + Object.keys(porArea).sort().map(k => fila(k, porArea[k])).join('') + '</tbody></table></div></details>'
+          : '<div class="vacio">Todavía no hay revisiones cerradas en este ciclo.</div>') + '</div>';
+    }).catch(e => { sec.querySelector('p').textContent = 'No se pudo calcular: ' + e.message; });
+  }
+
   function pintarFormulario(M, F) {
     const partes = F.bloques.map((b, bi) => {
       if (b.tipo === 'grid') {
@@ -10642,6 +10854,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
     if (F === FORMULARIOS.silabo) mostrarSilaboUnicoEnOtrosGrupos(estado.actual);
     if (estado.modulo === 'aulaVirtual') pintarRubricasPorEntregable();
     prepararPestanasEntrevista();
+    prepararHistorial();
 
     // Lo que el docente declaró en el formulario de la Escuela: el portal lo
     // trae y lo propone, en vez de pedir que se copie a mano.
@@ -14999,6 +15212,7 @@ body>header{padding-top:0;padding-bottom:0;min-height:58px}
       .then(r => {
         if (r.recordId && !estado.registro) estado.registro = { recordId: r.recordId, valores: {} };
         if (clave === 'entrevistas') sincronizarSugerencias(a);
+        cerrarRevisionTrasGuardar(a, clave);
         // El avance se actualiza aquí: volver a consultarlo al servidor por un
         // registro obligaría a releer las siete tablas de módulos.
         const hechos = estado.avance[a.idAsignacion] || [];
@@ -15729,6 +15943,23 @@ document.addEventListener('DOMContentLoaded',()=>{
 .seg-om{display:flex;align-items:flex-end}
 .seg-hist pre{white-space:pre-wrap;font-size:14px;background:#f7f8fa;padding:8px;border-radius:8px}
 .seg-ant>summary span{background:#fdf0dc;color:#8a5a12;border-radius:6px;padding:1px 8px;font-weight:700}
+.hist-rev{margin:0 0 16px}
+.hist-lista{margin:8px 0 0 0}
+.hist-item{border:1px solid #d5e2ee;border-left:6px solid #6b7fa3;border-radius:10px;padding:0 14px;margin:0 0 10px;background:#fff}
+.hist-item>summary{cursor:pointer;padding:12px 0;font-size:16px}
+.hist-res{display:block;font-size:14px;color:var(--tinta-media);margin-top:3px}
+.hist-puntos{margin:0 0 10px;padding-left:4px;list-style:none;font-size:15px}
+.hist-puntos li{padding:5px 0;border-top:1px dashed #e7ebf0}
+.hp-obs{font-size:14px;color:var(--tinta-media);margin:2px 0 0 22px}
+.hist-campos{margin:0 0 12px;font-size:14px}
+.hist-marca,.hist-verificar{background:#fff1d6;color:#7a4b00;border-radius:6px;padding:1px 8px;font-weight:600}
+.hist-verificar{display:block;margin:6px 0 0;padding:6px 10px;font-weight:400;font-size:15px;grid-column:1 / -1}
+.item.por-verificar,.por-verificar{box-shadow:inset 4px 0 0 #e0a100;background:#fffbf0}
+.nota-ind{background:#f2f6fb;border:1px solid #d5e2ee;border-radius:10px;padding:10px 14px;margin:0 0 12px;font-size:15px;line-height:1.5}
+.tabla-seg{width:100%;border-collapse:collapse;font-size:15px}
+.tabla-seg th,.tabla-seg td{border-bottom:1px solid #e7ebf0;padding:8px;text-align:center}
+.tabla-seg th:first-child,.tabla-seg td:first-child{text-align:left}
+.tabla-seg tfoot td{font-weight:700;background:#f7f8fa}
 .tabs-entrev{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 16px;border-bottom:2px solid #dfe5ec}
 .tabs-entrev button{font:inherit;font-size:17px;font-weight:600;padding:12px 18px;border:2px solid #dfe5ec;border-bottom:none;
   border-radius:10px 10px 0 0;background:#f4f6f9;color:var(--tinta-media);cursor:pointer;margin-bottom:-2px}
